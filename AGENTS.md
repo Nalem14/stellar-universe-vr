@@ -35,7 +35,7 @@ Vision / audit : [`docs/VISION-VR.md`](docs/VISION-VR.md), [`docs/AUDIT-FAISABIL
 
 Langue joueur : **français** (i18n EN/FR via `Trans` + `GetTranslations`).  
 **Interdit** : littéraux joueur FR/EN dans UI / gameplay. Toujours `Trans.Get("key")`.  
-Clé native du dump `GetTranslations` d’abord. **Si absente** : afficher la **clé** telle quelle + append dans `Application.persistentDataPath/su-missing-trans-keys.txt` (puis on les rajoute côté serveur). Pas de fallback inventé dans le client.  
+Clé native du dump `GetTranslations` d’abord. **Si absente** : afficher la **clé** telle quelle + (Editor only) append dans `Application.persistentDataPath/su-missing-trans-keys.txt` pour les rajouter côté serveur. Pas de fallback inventé dans le client. Build joueur : warning console seulement, **pas** de fichier.  
 Code / IDs : **anglais**, namespaces `Core.*`.
 
 ---
@@ -87,7 +87,7 @@ Le CIC et le menu doivent **déjà** avoir l’air du jeu final.
 
 - Nouveau gameplay : `Assets/_Core/Scripts/`, `Core` / `Core.App` / `Core.Entity` / `Core.UI` / `Core.Utils` / `Core.Vfx`.
 - Ordre spatial : **1:1 = la pièce**. Système courant = **hublots**. Galaxie = **hologramme sur la table**. Interdit : `Instantiate` 1:1 de toute la galaxie, `Random` pour l’univers.
-- UI joueur = objets de pièce (poke / ray). TextMeshPro + `Trans.Get("key")` uniquement. Missing = clé affichée + log fichier.
+- UI joueur = objets de pièce (poke / ray). TextMeshPro + `Trans.Get("key")` uniquement. Missing = clé affichée ; log fichier **Editor only**.
 - Prefabs runtime : `Resources/CIC/` pour l’art généré du CIC.
 - Commits **descriptifs** (pas `wip` / `jsp`).
 

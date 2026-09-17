@@ -112,6 +112,7 @@ namespace Core.Utils
                 return;
 
             Debug.LogWarning("[SU] missing Trans key: " + key);
+#if UNITY_EDITOR
             try
             {
                 var line = $"{DateTime.UtcNow:o}\t{key}{Environment.NewLine}";
@@ -121,6 +122,7 @@ namespace Core.Utils
             {
                 Debug.LogWarning("[SU] could not write missing Trans log: " + e.Message);
             }
+#endif
         }
 
         static Dictionary<string, string> ToMap(JObject obj)
