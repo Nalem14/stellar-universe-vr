@@ -9,6 +9,10 @@ using UnityEngine.XR.Interaction.Toolkit.UI;
 
 namespace Core.UI
 {
+    /// <summary>
+    /// Keys from GetTranslations:
+    /// https://www.stellar-universe.com/actionjs.php?action=GetTranslations
+    /// </summary>
     public class MainMenuConsole : MonoBehaviour
     {
         TMP_InputField _email;
@@ -27,7 +31,7 @@ namespace Core.UI
 
             // Brand title is not a locale string.
             Label(root, "STELLAR UNIVERSE", 44f, FontStyles.Bold, new Vector2(0f, 250f));
-            Label(root, Trans.Get("vr.accessConsole"), 22f, FontStyles.Italic, new Vector2(0f, 200f),
+            Label(root, Trans.Get("connectToUniverse"), 22f, FontStyles.Italic, new Vector2(0f, 200f),
                 new Color(0.6f, 0.85f, 0.95f));
 
             _email = Field(root, "email", Trans.Get("email"), new Vector2(0f, 110f),
@@ -37,7 +41,7 @@ namespace Core.UI
             _username = Field(root, "username", Trans.Get("username"), new Vector2(0f, -50f),
                 TouchScreenKeyboardType.Default);
 
-            _continue = Button(root, Trans.Get("vr.continue"), new Vector2(-220f, -160f), Resume);
+            _continue = Button(root, Trans.Get("gettingStarted"), new Vector2(-220f, -160f), Resume);
             Button(root, Trans.Get("login"), new Vector2(0f, -160f), SignIn);
             Button(root, Trans.Get("createAccount"), new Vector2(220f, -160f), SignUp);
 
@@ -55,18 +59,18 @@ namespace Core.UI
 
         async void Resume()
         {
-            await Run(Trans.Get("vr.resumingSession"), () => AuthManager.Ensure().LoginToken());
+            await Run(Trans.Get("Loading"), () => AuthManager.Ensure().LoginToken());
         }
 
         async void SignIn()
         {
-            await Run(Trans.Get("vr.signingIn"),
+            await Run(Trans.Get("Loading"),
                 () => AuthManager.Ensure().Login(_email.text.Trim(), _password.text));
         }
 
         async void SignUp()
         {
-            await Run(Trans.Get("vr.creatingAccount"),
+            await Run(Trans.Get("Loading"),
                 () => AuthManager.Ensure().Register(_email.text.Trim(), _password.text,
                     _username.text.Trim()));
         }
@@ -82,20 +86,19 @@ namespace Core.UI
                 return;
             }
 
-            SetStatus(Trans.Get("vr.accessGranted"), new Color(0.45f, 1f, 0.7f));
+            SetStatus(Trans.Get("welcome"), new Color(0.45f, 1f, 0.7f));
             SceneFlow.Go(SceneFlow.Bridge);
         }
 
         static string FriendlyError(string error)
         {
-            // Server error bodies are already localized when they come from actionjs.
+            // Prefer server-localized body; otherwise a known GetTranslations key.
             if (!string.IsNullOrEmpty(error) &&
                 (error.IndexOf("token", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
                  error.IndexOf("ip", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
-                 error == "no_token"))
-                return Trans.Get("vr.sessionExpiredIp");
-            if (string.IsNullOrEmpty(error) || error == "network" || error == "bad_json")
-                return Trans.Get("vr.loginFailed");
+                 error == "no_token" || error == "network" || error == "bad_json" ||
+                 string.IsNullOrEmpty(error)))
+                return Trans.Get("error_not_logged_in");
             return error;
         }
 
@@ -116,8 +119,7 @@ namespace Core.UI
             go.transform.localScale = Vector3.one * 0.00115f;
             var canvas = go.GetComponent<Canvas>();
             canvas.renderMode = RenderMode.WorldSpace;
-            var rt = go.GetComponent<RectTransform>();
-            rt.sizeDelta = new Vector2(1000f, 700f);
+            go.GetComponent<RectTransform>().sizeDelta = new Vector2(1000f, 700f);
             go.GetComponent<CanvasScaler>().dynamicPixelsPerUnit = 2f;
             return canvas;
         }

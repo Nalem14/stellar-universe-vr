@@ -22,26 +22,26 @@ namespace Core.App
             var auth = AuthManager.Ensure();
             if (!auth.IsLoggedIn)
             {
-                Say(Trans.Get("vr.noSession"));
+                Say(Trans.Get("error_not_logged_in"));
                 SceneFlow.Go(SceneFlow.Menu);
                 return;
             }
 
-            Say(Trans.Get("vr.networkLink"));
+            Say(Trans.Get("Loading"));
             if (!await Step("GetConfigs"))
                 return;
 
             var me = await auth.FetchMe();
             if (!me.Ok)
             {
-                Say(Trans.Format("vr.actionFailed", "GetMeEmpire", LocalizedApiError(me.Error)));
+                Say(ActionStatus("GetMeEmpire", me.Error));
                 return;
             }
 
             var systems = await ActionJs.Get("GetSystems");
             if (!systems.Ok)
             {
-                Say(Trans.Format("vr.actionFailed", "GetSystems", LocalizedApiError(systems.Error)));
+                Say(ActionStatus("GetSystems", systems.Error));
                 return;
             }
 
@@ -54,19 +54,18 @@ namespace Core.App
                     { "id", focus.ToString() }
                 });
                 if (!change.Ok)
-                    Say(Trans.Format("vr.actionFailed", "changesystem",
-                        LocalizedApiError(change.Error)));
+                    Say(ActionStatus("changesystem", change.Error));
             }
 
             var fleets = await ActionJs.Get("GetAllFleetsAround");
             if (!fleets.Ok)
             {
-                Say(Trans.Format("vr.actionFailed", "GetAllFleetsAround",
-                    LocalizedApiError(fleets.Error)));
+                Say(ActionStatus("GetAllFleetsAround", fleets.Error));
                 return;
             }
 
-            Say(Trans.Format("vr.cicOnline", focus));
+            // Native keys + technical system id (id is not a locale string).
+            Say($"{Trans.Get("CommandBridge")} · {focus}");
         }
 
         async Task<bool> Step(string action)
@@ -74,23 +73,32 @@ namespace Core.App
             var result = await ActionJs.Get(action);
             if (result.Ok)
                 return true;
-            Say(Trans.Format("vr.actionFailed", action, LocalizedApiError(result.Error)));
+            Say(ActionStatus(action, result.Error));
             return false;
+        }
+
+        static string ActionStatus(string action, string error)
+        {
+            return $"{action} · {LocalizedApiError(error)}";
         }
 
         static string LocalizedApiError(string error)
         {
-            // Prefer Trans key when the server returned a known translation key.
-            if (!string.IsNullOrEmpty(error) &&
-                (error.StartsWith("error_") || error.StartsWith("{")))
+            if (string.IsNullOrEmpty(error))
+                return Trans.Get("error_not_logged_in");
+
+            // Server may return a translation key (optionally wrapped in {}).
+            var key = error.Trim().Trim('{', '}');
+            if (key.StartsWith("error_", System.StringComparison.Ordinal) ||
+                key == "error_not_logged_in")
             {
-                var key = error.Trim('{', '}');
                 var translated = Trans.Get(key);
                 if (translated != key)
                     return translated;
             }
 
-            return string.IsNullOrEmpty(error) ? Trans.Get("vr.loginFailed") : error;
+            // Body after error: is already localized by actionjs.
+            return error;
         }
 
         static int ResolveOwnedSystem(JObject empire, string systemsBody, int userSystemId)

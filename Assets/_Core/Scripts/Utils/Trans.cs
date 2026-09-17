@@ -9,8 +9,9 @@ using UnityEngine;
 namespace Core.Utils
 {
     /// <summary>
-    /// Player-facing strings from GetTranslations (action-api.json).
-    /// Missing key → show the key itself, and append it to a missing-keys log for later server add.
+    /// Player-facing strings from GetTranslations:
+    /// https://www.stellar-universe.com/actionjs.php?action=GetTranslations
+    /// Missing key → show the key itself; Editor appends to su-missing-trans-keys.txt.
     /// Never invent FR/EN fallback copy in the client.
     /// </summary>
     public static class Trans

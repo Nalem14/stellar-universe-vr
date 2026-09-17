@@ -19,7 +19,7 @@ namespace Core.App
             env.Layout = CicLayout.Bridge;
             env.Build();
             var readout = CreateReadout(env.Table != null ? env.Table.transform : transform);
-            readout.text = Trans.Get("vr.holoLinking");
+            readout.text = Trans.Get("Loading");
             var boot = gameObject.AddComponent<SessionBoot>();
             boot.BindReadout(readout);
             boot.Run();
