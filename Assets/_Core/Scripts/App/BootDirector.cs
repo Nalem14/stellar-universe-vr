@@ -19,8 +19,8 @@ namespace Core.App
             var env = gameObject.AddComponent<CicEnvironment>();
             env.Layout = CicLayout.BootVoid;
             env.Build();
-            PlayAmbience();
             Invoke(nameof(GoMenu), HoldSeconds);
+            PlayAmbience();
         }
 
         void GoMenu()
@@ -33,7 +33,10 @@ namespace Core.App
             var bed = Resources.Load<AudioClip>("CIC/ambient");
             if (bed == null)
                 return;
-            var source = gameObject.GetComponent<AudioSource>() ?? gameObject.AddComponent<AudioSource>();
+
+            if (!TryGetComponent<AudioSource>(out var source))
+                source = gameObject.AddComponent<AudioSource>();
+
             source.loop = true;
             source.playOnAwake = false;
             source.spatialBlend = 0f;

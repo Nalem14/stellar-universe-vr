@@ -119,7 +119,7 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!1 &576001523
+--- !u!1 &87573732
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -127,8 +127,8 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 576001525}
-  - component: {fileID: 576001524}
+  - component: {fileID: 87573734}
+  - component: {fileID: 87573733}
   m_Layer: 0
   m_Name: BridgeDirector
   m_TagString: Untagged
@@ -136,25 +136,25 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &576001524
+--- !u!114 &87573733
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 576001523}
+  m_GameObject: {fileID: 87573732}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 27ecb9da38f814d5b8ade41a4489d509, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Core.App.BridgeDirector
---- !u!4 &576001525
+--- !u!4 &87573734
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 576001523}
+  m_GameObject: {fileID: 87573732}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -163,7 +163,7 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1001 &669840884
+--- !u!1001 &462183632
 PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
@@ -220,7 +220,7 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 77e7c27b2c5525e4aa8cc9f99d654486, type: 3}
---- !u!1 &1506244947
+--- !u!1 &880704984
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -228,8 +228,8 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 1506244949}
-  - component: {fileID: 1506244948}
+  - component: {fileID: 880704986}
+  - component: {fileID: 880704985}
   m_Layer: 0
   m_Name: Directional Light
   m_TagString: Untagged
@@ -237,13 +237,13 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!108 &1506244948
+--- !u!108 &880704985
 Light:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1506244947}
+  m_GameObject: {fileID: 880704984}
   m_Enabled: 1
   serializedVersion: 12
   m_Type: 1
@@ -302,13 +302,13 @@ Light:
   m_LightUnit: 1
   m_LuxAtDistance: 1
   m_EnableSpotReflector: 1
---- !u!4 &1506244949
+--- !u!4 &880704986
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1506244947}
+  m_GameObject: {fileID: 880704984}
   serializedVersion: 2
   m_LocalRotation: {x: 0.3461569, y: -0.2416284, z: 0.09275246, w: 0.90176946}
   m_LocalPosition: {x: 0, y: 0, z: 0}
@@ -321,6 +321,6 @@ Transform:
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
-  - {fileID: 1506244949}
-  - {fileID: 669840884}
-  - {fileID: 576001525}
+  - {fileID: 880704986}
+  - {fileID: 462183632}
+  - {fileID: 87573734}
