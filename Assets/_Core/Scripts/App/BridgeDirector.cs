@@ -7,6 +7,8 @@ namespace Core.App
 {
     public class BridgeDirector : MonoBehaviour
     {
+        FocusContext _focus;
+
         async void Awake()
         {
             AuthManager.Ensure();
@@ -15,13 +17,19 @@ namespace Core.App
 
         void Start()
         {
+            _focus = new FocusContext();
             var env = gameObject.AddComponent<CicEnvironment>();
             env.Layout = CicLayout.Bridge;
             env.Build();
+
+            var view = gameObject.AddComponent<ViewportSystemView>();
+            view.Bind(_focus, env.HublotMounts);
+
             var readout = CreateReadout(env.Table != null ? env.Table.transform : transform);
             readout.text = Trans.Get("Loading");
             var boot = gameObject.AddComponent<SessionBoot>();
             boot.BindReadout(readout);
+            boot.BindFocus(_focus);
             boot.Run();
         }
 

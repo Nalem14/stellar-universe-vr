@@ -13,9 +13,16 @@ namespace Core.UI
     /// <summary>
     /// Diegetic CIC login console. Keys from GetTranslations:
     /// https://www.stellar-universe.com/actionjs.php?action=GetTranslations
+    /// Login = email + password. Register = email + password + username.
     /// </summary>
     public class MainMenuConsole : MonoBehaviour
     {
+        enum FormMode
+        {
+            SignIn,
+            SignUp
+        }
+
         static readonly Color Cyan = new(0.45f, 0.95f, 1f, 1f);
         static readonly Color CyanDim = new(0.25f, 0.7f, 0.85f, 1f);
         static readonly Color Amber = new(1f, 0.72f, 0.35f, 1f);
@@ -28,9 +35,14 @@ namespace Core.UI
         TMP_InputField _password;
         TMP_InputField _username;
         TMP_Text _status;
+        TMP_Text _modeHint;
         Button _continue;
+        Button _loginTab;
+        Button _signUpTab;
+        Button _submit;
         Canvas _canvas;
         CicEnvironment _env;
+        FormMode _mode = FormMode.SignIn;
 
         public void Bind(CicEnvironment env)
         {
@@ -44,10 +56,10 @@ namespace Core.UI
             _canvas = CreateCanvas();
             var root = Panel(_canvas.transform, new Vector2(1100f, 620f));
 
-            // Brand is product identity, not a locale string.
             Label(root, "STELLAR UNIVERSE", 40f, FontStyles.Bold, new Vector2(0f, 240f), Cyan);
             Hairline(root, new Vector2(0f, 205f), 720f, Cyan * 0.55f);
-            Label(root, Trans.Get("connectToUniverse"), 20f, FontStyles.Italic, new Vector2(0f, 175f), CyanDim);
+            _modeHint = Label(root, Trans.Get("connectToUniverse"), 20f, FontStyles.Italic, new Vector2(0f, 175f),
+                CyanDim);
 
             _email = Field(root, "email", Trans.Get("email"), new Vector2(0f, 95f),
                 TouchScreenKeyboardType.EmailAddress);
@@ -56,12 +68,58 @@ namespace Core.UI
             _username = Field(root, "username", Trans.Get("username"), new Vector2(0f, -65f),
                 TouchScreenKeyboardType.Default);
 
-            _continue = Button(root, Trans.Get("gettingStarted"), new Vector2(-250f, -170f), Resume, true);
-            Button(root, Trans.Get("login"), new Vector2(0f, -170f), SignIn, true);
-            Button(root, Trans.Get("createAccount"), new Vector2(250f, -170f), SignUp, false);
+            _loginTab = Button(root, Trans.Get("login"), new Vector2(-250f, -155f), () => SetMode(FormMode.SignIn),
+                true);
+            _signUpTab = Button(root, Trans.Get("createAccount"), new Vector2(0f, -155f),
+                () => SetMode(FormMode.SignUp), false);
+            _submit = Button(root, Trans.Get("login"), new Vector2(250f, -155f), Submit, true);
 
-            _status = Label(root, string.Empty, 18f, FontStyles.Normal, new Vector2(0f, -250f), Amber);
+            _continue = Button(root, Trans.Get("gettingStarted"), new Vector2(0f, -230f), Resume, true);
+            _status = Label(root, string.Empty, 18f, FontStyles.Normal, new Vector2(0f, -280f), Amber);
+
+            SetMode(FormMode.SignIn);
             RefreshContinue();
+        }
+
+        void SetMode(FormMode mode)
+        {
+            _mode = mode;
+            var signUp = mode == FormMode.SignUp;
+            if (_username != null)
+                _username.gameObject.SetActive(signUp);
+
+            // Keep login fields compact when username is hidden.
+            if (_password != null)
+                _password.GetComponent<RectTransform>().anchoredPosition =
+                    signUp ? new Vector2(0f, 15f) : new Vector2(0f, -10f);
+            if (_email != null)
+                _email.GetComponent<RectTransform>().anchoredPosition =
+                    signUp ? new Vector2(0f, 95f) : new Vector2(0f, 70f);
+
+            if (_modeHint != null)
+                _modeHint.text = signUp ? Trans.Get("createAccount") : Trans.Get("login");
+
+            StyleTab(_loginTab, !signUp);
+            StyleTab(_signUpTab, signUp);
+
+            if (_submit != null)
+            {
+                var label = _submit.GetComponentInChildren<TextMeshProUGUI>();
+                if (label != null)
+                    label.text = signUp ? Trans.Get("createAccount") : Trans.Get("login");
+            }
+
+            SetStatus(string.Empty, Amber);
+        }
+
+        void StyleTab(Button button, bool active)
+        {
+            if (button == null)
+                return;
+            button.GetComponent<Image>().color = active ? BtnPrimary : BtnSecondary;
+            var outline = button.GetComponent<Outline>();
+            if (outline != null)
+                outline.effectColor = active ? Cyan * 0.85f : CyanDim * 0.5f;
         }
 
         void RefreshContinue()
@@ -69,6 +127,14 @@ namespace Core.UI
             var has = AuthManager.Ensure().HasSavedToken;
             if (_continue != null)
                 _continue.gameObject.SetActive(has);
+        }
+
+        void Submit()
+        {
+            if (_mode == FormMode.SignUp)
+                SignUp();
+            else
+                SignIn();
         }
 
         async void Resume()
@@ -130,7 +196,6 @@ namespace Core.UI
 
             var parent = _env != null && _env.ConsoleMount != null ? _env.ConsoleMount : transform;
             go.transform.SetParent(parent, false);
-            // Local identity: mount faces the player. Negative Z = toward player (in front of plate).
             go.transform.localPosition = new Vector3(0f, 0f, -0.02f);
             go.transform.localRotation = Quaternion.identity;
             go.transform.localScale = Vector3.one * 0.00105f;
@@ -149,8 +214,6 @@ namespace Core.UI
             var rt = go.GetComponent<RectTransform>();
             rt.sizeDelta = size;
             go.GetComponent<Image>().color = PanelGlass;
-
-            // Cyan frame
             Frame(rt, size, 4f, Cyan * 0.7f);
             Frame(rt, size - new Vector2(16f, 16f), 1.5f, CyanDim * 0.45f);
             return rt;
@@ -214,7 +277,6 @@ namespace Core.UI
             rt.anchoredPosition = pos;
             go.GetComponent<Image>().color = FieldBg;
 
-            // Left accent bar
             var accent = new GameObject("Accent", typeof(RectTransform), typeof(Image));
             accent.transform.SetParent(go.transform, false);
             var art = accent.GetComponent<RectTransform>();

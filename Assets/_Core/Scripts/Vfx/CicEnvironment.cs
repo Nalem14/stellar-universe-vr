@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
@@ -31,9 +32,13 @@ namespace Core.Vfx
 
         public GameObject Table { get; private set; }
         public Transform ConsoleMount { get; private set; }
+        public IReadOnlyList<Transform> HublotMounts => _hublotMounts;
+
+        readonly List<Transform> _hublotMounts = new();
 
         public void Build()
         {
+            _hublotMounts.Clear();
             LoadArt();
             ApplyAtmosphere();
             StripTemplateJunk();
@@ -170,7 +175,8 @@ namespace Core.Vfx
             {
                 var t = (i + 1f) / (hublots + 1f);
                 var x = Mathf.Lerp(-half + 1.4f, half - 1.4f, t);
-                Viewport(new Vector3(x, 1.65f, half - 0.04f), new Vector3(1.8f, 1.1f, 1f));
+                Viewport(new Vector3(x, 1.65f, half - 0.04f), new Vector3(1.8f, 1.1f, 1f),
+                    registerMount: Layout == CicLayout.Bridge);
             }
 
             StripLight(new Vector3(0f, wallH - 0.05f, 0f), size * 0.7f);
@@ -243,7 +249,7 @@ namespace Core.Vfx
             pedestal.name = "Pedestal";
         }
 
-        void Viewport(Vector3 pos, Vector3 scale)
+        void Viewport(Vector3 pos, Vector3 scale, bool registerMount = false)
         {
             var frame = Quad("HublotFrame", pos + new Vector3(0f, 0f, 0.03f), scale + new Vector3(0.22f, 0.22f, 0f),
                 _wall, DarkMetal, 0.04f);
@@ -251,8 +257,25 @@ namespace Core.Vfx
             var inner = Quad("HublotInner", pos + new Vector3(0f, 0f, 0.02f), scale + new Vector3(0.08f, 0.08f, 0f),
                 null, Cyan * 0.35f, 1.4f);
             inner.transform.rotation = Quaternion.Euler(0f, 180f, 0f);
-            var glass = Quad("Hublot", pos, scale, _stars, Color.white, 1.8f);
+
+            var glass = Quad("Hublot", pos, scale, _stars, Color.white, registerMount ? 0.35f : 1.8f);
             glass.transform.rotation = Quaternion.Euler(0f, 180f, 0f);
+
+            if (!registerMount)
+                return;
+
+            // Diorama lives in the window plane (toward the player) so it is not buried in the wall.
+            var mount = new GameObject("HublotMount");
+            mount.transform.SetParent(glass.transform, false);
+            mount.transform.localPosition = new Vector3(0f, 0f, 0.06f);
+            mount.transform.localRotation = Quaternion.identity;
+            mount.transform.localScale = Vector3.one;
+            _hublotMounts.Add(mount.transform);
+
+            // Soften the wallpaper so the system scene reads clearly.
+            var glassRenderer = glass.GetComponent<MeshRenderer>();
+            if (glassRenderer != null)
+                glassRenderer.enabled = false;
         }
 
         void StripLight(Vector3 pos, float width)

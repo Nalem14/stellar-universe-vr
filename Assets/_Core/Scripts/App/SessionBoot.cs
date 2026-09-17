@@ -10,10 +10,16 @@ namespace Core.App
     public class SessionBoot : MonoBehaviour
     {
         TMP_Text _readout;
+        FocusContext _focus;
 
         public void BindReadout(TMP_Text readout)
         {
             _readout = readout;
+        }
+
+        public void BindFocus(FocusContext focus)
+        {
+            _focus = focus;
         }
 
         public async void Run()
@@ -45,13 +51,13 @@ namespace Core.App
                 return;
             }
 
-            var focus = ResolveOwnedSystem(auth.Empire, systems.Body,
+            var focusId = ResolveOwnedSystem(auth.Empire, systems.Body,
                 auth.User != null ? auth.User.systemid : 0);
-            if (focus > 0)
+            if (focusId > 0)
             {
                 var change = await ActionJs.Get("changesystem", new Dictionary<string, string>
                 {
-                    { "id", focus.ToString() }
+                    { "id", focusId.ToString() }
                 });
                 if (!change.Ok)
                     Say(ActionStatus("changesystem", change.Error));
@@ -64,8 +70,14 @@ namespace Core.App
                 return;
             }
 
-            // Native keys + technical system id (id is not a locale string).
-            Say($"{Trans.Get("CommandBridge")} · {focus}");
+            var focus = _focus ?? new FocusContext();
+            focus.SetFromApi(focusId, systems.Body, fleets.Body);
+            _focus = focus;
+
+            var label = !string.IsNullOrEmpty(focus.SystemName)
+                ? focus.SystemName
+                : focusId.ToString();
+            Say($"{Trans.Get("CommandBridge")} · {label} · {focus.Fleets.Count}");
         }
 
         async Task<bool> Step(string action)
@@ -87,7 +99,6 @@ namespace Core.App
             if (string.IsNullOrEmpty(error))
                 return Trans.Get("error_not_logged_in");
 
-            // Server may return a translation key (optionally wrapped in {}).
             var key = error.Trim().Trim('{', '}');
             if (key.StartsWith("error_", System.StringComparison.Ordinal) ||
                 key == "error_not_logged_in")
@@ -97,7 +108,6 @@ namespace Core.App
                     return translated;
             }
 
-            // Body after error: is already localized by actionjs.
             return error;
         }
 
@@ -121,7 +131,10 @@ namespace Core.App
 
             try
             {
-                var systems = JArray.Parse(systemsBody);
+                var root = JToken.Parse(systemsBody);
+                var systems = root as JArray ?? root["systems"] as JArray;
+                if (systems == null)
+                    return 0;
                 foreach (var system in systems)
                 {
                     var planets = system["planets"] as JArray;
