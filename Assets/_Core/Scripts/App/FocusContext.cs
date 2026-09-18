@@ -10,6 +10,17 @@ namespace Core.App
         public string Name = string.Empty;
         public int Slot;
         public int UserId;
+        /// <summary>Server habitability when present (_habitability / habitability). 0 = unknown.</summary>
+        public int Habitability;
+    }
+
+    public sealed class FocusShipModule
+    {
+        public int Id;
+        public string Type = string.Empty;
+        public int GridX = -1;
+        public int GridY = -1;
+        public bool OnGrid => GridX >= 0 && GridX < 9 && GridY >= 0 && GridY < 9;
     }
 
     public sealed class FocusFleet
@@ -25,6 +36,7 @@ namespace Core.App
         /// <summary>Unix seconds arrival; 0 = idle.</summary>
         public long DestTime;
         public string Pos = string.Empty;
+        public readonly List<FocusShipModule> Modules = new();
     }
 
     public sealed class FocusAsteroid
@@ -56,6 +68,7 @@ namespace Core.App
         readonly List<FocusPlanet> _planets = new();
         readonly List<FocusAsteroid> _asteroids = new();
         readonly List<FocusFleet> _fleets = new();
+        static readonly Dictionary<int, List<FocusShipModule>> LayoutByFleet = new();
 
         public void Clear()
         {
@@ -201,13 +214,7 @@ namespace Core.App
                 {
                     foreach (var planet in planets)
                     {
-                        _planets.Add(new FocusPlanet
-                        {
-                            Id = AsInt(planet["id"]),
-                            Name = AsString(planet["name"]),
-                            Slot = AsInt(planet["slot"]),
-                            UserId = AsInt(planet["userid"])
-                        });
+                        _planets.Add(ParsePlanet(planet, 0));
                     }
                 }
                 else if (system["planets"] is JObject planetMap)
@@ -215,13 +222,8 @@ namespace Core.App
                     foreach (var prop in planetMap.Properties())
                     {
                         var planet = prop.Value;
-                        _planets.Add(new FocusPlanet
-                        {
-                            Id = AsInt(planet["id"]) != 0 ? AsInt(planet["id"]) : AsInt(prop.Name),
-                            Name = AsString(planet["name"]),
-                            Slot = AsInt(planet["slot"]),
-                            UserId = AsInt(planet["userid"])
-                        });
+                        var fallbackId = AsInt(prop.Name);
+                        _planets.Add(ParsePlanet(planet, fallbackId));
                     }
                 }
 
@@ -285,7 +287,7 @@ namespace Core.App
                 foreach (var fleet in fleets)
                 {
                     var fleetSystem = AsInt(fleet["systemid"]);
-                    _fleets.Add(new FocusFleet
+                    var row = new FocusFleet
                     {
                         Id = AsInt(fleet["id"]),
                         Name = AsString(fleet["name"]),
@@ -297,7 +299,19 @@ namespace Core.App
                         DestSystemId = AsInt(fleet["dest"]),
                         DestTime = AsLong(fleet["desttime"]),
                         Pos = AsString(fleet["pos"])
-                    });
+                    };
+                    ParseShipModules(fleet, row.Modules);
+                    if (!HasGrid(row.Modules) && LayoutByFleet.TryGetValue(row.Id, out var cached))
+                    {
+                        row.Modules.Clear();
+                        CloneModules(cached, row.Modules);
+                    }
+                    else if (HasGrid(row.Modules))
+                    {
+                        CacheLayout(row.Id, row.Modules);
+                    }
+
+                    _fleets.Add(row);
                 }
             }
             catch
@@ -371,6 +385,139 @@ namespace Core.App
             if (token.Type == JTokenType.String)
                 return token.Value<string>() ?? string.Empty;
             return token.ToString();
+        }
+
+        static FocusPlanet ParsePlanet(JToken planet, int fallbackId)
+        {
+            var id = AsInt(planet["id"]);
+            if (id == 0)
+                id = fallbackId;
+            var habit = AsInt(planet["_habitability"]);
+            if (habit == 0)
+                habit = AsInt(planet["habitability"]);
+            return new FocusPlanet
+            {
+                Id = id,
+                Name = AsString(planet["name"]),
+                Slot = AsInt(planet["slot"]),
+                UserId = AsInt(planet["userid"]),
+                Habitability = habit
+            };
+        }
+
+        public static void ParseShipModules(JToken source, List<FocusShipModule> into)
+        {
+            if (source == null || into == null)
+                return;
+            JArray arr = source as JArray;
+            if (arr == null && source is JObject obj)
+            {
+                arr = obj["ships"] as JArray
+                      ?? obj["modules"] as JArray
+                      ?? obj["layout"] as JArray
+                      ?? obj["data"] as JArray;
+                if (arr == null && obj["ships"] is JObject map)
+                {
+                    foreach (var prop in map.Properties())
+                        ParseOneModule(prop.Value, into, prop.Name);
+                    return;
+                }
+            }
+
+            if (arr == null)
+                return;
+            foreach (var ship in arr)
+                ParseOneModule(ship, into, null);
+        }
+
+        public static void CacheLayout(int fleetId, IEnumerable<FocusShipModule> modules)
+        {
+            if (fleetId <= 0 || modules == null)
+                return;
+            var copy = new List<FocusShipModule>();
+            CloneModules(modules, copy);
+            if (HasGrid(copy))
+                LayoutByFleet[fleetId] = copy;
+        }
+
+        public static bool HasGrid(IReadOnlyList<FocusShipModule> modules)
+        {
+            if (modules == null)
+                return false;
+            for (var i = 0; i < modules.Count; i++)
+            {
+                if (modules[i] != null && modules[i].OnGrid)
+                    return true;
+            }
+
+            return false;
+        }
+
+        static void ParseOneModule(JToken ship, List<FocusShipModule> into, string keyName)
+        {
+            if (ship == null || ship.Type == JTokenType.Null)
+                return;
+            var type = AsString(ship["type"]);
+            if (string.IsNullOrEmpty(type))
+                type = AsString(ship["shiptype"]);
+            if (string.IsNullOrEmpty(type))
+                type = AsString(ship["ship_type"]);
+            if (string.IsNullOrEmpty(type))
+                type = AsString(ship["key"]);
+            var id = AsInt(ship["id"]);
+            if (id == 0 && int.TryParse(keyName, out var keyed))
+                id = keyed;
+            into.Add(new FocusShipModule
+            {
+                Id = id,
+                Type = type,
+                GridX = ReadGridCoord(ship, "grid_x", "gridX", "gx", "x"),
+                GridY = ReadGridCoord(ship, "grid_y", "gridY", "gy", "y")
+            });
+        }
+
+        static int ReadGridCoord(JToken ship, params string[] keys)
+        {
+            for (var i = 0; i < keys.Length; i++)
+            {
+                var token = ship[keys[i]];
+                if (token == null || token.Type == JTokenType.Null)
+                    continue;
+                if (token.Type == JTokenType.Float)
+                {
+                    var d = token.Value<double>();
+                    if (Math.Abs(d - Math.Floor(d)) > 0.001)
+                        continue;
+                }
+
+                int v;
+                if (token.Type == JTokenType.Integer)
+                    v = token.Value<int>();
+                else if (token.Type == JTokenType.Float)
+                    v = (int)token.Value<double>();
+                else if (!int.TryParse(AsString(token), out v))
+                    continue;
+                if (v >= 0 && v <= 8)
+                    return v;
+            }
+
+            return -1;
+        }
+
+        static void CloneModules(IEnumerable<FocusShipModule> source, List<FocusShipModule> into)
+        {
+            foreach (var m in source)
+            {
+                if (m == null)
+                    continue;
+                into.Add(new FocusShipModule
+                {
+                    Id = m.Id,
+                    Type = m.Type,
+                    GridX = m.GridX,
+                    GridY = m.GridY
+                });
+            }
         }
 
         static int HashType(string key)

@@ -52,7 +52,7 @@ namespace Core.Vfx
                     BuildMenuObservatory();
                     break;
                 default:
-                    BuildRoom(size: 12f, hublots: 3, ceiling: 3.1f);
+                    BuildRoom(size: WorldScale.CicDeck, hublots: 3, ceiling: WorldScale.CicCeiling);
                     BuildHoloTable();
                     break;
             }
@@ -79,10 +79,10 @@ namespace Core.Vfx
             RenderSettings.fogMode = FogMode.ExponentialSquared;
             RenderSettings.fogColor = new Color(0.01f, 0.02f, 0.04f);
             RenderSettings.fogDensity = Layout == CicLayout.BootVoid ? 0.04f :
-                Layout == CicLayout.MenuDeck ? 0.028f : 0.02f;
+                Layout == CicLayout.MenuDeck ? 0.028f : WorldScale.BridgeFogDensity;
             RenderSettings.ambientMode = AmbientMode.Flat;
             RenderSettings.ambientLight = new Color(0.025f, 0.04f, 0.055f);
-            var far = Layout == CicLayout.Bridge ? 320f : 40f;
+            var far = Layout == CicLayout.Bridge ? WorldScale.BridgeFarClip : 40f;
             foreach (var cam in Camera.allCameras)
             {
                 if (cam == null)
@@ -201,7 +201,7 @@ namespace Core.Vfx
                 var t = (i + 1f) / (hublots + 1f);
                 var x = Mathf.Lerp(-half + 1.4f, half - 1.4f, t);
                 Viewport(new Vector3(x, 1.65f, half - 0.04f), new Vector3(1.8f, 1.1f, 1f),
-                    registerMount: false, openHole: Layout == CicLayout.Bridge);
+                    registerMount: Layout == CicLayout.Bridge, openHole: Layout == CicLayout.Bridge);
             }
 
             StripLight(new Vector3(0f, wallH - 0.05f, 0f), size * 0.7f);
@@ -364,6 +364,16 @@ namespace Core.Vfx
                 Box("HublotGlowR", pos + new Vector3(hw + 0.02f, 0f, -0.02f),
                     new Vector3(0.03f, scale.y * 0.92f, 0.03f), Cyan, 3.5f);
                 KeyLight("HublotLamp", pos + new Vector3(0f, 0f, -0.55f), Cyan, 0.85f, 3.2f);
+
+                if (registerMount)
+                {
+                    var holeMount = new GameObject("HublotMount");
+                    holeMount.transform.SetParent(transform, false);
+                    holeMount.transform.localPosition = pos + new Vector3(0f, 0f, -0.12f);
+                    holeMount.transform.localRotation = Quaternion.identity;
+                    _hublotMounts.Add(holeMount.transform);
+                }
+
                 return;
             }
 
@@ -429,7 +439,7 @@ namespace Core.Vfx
             {
                 var col = go.GetComponent<Collider>();
                 if (col != null)
-                    Destroy(col);
+                    Drop(col);
             }
 
             go.GetComponent<MeshRenderer>().sharedMaterial = EmissiveMaterial(tex, tint, emission, tiling);
@@ -445,7 +455,7 @@ namespace Core.Vfx
             go.transform.localScale = scale;
             var col = go.GetComponent<Collider>();
             if (col != null)
-                Destroy(col);
+                Drop(col);
             go.GetComponent<MeshRenderer>().sharedMaterial = EmissiveMaterial(_wall, tint, emission, 1.2f);
             return go;
         }
@@ -470,7 +480,7 @@ namespace Core.Vfx
             go.transform.localScale = Vector3.one * (radius * 2f);
             var col = go.GetComponent<Collider>();
             if (col != null)
-                Destroy(col);
+                Drop(col);
             go.GetComponent<MeshRenderer>().sharedMaterial = EmissiveMaterial(Texture2D.whiteTexture, tint, emission);
             return go;
         }
@@ -562,6 +572,16 @@ namespace Core.Vfx
             if (mat.HasProperty("_Emission"))
                 mat.SetColor("_Emission", Cyan);
             return mat;
+        }
+
+        static void Drop(UnityEngine.Object o)
+        {
+            if (o == null)
+                return;
+            if (Application.isPlaying)
+                Destroy(o);
+            else
+                DestroyImmediate(o);
         }
     }
 }

@@ -10,17 +10,13 @@ namespace Core.Vfx
     /// </summary>
     public class SystemExterior : MonoBehaviour
     {
-        static readonly Color Cyan = new(0.25f, 0.92f, 1f, 1f);
-        static readonly Color Amber = new(1f, 0.62f, 0.22f, 1f);
-
-        public const float OrbitBase = 28f;
-        public const float OrbitStep = 11f;
+        public const float OrbitBase = WorldScale.OrbitBase;
+        public const float OrbitStep = WorldScale.OrbitStep;
 
         FocusContext _focus;
-        Shader _emissive;
-        Texture _stars;
         int _builtSystemId = -1;
         Transform _content;
+        Vector3 _starWorldPos;
         readonly Dictionary<int, Transform> _planets = new();
         readonly Dictionary<int, Transform> _asteroids = new();
         readonly Dictionary<int, Transform> _fleets = new();
@@ -71,8 +67,6 @@ namespace Core.Vfx
 
         public void RebuildAll()
         {
-            _emissive = Shader.Find("SU/UnlitEmissive") ?? Shader.Find("Unlit/Color");
-            _stars = Resources.Load<Texture2D>("CIC/ViewportStars");
             EnsureContentRoot();
             ClearChildren(_content);
             _planets.Clear();
@@ -81,35 +75,30 @@ namespace Core.Vfx
             _fleetMotion.Clear();
             _builtSystemId = _focus != null ? _focus.SystemId : 0;
 
-            // No sky dome mesh — camera clear + fog + star field objects are enough,
-            // and an inverted sphere was washing windows to white under UnlitEmissive.
             BuildStar(_focus);
+            BuildNebula(_focus);
             if (_focus == null || !_focus.HasSystem)
                 return;
 
             var owned = AuthManager.Ensure().User != null ? AuthManager.Ensure().User.id : 0;
             foreach (var planet in _focus.Planets)
-            {
-                var slot = Mathf.Max(1, planet.Slot);
-                var pos = OrbitPosition(slot, planet.Id);
-                var tint = planet.UserId > 0 && planet.UserId == owned
-                    ? Cyan
-                    : planet.UserId > 0
-                        ? Amber
-                        : new Color(0.55f, 0.72f, 0.9f);
-                var size = 1.4f + 0.15f * Mathf.Clamp(slot, 1, 10);
-                var go = CreateSphere("Planet_" + planet.Id, pos, size, tint, planet.UserId > 0 ? 2.8f : 1.4f);
-                _planets[planet.Id] = go.transform;
-            }
+                BuildPlanet(planet, owned);
 
             foreach (var rock in _focus.Asteroids)
+                BuildAsteroid(rock);
+
+            // Light direction from star toward first planet / ecliptic
+            var lightDir = Vector3.right;
+            if (_planets.Count > 0)
             {
-                var slot = Mathf.Max(1, rock.Slot);
-                var pos = OrbitPosition(slot, rock.Id + 31) * 1.05f;
-                var go = CreateSphere("Asteroid_" + rock.Id, pos, 0.7f, new Color(0.7f, 0.58f, 0.42f), 1.1f);
-                _asteroids[rock.Id] = go.transform;
+                foreach (var kv in _planets)
+                {
+                    lightDir = (kv.Value.position - _starWorldPos).normalized;
+                    break;
+                }
             }
 
+            SystemBodyKit.ApplyStarLightDirection(lightDir);
             SyncFleets();
         }
 
@@ -146,16 +135,24 @@ namespace Core.Vfx
                 if (radial.sqrMagnitude < 0.01f)
                     radial = Vector3.right;
                 var side = Vector3.Cross(Vector3.up, radial).normalized;
-                return planet.position + radial * 3.2f + side * (1.2f + (fleet.Id % 5) * 0.55f);
+                var slot = 1;
+                var body = _focus != null ? _focus.FindPlanet(fleet.PlanetId) : null;
+                if (body != null)
+                    slot = body.Slot;
+                var standoff = WorldScale.FleetStandoff(WorldScale.PlanetRadius(slot));
+                return planet.position + radial * standoff
+                    + side * (WorldScale.FleetLateral + (fleet.Id % 5) * WorldScale.FleetLateralStep);
             }
 
             if (fleet.AsteroidId > 0 && _asteroids.TryGetValue(fleet.AsteroidId, out var rock))
-                return rock.position + Vector3.up * 1.5f + Vector3.right * 2f;
+                return rock.position
+                    + Vector3.up * WorldScale.FleetStandoff(WorldScale.AsteroidRadius) * 0.35f
+                    + Vector3.right * WorldScale.FleetLateral;
 
-            // Open space — keep clear of the star body / glow so the CIC windows can see.
             var angle = (fleet.Id % 12) * 0.55f;
-            var r = OrbitBase * 1.15f;
-            return transform.TransformPoint(new Vector3(Mathf.Cos(angle) * r, 3f, Mathf.Sin(angle) * r));
+            var r = OrbitBase * 1.08f;
+            return transform.TransformPoint(new Vector3(Mathf.Cos(angle) * r, WorldScale.EclipticHeight,
+                Mathf.Sin(angle) * r));
         }
 
         void SyncFleets()
@@ -173,10 +170,16 @@ namespace Core.Vfx
                 if (!_fleets.TryGetValue(fleet.Id, out var tf) || tf == null)
                 {
                     var mine = ownedId > 0 && fleet.UserId == ownedId;
-                    var go = CreateShipMarker("Fleet_" + fleet.Id, IdleFleetPosition(fleet),
-                        mine ? Cyan : new Color(1f, 0.35f, 0.3f), mine);
+                    var go = CreateFleetShip(fleet, IdleFleetPosition(fleet), mine);
                     tf = go.transform;
                     _fleets[fleet.Id] = tf;
+                }
+                else
+                {
+                    var mine = ownedId > 0 && fleet.UserId == ownedId;
+                    var view = tf.GetComponent<FleetShipView>();
+                    if (view != null)
+                        view.Bind(fleet, mine);
                 }
 
                 if (fleet.DestTime > now)
@@ -265,112 +268,182 @@ namespace Core.Vfx
 
         void BuildStar(FocusContext focus)
         {
-            var color = StarColor(focus != null ? focus.SystemTypeKey : null,
+            var kit = SystemBodyKit.Star(focus != null ? focus.SystemTypeKey : null,
                 focus != null ? focus.SystemType : 0);
-            CreateSphere("Star", Vector3.zero, 4f, color, 7f);
-            // Soft corona — keep small so it doesn't swallow nearby ships / CIC windows.
-            CreateSphere("StarGlow", Vector3.zero, 5.5f, color * 0.4f, 1.8f);
+            _starWorldPos = transform.position;
+
+            var body = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            body.name = "Star";
+            body.transform.SetParent(_content, false);
+            body.transform.localPosition = Vector3.zero;
+            body.transform.localScale = Vector3.one * (WorldScale.StarRadius * 2f);
+            StripCollider(body);
+            body.GetComponent<MeshRenderer>().sharedMaterial = kit.Surface;
+
+            // Soft billboard corona — avoids sphere-UV ring artifacts that wash as nested shells
+            var coronaScale = WorldScale.StarRadius * 2f * kit.CoronaScale;
+            CreateStarBillboard("StarCorona", coronaScale * 1.05f, kit.Corona);
+            CreateStarBillboard("StarHalo", coronaScale * 1.35f, kit.Corona);
+
             var lightGo = new GameObject("StarLight");
             lightGo.transform.SetParent(_content, false);
             var light = lightGo.AddComponent<Light>();
             light.type = LightType.Point;
-            light.color = color;
-            light.intensity = 2.8f;
-            light.range = 180f;
+            light.color = Color.Lerp(kit.Color, Color.white, 0.15f);
+            light.intensity = Mathf.Clamp(kit.Intensity * 1.15f, 1.6f, 3.2f);
+            light.range = WorldScale.StarLightRange;
             light.shadows = LightShadows.Soft;
+        }
+
+        void CreateStarBillboard(string name, float size, Material mat)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            go.name = name;
+            go.transform.SetParent(_content, false);
+            go.transform.localPosition = Vector3.zero;
+            go.transform.localScale = new Vector3(size, size, 1f);
+            StripCollider(go);
+            var r = go.GetComponent<MeshRenderer>();
+            r.sharedMaterial = mat;
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            r.receiveShadows = false;
+            var face = go.AddComponent<BillboardFace>();
+            face.Mode = BillboardFace.FaceMode.Camera;
+        }
+
+        void BuildNebula(FocusContext focus)
+        {
+            var systemId = focus != null ? focus.SystemId : 1;
+            if (systemId <= 0)
+                systemId = 1;
+            var mat = SystemBodyKit.NebulaMat(systemId);
+            // 2–3 soft billboards seeded by system id — immersion, not server data
+            var count = 2 + (Mathf.Abs(systemId) % 2);
+            for (var i = 0; i < count; i++)
+            {
+                var salt = systemId * 17 + i * 91;
+                var angle = (salt % 360) * Mathf.Deg2Rad;
+                var elev = ((salt / 7) % 40 - 20) * 0.02f;
+                var dist = WorldScale.OrbitBase + WorldScale.OrbitStep * (4.5f + (salt % 5) * 0.6f);
+            var pos = new Vector3(Mathf.Cos(angle) * dist, elev * dist + WorldScale.EclipticHeight * 2f,
+                Mathf.Sin(angle) * dist);
+                var go = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                go.name = "Nebula_" + i;
+                go.transform.SetParent(_content, false);
+                go.transform.localPosition = pos;
+                var size = 140f + (salt % 60);
+                go.transform.localScale = new Vector3(size, size * 0.7f, 1f);
+                go.transform.LookAt(_content.position + Vector3.up * WorldScale.EclipticHeight);
+                StripCollider(go);
+                var r = go.GetComponent<MeshRenderer>();
+                r.sharedMaterial = mat;
+                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                r.receiveShadows = false;
+            }
+        }
+
+        void BuildPlanet(FocusPlanet planet, int ownedUserId)
+        {
+            var slot = Mathf.Max(1, planet.Slot);
+            var pos = OrbitPosition(slot, planet.Id);
+            var radius = WorldScale.PlanetRadius(slot);
+            var kind = SystemBodyKit.ClassifyPlanet(slot, planet.Id, planet.Habitability);
+            var own = SystemBodyKit.ResolveOwnership(planet.UserId, ownedUserId);
+
+            var root = new GameObject("Planet_" + planet.Id);
+            root.transform.SetParent(_content, false);
+            root.transform.localPosition = pos;
+
+            var body = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            body.name = "Globe";
+            body.transform.SetParent(root.transform, false);
+            body.transform.localScale = Vector3.one * (radius * 2f);
+            StripCollider(body);
+            body.GetComponent<MeshRenderer>().sharedMaterial = SystemBodyKit.PlanetMat(kind, own);
+
+            var atmo = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            atmo.name = "Atmosphere";
+            atmo.transform.SetParent(root.transform, false);
+            atmo.transform.localScale = Vector3.one * (radius * 2f * 1.055f);
+            StripCollider(atmo);
+            var ar = atmo.GetComponent<MeshRenderer>();
+            ar.sharedMaterial = SystemBodyKit.AtmosphereMat(kind, own);
+            ar.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            ar.receiveShadows = false;
+
+            // Sparse ring only when seed says so and planet is large enough to read
+            if (kind == SystemBodyKit.PlanetKind.Gas && (planet.Id % 5) == 0 && radius >= 16f)
+                BuildRing(root.transform, radius, own);
+
+            var spin = root.AddComponent<BodySpin>();
+            var deg = kind == SystemBodyKit.PlanetKind.Gas ? 6.5f : 3.8f + (planet.Id % 5) * 0.35f;
+            var tilt = 8f + (planet.Id % 17);
+            spin.Configure(planet.Id, deg, tilt);
+
+            _planets[planet.Id] = root.transform;
+        }
+
+        void BuildRing(Transform parent, float planetRadius, SystemBodyKit.Ownership own)
+        {
+            var ring = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            ring.name = "Ring";
+            ring.transform.SetParent(parent, false);
+            ring.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            var outer = planetRadius * 1.85f;
+            ring.transform.localScale = new Vector3(outer * 2f, 0.08f, outer * 2f);
+            StripCollider(ring);
+            // Reuse nebula-ish soft material tinted cold / cyan
+            var mat = SystemBodyKit.NebulaMat(own == SystemBodyKit.Ownership.Owned ? 2 : 0);
+            var r = ring.GetComponent<MeshRenderer>();
+            r.sharedMaterial = mat;
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            r.receiveShadows = false;
+        }
+
+        void BuildAsteroid(FocusAsteroid rock)
+        {
+            var slot = Mathf.Max(1, rock.Slot);
+            var pos = OrbitPosition(slot, rock.Id + 31) * 1.05f;
+            var go = new GameObject("Asteroid_" + rock.Id);
+            go.transform.SetParent(_content, false);
+            go.transform.localPosition = pos;
+            var scale = WorldScale.AsteroidRadius * (0.85f + (Mathf.Abs(rock.Id) % 5) * 0.06f);
+            go.transform.localScale = Vector3.one * (scale * 2f);
+            go.transform.localRotation = Quaternion.Euler((rock.Id * 17) % 360, (rock.Id * 29) % 360, (rock.Id * 11) % 360);
+
+            var mf = go.AddComponent<MeshFilter>();
+            mf.sharedMesh = SystemBodyKit.AsteroidMesh(rock.Id);
+            var mr = go.AddComponent<MeshRenderer>();
+            mr.sharedMaterial = SystemBodyKit.AsteroidMat();
+
+            var spin = go.AddComponent<BodySpin>();
+            spin.Configure(rock.Id, 12f + (rock.Id % 7), 25f + (rock.Id % 40));
+            _asteroids[rock.Id] = go.transform;
         }
 
         public static Vector3 OrbitPosition(int slot, int salt)
         {
-            var radius = OrbitBase + (Mathf.Max(1, slot) - 1) * OrbitStep;
+            var radius = WorldScale.OrbitRadius(slot);
             var angle = (slot * 1.7f + (salt % 7) * 0.45f) % (Mathf.PI * 2f);
             return new Vector3(Mathf.Cos(angle) * radius, Mathf.Sin(angle) * 0.15f * radius * 0.05f,
                 Mathf.Sin(angle) * radius);
         }
 
-        static Color StarColor(string typeKey, int typeHash)
+        GameObject CreateFleetShip(FocusFleet fleet, Vector3 worldPos, bool owned)
         {
-            if (!string.IsNullOrEmpty(typeKey))
-            {
-                switch (typeKey.Trim().ToLowerInvariant())
-                {
-                    case "blue":
-                    case "b":
-                        return new Color(0.45f, 0.7f, 1f);
-                    case "red":
-                    case "r":
-                        return new Color(1f, 0.45f, 0.35f);
-                    case "yellow":
-                    case "y":
-                    case "white":
-                    case "w":
-                        return new Color(1f, 0.92f, 0.65f);
-                    case "orange":
-                    case "o":
-                        return new Color(1f, 0.7f, 0.35f);
-                    case "purple":
-                    case "violet":
-                        return new Color(0.75f, 0.55f, 1f);
-                    case "green":
-                    case "g":
-                        return new Color(0.45f, 1f, 0.65f);
-                }
-            }
-
-            return (Mathf.Abs(typeHash) % 5) switch
-            {
-                1 => new Color(0.45f, 0.7f, 1f),
-                2 => new Color(1f, 0.45f, 0.35f),
-                3 => new Color(1f, 0.85f, 0.55f),
-                4 => new Color(0.75f, 0.55f, 1f),
-                _ => new Color(1f, 0.92f, 0.65f)
-            };
-        }
-
-        GameObject CreateShipMarker(string name, Vector3 worldPos, Color tint, bool owned)
-        {
-            var root = new GameObject(name);
+            var root = new GameObject("Fleet_" + fleet.Id);
             root.transform.SetParent(_content, false);
             root.transform.position = worldPos;
-            CreateSphereLocal(root.transform, "Core", Vector3.zero, owned ? 1.1f : 0.85f, tint, owned ? 4f : 2.5f);
-            var nose = CreateSphereLocal(root.transform, "Nose", new Vector3(0f, 0f, 1.3f), 0.45f, tint * 0.85f, 2f);
-            nose.transform.localScale = new Vector3(0.5f, 0.5f, 1.4f);
+            var view = root.AddComponent<FleetShipView>();
+            view.Bind(fleet, owned);
             return root;
         }
 
-        GameObject CreateSphere(string name, Vector3 localPos, float radius, Color tint, float emission,
-            Texture tex = null)
+        static void StripCollider(GameObject go)
         {
-            return CreateSphereLocal(_content, name, localPos, radius, tint, emission, tex);
-        }
-
-        GameObject CreateSphereLocal(Transform parent, string name, Vector3 localPos, float radius, Color tint,
-            float emission, Texture tex = null)
-        {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            go.name = name;
-            go.transform.SetParent(parent, false);
-            go.transform.localPosition = localPos;
-            go.transform.localScale = Vector3.one * (radius * 2f);
             var col = go.GetComponent<Collider>();
             if (col != null)
                 Destroy(col);
-            go.GetComponent<MeshRenderer>().sharedMaterial = Mat(tint, emission, tex);
-            return go;
-        }
-
-        Material Mat(Color tint, float emissionMul, Texture tex)
-        {
-            var mat = new Material(_emissive != null ? _emissive : Shader.Find("Sprites/Default"));
-            if (tex != null && mat.HasProperty("_MainTex"))
-                mat.mainTexture = tex;
-            if (mat.HasProperty("_Color"))
-                mat.SetColor("_Color", tint);
-            if (mat.HasProperty("_Emission"))
-                mat.SetColor("_Emission", tint * Mathf.Max(0f, emissionMul) * 0.35f);
-            if (mat.HasProperty("_EmissionMul"))
-                mat.SetFloat("_EmissionMul", emissionMul);
-            return mat;
         }
 
         static void SetVisible(Transform root, bool visible)

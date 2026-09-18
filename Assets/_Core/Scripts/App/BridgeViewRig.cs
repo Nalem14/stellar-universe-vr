@@ -95,7 +95,8 @@ namespace Core.App
             mount.transform.localRotation = Quaternion.identity;
             _bridgeMount = mount.transform;
 
-            _viewShip.position = transform.position + new Vector3(SystemExterior.OrbitBase * 0.55f, 3f, 0f);
+            _viewShip.position = transform.position + new Vector3(SystemExterior.OrbitBase * 0.55f,
+                WorldScale.EclipticHeight, 0f);
         }
 
         void ParentPlayer()
@@ -157,7 +158,8 @@ namespace Core.App
             Vector3 target;
             if (!_focus.HasSystem)
             {
-                target = _exterior.transform.position + new Vector3(SystemExterior.OrbitBase * 1.05f, 3f, 0f);
+                target = _exterior.transform.position + new Vector3(SystemExterior.OrbitBase * 1.05f,
+                    WorldScale.EclipticHeight, 0f);
             }
             else
             {
@@ -176,11 +178,11 @@ namespace Core.App
             {
                 if (away.sqrMagnitude < 0.01f)
                     away = Vector3.right;
-                target = star + away.normalized * minDist + Vector3.up * 3f;
+                target = star + away.normalized * minDist + Vector3.up * WorldScale.EclipticHeight;
             }
 
             // Keep deck roughly level in world Y so room-scale gravity still hits the floor.
-            target.y = 3f;
+            target.y = WorldScale.EclipticHeight;
 
             if (force)
                 _viewShip.position = target;
@@ -222,10 +224,13 @@ namespace Core.App
             if (pick != null)
             {
                 var orbit = SystemExterior.OrbitPosition(Mathf.Max(1, pick.Slot), pick.Id);
-                return _exterior.transform.position + orbit + Vector3.up * 4f + Vector3.right * 5f;
+                var radial = orbit.sqrMagnitude > 0.01f ? orbit.normalized : Vector3.right;
+                return _exterior.transform.position + orbit
+                    + radial * WorldScale.FleetStandoff(WorldScale.PlanetRadius(pick.Slot));
             }
 
-            return _exterior.transform.position + new Vector3(SystemExterior.OrbitBase * 0.55f, 3f, 0f);
+            return _exterior.transform.position + new Vector3(SystemExterior.OrbitBase * 0.55f,
+                WorldScale.EclipticHeight, 0f);
         }
 
         void SetHullVisible(bool visible)
