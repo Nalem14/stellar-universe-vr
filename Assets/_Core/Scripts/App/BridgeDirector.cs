@@ -63,7 +63,7 @@ namespace Core.App
             viewOrders.Bind(_focus, _poller, _zoneMap, env.Art,
                 env.Table != null ? env.Table.transform : interior.transform, hex);
 
-            CrewStationsBuilder.Build(env, env.Art, viewOrders, hex);
+            CrewStationsBuilder.Build(env, env.Art, viewOrders, hex, _zoneMap, _poller);
 
             var teleporter = BridgeViewTeleporter.Build(env, env.Art);
             teleporter.Bind(_loader, _focus, env.Art);

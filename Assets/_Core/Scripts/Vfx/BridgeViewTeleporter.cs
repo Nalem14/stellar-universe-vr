@@ -53,11 +53,23 @@ namespace Core.Vfx
             host.Box("TpArch", new Vector3(0f, 2.25f, -half + 1.35f),
                 new Vector3(2.0f, 0.16f, 0.22f), art.CyanEmit(2.4f), keepCollider: false);
 
-            // Screen — emissive idle plate so the arch never reads as a black void.
+            // Face the pad / room (+Z). Without this, TMP/quads read mirrored from the deck.
+            var face = new GameObject("TpFace").transform;
+            face.SetParent(root.transform, false);
+            face.localPosition = new Vector3(0f, 0f, -0.12f);
+            face.localRotation = Quaternion.Euler(0f, 180f, 0f);
+
+            var bezel = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            bezel.name = "TpBezel";
+            bezel.transform.SetParent(face, false);
+            bezel.transform.localPosition = new Vector3(0f, 1.45f, 0.04f);
+            bezel.transform.localScale = new Vector3(1.65f, 1.1f, 0.06f);
+            bezel.GetComponent<MeshRenderer>().sharedMaterial = art.DarkPanel(0.08f);
+
             var screen = GameObject.CreatePrimitive(PrimitiveType.Quad);
             screen.name = "TpScreen";
-            screen.transform.SetParent(root.transform, false);
-            screen.transform.localPosition = new Vector3(0f, 1.45f, -0.15f);
+            screen.transform.SetParent(face, false);
+            screen.transform.localPosition = new Vector3(0f, 1.45f, 0.01f);
             screen.transform.localScale = new Vector3(1.5f, 0.95f, 1f);
             CicEnvironment.DropColliderStatic(screen);
             screen.GetComponent<MeshRenderer>().sharedMaterial =
@@ -66,8 +78,8 @@ namespace Core.Vfx
 
             var scan = GameObject.CreatePrimitive(PrimitiveType.Quad);
             scan.name = "TpScan";
-            scan.transform.SetParent(root.transform, false);
-            scan.transform.localPosition = new Vector3(0f, 1.45f, -0.145f);
+            scan.transform.SetParent(face, false);
+            scan.transform.localPosition = new Vector3(0f, 1.45f, 0.005f);
             scan.transform.localScale = new Vector3(1.48f, 0.93f, 1f);
             CicEnvironment.DropColliderStatic(scan);
             scan.GetComponent<MeshRenderer>().sharedMaterial =
@@ -76,16 +88,9 @@ namespace Core.Vfx
             scanSpin.DegreesPerSecond = 0f;
             scanSpin.BobMeters = 0.004f;
 
-            var bezel = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            bezel.name = "TpBezel";
-            bezel.transform.SetParent(root.transform, false);
-            bezel.transform.localPosition = new Vector3(0f, 1.45f, -0.18f);
-            bezel.transform.localScale = new Vector3(1.65f, 1.1f, 0.06f);
-            bezel.GetComponent<MeshRenderer>().sharedMaterial = art.DarkPanel(0.08f);
-
             var titleGo = new GameObject("TpTitle");
-            titleGo.transform.SetParent(root.transform, false);
-            titleGo.transform.localPosition = new Vector3(0f, 1.88f, -0.12f);
+            titleGo.transform.SetParent(face, false);
+            titleGo.transform.localPosition = new Vector3(0f, 1.88f, -0.02f);
             titleGo.transform.localScale = Vector3.one * 0.022f;
             var title = titleGo.AddComponent<TextMeshPro>();
             title.alignment = TextAlignmentOptions.Center;
@@ -94,13 +99,13 @@ namespace Core.Vfx
             title.text = Trans.Get("spaceships");
 
             var list = new GameObject("TpList").transform;
-            list.SetParent(root.transform, false);
-            list.localPosition = new Vector3(0f, 1.35f, -0.11f);
+            list.SetParent(face, false);
+            list.localPosition = new Vector3(0f, 1.35f, -0.01f);
 
-            // Tabs — Trans keys (missing → key shown, Editor log file).
-            MakeTab(root.transform, art, new Vector3(-0.4f, 1.72f, -0.11f), Trans.Get("spaceships"), true,
+            // Under Face (Y=180), local -X appears on the viewer's left.
+            MakeTab(face, art, new Vector3(-0.4f, 1.72f, -0.01f), Trans.Get("spaceships"), true,
                 out var tabShips);
-            MakeTab(root.transform, art, new Vector3(0.4f, 1.72f, -0.11f), Trans.Get("planets"), false,
+            MakeTab(face, art, new Vector3(0.4f, 1.72f, -0.01f), Trans.Get("planets"), false,
                 out var tabPlanets);
 
             var tp = root.AddComponent<BridgeViewTeleporter>();
@@ -127,7 +132,7 @@ namespace Core.Vfx
             bool ships, out XRSimpleInteractable interact)
         {
             var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            go.name = "Tab_" + label;
+            go.name = "Tab_" + (ships ? "Ships" : "Planets");
             go.transform.SetParent(parent, false);
             go.transform.localPosition = localPos;
             go.transform.localScale = new Vector3(0.55f, 0.1f, 0.04f);
@@ -137,6 +142,7 @@ namespace Core.Vfx
 
             var tmpGo = new GameObject("Label");
             tmpGo.transform.SetParent(go.transform, false);
+            // Negative local Z = toward viewer under Face Y=180.
             tmpGo.transform.localPosition = new Vector3(0f, 0f, -0.6f);
             tmpGo.transform.localScale = Vector3.one * 0.02f;
             var tmp = tmpGo.AddComponent<TextMeshPro>();

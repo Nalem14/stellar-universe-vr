@@ -62,27 +62,27 @@ namespace Core.Vfx
             _label.color = new Color(0.6f, 0.95f, 1f);
             _label.text = string.Empty;
 
-            AddButton("Flee", new Vector3(0f, 0.08f, -0.02f),
+            AddButton(Trans.Get("Flee"), "Flee", new Vector3(0f, 0.08f, -0.02f),
                 () => _ = Stance("RUN_AWAY"));
-            AddButton("Defend", new Vector3(0f, 0.0f, -0.02f),
+            AddButton(Trans.Get("Defend"), "Defend", new Vector3(0f, 0.0f, -0.02f),
                 () => _ = Stance("ATTACK_ATTACKER"));
-            AddButton("Attack", new Vector3(0f, -0.08f, -0.02f),
+            AddButton(Trans.Get("Attack"), "Attack", new Vector3(0f, -0.08f, -0.02f),
                 () => _ = Stance("ATTACK_PLANET"));
-            AddButton("Mine", new Vector3(0f, -0.16f, -0.02f),
+            AddButton(Trans.Get("Mine"), "Mine", new Vector3(0f, -0.16f, -0.02f),
                 () => _ = Mine());
-            AddButton("Siege", new Vector3(0f, -0.24f, -0.02f),
+            AddButton(Trans.Get("Siege"), "Siege", new Vector3(0f, -0.24f, -0.02f),
                 () => _ = Siege());
-            AddButton("Explore", new Vector3(0f, -0.32f, -0.02f),
+            AddButton(Trans.Get("Explore"), "Explore", new Vector3(0f, -0.32f, -0.02f),
                 () => _ = Explore());
-            AddButton("Deposit", new Vector3(-0.12f, -0.40f, -0.02f),
+            AddButton(Trans.Get("Deposit"), "Deposit", new Vector3(-0.12f, -0.40f, -0.02f),
                 () => _ = Cargo(true));
-            AddButton("Withdraw", new Vector3(0.12f, -0.40f, -0.02f),
+            AddButton(Trans.Get("Withdraw"), "Withdraw", new Vector3(0.12f, -0.40f, -0.02f),
                 () => _ = Cargo(false));
-            AddButton("EndTurn", new Vector3(0f, 0.16f, -0.02f),
+            AddButton(Trans.Get("EndTurn"), "EndTurn", new Vector3(0f, 0.16f, -0.02f),
                 () => _ = EndTurnCombat());
         }
 
-        void AddButton(string name, Vector3 local, System.Action act)
+        void AddButton(string label, string name, Vector3 local, System.Action act)
         {
             var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
             go.name = "Btn_" + name;
@@ -93,7 +93,20 @@ namespace Core.Vfx
                 go.GetComponent<MeshRenderer>().sharedMaterial =
                     _art.Lit(Texture2D.whiteTexture, CicArtKit.Cyan * 0.5f, 1.4f);
             var interact = go.AddComponent<XRSimpleInteractable>();
-            interact.selectEntered.AddListener(_ => act());
+            interact.hoverEntered.AddListener(_ =>
+            {
+                go.transform.localScale = new Vector3(0.3f, 0.065f, 0.025f);
+                CicCue.Hover(go.transform.position);
+            });
+            interact.hoverExited.AddListener(_ =>
+            {
+                go.transform.localScale = new Vector3(0.28f, 0.06f, 0.02f);
+            });
+            interact.selectEntered.AddListener(_ =>
+            {
+                CicCue.Ok(go.transform.position);
+                act();
+            });
 
             var t = new GameObject("T");
             t.transform.SetParent(go.transform, false);
@@ -103,7 +116,7 @@ namespace Core.Vfx
             tmp.alignment = TextAlignmentOptions.Center;
             tmp.fontSize = 5f;
             tmp.color = Color.white;
-            tmp.text = name;
+            tmp.text = label;
         }
 
         void LateUpdate()

@@ -11,11 +11,11 @@ namespace Core.Vfx
 {
     /// <summary>
     /// Grab owned fleet tokens; drop on planet/asteroid/system → MoveFleet*.
-    /// Shows MOVE ghost while dragging.
+    /// Hover / ghost / readout / cue feedback while ordering.
     /// </summary>
     public class HoloFleetOrders : MonoBehaviour
     {
-        const float DropRadius = 0.16f;
+        const float DropRadius = 0.18f;
 
         HoloZoneMap _map;
         FocusContext _focus;
@@ -24,6 +24,10 @@ namespace Core.Vfx
         readonly List<XRGrabInteractable> _grabs = new();
         bool _ordering;
         HoloToken _dragging;
+        HoloToken _hoverHighlight;
+        HoloToken _dropHighlight;
+        Vector3 _hoverBaseScale = Vector3.one;
+        Vector3 _dropBaseScale = Vector3.one;
 
         public void Bind(HoloZoneMap map, FocusContext focus, FleetPoller poller,
             HoloMapController mapCtrl = null)
@@ -45,24 +49,38 @@ namespace Core.Vfx
             if (_map != null)
                 _map.TokensRebuilt -= OnTokensRebuilt;
             UnwireGrabs();
+            ClearDropHighlight();
+            ClearHoverHighlight();
         }
 
         void OnTokensRebuilt() => WireTokens();
 
         void Update()
         {
-            if (_dragging == null || _mapCtrl == null || _map == null)
+            if (_dragging == null || _map == null)
                 return;
             var target = FindNearestDropTarget(_dragging.transform.position);
             if (target != null)
-                _mapCtrl.ShowMoveGhost(_dragging.HomeLocalPos, target.HomeLocalPos);
+            {
+                _mapCtrl?.ShowMoveGhost(_dragging.HomeLocalPos, target.HomeLocalPos);
+                SetDropHighlight(target);
+                var dest = string.IsNullOrEmpty(target.DisplayName)
+                    ? target.Kind.ToString()
+                    : target.DisplayName;
+                _map.SetReadout($"{_dragging.DisplayName} → {dest}");
+            }
             else
-                _mapCtrl.HideMoveGhost();
+            {
+                _mapCtrl?.HideMoveGhost();
+                ClearDropHighlight();
+            }
         }
 
         void WireTokens()
         {
             UnwireGrabs();
+            ClearHoverHighlight();
+            ClearDropHighlight();
             if (_map == null)
                 return;
 
@@ -97,6 +115,8 @@ namespace Core.Vfx
                 grab.throwOnDetach = false;
                 grab.selectEntered.AddListener(OnSelectEntered);
                 grab.selectExited.AddListener(OnSelectExited);
+                grab.hoverEntered.AddListener(OnHoverEntered);
+                grab.hoverExited.AddListener(OnHoverExited);
                 _grabs.Add(grab);
 
                 var spin = token.GetComponent<HoloSpin>();
@@ -117,6 +137,8 @@ namespace Core.Vfx
                     continue;
                 grab.selectEntered.RemoveListener(OnSelectEntered);
                 grab.selectExited.RemoveListener(OnSelectExited);
+                grab.hoverEntered.RemoveListener(OnHoverEntered);
+                grab.hoverExited.RemoveListener(OnHoverExited);
             }
 
             _grabs.Clear();
@@ -140,17 +162,38 @@ namespace Core.Vfx
             rb.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
         }
 
+        void OnHoverEntered(HoverEnterEventArgs args)
+        {
+            var token = args.interactableObject.transform.GetComponent<HoloToken>();
+            if (token == null || _dragging != null)
+                return;
+            SetHoverHighlight(token);
+            var name = string.IsNullOrEmpty(token.DisplayName) ? "ship " + token.Id : token.DisplayName;
+            _map?.SetReadout($"{Trans.Get("CommandBridge")} · {name}");
+            CicCue.Hover(token.transform.position);
+        }
+
+        void OnHoverExited(HoverExitEventArgs args)
+        {
+            var token = args.interactableObject.transform.GetComponent<HoloToken>();
+            if (token != null && token == _hoverHighlight)
+                ClearHoverHighlight();
+        }
+
         void OnSelectEntered(SelectEnterEventArgs args)
         {
             var token = args.interactableObject.transform.GetComponent<HoloToken>();
             if (token == null)
                 return;
+            ClearHoverHighlight();
             _dragging = token;
             var spin = token.GetComponent<HoloSpin>();
             if (spin != null)
                 spin.enabled = false;
-            if (_map != null)
-                _map.SetReadout(Trans.Get("CommandBridge"));
+            token.transform.localScale = token.transform.localScale * 1.15f;
+            var name = string.IsNullOrEmpty(token.DisplayName) ? "ship " + token.Id : token.DisplayName;
+            _map?.SetReadout($"{Trans.Get("CommandBridge")} · {name}");
+            CicCue.Ok(token.transform.position);
         }
 
         void OnSelectExited(SelectExitEventArgs args)
@@ -158,8 +201,10 @@ namespace Core.Vfx
             var token = args.interactableObject.transform.GetComponent<HoloToken>();
             _dragging = null;
             _mapCtrl?.HideMoveGhost();
+            ClearDropHighlight();
             if (token == null || _ordering)
                 return;
+            token.transform.localScale = Vector3.one;
             _ = ResolveDrop(token);
         }
 
@@ -173,6 +218,8 @@ namespace Core.Vfx
                 {
                     fleetToken.SnapHome();
                     RestoreSpin(fleetToken);
+                    CicCue.Fail(fleetToken.transform.position);
+                    _map?.SetReadout(Trans.Get("CommandBridge"));
                     return;
                 }
 
@@ -180,6 +227,7 @@ namespace Core.Vfx
                 {
                     fleetToken.SnapHome();
                     RestoreSpin(fleetToken);
+                    CicCue.Fail(fleetToken.transform.position);
                     _map?.SetReadout(Trans.Get("error_not_logged_in"));
                     return;
                 }
@@ -213,12 +261,16 @@ namespace Core.Vfx
                     return;
                 }
 
-                _map?.SetReadout(Trans.Get("Loading"));
+                var dest = string.IsNullOrEmpty(target.DisplayName)
+                    ? target.Kind.ToString()
+                    : target.DisplayName;
+                _map?.SetReadout($"{Trans.Get("Loading")} · {dest}");
                 var result = await ActionJs.Get(action, query);
                 if (!result.Ok)
                 {
                     fleetToken.SnapHome();
                     RestoreSpin(fleetToken);
+                    CicCue.Fail(fleetToken.transform.position);
                     _map?.SetReadout(FormatError(action, result.Error));
                     return;
                 }
@@ -227,14 +279,12 @@ namespace Core.Vfx
                 fleetToken.CaptureHome();
                 fleetToken.Busy = true;
                 RestoreSpin(fleetToken);
+                CicCue.Ok(target.transform.position);
 
-                var label = !string.IsNullOrEmpty(_focus.SystemName)
-                    ? _focus.SystemName
-                    : _focus.SystemId.ToString();
                 var suffix = result.Body != null && result.Body.StartsWith("ok:", StringComparison.Ordinal)
                     ? result.Body
                     : "ok";
-                _map?.SetReadout($"{Trans.Get("CommandBridge")} · {label} · {suffix}");
+                _map?.SetReadout($"{fleetToken.DisplayName} → {dest} · {suffix}");
 
                 if (_poller != null)
                     await _poller.PollNow();
@@ -267,6 +317,55 @@ namespace Core.Vfx
             }
 
             return best;
+        }
+
+        void SetHoverHighlight(HoloToken token)
+        {
+            if (token == _hoverHighlight)
+                return;
+            ClearHoverHighlight();
+            _hoverHighlight = token;
+            _hoverBaseScale = token.transform.localScale;
+            token.transform.localScale = _hoverBaseScale * 1.2f;
+            SetHalo(token, true);
+        }
+
+        void ClearHoverHighlight()
+        {
+            if (_hoverHighlight != null)
+            {
+                _hoverHighlight.transform.localScale = _hoverBaseScale;
+                SetHalo(_hoverHighlight, false);
+            }
+
+            _hoverHighlight = null;
+        }
+
+        void SetDropHighlight(HoloToken token)
+        {
+            if (token == _dropHighlight)
+                return;
+            ClearDropHighlight();
+            _dropHighlight = token;
+            _dropBaseScale = token.transform.localScale;
+            token.transform.localScale = _dropBaseScale * 1.35f;
+        }
+
+        void ClearDropHighlight()
+        {
+            if (_dropHighlight != null)
+                _dropHighlight.transform.localScale = _dropBaseScale;
+            _dropHighlight = null;
+        }
+
+        static void SetHalo(HoloToken token, bool bright)
+        {
+            var halo = token.transform.Find("GrabHalo");
+            if (halo == null)
+                return;
+            var s = WorldScale.HoloFleetSize;
+            var mul = bright ? 1.9f : 1.6f;
+            halo.localScale = new Vector3(s * mul, 0.003f, s * mul);
         }
 
         static void RestoreSpin(HoloToken token)

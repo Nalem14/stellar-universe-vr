@@ -1,5 +1,6 @@
 using Core.App;
 using Core.Utils;
+using TMPro;
 using UnityEngine;
 using UnityEngine.XR.Interaction.Toolkit;
 using UnityEngine.XR.Interaction.Toolkit.Interactables;
@@ -7,23 +8,25 @@ using UnityEngine.XR.Interaction.Toolkit.Interactables;
 namespace Core.Vfx
 {
     /// <summary>
-    /// Helm / Tactical / Engineering desks + mannequins + radials (no seat-swap).
+    /// Helm / Tactical / Engineering desks + mannequins.
+    /// Helm hosts the context order board for the inhabited ship.
     /// </summary>
     public static class CrewStationsBuilder
     {
         public static void Build(CicEnvironment host, CicArtKit art, ViewFleetOrders orders,
-            HexBattleController hex)
+            HexBattleController hex, HoloZoneMap map = null, FleetPoller poller = null)
         {
             BuildStation(host, art, "CrewHelm", new Vector3(-1.6f, 0f, 2.4f), CicArtKit.Cyan,
-                orders, hex, CrewRole.Helm);
+                CrewRole.Helm, orders, hex, map, poller);
             BuildStation(host, art, "CrewTactical", new Vector3(0f, 0f, 2.85f), CicArtKit.Amber,
-                orders, hex, CrewRole.Tactical);
+                CrewRole.Tactical, orders, hex, map, poller);
             BuildStation(host, art, "CrewEngineering", new Vector3(1.6f, 0f, 2.4f),
-                new Color(0.4f, 0.9f, 0.55f), orders, hex, CrewRole.Engineering);
+                new Color(0.4f, 0.9f, 0.55f), CrewRole.Engineering, orders, hex, map, poller);
         }
 
         static void BuildStation(CicEnvironment host, CicArtKit art, string name, Vector3 pos,
-            Color accent, ViewFleetOrders orders, HexBattleController hex, CrewRole role)
+            Color accent, CrewRole role, ViewFleetOrders orders, HexBattleController hex,
+            HoloZoneMap map, FleetPoller poller)
         {
             var root = new GameObject(name);
             root.transform.SetParent(host.transform, false);
@@ -39,56 +42,104 @@ namespace Core.Vfx
                 new Vector3(0.7f, 0.03f, 0.03f),
                 art.Lit(Texture2D.whiteTexture, accent, 2.5f), keepCollider: false);
 
-            // Seat + mannequin
             host.Box(name + "Seat", pos + new Vector3(0f, 0.5f, -0.35f),
                 new Vector3(0.45f, 0.1f, 0.45f), art.DarkPanel(0.1f), keepCollider: true);
             BuildMannequin(host, art, pos + new Vector3(0f, 0.55f, -0.35f), accent);
 
-            // Radial poke buttons facing captain
+            if (role == CrewRole.Helm)
+            {
+                BuildHelmBoard(root.transform, art, accent, map, poller);
+                return;
+            }
+
+            // Tactical / Engineering — labeled poke pads, context-gated.
             var radial = new GameObject(name + "Radial");
             radial.transform.SetParent(root.transform, false);
             radial.transform.localPosition = new Vector3(0f, 1.15f, 0.35f);
-            AddRadial(radial.transform, art, "A", new Vector3(-0.2f, 0f, 0f), accent, () =>
+            if (role == CrewRole.Tactical)
             {
-                if (role == CrewRole.Helm && hex != null && hex.IsActive)
-                    _ = hex.EndTurn();
-                else if (role == CrewRole.Helm)
-                    _ = orders != null ? Trigger(orders, "Flee") : null;
-            });
-            AddRadial(radial.transform, art, "B", new Vector3(0.2f, 0f, 0f), accent, () =>
+                AddLabeledPad(radial.transform, art, Trans.Get("Siege"), new Vector3(0f, 0f, 0f), accent, () =>
+                {
+                    if (hex != null && hex.IsActive)
+                        _ = hex.EndTurn();
+                    else
+                        _ = CrewOrderBridge.Siege(orders);
+                });
+            }
+            else if (role == CrewRole.Engineering)
             {
-                if (role == CrewRole.Tactical)
-                    _ = orders != null ? Trigger(orders, "Siege") : null;
-                else if (role == CrewRole.Engineering)
-                    _ = orders != null ? Trigger(orders, "Mine") : null;
-            });
+                AddLabeledPad(radial.transform, art, Trans.Get("Mine"), new Vector3(0f, 0f, 0f), accent, () =>
+                    _ = CrewOrderBridge.Mine(orders));
+            }
         }
 
-        static System.Threading.Tasks.Task Trigger(ViewFleetOrders orders, string which)
+        static void BuildHelmBoard(Transform station, CicArtKit art, Color accent, HoloZoneMap map,
+            FleetPoller poller)
         {
-            // Use public API via reflection-free dedicated methods — poke panel buttons instead.
-            // Crew radials call the same ActionJs as panel through thin wrappers:
-            return which switch
-            {
-                "Flee" => CrewOrderBridge.Stance(orders, "RUN_AWAY"),
-                "Siege" => CrewOrderBridge.Siege(orders),
-                "Mine" => CrewOrderBridge.Mine(orders),
-                _ => System.Threading.Tasks.Task.CompletedTask
-            };
+            var board = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            board.name = "HelmBoard";
+            board.transform.SetParent(station, false);
+            board.transform.localPosition = new Vector3(0f, 1.2f, 0.42f);
+            board.transform.localRotation = Quaternion.Euler(12f, 180f, 0f);
+            board.transform.localScale = new Vector3(0.85f, 0.7f, 0.04f);
+            CicEnvironment.DropColliderStatic(board);
+            board.GetComponent<MeshRenderer>().sharedMaterial = art.DarkPanel(0.12f);
+
+            var titleGo = new GameObject("HelmTitle");
+            titleGo.transform.SetParent(board.transform, false);
+            titleGo.transform.localPosition = new Vector3(0f, 0.38f, -0.6f);
+            titleGo.transform.localScale = new Vector3(0.03f / 0.85f, 0.03f / 0.7f, 0.03f);
+            var title = titleGo.AddComponent<TextMeshPro>();
+            title.alignment = TextAlignmentOptions.Center;
+            title.fontSize = 6f;
+            title.color = accent;
+            title.text = Trans.Get("CommandBridge");
+
+            var list = new GameObject("HelmList").transform;
+            list.SetParent(board.transform, false);
+            list.localPosition = new Vector3(0f, 0.12f, -0.55f);
+            // Un-scale so row cubes keep readable world size.
+            list.localScale = new Vector3(1f / 0.85f, 1f / 0.7f, 1f);
+
+            var console = station.gameObject.AddComponent<CrewHelmConsole>();
+            console.Bind(FocusContext.Current, art, map, poller, list, title);
         }
 
-        static void AddRadial(Transform parent, CicArtKit art, string name, Vector3 local, Color accent,
-            System.Action act)
+        static void AddLabeledPad(Transform parent, CicArtKit art, string label, Vector3 local,
+            Color accent, System.Action act)
         {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            go.name = "Radial_" + name;
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            go.name = "Pad_" + label;
             go.transform.SetParent(parent, false);
             go.transform.localPosition = local;
-            go.transform.localScale = Vector3.one * 0.08f;
+            go.transform.localScale = new Vector3(0.42f, 0.08f, 0.04f);
             go.GetComponent<MeshRenderer>().sharedMaterial =
-                art.Lit(Texture2D.whiteTexture, accent, 2.2f);
+                art.Lit(Texture2D.whiteTexture, accent, 2.0f);
             var interact = go.AddComponent<XRSimpleInteractable>();
-            interact.selectEntered.AddListener(_ => act());
+            interact.hoverEntered.AddListener(_ =>
+            {
+                go.transform.localScale = new Vector3(0.46f, 0.09f, 0.045f);
+                CicCue.Hover(go.transform.position);
+            });
+            interact.hoverExited.AddListener(_ =>
+            {
+                go.transform.localScale = new Vector3(0.42f, 0.08f, 0.04f);
+            });
+            interact.selectEntered.AddListener(_ =>
+            {
+                CicCue.Ok(go.transform.position);
+                act();
+            });
+
+            var tmpGo = new GameObject("T");
+            tmpGo.transform.SetParent(go.transform, false);
+            tmpGo.transform.localPosition = new Vector3(0f, 0f, -0.65f);
+            tmpGo.transform.localScale = Vector3.one * 0.03f;
+            var tmp = tmpGo.AddComponent<TextMeshPro>();
+            tmp.alignment = TextAlignmentOptions.Center;
+            tmp.fontSize = 5f;
+            tmp.color = Color.white;
+            tmp.text = label;
         }
 
         static void BuildMannequin(CicEnvironment host, CicArtKit art, Vector3 seatPos, Color accent)
@@ -122,7 +173,6 @@ namespace Core.Vfx
             collar.GetComponent<MeshRenderer>().sharedMaterial =
                 art.Lit(Texture2D.whiteTexture, accent, 1.8f);
 
-            // Closed helmet — no pale sphere (reads as placeholder in VR).
             var helmet = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             helmet.name = "Helmet";
             helmet.transform.SetParent(root.transform, false);
@@ -140,7 +190,6 @@ namespace Core.Vfx
             visor.GetComponent<MeshRenderer>().sharedMaterial =
                 art.Lit(Texture2D.whiteTexture, accent, 3.2f);
 
-            // Arms on the desk — readable crew silhouette from behind.
             Arm(root.transform, art, new Vector3(-0.22f, 0.62f, 0.18f), -18f);
             Arm(root.transform, art, new Vector3(0.22f, 0.62f, 0.18f), 18f);
 
@@ -214,4 +263,3 @@ namespace Core.Vfx
         }
     }
 }
-

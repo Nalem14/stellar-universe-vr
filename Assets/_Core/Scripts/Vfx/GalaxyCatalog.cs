@@ -23,6 +23,43 @@ namespace Core.Vfx
 
         public static IReadOnlyList<Star> All => Stars;
 
+        public static bool TryGet(int systemId, out Star star)
+        {
+            for (var i = 0; i < Stars.Count; i++)
+            {
+                if (Stars[i].Id != systemId)
+                    continue;
+                star = Stars[i];
+                return true;
+            }
+
+            star = default;
+            return false;
+        }
+
+        public static void CollectNearest(int fromSystemId, int max, List<Star> into)
+        {
+            into.Clear();
+            if (!TryGet(fromSystemId, out var origin) || Stars.Count == 0)
+                return;
+            // Linear scan — galaxy catalog is small enough for Quest.
+            var scored = new List<(float d, Star s)>(Stars.Count);
+            for (var i = 0; i < Stars.Count; i++)
+            {
+                var s = Stars[i];
+                if (s.Id == fromSystemId)
+                    continue;
+                var dx = s.X - origin.X;
+                var dy = s.Y - origin.Y;
+                scored.Add((dx * dx + dy * dy, s));
+            }
+
+            scored.Sort((a, b) => a.d.CompareTo(b.d));
+            var n = Mathf.Min(max, scored.Count);
+            for (var i = 0; i < n; i++)
+                into.Add(scored[i].s);
+        }
+
         public static async Task EnsureLoaded()
         {
             if (_loaded && Stars.Count > 0)
