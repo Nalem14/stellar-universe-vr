@@ -11,6 +11,7 @@ namespace Core.App
         SystemExterior _exterior;
         BridgeViewRig _viewRig;
         FleetPoller _poller;
+        HoloZoneMap _zoneMap;
 
         async void Awake()
         {
@@ -37,11 +38,18 @@ namespace Core.App
             env.Layout = CicLayout.Bridge;
             env.Build();
 
+            _zoneMap = env.ZoneMap;
+            if (_zoneMap != null)
+                _zoneMap.Bind(_focus, env.Art);
+
             _exterior.Bind(_focus);
             _viewRig.Bind(_focus, _exterior, interior.transform);
 
-            var readout = CreateReadout(env.Table != null ? env.Table.transform : interior.transform);
-            readout.text = Trans.Get("Loading");
+            var readout = _zoneMap != null ? _zoneMap.Readout : CreateReadout(
+                env.Table != null ? env.Table.transform : interior.transform);
+            if (readout != null)
+                readout.text = Trans.Get("Loading");
+
             var boot = interior.AddComponent<SessionBoot>();
             boot.BindReadout(readout);
             boot.BindFocus(_focus);

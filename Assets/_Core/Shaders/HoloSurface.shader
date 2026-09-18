@@ -66,11 +66,15 @@ Shader "SU/HoloSurface"
             {
                 UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(i);
                 float4 tex = tex2D(_MainTex, i.uv);
-                float scan = sin((i.worldPos.y + i.uv.y) * _ScanDensity + _Time.y * _ScanSpeed * 12) * 0.5 + 0.5;
+                float scanY = sin((i.worldPos.y + i.uv.y) * _ScanDensity + _Time.y * _ScanSpeed * 12) * 0.5 + 0.5;
+                float scanX = sin((i.uv.x) * (_ScanDensity * 0.35) - _Time.y * _ScanSpeed * 4) * 0.5 + 0.5;
+                float scan = scanY * 0.75 + scanX * 0.25;
                 float3 viewDir = normalize(_WorldSpaceCameraPos - i.worldPos);
                 float fres = pow(1.0 - saturate(dot(normalize(i.worldNormal), viewDir)), _Fresnel);
-                float3 col = tex.rgb * _Color.rgb + _Emission.rgb * (0.35 + scan * 0.65 + fres);
-                float alpha = saturate(_Color.a * (0.45 + tex.r * 0.4 + fres * 0.5));
+                // Depth cue: darker toward plate center in UV, brighter rim via fresnel.
+                float depth = saturate(length(i.uv - 0.5) * 1.6);
+                float3 col = tex.rgb * _Color.rgb + _Emission.rgb * (0.28 + scan * 0.55 + fres * 0.9 + depth * 0.15);
+                float alpha = saturate(_Color.a * (0.35 + tex.r * 0.35 + fres * 0.55 + scan * 0.12) * (0.75 + depth * 0.35));
                 return float4(col, alpha);
             }
             ENDCG
