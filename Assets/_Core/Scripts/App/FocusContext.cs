@@ -437,6 +437,19 @@ namespace Core.App
             return int.TryParse(s, out var v) && v != 0;
         }
 
+        public static float AsFloat(JToken token)
+        {
+            if (token == null || token.Type == JTokenType.Null)
+                return 0f;
+            if (token.Type == JTokenType.Float || token.Type == JTokenType.Integer)
+                return token.Value<float>();
+            var s = AsString(token);
+            return float.TryParse(s, System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture, out var v)
+                ? v
+                : 0f;
+        }
+
         static FocusPlanet ParsePlanet(JToken planet, int fallbackId)
         {
             var id = AsInt(planet["id"]);

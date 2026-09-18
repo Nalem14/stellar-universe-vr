@@ -159,6 +159,10 @@ namespace Core.Vfx
                 return;
             }
 
+            await Call("CheckPlanetAttack", new Dictionary<string, string>
+            {
+                { "planet", fleet.PlanetId.ToString() }
+            });
             await Call("FleetAttackPlanet", new Dictionary<string, string>
             {
                 { "fleet", fleet.Id.ToString() },
