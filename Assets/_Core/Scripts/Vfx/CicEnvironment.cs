@@ -82,13 +82,14 @@ namespace Core.Vfx
                 Layout == CicLayout.MenuDeck ? 0.028f : 0.02f;
             RenderSettings.ambientMode = AmbientMode.Flat;
             RenderSettings.ambientLight = new Color(0.025f, 0.04f, 0.055f);
+            var far = Layout == CicLayout.Bridge ? 320f : 40f;
             foreach (var cam in Camera.allCameras)
             {
                 if (cam == null)
                     continue;
                 cam.clearFlags = CameraClearFlags.SolidColor;
                 cam.backgroundColor = new Color(0.008f, 0.012f, 0.02f);
-                cam.farClipPlane = Mathf.Max(cam.farClipPlane, 40f);
+                cam.farClipPlane = Mathf.Max(cam.farClipPlane, far);
             }
         }
 
@@ -111,7 +112,22 @@ namespace Core.Vfx
                     continue;
                 var n = t.name;
                 if (n.IndexOf("Coaching", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                    n.IndexOf("Passthrough", StringComparison.OrdinalIgnoreCase) >= 0)
+                    n.IndexOf("Passthrough", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    n.IndexOf("Teleport Area", StringComparison.OrdinalIgnoreCase) >= 0)
+                    t.gameObject.SetActive(false);
+            }
+
+            // Bridge is walk-in-room only: hide teleport locomotion chrome that reads as a floor pad.
+            if (Layout != CicLayout.Bridge)
+                return;
+            foreach (var t in FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+            {
+                if (t == null)
+                    continue;
+                var n = t.name;
+                if (n.Equals("Teleportation", StringComparison.Ordinal) ||
+                    n.IndexOf("Teleport Interactor", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    n.IndexOf("Climb Teleport", StringComparison.OrdinalIgnoreCase) >= 0)
                     t.gameObject.SetActive(false);
             }
         }
@@ -155,7 +171,16 @@ namespace Core.Vfx
             TrimRing("CeilTrim", wallH - 0.04f, size - 0.2f, Amber * 0.4f, 1.2f);
 
             // Thick box walls — no backface holes / grey void leaks.
-            Box("Fwd", new Vector3(0f, wallMid, half), new Vector3(size + 0.2f, wallH, 0.18f), Metal, 0.08f);
+            // Bridge forward wall is windowed so the system exterior is visible through real openings.
+            if (Layout == CicLayout.Bridge && hublots > 0)
+            {
+                BuildWindowedForwardWall(half, wallH, wallMid, hublots);
+            }
+            else
+            {
+                Box("Fwd", new Vector3(0f, wallMid, half), new Vector3(size + 0.2f, wallH, 0.18f), Metal, 0.08f);
+            }
+
             Box("Aft", new Vector3(0f, wallMid, -half), new Vector3(size + 0.2f, wallH, 0.18f), Metal, 0.08f);
             Box("Port", new Vector3(-half, wallMid, 0f), new Vector3(0.18f, wallH, size + 0.2f), Metal, 0.08f);
             Box("Starboard", new Vector3(half, wallMid, 0f), new Vector3(0.18f, wallH, size + 0.2f), Metal, 0.08f);
@@ -176,7 +201,7 @@ namespace Core.Vfx
                 var t = (i + 1f) / (hublots + 1f);
                 var x = Mathf.Lerp(-half + 1.4f, half - 1.4f, t);
                 Viewport(new Vector3(x, 1.65f, half - 0.04f), new Vector3(1.8f, 1.1f, 1f),
-                    registerMount: Layout == CicLayout.Bridge);
+                    registerMount: false, openHole: Layout == CicLayout.Bridge);
             }
 
             StripLight(new Vector3(0f, wallH - 0.05f, 0f), size * 0.7f);
@@ -232,50 +257,149 @@ namespace Core.Vfx
 
         void BuildHoloTable()
         {
-            var pedestal = Cylinder("Pedestal", new Vector3(0f, 0.42f, 1.35f), new Vector3(0.55f, 0.42f, 0.55f), _wall, 0.04f);
-            var rim = Cylinder("TableRim", new Vector3(0f, 0.86f, 1.35f), new Vector3(1.45f, 0.03f, 1.45f), _wall, 0.2f);
-            Table = Cylinder("HoloTable", new Vector3(0f, 0.9f, 1.35f), new Vector3(1.38f, 0.012f, 1.38f), _holo, 0f);
+            var tablePos = new Vector3(0f, 0f, 1.2f);
+            Cylinder("Pedestal", tablePos + new Vector3(0f, 0.38f, 0f), new Vector3(0.48f, 0.38f, 0.48f), _wall, 0.05f);
+            Box("PedestalRing", tablePos + new Vector3(0f, 0.78f, 0f), new Vector3(1.05f, 0.04f, 1.05f), DarkMetal, 0.1f);
+
+            var rim = Cylinder("TableRim", tablePos + new Vector3(0f, 0.84f, 0f), new Vector3(1.28f, 0.035f, 1.28f),
+                _wall, 0.25f);
+            Table = Cylinder("HoloTable", tablePos + new Vector3(0f, 0.88f, 0f), new Vector3(1.18f, 0.02f, 1.18f),
+                _holo, 0f);
             var holoMat = HoloMaterial(_holo);
             Table.GetComponent<MeshRenderer>().sharedMaterial = holoMat;
-            rim.GetComponent<MeshRenderer>().sharedMaterial = holoMat;
+            rim.GetComponent<MeshRenderer>().sharedMaterial = EmissiveMaterial(_wall, Metal, 0.35f, 1.2f);
+
+            // Vertical hologram volume — reads as a CIC projector, not a floor pad.
+            var column = Cylinder("HoloColumn", tablePos + new Vector3(0f, 1.2f, 0f),
+                new Vector3(0.55f, 0.28f, 0.55f), _holo, 0f);
+            var columnMat = HoloMaterial(_holo);
+            if (columnMat.HasProperty("_Color"))
+                columnMat.SetColor("_Color", new Color(0.15f, 0.75f, 1f, 0.28f));
+            column.GetComponent<MeshRenderer>().sharedMaterial = columnMat;
+            var colSpin = column.AddComponent<HoloSpin>();
+            colSpin.DegreesPerSecond = -9f;
+            colSpin.BobMeters = 0.02f;
+
+            var core = Cylinder("HoloCore", tablePos + new Vector3(0f, 1.2f, 0f),
+                new Vector3(0.16f, 0.26f, 0.16f), null, 0f);
+            core.GetComponent<MeshRenderer>().sharedMaterial = HoloMaterial(Texture2D.whiteTexture);
+
+            // Tiny constellation tokens above the projector.
+            for (var i = 0; i < 7; i++)
+            {
+                var a = i / 7f * Mathf.PI * 2f;
+                var r = 0.22f + (i % 3) * 0.08f;
+                var p = tablePos + new Vector3(Mathf.Cos(a) * r, 1.15f + (i % 2) * 0.12f, Mathf.Sin(a) * r);
+                Sphere("HoloNode_" + i, p, 0.025f, i % 2 == 0 ? Cyan : Amber, 4.5f);
+            }
 
             var spin = Table.AddComponent<HoloSpin>();
-            spin.DegreesPerSecond = 6f;
-            spin.BobMeters = 0.015f;
+            spin.DegreesPerSecond = 5f;
+            spin.BobMeters = 0.01f;
 
-            KeyLight("TableGlow", new Vector3(0f, 0.95f, 1.35f), Cyan, 3.2f, 4.5f);
-            KeyLight("TableAmber", new Vector3(0.4f, 1.1f, 1.1f), Amber, 0.7f, 3f);
-
-            pedestal.name = "Pedestal";
+            // Tight lights — avoid washing the deck into a giant cyan disc.
+            KeyLight("TableGlow", tablePos + new Vector3(0f, 1.35f, 0f), Cyan, 1.4f, 2.8f);
+            KeyLight("TableAmber", tablePos + new Vector3(0.35f, 1.15f, -0.2f), Amber, 0.55f, 2.4f);
+            KeyLight("TableUnder", tablePos + new Vector3(0f, 0.7f, 0f), Cyan * 0.7f, 0.35f, 1.6f);
         }
 
-        void Viewport(Vector3 pos, Vector3 scale, bool registerMount = false)
+        void BuildWindowedForwardWall(float half, float wallH, float wallMid, int hublots)
         {
-            var frame = Quad("HublotFrame", pos + new Vector3(0f, 0f, 0.03f), scale + new Vector3(0.22f, 0.22f, 0f),
-                _wall, DarkMetal, 0.04f);
-            frame.transform.rotation = Quaternion.Euler(0f, 180f, 0f);
-            var inner = Quad("HublotInner", pos + new Vector3(0f, 0f, 0.02f), scale + new Vector3(0.08f, 0.08f, 0f),
-                null, Cyan * 0.35f, 1.4f);
-            inner.transform.rotation = Quaternion.Euler(0f, 180f, 0f);
+            const float winW = 1.8f;
+            const float winH = 1.1f;
+            const float winY = 1.65f;
+            var z = half;
+            var thickness = 0.18f;
 
-            var glass = Quad("Hublot", pos, scale, _stars, Color.white, registerMount ? 0.35f : 1.8f);
+            // Sill + lintel spanning the whole forward bulkhead.
+            Box("FwdSill", new Vector3(0f, (winY - winH * 0.5f) * 0.5f, z),
+                new Vector3(half * 2f + 0.2f, winY - winH * 0.5f, thickness), Metal, 0.08f);
+            var lintelY = winY + winH * 0.5f;
+            var lintelH = wallH - lintelY;
+            Box("FwdLintel", new Vector3(0f, lintelY + lintelH * 0.5f, z),
+                new Vector3(half * 2f + 0.2f, lintelH, thickness), Metal, 0.08f);
+
+            var xs = new float[hublots];
+            for (var i = 0; i < hublots; i++)
+            {
+                var t = (i + 1f) / (hublots + 1f);
+                xs[i] = Mathf.Lerp(-half + 1.4f, half - 1.4f, t);
+            }
+
+            // Left / right flanks and mullions between openings.
+            float prev = -half - 0.1f;
+            for (var i = 0; i < hublots; i++)
+            {
+                var left = xs[i] - winW * 0.5f;
+                var mid = (prev + left) * 0.5f;
+                var width = Mathf.Max(0.12f, left - prev);
+                Box("FwdMullion_" + i, new Vector3(mid, winY, z), new Vector3(width, winH, thickness), Metal, 0.08f);
+                prev = xs[i] + winW * 0.5f;
+            }
+
+            var rightEdge = half + 0.1f;
+            var midR = (prev + rightEdge) * 0.5f;
+            var widthR = Mathf.Max(0.12f, rightEdge - prev);
+            Box("FwdMullion_R", new Vector3(midR, winY, z), new Vector3(widthR, winH, thickness), Metal, 0.08f);
+        }
+
+        void Viewport(Vector3 pos, Vector3 scale, bool registerMount = false, bool openHole = false)
+        {
+            if (openHole)
+            {
+                // Real aperture: metal rim only — no opaque glass / plate that would seal the hole.
+                var hw = scale.x * 0.5f;
+                var hh = scale.y * 0.5f;
+                const float rim = 0.08f;
+                Box("HublotRimL", pos + new Vector3(-hw - rim * 0.5f, 0f, 0.02f),
+                    new Vector3(rim, scale.y + rim * 2f, 0.12f), DarkMetal, 0.15f);
+                Box("HublotRimR", pos + new Vector3(hw + rim * 0.5f, 0f, 0.02f),
+                    new Vector3(rim, scale.y + rim * 2f, 0.12f), DarkMetal, 0.15f);
+                Box("HublotRimT", pos + new Vector3(0f, hh + rim * 0.5f, 0.02f),
+                    new Vector3(scale.x + rim * 2f, rim, 0.12f), DarkMetal, 0.15f);
+                Box("HublotRimB", pos + new Vector3(0f, -hh - rim * 0.5f, 0.02f),
+                    new Vector3(scale.x + rim * 2f, rim, 0.12f), DarkMetal, 0.15f);
+                Box("HublotGlowL", pos + new Vector3(-hw - 0.02f, 0f, -0.02f),
+                    new Vector3(0.03f, scale.y * 0.92f, 0.03f), Cyan, 3.5f);
+                Box("HublotGlowR", pos + new Vector3(hw + 0.02f, 0f, -0.02f),
+                    new Vector3(0.03f, scale.y * 0.92f, 0.03f), Cyan, 3.5f);
+                KeyLight("HublotLamp", pos + new Vector3(0f, 0f, -0.55f), Cyan, 0.85f, 3.2f);
+                return;
+            }
+
+            var frame = Quad("HublotFrame", pos + new Vector3(0f, 0f, 0.04f), scale + new Vector3(0.28f, 0.28f, 0f),
+                _wall, DarkMetal, 0.06f);
+            frame.transform.rotation = Quaternion.Euler(0f, 180f, 0f);
+
+            var bezel = Quad("HublotBezel", pos + new Vector3(0f, 0f, 0.03f), scale + new Vector3(0.12f, 0.12f, 0f),
+                null, Cyan * 0.55f, 2.8f);
+            bezel.transform.rotation = Quaternion.Euler(0f, 180f, 0f);
+
+            var glass = Quad("Hublot", pos, scale, _stars, new Color(0.55f, 0.75f, 1f, 1f),
+                registerMount ? 0.9f : 2.2f);
             glass.transform.rotation = Quaternion.Euler(0f, 180f, 0f);
+
+            KeyLight("HublotLamp", pos + new Vector3(0f, 0f, -0.55f), Cyan, registerMount ? 1.1f : 2.2f, 3.5f);
 
             if (!registerMount)
                 return;
 
-            // Diorama lives in the window plane (toward the player) so it is not buried in the wall.
             var mount = new GameObject("HublotMount");
             mount.transform.SetParent(glass.transform, false);
-            mount.transform.localPosition = new Vector3(0f, 0f, 0.06f);
+            mount.transform.localPosition = new Vector3(0f, 0f, 0.05f);
             mount.transform.localRotation = Quaternion.identity;
             mount.transform.localScale = Vector3.one;
             _hublotMounts.Add(mount.transform);
 
-            // Soften the wallpaper so the system scene reads clearly.
             var glassRenderer = glass.GetComponent<MeshRenderer>();
-            if (glassRenderer != null)
-                glassRenderer.enabled = false;
+            if (glassRenderer != null && glassRenderer.sharedMaterial != null)
+            {
+                var mat = glassRenderer.sharedMaterial;
+                if (mat.HasProperty("_EmissionMul"))
+                    mat.SetFloat("_EmissionMul", 0.45f);
+                if (mat.HasProperty("_Color"))
+                    mat.SetColor("_Color", new Color(0.15f, 0.22f, 0.35f, 1f));
+            }
         }
 
         void StripLight(Vector3 pos, float width)

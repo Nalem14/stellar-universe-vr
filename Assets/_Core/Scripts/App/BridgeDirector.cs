@@ -8,6 +8,9 @@ namespace Core.App
     public class BridgeDirector : MonoBehaviour
     {
         FocusContext _focus;
+        SystemExterior _exterior;
+        BridgeViewRig _viewRig;
+        FleetPoller _poller;
 
         async void Awake()
         {
@@ -18,18 +21,31 @@ namespace Core.App
         void Start()
         {
             _focus = new FocusContext();
-            var env = gameObject.AddComponent<CicEnvironment>();
+
+            var world = new GameObject("SystemWorld");
+            world.transform.position = Vector3.zero;
+
+            var exteriorGo = new GameObject("Exterior");
+            exteriorGo.transform.SetParent(world.transform, false);
+            _exterior = exteriorGo.AddComponent<SystemExterior>();
+
+            _viewRig = world.AddComponent<BridgeViewRig>();
+            _poller = world.AddComponent<FleetPoller>();
+
+            var interior = new GameObject("BridgeInterior");
+            var env = interior.AddComponent<CicEnvironment>();
             env.Layout = CicLayout.Bridge;
             env.Build();
 
-            var view = gameObject.AddComponent<ViewportSystemView>();
-            view.Bind(_focus, env.HublotMounts);
+            _exterior.Bind(_focus);
+            _viewRig.Bind(_focus, _exterior, interior.transform);
 
-            var readout = CreateReadout(env.Table != null ? env.Table.transform : transform);
+            var readout = CreateReadout(env.Table != null ? env.Table.transform : interior.transform);
             readout.text = Trans.Get("Loading");
-            var boot = gameObject.AddComponent<SessionBoot>();
+            var boot = interior.AddComponent<SessionBoot>();
             boot.BindReadout(readout);
             boot.BindFocus(_focus);
+            boot.BindPoller(_poller);
             boot.Run();
         }
 

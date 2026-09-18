@@ -15,6 +15,7 @@ namespace Core.Vfx
         FocusContext _focus;
         readonly List<Transform> _mounts = new();
         Shader _emissive;
+        Texture _stars;
 
         public void Bind(FocusContext focus, IReadOnlyList<Transform> mounts)
         {
@@ -52,6 +53,7 @@ namespace Core.Vfx
         public void Rebuild()
         {
             _emissive = Shader.Find("SU/UnlitEmissive") ?? Shader.Find("Unlit/Color");
+            _stars = Resources.Load<Texture2D>("CIC/ViewportStars");
             foreach (var mount in _mounts)
             {
                 if (mount == null)
@@ -63,20 +65,28 @@ namespace Core.Vfx
 
         void BuildInto(Transform mount, FocusContext focus)
         {
-            // Backdrop starfield plate (local, fills the window).
-            var backdrop = CreateQuad(mount, "Backdrop", Vector3.zero, new Vector3(1f, 1f, 1f),
-                StarColor(focus != null ? focus.SystemType : 0) * 0.12f, 0.8f);
-            backdrop.transform.localPosition = new Vector3(0f, 0f, 0.02f);
+            // Deep space behind the diorama (into the wall). Stage in front toward the player.
+            // Mount +Z faces the player (glass is yawed 180°).
+            CreateQuad(mount, "Backdrop", new Vector3(0f, 0f, -0.05f), new Vector3(1.08f, 1.08f, 1f),
+                new Color(0.015f, 0.03f, 0.07f, 1f), 0.2f, _stars);
+            CreateQuad(mount, "Starfield", new Vector3(0f, 0f, -0.04f), new Vector3(1.02f, 1.02f, 1f),
+                new Color(0.65f, 0.8f, 1f, 1f), 2.2f, _stars);
+
+            var stage = new GameObject("Stage");
+            stage.transform.SetParent(mount, false);
+            stage.transform.localPosition = new Vector3(0f, 0f, 0.01f);
+            stage.transform.localScale = Vector3.one * 0.95f;
+            var stageT = stage.transform;
 
             if (focus == null || !focus.HasSystem)
             {
-                CreateSphere(mount, "IdleStar", Vector3.zero, 0.12f, Cyan, 3.5f);
+                CreateSphere(stageT, "IdleStar", Vector3.zero, 0.14f, Cyan, 4.5f);
                 return;
             }
 
-            var starColor = StarColor(focus.SystemType);
-            CreateSphere(mount, "Star", Vector3.zero, 0.16f, starColor, 5.5f);
-            CreateSphere(mount, "StarGlow", new Vector3(0f, 0f, 0.01f), 0.28f, starColor * 0.45f, 2.2f);
+            var starColor = StarColor(focus.SystemTypeKey, focus.SystemType);
+            CreateSphere(stageT, "Star", Vector3.zero, 0.18f, starColor, 8f);
+            CreateSphere(stageT, "StarGlow", new Vector3(0f, 0f, 0.015f), 0.26f, starColor * 0.7f, 3.5f);
 
             var maxSlot = 1;
             foreach (var planet in focus.Planets)
@@ -84,35 +94,33 @@ namespace Core.Vfx
             foreach (var rock in focus.Asteroids)
                 maxSlot = Mathf.Max(maxSlot, Mathf.Max(1, rock.Slot));
 
-            var orbitBase = 0.28f;
-            var orbitStep = maxSlot > 4 ? 0.11f : 0.14f;
+            var orbitBase = 0.26f;
+            var orbitStep = maxSlot > 8 ? 0.045f : maxSlot > 4 ? 0.07f : 0.11f;
             var owned = AuthManager.Ensure().User != null ? AuthManager.Ensure().User.id : 0;
 
             foreach (var planet in focus.Planets)
             {
                 var slot = Mathf.Max(1, planet.Slot);
-                var radius = orbitBase + (slot - 1) * orbitStep;
+                var radius = Mathf.Min(0.48f, orbitBase + (slot - 1) * orbitStep);
                 var angle = SlotAngle(slot, planet.Id);
-                var pos = new Vector3(Mathf.Cos(angle) * radius, Mathf.Sin(angle) * radius * 0.55f, -0.02f);
+                var pos = new Vector3(Mathf.Cos(angle) * radius, Mathf.Sin(angle) * radius * 0.55f, -0.03f);
                 var tint = planet.UserId > 0 && planet.UserId == owned
                     ? Cyan
                     : planet.UserId > 0
                         ? Amber
-                        : new Color(0.55f, 0.7f, 0.85f);
-                var size = 0.045f + 0.008f * Mathf.Clamp(slot, 1, 6);
-                CreateSphere(mount, "Planet_" + planet.Id, pos, size, tint, planet.UserId > 0 ? 2.8f : 1.4f);
-
-                // Thin orbit ring hint
-                CreateOrbitRing(mount, "Orbit_" + planet.Id, radius, tint * 0.35f);
+                        : new Color(0.55f, 0.72f, 0.9f);
+                var size = 0.05f + 0.006f * Mathf.Clamp(slot, 1, 8);
+                CreateSphere(stageT, "Planet_" + planet.Id, pos, size, tint, planet.UserId > 0 ? 3.4f : 1.6f);
+                CreateOrbitRing(stageT, "Orbit_" + planet.Id, radius, tint * 0.45f);
             }
 
             foreach (var rock in focus.Asteroids)
             {
                 var slot = Mathf.Max(1, rock.Slot);
-                var radius = orbitBase + (slot - 1) * orbitStep + 0.05f;
+                var radius = Mathf.Min(0.5f, orbitBase + (slot - 1) * orbitStep + 0.04f);
                 var angle = SlotAngle(slot, rock.Id + 17);
-                var pos = new Vector3(Mathf.Cos(angle) * radius, Mathf.Sin(angle) * radius * 0.55f, -0.015f);
-                CreateSphere(mount, "Asteroid_" + rock.Id, pos, 0.02f, new Color(0.65f, 0.55f, 0.4f), 1.1f);
+                var pos = new Vector3(Mathf.Cos(angle) * radius, Mathf.Sin(angle) * radius * 0.55f, -0.02f);
+                CreateSphere(stageT, "Asteroid_" + rock.Id, pos, 0.024f, new Color(0.7f, 0.58f, 0.42f), 1.3f);
             }
 
             var fleetIndex = 0;
@@ -123,21 +131,20 @@ namespace Core.Vfx
                 {
                     var planet = FindPlanet(focus, fleet.PlanetId);
                     var slot = planet != null ? Mathf.Max(1, planet.Slot) : 1;
-                    var radius = orbitBase + (slot - 1) * orbitStep;
+                    var radius = Mathf.Min(0.48f, orbitBase + (slot - 1) * orbitStep);
                     var angle = SlotAngle(slot, fleet.Id) + 0.35f + fleetIndex * 0.2f;
-                    pos = new Vector3(Mathf.Cos(angle) * (radius + 0.06f),
-                        Mathf.Sin(angle) * (radius + 0.06f) * 0.55f, -0.04f);
+                    pos = new Vector3(Mathf.Cos(angle) * (radius + 0.05f),
+                        Mathf.Sin(angle) * (radius + 0.05f) * 0.55f, -0.05f);
                 }
                 else
                 {
-                    // Open space near the star
-                    var angle = fleetIndex * 0.9f;
-                    pos = new Vector3(Mathf.Cos(angle) * 0.2f, Mathf.Sin(angle) * 0.12f, -0.05f);
+                    var angle = fleetIndex * 0.85f;
+                    pos = new Vector3(Mathf.Cos(angle) * 0.18f, Mathf.Sin(angle) * 0.11f, -0.06f);
                 }
 
                 var mine = owned > 0 && fleet.UserId == owned;
-                CreateSphere(mount, "Fleet_" + fleet.Id, pos, 0.018f,
-                    mine ? Cyan : new Color(1f, 0.35f, 0.3f), mine ? 4f : 2.5f);
+                CreateSphere(stageT, "Fleet_" + fleet.Id, pos, 0.022f,
+                    mine ? Cyan : new Color(1f, 0.35f, 0.3f), mine ? 5f : 3f);
                 fleetIndex++;
             }
         }
@@ -158,9 +165,36 @@ namespace Core.Vfx
             return (slot * 1.7f + (salt % 7) * 0.45f) % (Mathf.PI * 2f);
         }
 
-        static Color StarColor(int type)
+        static Color StarColor(string typeKey, int typeHash)
         {
-            return (Mathf.Abs(type) % 5) switch
+            if (!string.IsNullOrEmpty(typeKey))
+            {
+                switch (typeKey.Trim().ToLowerInvariant())
+                {
+                    case "blue":
+                    case "b":
+                        return new Color(0.45f, 0.7f, 1f);
+                    case "red":
+                    case "r":
+                        return new Color(1f, 0.45f, 0.35f);
+                    case "yellow":
+                    case "y":
+                    case "white":
+                    case "w":
+                        return new Color(1f, 0.92f, 0.65f);
+                    case "orange":
+                    case "o":
+                        return new Color(1f, 0.7f, 0.35f);
+                    case "purple":
+                    case "violet":
+                        return new Color(0.75f, 0.55f, 1f);
+                    case "green":
+                    case "g":
+                        return new Color(0.45f, 1f, 0.65f);
+                }
+            }
+
+            return (Mathf.Abs(typeHash) % 5) switch
             {
                 1 => new Color(0.45f, 0.7f, 1f),
                 2 => new Color(1f, 0.45f, 0.35f),
@@ -181,12 +215,12 @@ namespace Core.Vfx
             var col = go.GetComponent<Collider>();
             if (col != null)
                 Destroy(col);
-            go.GetComponent<MeshRenderer>().sharedMaterial = Mat(tint, emission);
+            go.GetComponent<MeshRenderer>().sharedMaterial = Mat(tint, emission, null);
             return go;
         }
 
         GameObject CreateQuad(Transform parent, string name, Vector3 localPos, Vector3 localScale, Color tint,
-            float emission)
+            float emission, Texture tex)
         {
             var go = GameObject.CreatePrimitive(PrimitiveType.Quad);
             go.name = name;
@@ -197,29 +231,30 @@ namespace Core.Vfx
             var col = go.GetComponent<Collider>();
             if (col != null)
                 Destroy(col);
-            go.GetComponent<MeshRenderer>().sharedMaterial = Mat(tint, emission);
+            go.GetComponent<MeshRenderer>().sharedMaterial = Mat(tint, emission, tex);
             return go;
         }
 
         void CreateOrbitRing(Transform parent, string name, float radius, Color tint)
         {
-            const int segments = 16;
+            const int segments = 20;
             for (var i = 0; i < segments; i++)
             {
                 var a0 = (i / (float)segments) * Mathf.PI * 2f;
-                var pos = new Vector3(Mathf.Cos(a0) * radius, Mathf.Sin(a0) * radius * 0.55f, 0.015f);
-                var bead = CreateSphere(parent, name + "_" + i, pos, 0.006f, tint, 0.8f);
-                bead.transform.localScale = new Vector3(0.012f, 0.012f, 0.012f);
+                var pos = new Vector3(Mathf.Cos(a0) * radius, Mathf.Sin(a0) * radius * 0.55f, 0.01f);
+                CreateSphere(parent, name + "_" + i, pos, 0.005f, tint, 1.1f);
             }
         }
 
-        Material Mat(Color tint, float emissionMul)
+        Material Mat(Color tint, float emissionMul, Texture tex)
         {
             var mat = new Material(_emissive != null ? _emissive : Shader.Find("Sprites/Default"));
+            if (tex != null && mat.HasProperty("_MainTex"))
+                mat.mainTexture = tex;
             if (mat.HasProperty("_Color"))
                 mat.SetColor("_Color", tint);
             if (mat.HasProperty("_Emission"))
-                mat.SetColor("_Emission", tint * Mathf.Max(0f, emissionMul) * 0.25f);
+                mat.SetColor("_Emission", tint * Mathf.Max(0f, emissionMul) * 0.35f);
             if (mat.HasProperty("_EmissionMul"))
                 mat.SetFloat("_EmissionMul", emissionMul);
             return mat;

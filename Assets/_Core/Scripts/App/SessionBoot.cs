@@ -11,6 +11,7 @@ namespace Core.App
     {
         TMP_Text _readout;
         FocusContext _focus;
+        FleetPoller _poller;
 
         public void BindReadout(TMP_Text readout)
         {
@@ -20,6 +21,11 @@ namespace Core.App
         public void BindFocus(FocusContext focus)
         {
             _focus = focus;
+        }
+
+        public void BindPoller(FleetPoller poller)
+        {
+            _poller = poller;
         }
 
         public async void Run()
@@ -74,10 +80,14 @@ namespace Core.App
             focus.SetFromApi(focusId, systems.Body, fleets.Body);
             _focus = focus;
 
+            if (_poller != null)
+                _poller.Bind(_focus);
+
             var label = !string.IsNullOrEmpty(focus.SystemName)
                 ? focus.SystemName
                 : focusId.ToString();
-            Say($"{Trans.Get("CommandBridge")} · {label} · {focus.Fleets.Count}");
+            var view = focus.ViewFleetId > 0 ? $" · fleet {focus.ViewFleetId}" : " · station";
+            Say($"{Trans.Get("CommandBridge")} · {label} · {focus.Fleets.Count}{view}");
         }
 
         async Task<bool> Step(string action)
@@ -122,7 +132,7 @@ namespace Core.App
                 {
                     foreach (var planet in planets)
                     {
-                        var systemId = planet.Value<int?>("systemid") ?? 0;
+                        var systemId = FocusContext.AsInt(planet["systemid"]);
                         if (systemId > 0)
                             return systemId;
                     }
@@ -142,8 +152,8 @@ namespace Core.App
                         continue;
                     foreach (var planet in planets)
                     {
-                        if ((planet.Value<int?>("userid") ?? 0) > 0)
-                            return system.Value<int?>("id") ?? 0;
+                        if (FocusContext.AsInt(planet["userid"]) > 0)
+                            return FocusContext.AsInt(system["id"]);
                     }
                 }
             }
