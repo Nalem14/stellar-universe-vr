@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Core.App;
 using Core.Utils;
@@ -17,12 +18,15 @@ namespace Core.Vfx
         Transform _root;
         Transform _volume;
         TMP_Text _readout;
-        readonly List<GameObject> _tokens = new();
+        readonly List<GameObject> _tokenRoots = new();
+        readonly List<HoloToken> _tokens = new();
         int _builtForSystem = -1;
         bool _galaxyStub;
 
         public Transform VolumeRoot => _volume;
         public TMP_Text Readout => _readout;
+        public IReadOnlyList<HoloToken> Tokens => _tokens;
+        public event Action TokensRebuilt;
 
         public void Bind(FocusContext focus, CicArtKit art)
         {
@@ -56,7 +60,6 @@ namespace Core.Vfx
             _root.localPosition = Vector3.zero;
             _root.localRotation = Quaternion.identity;
 
-            // Projected volume column (additive).
             var col = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             col.name = "HoloVolume";
             col.transform.SetParent(_root, false);
@@ -67,26 +70,24 @@ namespace Core.Vfx
                 WorldScale.HoloDiscRadius * 1.05f);
             DropCollider(col);
             var volMat = art.Holo(art.OrbitPlate != null ? art.OrbitPlate : art.HoloPlate,
-                new Color(0.12f, 0.7f, 1f, 0.22f));
+                new Color(0.12f, 0.7f, 1f, 0.1f));
             col.GetComponent<MeshRenderer>().sharedMaterial = volMat;
             var spin = col.AddComponent<HoloSpin>();
             spin.DegreesPerSecond = -6f;
             spin.BobMeters = 0.015f;
             _volume = col.transform;
 
-            // Orbit plate disc (flat holo).
             var plate = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             plate.name = "OrbitPlate";
             plate.transform.SetParent(_root, false);
-            plate.transform.localPosition = new Vector3(0f, 0.012f, 0f);
+            plate.transform.localPosition = new Vector3(0f, 0.008f, 0f);
             plate.transform.localScale = new Vector3(
-                WorldScale.HoloDiscRadius * 2f, 0.008f, WorldScale.HoloDiscRadius * 2f);
+                WorldScale.HoloDiscRadius * 2f, 0.006f, WorldScale.HoloDiscRadius * 2f);
             DropCollider(plate);
             plate.GetComponent<MeshRenderer>().sharedMaterial = art.Holo(
                 art.OrbitPlate != null ? art.OrbitPlate : art.HoloPlate,
-                new Color(0.2f, 0.85f, 1f, 0.55f));
+                new Color(0.25f, 0.9f, 1f, 0.65f));
 
-            // Under-table projector glow (volume, not a floor sticker).
             var glow = GameObject.CreatePrimitive(PrimitiveType.Quad);
             glow.name = "ProjectorGlow";
             glow.transform.SetParent(tableTop, false);
@@ -142,6 +143,8 @@ namespace Core.Vfx
                 BuildSynthetic(seed);
                 SetReadout(Trans.Get("Loading"));
             }
+
+            TokensRebuilt?.Invoke();
         }
 
         void BuildFromFocus(FocusContext focus)
@@ -162,6 +165,7 @@ namespace Core.Vfx
                 PlaceAsteroid(rock.Slot, rock.Id);
 
             var myId = AuthManager.Ensure().User != null ? AuthManager.Ensure().User.id : 0;
+            var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             foreach (var fleet in focus.Fleets)
             {
                 if (fleet.SystemId > 0 && fleet.SystemId != focus.SystemId)
@@ -169,16 +173,15 @@ namespace Core.Vfx
                 var owned = myId > 0 && fleet.UserId == myId;
                 var color = owned ? CicArtKit.Cyan : CicArtKit.Amber;
                 var slot = ResolveFleetSlot(fleet, focus);
-                PlaceFleet(slot, fleet.Id, color, fleet.Id * 17);
+                var busy = !fleet.CanIssueMove(now);
+                PlaceFleet(slot, fleet.Id, color, fleet.Id * 17, owned, busy);
             }
 
-            // Galaxy stub ring at outer rim (visual pinch-zoom level hint).
             PlaceGalaxyStubRing();
         }
 
         void BuildSynthetic(int systemId)
         {
-            var rng = new System.Random(systemId * 7919 + 13);
             PlaceStar(systemId % 5);
             var planetCount = 3 + systemId % 4;
             for (var i = 0; i < planetCount; i++)
@@ -197,7 +200,7 @@ namespace Core.Vfx
             for (var i = 0; i < 2; i++)
             {
                 var color = i == 0 ? CicArtKit.Cyan : CicArtKit.Amber;
-                PlaceFleet(1 + i * 2, 200 + i, color, systemId * 31 + i * 47);
+                PlaceFleet(1 + i * 2, 200 + i, color, systemId * 31 + i * 47, owned: i == 0, busy: false);
             }
 
             PlaceGalaxyStubRing();
@@ -210,10 +213,11 @@ namespace Core.Vfx
                 : typeHint % 3 == 1
                     ? new Color(1f, 0.7f, 0.45f, 0.85f)
                     : new Color(0.7f, 0.85f, 1f, 0.85f);
-            var star = Token("TokenStar", PrimitiveType.Sphere,
+            var star = TokenVisual("TokenStar", PrimitiveType.Sphere,
                 new Vector3(0f, WorldScale.HoloTokenLift + WorldScale.HoloStarRadius, 0f),
                 Vector3.one * (WorldScale.HoloStarRadius * 2f),
-                _art.Holo(_art.TokenSystem != null ? _art.TokenSystem : Texture2D.whiteTexture, tint));
+                _art.Holo(_art.TokenSystem != null ? _art.TokenSystem : Texture2D.whiteTexture, tint),
+                keepCollider: false);
             var spin = star.AddComponent<HoloSpin>();
             spin.DegreesPerSecond = 12f;
             spin.BobMeters = 0.008f;
@@ -247,9 +251,7 @@ namespace Core.Vfx
             DropCollider(ring);
             ring.GetComponent<MeshRenderer>().sharedMaterial = _art.Holo(
                 Texture2D.whiteTexture, new Color(0.25f, 0.85f, 1f, 0.42f));
-            // Hollow look: nested dark cylinder punches center visually via scale trick —
-            // use thin torus approximation with scaled cylinder only (Quest cheap).
-            _tokens.Add(ring);
+            _tokenRoots.Add(ring);
         }
 
         void PlacePlanet(int slot, int id, Color color, float radius)
@@ -257,13 +259,13 @@ namespace Core.Vfx
             var r = WorldScale.HoloOrbitRadius(Mathf.Max(1, slot));
             var ang = StableAngle(id * 97 + slot * 13);
             var pos = new Vector3(Mathf.Cos(ang) * r, WorldScale.HoloTokenLift + radius, Mathf.Sin(ang) * r);
-            var go = Token("TokenPlanet_" + id, PrimitiveType.Sphere, pos, Vector3.one * (radius * 2f),
+            var go = TokenVisual("TokenPlanet_" + id, PrimitiveType.Sphere, pos, Vector3.one * (radius * 2f),
                 _art.Holo(_art.TokenPlanet != null ? _art.TokenPlanet : Texture2D.whiteTexture,
-                    new Color(color.r, color.g, color.b, 0.8f)));
+                    new Color(color.r, color.g, color.b, 0.8f)),
+                keepCollider: true);
             var spin = go.AddComponent<HoloSpin>();
             spin.DegreesPerSecond = 8f + slot;
             spin.BobMeters = 0.006f;
-            // Distinct silhouette: polar band
             var band = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             band.name = "Band";
             band.transform.SetParent(go.transform, false);
@@ -273,6 +275,7 @@ namespace Core.Vfx
             DropCollider(band);
             band.GetComponent<MeshRenderer>().sharedMaterial = _art.Holo(
                 Texture2D.whiteTexture, new Color(color.r, color.g, color.b, 0.55f));
+            Tag(go, HoloTokenKind.Planet, id, slot, owned: false, busy: false);
         }
 
         void PlaceAsteroid(int slot, int id)
@@ -280,13 +283,15 @@ namespace Core.Vfx
             var r = WorldScale.HoloOrbitRadius(Mathf.Max(1, slot)) * 0.92f;
             var ang = StableAngle(id * 53 + 7);
             var pos = new Vector3(Mathf.Cos(ang) * r, WorldScale.HoloTokenLift, Mathf.Sin(ang) * r);
-            var go = Token("TokenRock_" + id, PrimitiveType.Cube, pos,
+            var go = TokenVisual("TokenRock_" + id, PrimitiveType.Cube, pos,
                 Vector3.one * (WorldScale.HoloAsteroidRadius * 2f),
-                _art.Lit(Texture2D.whiteTexture, new Color(0.55f, 0.58f, 0.62f), 0.4f));
+                _art.Lit(Texture2D.whiteTexture, new Color(0.55f, 0.58f, 0.62f), 0.4f),
+                keepCollider: true);
             go.transform.localRotation = Quaternion.Euler(ang * Mathf.Rad2Deg, id * 20f, 15f);
+            Tag(go, HoloTokenKind.Asteroid, id, slot, owned: false, busy: false);
         }
 
-        void PlaceFleet(int slot, int id, Color color, int seed)
+        void PlaceFleet(int slot, int id, Color color, int seed, bool owned, bool busy)
         {
             var r = WorldScale.HoloOrbitRadius(Mathf.Max(1, slot)) * 1.08f;
             var ang = StableAngle(seed);
@@ -296,9 +301,8 @@ namespace Core.Vfx
             go.transform.localPosition = pos;
             go.transform.localRotation = Quaternion.LookRotation(
                 new Vector3(Mathf.Cos(ang + 1.2f), 0f, Mathf.Sin(ang + 1.2f)), Vector3.up);
-            _tokens.Add(go);
+            _tokenRoots.Add(go);
 
-            // Chevron: two angled boxes + core — not a sphere.
             var s = WorldScale.HoloFleetSize;
             AddBox(go.transform, "Hull", new Vector3(0f, 0f, 0.01f), new Vector3(s * 0.55f, s * 0.22f, s * 1.1f),
                 _art.Holo(_art.TokenFleet != null ? _art.TokenFleet : Texture2D.whiteTexture,
@@ -311,11 +315,17 @@ namespace Core.Vfx
                 _art.Holo(Texture2D.whiteTexture, new Color(color.r, color.g, color.b, 0.7f)));
             AddBox(go.transform, "Engine", new Vector3(0f, 0f, -s * 0.55f),
                 new Vector3(s * 0.18f, s * 0.18f, s * 0.2f),
-                _art.AmberEmit(3.5f));
+                busy ? _art.AmberEmit(4.2f) : _art.AmberEmit(3.5f));
+
+            // Parent collider for grab / drop targeting.
+            var col = go.AddComponent<BoxCollider>();
+            col.size = new Vector3(s * 1.2f, s * 0.6f, s * 1.4f);
+            col.center = new Vector3(0f, 0f, 0f);
 
             var spin = go.AddComponent<HoloSpin>();
             spin.DegreesPerSecond = 0f;
-            spin.BobMeters = 0.01f;
+            spin.BobMeters = busy ? 0.018f : 0.01f;
+            Tag(go, HoloTokenKind.Fleet, id, slot, owned, busy);
         }
 
         void PlaceGalaxyStubRing()
@@ -329,7 +339,7 @@ namespace Core.Vfx
             DropCollider(ring);
             ring.GetComponent<MeshRenderer>().sharedMaterial = _art.Holo(
                 Texture2D.whiteTexture, new Color(0.35f, 0.55f, 0.75f, 0.12f));
-            _tokens.Add(ring);
+            _tokenRoots.Add(ring);
         }
 
         static int ResolveFleetSlot(FocusFleet fleet, FocusContext focus)
@@ -351,17 +361,33 @@ namespace Core.Vfx
             return 1 + (fleet.Id % 5);
         }
 
-        GameObject Token(string name, PrimitiveType type, Vector3 localPos, Vector3 scale, Material mat)
+        GameObject TokenVisual(string name, PrimitiveType type, Vector3 localPos, Vector3 scale, Material mat,
+            bool keepCollider)
         {
             var go = GameObject.CreatePrimitive(type);
             go.name = name;
             go.transform.SetParent(_root, false);
             go.transform.localPosition = localPos;
             go.transform.localScale = scale;
-            DropCollider(go);
+            if (!keepCollider)
+                DropCollider(go);
             go.GetComponent<MeshRenderer>().sharedMaterial = mat;
-            _tokens.Add(go);
+            _tokenRoots.Add(go);
             return go;
+        }
+
+        void Tag(GameObject go, HoloTokenKind kind, int id, int slot, bool owned, bool busy)
+        {
+            var marker = go.GetComponent<HoloToken>();
+            if (marker == null)
+                marker = go.AddComponent<HoloToken>();
+            marker.Kind = kind;
+            marker.Id = id;
+            marker.Slot = slot;
+            marker.Owned = owned;
+            marker.Busy = busy;
+            marker.CaptureHome();
+            _tokens.Add(marker);
         }
 
         static void AddBox(Transform parent, string name, Vector3 localPos, Vector3 scale, Material mat)
@@ -377,16 +403,17 @@ namespace Core.Vfx
 
         void ClearTokens()
         {
-            for (var i = 0; i < _tokens.Count; i++)
+            for (var i = 0; i < _tokenRoots.Count; i++)
             {
-                if (_tokens[i] == null)
+                if (_tokenRoots[i] == null)
                     continue;
                 if (Application.isPlaying)
-                    Destroy(_tokens[i]);
+                    Destroy(_tokenRoots[i]);
                 else
-                    DestroyImmediate(_tokens[i]);
+                    DestroyImmediate(_tokenRoots[i]);
             }
 
+            _tokenRoots.Clear();
             _tokens.Clear();
         }
 
