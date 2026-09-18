@@ -35,8 +35,22 @@ namespace Core.App
         public int DestSystemId;
         /// <summary>Unix seconds arrival; 0 = idle.</summary>
         public long DestTime;
+        public long AttackEndTime;
+        public long HarvestEndTime;
+        public long ExploreEndTime;
+        public bool IsInBattle;
         public string Pos = string.Empty;
         public readonly List<FocusShipModule> Modules = new();
+
+        public bool IsMoving(long unixNow) => DestTime > unixNow;
+        public bool IsSieging(long unixNow) => AttackEndTime > unixNow;
+        public bool IsHarvesting(long unixNow) => HarvestEndTime > unixNow;
+        public bool IsExploring(long unixNow) => ExploreEndTime > unixNow;
+
+        /// <summary>Sourced interpret_game_state.can_issue_move (minus ships.length check).</summary>
+        public bool CanIssueMove(long unixNow) =>
+            !IsMoving(unixNow) && !IsExploring(unixNow) && !IsHarvesting(unixNow) &&
+            !IsSieging(unixNow) && !IsInBattle;
     }
 
     public sealed class FocusAsteroid
@@ -58,6 +72,8 @@ namespace Core.App
         public string SystemTypeKey { get; private set; } = string.Empty;
         public int SystemType { get; private set; }
         public int ViewFleetId { get; private set; }
+        /// <summary>When &gt; 0 and ViewFleetId == 0: fake orbital station over this planet.</summary>
+        public int ViewPlanetId { get; private set; }
         public IReadOnlyList<FocusPlanet> Planets => _planets;
         public IReadOnlyList<FocusAsteroid> Asteroids => _asteroids;
         public IReadOnlyList<FocusFleet> Fleets => _fleets;
@@ -77,10 +93,25 @@ namespace Core.App
             SystemTypeKey = string.Empty;
             SystemType = 0;
             ViewFleetId = 0;
+            ViewPlanetId = 0;
             _planets.Clear();
             _asteroids.Clear();
             _fleets.Clear();
             Current = this;
+            Changed?.Invoke();
+        }
+
+        public void SetViewFleet(int fleetId)
+        {
+            ViewPlanetId = 0;
+            ViewFleetId = ResolveViewFleetId(fleetId);
+            Changed?.Invoke();
+        }
+
+        public void SetViewPlanet(int planetId)
+        {
+            ViewFleetId = 0;
+            ViewPlanetId = planetId > 0 ? planetId : 0;
             Changed?.Invoke();
         }
 
@@ -91,6 +122,7 @@ namespace Core.App
             SystemTypeKey = string.Empty;
             SystemType = 0;
             ViewFleetId = 0;
+            ViewPlanetId = 0;
             _planets.Clear();
             _asteroids.Clear();
             _fleets.Clear();
@@ -298,6 +330,10 @@ namespace Core.App
                         FromSystemId = AsInt(fleet["from"]),
                         DestSystemId = AsInt(fleet["dest"]),
                         DestTime = AsLong(fleet["desttime"]),
+                        AttackEndTime = AsLong(fleet["attackEndTime"]),
+                        HarvestEndTime = AsLong(fleet["harvestEndTime"]),
+                        ExploreEndTime = AsLong(fleet["exploreEndTime"]),
+                        IsInBattle = AsBool(fleet["isInBattle"]),
                         Pos = AsString(fleet["pos"])
                     };
                     ParseShipModules(fleet, row.Modules);
@@ -385,6 +421,20 @@ namespace Core.App
             if (token.Type == JTokenType.String)
                 return token.Value<string>() ?? string.Empty;
             return token.ToString();
+        }
+
+        public static bool AsBool(JToken token)
+        {
+            if (token == null || token.Type == JTokenType.Null)
+                return false;
+            if (token.Type == JTokenType.Boolean)
+                return token.Value<bool>();
+            if (token.Type == JTokenType.Integer)
+                return token.Value<int>() != 0;
+            var s = AsString(token);
+            if (string.Equals(s, "true", System.StringComparison.OrdinalIgnoreCase))
+                return true;
+            return int.TryParse(s, out var v) && v != 0;
         }
 
         static FocusPlanet ParsePlanet(JToken planet, int fallbackId)
