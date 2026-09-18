@@ -11,8 +11,7 @@ using UnityEngine.XR.Interaction.Toolkit.Interactables;
 namespace Core.Vfx
 {
     /// <summary>
-    /// Helm order board for the inhabited ship: planets / asteroids / star / nearby jumps.
-    /// Hidden when view is a fake orbital station (no ViewFleet).
+    /// Helm order board — only feasible MoveFleet* rows for the inhabited ship.
     /// </summary>
     public sealed class CrewHelmConsole : MonoBehaviour
     {
@@ -24,6 +23,8 @@ namespace Core.Vfx
         TMP_Text _title;
         readonly List<GameObject> _rows = new();
         readonly List<GalaxyCatalog.Star> _near = new();
+        long _lastBusySig = -1;
+        float _nextPoll;
 
         public void Bind(FocusContext focus, CicArtKit art, HoloZoneMap map, FleetPoller poller,
             Transform list, TMP_Text title)
@@ -51,6 +52,23 @@ namespace Core.Vfx
 
         void OnFocusChanged() => Core.Utils.AsyncTap.Run(RebuildAsync());
 
+        void Update()
+        {
+            if (Time.unscaledTime < _nextPoll)
+                return;
+            _nextPoll = Time.unscaledTime + 0.5f;
+            var fleet = _focus?.FindViewFleet();
+            var sig = fleet == null
+                ? 0
+                : fleet.DestTime ^ (fleet.PlanetId * 17) ^ (fleet.AsteroidId * 31) ^
+                  (fleet.IsInBattle ? 1 : 0) ^ fleet.AttackEndTime ^ fleet.HarvestEndTime ^
+                  fleet.ExploreEndTime;
+            if (sig == _lastBusySig)
+                return;
+            _lastBusySig = sig;
+            Core.Utils.AsyncTap.Run(RebuildAsync());
+        }
+
         async Task RebuildAsync()
         {
             ClearRows();
@@ -70,10 +88,23 @@ namespace Core.Vfx
             if (_title != null)
                 _title.text = shipLabel;
 
+            if (fleet.IsInBattle)
+            {
+                AddDeadRow(Trans.Get("battle"));
+                return;
+            }
+
+            if (!FleetOrderGate.CanMove(fleet))
+            {
+                AddDeadRow(Trans.Get(FleetOrderGate.BusyKey(fleet)));
+                return;
+            }
+
             await GalaxyCatalog.EnsureLoaded();
 
-            // Star / open space of current system.
-            if (GalaxyCatalog.TryGet(_focus.SystemId, out var here))
+            // Star — only when leaving an orbit / asteroid.
+            if (FleetOrderGate.CanGoToStar(fleet) &&
+                GalaxyCatalog.TryGet(_focus.SystemId, out var here))
             {
                 var sysName = !string.IsNullOrEmpty(_focus.SystemName) ? _focus.SystemName : here.Name;
                 if (string.IsNullOrEmpty(sysName))
@@ -86,6 +117,8 @@ namespace Core.Vfx
 
             foreach (var planet in _focus.Planets)
             {
+                if (!FleetOrderGate.CanMoveToPlanet(fleet, planet.Id))
+                    continue;
                 var label = string.IsNullOrEmpty(planet.Name) ? "planet " + planet.Id : planet.Name;
                 var pid = planet.Id;
                 AddRow(label, CicArtKit.Cyan, () =>
@@ -94,26 +127,31 @@ namespace Core.Vfx
 
             foreach (var rock in _focus.Asteroids)
             {
+                if (!FleetOrderGate.CanMoveToAsteroid(fleet, rock.Id))
+                    continue;
                 var aid = rock.Id;
                 AddRow("asteroid " + aid, new Color(0.7f, 0.75f, 0.8f), () =>
                     Core.Utils.AsyncTap.Run(MoveToAsteroid(fleet.Id, aid)));
             }
 
-            GalaxyCatalog.CollectNearest(_focus.SystemId, 4, _near);
-            for (var i = 0; i < _near.Count; i++)
+            if (FleetOrderGate.CanJumpSystem(fleet))
             {
-                var star = _near[i];
-                var label = string.IsNullOrEmpty(star.Name)
-                    ? string.Format(CultureInfo.InvariantCulture, "{0}.{1}", star.X, star.Y)
-                    : star.Name;
-                var sx = star.X;
-                var sy = star.Y;
-                AddRow(label, new Color(0.55f, 0.4f, 0.95f), () =>
-                    Core.Utils.AsyncTap.Run(MoveToSystem(fleet.Id, sx, sy)));
+                GalaxyCatalog.CollectNearest(_focus.SystemId, 4, _near);
+                for (var i = 0; i < _near.Count; i++)
+                {
+                    var star = _near[i];
+                    var label = string.IsNullOrEmpty(star.Name)
+                        ? string.Format(CultureInfo.InvariantCulture, "{0}.{1}", star.X, star.Y)
+                        : star.Name;
+                    var sx = star.X;
+                    var sy = star.Y;
+                    AddRow(label, new Color(0.55f, 0.4f, 0.95f), () =>
+                        Core.Utils.AsyncTap.Run(MoveToSystem(fleet.Id, sx, sy)));
+                }
             }
 
             if (_rows.Count == 0)
-                AddDeadRow(Trans.Get("Loading"));
+                AddDeadRow(Trans.Get("ok"));
         }
 
         void AddDeadRow(string label)
@@ -209,6 +247,7 @@ namespace Core.Vfx
             {
                 CicCue.Fail(transform.position);
                 _map?.SetReadout(string.IsNullOrEmpty(result.Error) ? action : result.Error);
+                Core.Utils.AsyncTap.Run(RebuildAsync());
                 return;
             }
 
@@ -219,6 +258,7 @@ namespace Core.Vfx
             _map?.SetReadout($"{Trans.Get("CommandBridge")} · {action} · {suffix}");
             if (_poller != null)
                 await _poller.PollNow();
+            Core.Utils.AsyncTap.Run(RebuildAsync());
         }
     }
 }

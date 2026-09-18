@@ -52,25 +52,17 @@ namespace Core.Vfx
                 return;
             }
 
-            // Tactical / Engineering — labeled poke pads, context-gated.
+            // Tactical / Engineering — pads appear only when the action is feasible.
             var radial = new GameObject(name + "Radial");
             radial.transform.SetParent(root.transform, false);
             radial.transform.localPosition = new Vector3(0f, 1.15f, 0.35f);
+            var pad = radial.AddComponent<CrewRolePad>();
             if (role == CrewRole.Tactical)
-            {
-                AddLabeledPad(radial.transform, art, Trans.Get("Siege"), new Vector3(0f, 0f, 0f), accent, () =>
-                {
-                    if (hex != null && hex.IsActive)
-                        _ = hex.EndTurn();
-                    else
-                        _ = CrewOrderBridge.Siege(orders);
-                });
-            }
+                pad.Bind(FocusContext.Current, art, accent, CrewRolePad.Role.Tactical, radial.transform,
+                    orders, hex);
             else if (role == CrewRole.Engineering)
-            {
-                AddLabeledPad(radial.transform, art, Trans.Get("Mine"), new Vector3(0f, 0f, 0f), accent, () =>
-                    _ = CrewOrderBridge.Mine(orders));
-            }
+                pad.Bind(FocusContext.Current, art, accent, CrewRolePad.Role.Engineering, radial.transform,
+                    orders, hex);
         }
 
         static void BuildHelmBoard(Transform station, CicArtKit art, Color accent, HoloZoneMap map,
@@ -103,43 +95,6 @@ namespace Core.Vfx
 
             var console = station.gameObject.AddComponent<CrewHelmConsole>();
             console.Bind(FocusContext.Current, art, map, poller, list, title);
-        }
-
-        static void AddLabeledPad(Transform parent, CicArtKit art, string label, Vector3 local,
-            Color accent, System.Action act)
-        {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            go.name = "Pad_" + label;
-            go.transform.SetParent(parent, false);
-            go.transform.localPosition = local;
-            go.transform.localScale = new Vector3(0.42f, 0.08f, 0.04f);
-            go.GetComponent<MeshRenderer>().sharedMaterial =
-                art.Lit(Texture2D.whiteTexture, accent, 2.0f);
-            var interact = go.AddComponent<XRSimpleInteractable>();
-            interact.hoverEntered.AddListener(_ =>
-            {
-                go.transform.localScale = new Vector3(0.46f, 0.09f, 0.045f);
-                CicCue.Hover(go.transform.position);
-            });
-            interact.hoverExited.AddListener(_ =>
-            {
-                go.transform.localScale = new Vector3(0.42f, 0.08f, 0.04f);
-            });
-            interact.selectEntered.AddListener(_ =>
-            {
-                CicCue.Ok(go.transform.position);
-                act();
-            });
-
-            var tmpGo = new GameObject("T");
-            tmpGo.transform.SetParent(go.transform, false);
-            tmpGo.transform.localPosition = new Vector3(0f, 0f, -0.65f);
-            tmpGo.transform.localScale = Vector3.one * 0.03f;
-            var tmp = tmpGo.AddComponent<TextMeshPro>();
-            tmp.alignment = TextAlignmentOptions.Center;
-            tmp.fontSize = 5f;
-            tmp.color = Color.white;
-            tmp.text = label;
         }
 
         static void BuildMannequin(CicEnvironment host, CicArtKit art, Vector3 seatPos, Color accent)
