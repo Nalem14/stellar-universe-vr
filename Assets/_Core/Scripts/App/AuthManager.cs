@@ -123,6 +123,7 @@ namespace Core.App
             Empire = null;
             PlayerPrefs.DeleteKey(TokenKey);
             PlayerPrefs.Save();
+            BridgeViewAnchor.Clear();
             LoggedOut?.Invoke();
         }
 
