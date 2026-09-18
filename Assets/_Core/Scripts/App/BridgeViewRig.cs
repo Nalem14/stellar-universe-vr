@@ -83,13 +83,7 @@ namespace Core.App
             var col = hull.GetComponent<Collider>();
             if (col != null)
                 Destroy(col);
-            var shader = Shader.Find("SU/UnlitEmissive") ?? Shader.Find("Unlit/Color");
-            var mat = new Material(shader);
-            if (mat.HasProperty("_Color"))
-                mat.SetColor("_Color", new Color(0.12f, 0.14f, 0.18f));
-            if (mat.HasProperty("_EmissionMul"))
-                mat.SetFloat("_EmissionMul", 0.2f);
-            hull.GetComponent<MeshRenderer>().sharedMaterial = mat;
+            hull.GetComponent<MeshRenderer>().sharedMaterial = SharedHiddenHullMat();
             _hull = hull.transform;
             SetHullVisible(false);
 
@@ -101,6 +95,21 @@ namespace Core.App
 
             _viewShip.position = transform.position + new Vector3(SystemExterior.OrbitBase * 0.55f,
                 WorldScale.EclipticHeight, 0f);
+        }
+
+        static Material _hiddenHullMat;
+
+        static Material SharedHiddenHullMat()
+        {
+            if (_hiddenHullMat != null)
+                return _hiddenHullMat;
+            var shader = Shader.Find("SU/UnlitEmissive") ?? Shader.Find("Unlit/Color");
+            _hiddenHullMat = new Material(shader);
+            if (_hiddenHullMat.HasProperty("_Color"))
+                _hiddenHullMat.SetColor("_Color", new Color(0.12f, 0.14f, 0.18f));
+            if (_hiddenHullMat.HasProperty("_EmissionMul"))
+                _hiddenHullMat.SetFloat("_EmissionMul", 0.2f);
+            return _hiddenHullMat;
         }
 
         void ParentPlayer()
