@@ -64,6 +64,7 @@ namespace Core.App
                 env.Table != null ? env.Table.transform : interior.transform, hex);
 
             CrewStationsBuilder.Build(env, env.Art, viewOrders, hex, _zoneMap, _poller);
+            CaptainOrdersRail.Build(env, env.Art, _zoneMap, _poller);
 
             var teleporter = BridgeViewTeleporter.Build(env, env.Art);
             teleporter.Bind(_loader, _focus, env.Art);

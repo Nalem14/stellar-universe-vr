@@ -1,6 +1,7 @@
 using System.Threading.Tasks;
 using Core.Utils;
 using Core.Vfx;
+using TMPro;
 using UnityEngine;
 using UnityEngine.XR.Interaction.Toolkit;
 using UnityEngine.XR.Interaction.Toolkit.Interactables;
@@ -53,15 +54,50 @@ namespace Core.App
         {
             if (seat == null)
                 return;
-            var col = seat.GetComponent<Collider>();
-            if (col == null)
-                col = seat.gameObject.AddComponent<BoxCollider>();
-            col.isTrigger = true;
 
-            var grab = seat.GetComponent<XRSimpleInteractable>();
-            if (grab == null)
-                grab = seat.gameObject.AddComponent<XRSimpleInteractable>();
-            grab.selectEntered.AddListener(_ => Core.Utils.AsyncTap.Run(EnterCommandMode()));
+            // Large sit volume — obvious from standing, not a tiny seat collider.
+            var zone = seat.Find("SitZone");
+            Transform zoneT;
+            if (zone == null)
+            {
+                var go = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                go.name = "SitZone";
+                go.transform.SetParent(seat, false);
+                go.transform.localPosition = new Vector3(0f, 0.55f, 0.1f);
+                go.transform.localScale = new Vector3(0.85f, 0.08f, 0.85f);
+                Object.Destroy(go.GetComponent<Collider>());
+                var col = go.AddComponent<SphereCollider>();
+                col.isTrigger = true;
+                col.radius = 0.7f;
+                var art = seat.GetComponentInParent<CicEnvironment>()?.Art;
+                if (art != null)
+                    go.GetComponent<MeshRenderer>().sharedMaterial =
+                        art.Holo(Texture2D.whiteTexture, new Color(0.2f, 0.95f, 1f, 0.45f));
+                zoneT = go.transform;
+
+                var prompt = DiegeticUi.Label(go.transform, "SitPrompt", Trans.Get("CommandBridge"),
+                    new Vector3(0f, 4f, 0f), 0.12f, 5f, Color.white);
+                prompt.rectTransform.sizeDelta = new Vector2(30f, 6f);
+            }
+            else
+            {
+                zoneT = zone;
+            }
+
+            var interact = zoneT.GetComponent<XRSimpleInteractable>();
+            if (interact == null)
+                interact = zoneT.gameObject.AddComponent<XRSimpleInteractable>();
+            interact.selectEntered.RemoveAllListeners();
+            interact.selectEntered.AddListener(_ => Core.Utils.AsyncTap.Run(EnterCommandMode()));
+            interact.hoverEntered.AddListener(_ =>
+            {
+                zoneT.localScale = new Vector3(0.95f, 0.09f, 0.95f);
+                CicCue.Hover(zoneT.position);
+            });
+            interact.hoverExited.AddListener(_ =>
+            {
+                zoneT.localScale = new Vector3(0.85f, 0.08f, 0.85f);
+            });
         }
 
         void WireExit(Transform pad)

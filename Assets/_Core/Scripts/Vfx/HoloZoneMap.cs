@@ -426,9 +426,9 @@ namespace Core.Vfx
             if (owned)
                 AddGrabHalo(go.transform, s);
 
-            // Parent collider for grab / drop targeting.
+            // Parent collider for grab — generous for VR hand / ray.
             var col = go.AddComponent<BoxCollider>();
-            col.size = new Vector3(s * 1.2f, s * 0.6f, s * 1.4f);
+            col.size = new Vector3(s * 2.8f, s * 1.8f, s * 3.0f);
             col.center = new Vector3(0f, 0f, 0f);
 
             var spin = go.AddComponent<HoloSpin>();
@@ -524,11 +524,18 @@ namespace Core.Vfx
             var ring = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             ring.name = "GrabHalo";
             ring.transform.SetParent(parent, false);
-            ring.transform.localPosition = new Vector3(0f, -s * 0.15f, 0f);
-            ring.transform.localScale = new Vector3(s * 1.6f, 0.003f, s * 1.6f);
+            ring.transform.localPosition = new Vector3(0f, -s * 0.1f, 0f);
+            ring.transform.localScale = new Vector3(s * 2.4f, 0.004f, s * 2.4f);
             DropCollider(ring);
             ring.GetComponent<MeshRenderer>().sharedMaterial =
-                _art.Holo(Texture2D.whiteTexture, new Color(0.2f, 0.95f, 1f, 0.35f));
+                _art.Holo(Texture2D.whiteTexture, new Color(0.15f, 1f, 0.95f, 0.55f));
+            var pulse = ring.AddComponent<HoloSpin>();
+            pulse.DegreesPerSecond = 35f;
+            pulse.BobMeters = 0.004f;
+
+            var tip = DiegeticUi.Label(parent, "GrabHint", Trans.Get("CommandBridge"),
+                new Vector3(0f, s * 1.6f, 0f), 0.012f, 4f, CicArtKit.Cyan);
+            tip.rectTransform.sizeDelta = new Vector2(20f, 4f);
         }
 
         static void AddBox(Transform parent, string name, Vector3 localPos, Vector3 scale, Material mat)

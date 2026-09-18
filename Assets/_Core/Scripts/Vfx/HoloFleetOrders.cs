@@ -150,7 +150,7 @@ namespace Core.Vfx
             if (col == null)
             {
                 col = go.AddComponent<BoxCollider>();
-                ((BoxCollider)col).size = Vector3.one * 0.08f;
+                ((BoxCollider)col).size = Vector3.one * 0.22f;
             }
 
             col.isTrigger = false;
@@ -169,7 +169,7 @@ namespace Core.Vfx
                 return;
             SetHoverHighlight(token);
             var name = string.IsNullOrEmpty(token.DisplayName) ? "ship " + token.Id : token.DisplayName;
-            _map?.SetReadout($"{Trans.Get("CommandBridge")} · {name}");
+            _map?.SetReadout($"⟶ {name}");
             CicCue.Hover(token.transform.position);
         }
 
@@ -364,8 +364,8 @@ namespace Core.Vfx
             if (halo == null)
                 return;
             var s = WorldScale.HoloFleetSize;
-            var mul = bright ? 1.9f : 1.6f;
-            halo.localScale = new Vector3(s * mul, 0.003f, s * mul);
+            var mul = bright ? 3.0f : 2.4f;
+            halo.localScale = new Vector3(s * mul, 0.004f, s * mul);
         }
 
         static void RestoreSpin(HoloToken token)

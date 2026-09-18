@@ -41,7 +41,7 @@ namespace Core.Vfx
             _focus = focus;
             _poller = poller;
             EnsureGhost();
-            EnsureZoomPokes();
+            // Zoom: mouse wheel (Editor) + XR right thumbstick Y — no cube "zoom pokes".
             if (_map != null)
             {
                 _map.TokensRebuilt -= OnTokensRebuilt;
@@ -60,11 +60,29 @@ namespace Core.Vfx
         void Update()
         {
             RefreshMoveLock();
-            // Editor / sim: mouse wheel zoom (Input System — never legacy Input)
             var scroll = 0f;
             var mouse = UnityEngine.InputSystem.Mouse.current;
             if (mouse != null)
                 scroll = mouse.scroll.ReadValue().y * 0.01f;
+
+            var gamepad = UnityEngine.InputSystem.Gamepad.current;
+            if (gamepad != null)
+                scroll += gamepad.rightStick.ReadValue().y * 0.02f;
+
+            // OpenXR / Quest right controller primary2DAxis (thumbstick / trackpad).
+            foreach (var device in UnityEngine.InputSystem.InputSystem.devices)
+            {
+                if (device == null || !device.added)
+                    continue;
+                var n = device.name ?? string.Empty;
+                if (n.IndexOf("RightHand", System.StringComparison.OrdinalIgnoreCase) < 0 &&
+                    n.IndexOf("Right Controller", System.StringComparison.OrdinalIgnoreCase) < 0)
+                    continue;
+                var axis = device.TryGetChildControl<UnityEngine.InputSystem.Controls.Vector2Control>("primary2DAxis");
+                if (axis != null)
+                    scroll += axis.ReadValue().y * 0.025f;
+            }
+
             if (Mathf.Abs(scroll) > 0.01f && _mode != HoloMapMode.HexBattle)
                 SetZoom(_zoom + scroll * 0.08f);
         }
@@ -165,39 +183,17 @@ namespace Core.Vfx
                     new Color(0.25f, 1f, 1f, 0.9f));
             else
                 _ghost.sharedMaterial = new Material(Shader.Find("Sprites/Default") ?? Shader.Find("Unlit/Color"));
-            _ghost.startColor = new Color(0.2f, 1f, 1f, 0.85f);
-            _ghost.endColor = new Color(0.2f, 1f, 1f, 0.15f);
-            _ghost.startWidth = 0.012f;
-            _ghost.endWidth = 0.004f;
+            _ghost.startColor = new Color(0.2f, 1f, 1f, 0.95f);
+            _ghost.endColor = new Color(1f, 0.7f, 0.2f, 0.85f);
+            _ghost.startWidth = 0.022f;
+            _ghost.endWidth = 0.01f;
             _ghost.useWorldSpace = true;
             _ghost.enabled = false;
-        }
 
-        void EnsureZoomPokes()
-        {
-            if (_map == null || _map.transform.Find("ZoomPokes") != null)
-                return;
-            var art = _map.GetComponentInParent<CicEnvironment>()?.Art;
-            if (art == null)
-                return;
-            var root = new GameObject("ZoomPokes");
-            root.transform.SetParent(_map.transform, false);
-            root.transform.localPosition = new Vector3(0.42f, 0.04f, -0.38f);
-            MakeZoomPoke(root.transform, art, "In", new Vector3(0f, 0f, 0f), () => SetZoom(_zoom + 0.12f));
-            MakeZoomPoke(root.transform, art, "Out", new Vector3(0.12f, 0f, 0f), () => SetZoom(_zoom - 0.12f));
-        }
-
-        static void MakeZoomPoke(Transform parent, CicArtKit art, string name, Vector3 local, System.Action act)
-        {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            go.name = "Zoom_" + name;
-            go.transform.SetParent(parent, false);
-            go.transform.localPosition = local;
-            go.transform.localScale = new Vector3(0.08f, 0.03f, 0.05f);
-            go.GetComponent<MeshRenderer>().sharedMaterial =
-                art.Lit(Texture2D.whiteTexture, CicArtKit.Cyan * 0.7f, 1.6f);
-            var interact = go.AddComponent<XRSimpleInteractable>();
-            interact.selectEntered.AddListener(_ => act());
+            // Destroy legacy zoom cubes if an old session left them.
+            var legacy = _map.transform.Find("ZoomPokes");
+            if (legacy != null)
+                Destroy(legacy.gameObject);
         }
 
         static long UnixNow() =>

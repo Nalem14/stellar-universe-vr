@@ -161,52 +161,44 @@ namespace Core.Vfx
 
         void AddRow(string label, Color accent, System.Action act, bool interact = true)
         {
-            var y = 0.05f - _rows.Count * 0.09f;
-            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            go.name = "Order_" + _rows.Count;
-            go.transform.SetParent(_list, false);
-            go.transform.localPosition = new Vector3(0f, y, 0f);
-            go.transform.localScale = new Vector3(0.72f, 0.075f, 0.03f);
-            go.GetComponent<MeshRenderer>().sharedMaterial =
-                _art.Lit(Texture2D.whiteTexture, accent * 0.55f, 1.5f);
-
+            var y = 0.02f - _rows.Count * 0.095f;
+            if (_art == null || _list == null)
+                return;
+            var idle = _art.Lit(Texture2D.whiteTexture, accent * 0.55f, 1.6f);
+            var hover = _art.Lit(Texture2D.whiteTexture, accent, 3.0f);
             if (interact && act != null)
             {
-                var xi = go.AddComponent<XRSimpleInteractable>();
-                xi.hoverEntered.AddListener(_ =>
-                {
-                    go.transform.localScale = new Vector3(0.76f, 0.082f, 0.035f);
-                    CicCue.Hover(go.transform.position);
-                    _map?.SetReadout(label);
-                });
-                xi.hoverExited.AddListener(_ =>
-                {
-                    go.transform.localScale = new Vector3(0.72f, 0.075f, 0.03f);
-                });
-                xi.selectEntered.AddListener(_ => act());
+                DiegeticUi.Plate(_list, "Order_" + _rows.Count, new Vector3(0f, y, 0f),
+                    new Vector3(0.48f, 0.08f, 0.03f), idle, hover, act, out _);
             }
             else
             {
-                CicEnvironment.DropColliderStatic(go);
+                DiegeticUi.Plate(_list, "Order_" + _rows.Count, new Vector3(0f, y, 0f),
+                    new Vector3(0.48f, 0.08f, 0.03f), idle, idle, null, out _);
             }
 
-            var tmpGo = new GameObject("T");
-            tmpGo.transform.SetParent(go.transform, false);
-            tmpGo.transform.localPosition = new Vector3(0f, 0f, -0.65f);
-            tmpGo.transform.localScale = Vector3.one * 0.022f;
-            var tmp = tmpGo.AddComponent<TextMeshPro>();
-            tmp.alignment = TextAlignmentOptions.Center;
-            tmp.fontSize = 5f;
-            tmp.color = Color.white;
-            tmp.text = label;
-            _rows.Add(go);
+            var tmp = DiegeticUi.Label(_list, "T", label, new Vector3(0f, y, -0.025f), 0.022f, 5f,
+                Color.white);
+            tmp.rectTransform.sizeDelta = new Vector2(22f, 5f);
+            var mark = new GameObject("Mark_" + _rows.Count);
+            mark.transform.SetParent(_list, false);
+            _rows.Add(mark);
         }
 
         void ClearRows()
         {
-            for (var i = 0; i < _rows.Count; i++)
-                if (_rows[i] != null)
-                    Destroy(_rows[i]);
+            if (_list != null)
+            {
+                for (var i = _list.childCount - 1; i >= 0; i--)
+                {
+                    var c = _list.GetChild(i).gameObject;
+                    if (Application.isPlaying)
+                        Destroy(c);
+                    else
+                        DestroyImmediate(c);
+                }
+            }
+
             _rows.Clear();
         }
 

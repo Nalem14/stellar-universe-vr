@@ -10,7 +10,7 @@ using UnityEngine.XR.Interaction.Toolkit.Interactables;
 namespace Core.Vfx
 {
     /// <summary>
-    /// Diegetic view teleporter: arche + screen tabs Spaceships / Planets.
+    /// Diegetic view teleporter — CIC console facing the pad, labeled tabs + readable rows.
     /// </summary>
     public class BridgeViewTeleporter : MonoBehaviour
     {
@@ -18,15 +18,36 @@ namespace Core.Vfx
         FocusContext _focus;
         Transform _listRoot;
         TMP_Text _title;
+        TMP_Text _hint;
         bool _shipsTab = true;
         readonly List<GameObject> _rows = new();
         CicArtKit _art;
+        Material _rowIdle;
+        Material _rowHover;
+        Material _tabShipIdle;
+        Material _tabShipHover;
+        Material _tabPlanetIdle;
+        Material _tabPlanetHover;
 
         public void Bind(BridgeSystemLoader loader, FocusContext focus, CicArtKit art)
         {
             _loader = loader;
             _focus = focus;
             _art = art;
+            CacheMats();
+        }
+
+        void CacheMats()
+        {
+            if (_art == null)
+                return;
+            _rowIdle = _art.Lit(_art.ScreenIdle != null ? _art.ScreenIdle : Texture2D.whiteTexture,
+                new Color(0.08f, 0.28f, 0.36f), 1.6f);
+            _rowHover = _art.Lit(Texture2D.whiteTexture, CicArtKit.Cyan, 2.8f);
+            _tabShipIdle = _art.Lit(Texture2D.whiteTexture, CicArtKit.Cyan * 0.75f, 2.0f);
+            _tabShipHover = _art.Lit(Texture2D.whiteTexture, CicArtKit.Cyan, 3.4f);
+            _tabPlanetIdle = _art.Lit(Texture2D.whiteTexture, CicArtKit.Amber * 0.75f, 2.0f);
+            _tabPlanetHover = _art.Lit(Texture2D.whiteTexture, CicArtKit.Amber, 3.4f);
         }
 
         public static BridgeViewTeleporter Build(CicEnvironment host, CicArtKit art)
@@ -36,120 +57,100 @@ namespace Core.Vfx
             root.transform.SetParent(host.transform, false);
             root.transform.localPosition = new Vector3(0f, 0f, -half + 1.35f);
 
-            // Pad ring
             var pad = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             pad.name = "TeleportPad";
             pad.transform.SetParent(root.transform, false);
             pad.transform.localPosition = new Vector3(0f, 0.02f, 0f);
-            pad.transform.localScale = new Vector3(1.4f, 0.02f, 1.4f);
+            pad.transform.localScale = new Vector3(1.5f, 0.025f, 1.5f);
             pad.GetComponent<MeshRenderer>().sharedMaterial =
-                art.Holo(Texture2D.whiteTexture, new Color(0.15f, 0.85f, 1f, 0.45f));
+                art.Holo(Texture2D.whiteTexture, new Color(0.15f, 0.85f, 1f, 0.55f));
+            var padRing = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            padRing.name = "PadRing";
+            padRing.transform.SetParent(root.transform, false);
+            padRing.transform.localPosition = new Vector3(0f, 0.03f, 0f);
+            padRing.transform.localScale = new Vector3(1.65f, 0.008f, 1.65f);
+            CicEnvironment.DropColliderStatic(padRing);
+            padRing.GetComponent<MeshRenderer>().sharedMaterial = art.CyanEmit(2.8f);
 
-            // Pillars + arch
-            host.Box("TpPillarL", new Vector3(-0.85f, 1.2f, -half + 1.35f),
-                new Vector3(0.18f, 2.2f, 0.18f), art.MetalPanel(0.1f), keepCollider: true);
-            host.Box("TpPillarR", new Vector3(0.85f, 1.2f, -half + 1.35f),
-                new Vector3(0.18f, 2.2f, 0.18f), art.MetalPanel(0.1f), keepCollider: true);
-            host.Box("TpArch", new Vector3(0f, 2.25f, -half + 1.35f),
-                new Vector3(2.0f, 0.16f, 0.22f), art.CyanEmit(2.4f), keepCollider: false);
+            host.Box("TpPillarL", new Vector3(-0.95f, 1.25f, -half + 1.35f),
+                new Vector3(0.2f, 2.4f, 0.2f), art.MetalPanel(0.12f), keepCollider: true);
+            host.Box("TpPillarR", new Vector3(0.95f, 1.25f, -half + 1.35f),
+                new Vector3(0.2f, 2.4f, 0.2f), art.MetalPanel(0.12f), keepCollider: true);
+            host.Box("TpArch", new Vector3(0f, 2.4f, -half + 1.35f),
+                new Vector3(2.2f, 0.14f, 0.22f), art.CyanEmit(2.6f), keepCollider: false);
 
-            // Face the pad / room (+Z). Without this, TMP/quads read mirrored from the deck.
+            // Face pad / room.
             var face = new GameObject("TpFace").transform;
             face.SetParent(root.transform, false);
-            face.localPosition = new Vector3(0f, 0f, -0.12f);
+            face.localPosition = new Vector3(0f, 0f, -0.1f);
             face.localRotation = Quaternion.Euler(0f, 180f, 0f);
 
-            var bezel = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            bezel.name = "TpBezel";
-            bezel.transform.SetParent(face, false);
-            bezel.transform.localPosition = new Vector3(0f, 1.45f, 0.04f);
-            bezel.transform.localScale = new Vector3(1.65f, 1.1f, 0.06f);
-            bezel.GetComponent<MeshRenderer>().sharedMaterial = art.DarkPanel(0.08f);
+            var chassis = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            chassis.name = "Chassis";
+            chassis.transform.SetParent(face, false);
+            chassis.transform.localPosition = new Vector3(0f, 1.4f, 0.06f);
+            chassis.transform.localScale = new Vector3(1.85f, 1.35f, 0.1f);
+            chassis.GetComponent<MeshRenderer>().sharedMaterial = art.MetalPanel(0.15f);
 
             var screen = GameObject.CreatePrimitive(PrimitiveType.Quad);
             screen.name = "TpScreen";
             screen.transform.SetParent(face, false);
-            screen.transform.localPosition = new Vector3(0f, 1.45f, 0.01f);
-            screen.transform.localScale = new Vector3(1.5f, 0.95f, 1f);
+            screen.transform.localPosition = new Vector3(0f, 1.4f, 0.005f);
+            screen.transform.localScale = new Vector3(1.65f, 1.15f, 1f);
             CicEnvironment.DropColliderStatic(screen);
             screen.GetComponent<MeshRenderer>().sharedMaterial =
                 art.Lit(art.ScreenIdle != null ? art.ScreenIdle : Texture2D.whiteTexture,
-                    new Color(0.08f, 0.22f, 0.32f), 1.4f);
+                    new Color(0.05f, 0.18f, 0.26f), 1.8f);
 
             var scan = GameObject.CreatePrimitive(PrimitiveType.Quad);
             scan.name = "TpScan";
             scan.transform.SetParent(face, false);
-            scan.transform.localPosition = new Vector3(0f, 1.45f, 0.005f);
-            scan.transform.localScale = new Vector3(1.48f, 0.93f, 1f);
+            scan.transform.localPosition = new Vector3(0f, 1.4f, -0.002f);
+            scan.transform.localScale = new Vector3(1.62f, 1.12f, 1f);
             CicEnvironment.DropColliderStatic(scan);
             scan.GetComponent<MeshRenderer>().sharedMaterial =
-                art.Holo(Texture2D.whiteTexture, new Color(0.2f, 0.9f, 1f, 0.12f));
-            var scanSpin = scan.AddComponent<HoloSpin>();
-            scanSpin.DegreesPerSecond = 0f;
-            scanSpin.BobMeters = 0.004f;
+                art.Holo(Texture2D.whiteTexture, new Color(0.25f, 0.95f, 1f, 0.1f));
 
-            var titleGo = new GameObject("TpTitle");
-            titleGo.transform.SetParent(face, false);
-            titleGo.transform.localPosition = new Vector3(0f, 1.88f, -0.02f);
-            titleGo.transform.localScale = Vector3.one * 0.022f;
-            var title = titleGo.AddComponent<TextMeshPro>();
-            title.alignment = TextAlignmentOptions.Center;
-            title.fontSize = 7f;
-            title.color = new Color(0.55f, 0.95f, 1f);
-            title.text = Trans.Get("spaceships");
+            var title = DiegeticUi.Label(face, "TpTitle", Trans.Get("spaceships"),
+                new Vector3(0f, 1.92f, -0.02f), 0.04f, 8f, new Color(0.65f, 0.98f, 1f));
+            title.rectTransform.sizeDelta = new Vector2(50f, 8f);
+
+            var hint = DiegeticUi.Label(face, "TpHint", Trans.Get("CommandBridge"),
+                new Vector3(0f, 0.78f, -0.02f), 0.028f, 5f, new Color(0.45f, 0.75f, 0.85f));
+            hint.rectTransform.sizeDelta = new Vector2(60f, 6f);
 
             var list = new GameObject("TpList").transform;
             list.SetParent(face, false);
-            list.localPosition = new Vector3(0f, 1.35f, -0.01f);
-
-            // Under Face (Y=180), local -X appears on the viewer's left.
-            MakeTab(face, art, new Vector3(-0.4f, 1.72f, -0.01f), Trans.Get("spaceships"), true,
-                out var tabShips);
-            MakeTab(face, art, new Vector3(0.4f, 1.72f, -0.01f), Trans.Get("planets"), false,
-                out var tabPlanets);
+            list.localPosition = new Vector3(0f, 1.25f, -0.02f);
 
             var tp = root.AddComponent<BridgeViewTeleporter>();
             tp._title = title;
+            tp._hint = hint;
             tp._listRoot = list;
             tp._art = art;
+            tp.CacheMats();
 
-            tabShips.selectEntered.AddListener(_ =>
-            {
-                tp._shipsTab = true;
-                Core.Utils.AsyncTap.Run(tp.RefreshList());
-            });
-            tabPlanets.selectEntered.AddListener(_ =>
-            {
-                tp._shipsTab = false;
-                Core.Utils.AsyncTap.Run(tp.RefreshList());
-            });
+            MakeTab(face, tp, true, new Vector3(-0.42f, 1.72f, -0.03f));
+            MakeTab(face, tp, false, new Vector3(0.42f, 1.72f, -0.03f));
 
-            host.KeyLight("TpLamp", new Vector3(0f, 2.4f, -half + 1.35f), CicArtKit.Cyan, 1.1f, 4.5f);
+            host.KeyLight("TpLamp", new Vector3(0f, 2.55f, -half + 1.35f), CicArtKit.Cyan, 1.4f, 5f);
             return tp;
         }
 
-        static void MakeTab(Transform parent, CicArtKit art, Vector3 localPos, string label,
-            bool ships, out XRSimpleInteractable interact)
+        static void MakeTab(Transform face, BridgeViewTeleporter tp, bool ships, Vector3 localPos)
         {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            go.name = "Tab_" + (ships ? "Ships" : "Planets");
-            go.transform.SetParent(parent, false);
-            go.transform.localPosition = localPos;
-            go.transform.localScale = new Vector3(0.55f, 0.1f, 0.04f);
-            go.GetComponent<MeshRenderer>().sharedMaterial =
-                art.Lit(Texture2D.whiteTexture, ships ? CicArtKit.Cyan : CicArtKit.Amber, 1.6f);
-            interact = go.AddComponent<XRSimpleInteractable>();
-
-            var tmpGo = new GameObject("Label");
-            tmpGo.transform.SetParent(go.transform, false);
-            // Negative local Z = toward viewer under Face Y=180.
-            tmpGo.transform.localPosition = new Vector3(0f, 0f, -0.6f);
-            tmpGo.transform.localScale = Vector3.one * 0.02f;
-            var tmp = tmpGo.AddComponent<TextMeshPro>();
-            tmp.alignment = TextAlignmentOptions.Center;
-            tmp.fontSize = 6f;
-            tmp.color = Color.white;
-            tmp.text = label;
+            var idle = ships ? tp._tabShipIdle : tp._tabPlanetIdle;
+            var hover = ships ? tp._tabShipHover : tp._tabPlanetHover;
+            var label = ships ? Trans.Get("spaceships") : Trans.Get("planets");
+            DiegeticUi.Plate(face, ships ? "Tab_Ships" : "Tab_Planets", localPos,
+                new Vector3(0.7f, 0.14f, 0.05f), idle, hover, () =>
+                {
+                    tp._shipsTab = ships;
+                    Core.Utils.AsyncTap.Run(tp.RefreshList());
+                }, out _);
+            var tmp = DiegeticUi.Label(face, ships ? "TabLabel_Ships" : "TabLabel_Planets", label,
+                localPos + new Vector3(0f, 0f, -0.04f), 0.035f, 6f, Color.white);
+            tmp.rectTransform.sizeDelta = new Vector2(28f, 6f);
         }
 
         public async Task RefreshList()
@@ -163,11 +164,16 @@ namespace Core.Vfx
             else
                 await LoadPlanets();
 
-            if (_rows.Count == 0 && _title != null && !string.IsNullOrEmpty(_title.text))
+            if (_rows.Count == 0)
             {
-                // Keep a diegetic status row so the screen never looks like a dead black quad.
-                AddStatusRow(_title.text);
+                var msg = _title != null && !string.IsNullOrEmpty(_title.text)
+                    ? _title.text
+                    : Trans.Get("Loading");
+                AddStatusRow(msg);
             }
+
+            if (_hint != null)
+                _hint.text = _shipsTab ? Trans.Get("spaceships") : Trans.Get("planets");
         }
 
         async Task LoadShips()
@@ -198,9 +204,9 @@ namespace Core.Vfx
                     var name = FocusContext.AsString(f["name"]);
                     if (string.IsNullOrEmpty(name))
                         name = "ship " + id;
-                    AddRow(name + " · " + sys, () => Core.Utils.AsyncTap.Run(ConfirmShip(id, sys)));
+                    AddRow(name, "sys " + sys, () => Core.Utils.AsyncTap.Run(ConfirmShip(id, sys)));
                     i++;
-                    if (i >= 8)
+                    if (i >= 6)
                         break;
                 }
             }
@@ -216,7 +222,6 @@ namespace Core.Vfx
             var result = await ActionJs.Get("GetEmpirePlanets");
             if (!result.Ok)
             {
-                // Fallback: planets in current focus
                 if (_focus != null)
                 {
                     foreach (var p in _focus.Planets)
@@ -224,7 +229,7 @@ namespace Core.Vfx
                         var label = string.IsNullOrEmpty(p.Name) ? "planet " + p.Id : p.Name;
                         var planetId = p.Id;
                         var sys = _focus.SystemId;
-                        AddRow(label, () => Core.Utils.AsyncTap.Run(ConfirmPlanet(planetId, sys)));
+                        AddRow(label, "sys " + sys, () => Core.Utils.AsyncTap.Run(ConfirmPlanet(planetId, sys)));
                     }
                 }
 
@@ -246,9 +251,9 @@ namespace Core.Vfx
                     var name = FocusContext.AsString(p["name"]);
                     if (string.IsNullOrEmpty(name))
                         name = "planet " + id;
-                    AddRow(name + " · " + sys, () => Core.Utils.AsyncTap.Run(ConfirmPlanet(id, sys)));
+                    AddRow(name, "sys " + sys, () => Core.Utils.AsyncTap.Run(ConfirmPlanet(id, sys)));
                     i++;
-                    if (i >= 8)
+                    if (i >= 6)
                         break;
                 }
             }
@@ -259,38 +264,60 @@ namespace Core.Vfx
             }
         }
 
-        void AddRow(string label, System.Action onSelect)
+        void AddRow(string primary, string secondary, System.Action onSelect)
         {
             if (_listRoot == null || _art == null)
                 return;
-            var y = 0.12f - _rows.Count * 0.1f;
-            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            go.name = "Row";
-            go.transform.SetParent(_listRoot, false);
-            go.transform.localPosition = new Vector3(0f, y, 0f);
-            go.transform.localScale = new Vector3(1.2f, 0.08f, 0.03f);
-            go.GetComponent<MeshRenderer>().sharedMaterial =
-                _art.Lit(Texture2D.whiteTexture, new Color(0.1f, 0.25f, 0.32f), 0.9f);
-            var interact = go.AddComponent<XRSimpleInteractable>();
-            interact.selectEntered.AddListener(_ => onSelect());
+            CacheMats();
+            var y = 0.08f - _rows.Count * 0.14f;
+            DiegeticUi.Plate(_listRoot, "Row_" + _rows.Count, new Vector3(0f, y, 0f),
+                new Vector3(1.45f, 0.12f, 0.04f), _rowIdle, _rowHover, onSelect, out _);
+            var primaryT = DiegeticUi.Label(_listRoot, "P", primary,
+                new Vector3(-0.15f, y, -0.035f), 0.032f, 5.5f, new Color(0.85f, 0.98f, 1f),
+                TextAlignmentOptions.Left);
+            primaryT.rectTransform.sizeDelta = new Vector2(36f, 6f);
+            var secondaryT = DiegeticUi.Label(_listRoot, "S", secondary,
+                new Vector3(0.5f, y, -0.035f), 0.028f, 4.5f, new Color(0.5f, 0.85f, 0.95f),
+                TextAlignmentOptions.Right);
+            secondaryT.rectTransform.sizeDelta = new Vector2(16f, 5f);
+            // Track plate (first child of last add is awkward) — store a marker empty.
+            var marker = new GameObject("RowMark_" + _rows.Count);
+            marker.transform.SetParent(_listRoot, false);
+            _rows.Add(marker);
+        }
 
-            var tmpGo = new GameObject("Txt");
-            tmpGo.transform.SetParent(go.transform, false);
-            tmpGo.transform.localPosition = new Vector3(0f, 0f, -0.7f);
-            tmpGo.transform.localScale = Vector3.one * 0.018f;
-            var tmp = tmpGo.AddComponent<TextMeshPro>();
-            tmp.alignment = TextAlignmentOptions.Center;
-            tmp.fontSize = 5.5f;
-            tmp.color = new Color(0.7f, 0.95f, 1f);
-            tmp.text = label;
-            _rows.Add(go);
+        void AddStatusRow(string label)
+        {
+            if (_listRoot == null || _art == null)
+                return;
+            CacheMats();
+            DiegeticUi.Plate(_listRoot, "StatusRow", new Vector3(0f, 0.05f, 0f),
+                new Vector3(1.45f, 0.16f, 0.04f), _rowIdle, _rowIdle, null, out _);
+            var tmp = DiegeticUi.Label(_listRoot, "StatusTxt", label,
+                new Vector3(0f, 0.05f, -0.035f), 0.034f, 5.5f, new Color(0.75f, 0.95f, 1f));
+            tmp.rectTransform.sizeDelta = new Vector2(42f, 8f);
+            var marker = new GameObject("StatusMark");
+            marker.transform.SetParent(_listRoot, false);
+            _rows.Add(marker);
         }
 
         void ClearRows()
         {
-            for (var i = 0; i < _rows.Count; i++)
-                if (_rows[i] != null)
-                    Destroy(_rows[i]);
+            if (_listRoot == null)
+            {
+                _rows.Clear();
+                return;
+            }
+
+            for (var i = _listRoot.childCount - 1; i >= 0; i--)
+            {
+                var c = _listRoot.GetChild(i).gameObject;
+                if (Application.isPlaying)
+                    Destroy(c);
+                else
+                    DestroyImmediate(c);
+            }
+
             _rows.Clear();
         }
 
@@ -303,6 +330,10 @@ namespace Core.Vfx
             var ok = await _loader.LoadShipView(fleetId, systemId);
             if (_title != null)
                 _title.text = ok ? Trans.Get("spaceships") : Trans.Get("error");
+            if (ok)
+                CicCue.Ok(transform.position);
+            else
+                CicCue.Fail(transform.position);
         }
 
         async Task ConfirmPlanet(int planetId, int systemId)
@@ -314,36 +345,12 @@ namespace Core.Vfx
             var ok = await _loader.LoadPlanetStation(planetId, systemId);
             if (_title != null)
                 _title.text = ok ? Trans.Get("planets") : Trans.Get("error");
+            if (ok)
+                CicCue.Ok(transform.position);
+            else
+                CicCue.Fail(transform.position);
         }
 
-        void AddStatusRow(string label)
-        {
-            if (_listRoot == null || _art == null)
-                return;
-            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            go.name = "StatusRow";
-            go.transform.SetParent(_listRoot, false);
-            go.transform.localPosition = new Vector3(0f, 0.15f, 0f);
-            go.transform.localScale = new Vector3(1.2f, 0.12f, 0.03f);
-            CicEnvironment.DropColliderStatic(go);
-            go.GetComponent<MeshRenderer>().sharedMaterial =
-                _art.Lit(Texture2D.whiteTexture, new Color(0.12f, 0.35f, 0.45f), 1.2f);
-
-            var tmpGo = new GameObject("Txt");
-            tmpGo.transform.SetParent(go.transform, false);
-            tmpGo.transform.localPosition = new Vector3(0f, 0f, -0.7f);
-            tmpGo.transform.localScale = Vector3.one * 0.018f;
-            var tmp = tmpGo.AddComponent<TextMeshPro>();
-            tmp.alignment = TextAlignmentOptions.Center;
-            tmp.fontSize = 5f;
-            tmp.color = new Color(0.7f, 0.95f, 1f);
-            tmp.text = label;
-            _rows.Add(go);
-        }
-
-        void Start()
-        {
-            Core.Utils.AsyncTap.Run(RefreshList());
-        }
+        void Start() => Core.Utils.AsyncTap.Run(RefreshList());
     }
 }
