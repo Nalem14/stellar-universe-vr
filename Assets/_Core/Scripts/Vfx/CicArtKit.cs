@@ -26,6 +26,8 @@ namespace Core.Vfx
         public Texture TokenSystem { get; private set; }
         public Texture TokenPlanet { get; private set; }
         public Texture TokenFleet { get; private set; }
+        public Texture HexGrid { get; private set; }
+        public Texture MoveGhost { get; private set; }
         public Texture ProjectorGlow { get; private set; }
         public Texture Stars { get; private set; }
         public Texture Title { get; private set; }
@@ -49,6 +51,8 @@ namespace Core.Vfx
             TokenSystem = Resources.Load<Texture2D>("Holo/TokenSystem");
             TokenPlanet = Resources.Load<Texture2D>("Holo/TokenPlanet");
             TokenFleet = Resources.Load<Texture2D>("Holo/TokenFleet");
+            HexGrid = Resources.Load<Texture2D>("Holo/HexGrid");
+            MoveGhost = Resources.Load<Texture2D>("Holo/MoveGhost");
             ProjectorGlow = Resources.Load<Texture2D>("Holo/ProjectorGlow");
             Stars = Resources.Load<Texture2D>("CIC/ViewportStars");
             Title = Resources.Load<Texture2D>("CIC/BootTitle");

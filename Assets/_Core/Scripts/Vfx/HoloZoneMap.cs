@@ -206,6 +206,80 @@ namespace Core.Vfx
             PlaceGalaxyStubRing();
         }
 
+        public async void ShowGalaxyAsync()
+        {
+            await GalaxyCatalog.EnsureLoaded();
+            if (_root == null || _art == null)
+                return;
+            ClearTokens();
+            _galaxyStub = true;
+            BuildGalaxyMap();
+            SetReadout("Galaxy");
+            TokensRebuilt?.Invoke();
+        }
+
+        public void ShowSystemMap()
+        {
+            Rebuild();
+        }
+
+        void BuildGalaxyMap()
+        {
+            var stars = GalaxyCatalog.All;
+            if (stars.Count == 0)
+            {
+                PlaceGalaxyStubRing();
+                return;
+            }
+
+            float minX = float.MaxValue, maxX = float.MinValue, minY = float.MaxValue, maxY = float.MinValue;
+            foreach (var s in stars)
+            {
+                minX = Mathf.Min(minX, s.X);
+                maxX = Mathf.Max(maxX, s.X);
+                minY = Mathf.Min(minY, s.Y);
+                maxY = Mathf.Max(maxY, s.Y);
+            }
+
+            var dx = Mathf.Max(1f, maxX - minX);
+            var dy = Mathf.Max(1f, maxY - minY);
+            var scale = WorldScale.HoloDiscRadius * 0.85f / Mathf.Max(dx, dy) * 2f;
+            var cx = (minX + maxX) * 0.5f;
+            var cy = (minY + maxY) * 0.5f;
+            var count = 0;
+            foreach (var s in stars)
+            {
+                if (count++ > 120)
+                    break;
+                var lx = (s.X - cx) * scale;
+                var lz = (s.Y - cy) * scale;
+                PlaceSystemToken(s.Id, s.X, s.Y, new Vector3(lx, WorldScale.HoloTokenLift, lz));
+            }
+        }
+
+        void PlaceSystemToken(int id, float gx, float gy, Vector3 localPos)
+        {
+            var go = TokenVisual("TokenSystem_" + id, PrimitiveType.Sphere, localPos,
+                Vector3.one * 0.035f,
+                _art.Holo(_art.TokenSystem != null ? _art.TokenSystem : Texture2D.whiteTexture,
+                    new Color(0.85f, 0.95f, 1f, 0.9f)),
+                keepCollider: true);
+            var token = go.GetComponent<HoloToken>();
+            if (token == null)
+                token = go.AddComponent<HoloToken>();
+            token.Kind = HoloTokenKind.System;
+            token.Id = id;
+            token.Slot = 0;
+            token.Owned = false;
+            token.Busy = false;
+            // Encode galaxy x.y into Home for MoveFleetToSystem pos — store as extras via name scale hack:
+            // use localScale.x unused → store in transform name suffix; better: public fields
+            token.GalaxyX = gx;
+            token.GalaxyY = gy;
+            token.CaptureHome();
+            _tokens.Add(token);
+        }
+
         void PlaceStar(int typeHint)
         {
             var tint = typeHint % 3 == 0
@@ -275,6 +349,7 @@ namespace Core.Vfx
             DropCollider(band);
             band.GetComponent<MeshRenderer>().sharedMaterial = _art.Holo(
                 Texture2D.whiteTexture, new Color(color.r, color.g, color.b, 0.55f));
+            AddStem(go.transform, pos.y);
             Tag(go, HoloTokenKind.Planet, id, slot, owned: false, busy: false);
         }
 
@@ -316,6 +391,9 @@ namespace Core.Vfx
             AddBox(go.transform, "Engine", new Vector3(0f, 0f, -s * 0.55f),
                 new Vector3(s * 0.18f, s * 0.18f, s * 0.2f),
                 busy ? _art.AmberEmit(4.2f) : _art.AmberEmit(3.5f));
+            AddStem(go.transform, pos.y);
+            if (busy)
+                AddBusyRing(go.transform, s);
 
             // Parent collider for grab / drop targeting.
             var col = go.AddComponent<BoxCollider>();
@@ -399,6 +477,30 @@ namespace Core.Vfx
             go.transform.localScale = scale;
             DropCollider(go);
             go.GetComponent<MeshRenderer>().sharedMaterial = mat;
+        }
+
+        void AddStem(Transform parent, float tokenY)
+        {
+            var h = Mathf.Max(0.02f, tokenY);
+            var stem = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            stem.name = "Stem";
+            stem.transform.SetParent(parent, false);
+            stem.transform.localPosition = new Vector3(0f, -h * 0.5f, 0f);
+            stem.transform.localScale = new Vector3(0.008f, h * 0.5f, 0.008f);
+            DropCollider(stem);
+            stem.GetComponent<MeshRenderer>().sharedMaterial =
+                _art.Holo(Texture2D.whiteTexture, new Color(0.3f, 0.85f, 1f, 0.35f));
+        }
+
+        void AddBusyRing(Transform parent, float s)
+        {
+            var ring = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            ring.name = "Busy";
+            ring.transform.SetParent(parent, false);
+            ring.transform.localPosition = new Vector3(0f, s * 0.55f, 0f);
+            ring.transform.localScale = new Vector3(s * 1.4f, 0.004f, s * 1.4f);
+            DropCollider(ring);
+            ring.GetComponent<MeshRenderer>().sharedMaterial = _art.AmberEmit(3.8f);
         }
 
         void ClearTokens()

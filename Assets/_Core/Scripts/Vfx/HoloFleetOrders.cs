@@ -10,17 +10,20 @@ using UnityEngine.XR.Interaction.Toolkit.Interactables;
 namespace Core.Vfx
 {
     /// <summary>
-    /// Grab owned fleet tokens on the holo table; drop on planet/asteroid → MoveFleetTo*.
+    /// Grab owned fleet tokens; drop on planet/asteroid/system → MoveFleet*.
+    /// Shows MOVE ghost while dragging.
     /// </summary>
     public class HoloFleetOrders : MonoBehaviour
     {
-        const float DropRadius = 0.14f;
+        const float DropRadius = 0.16f;
 
         HoloZoneMap _map;
         FocusContext _focus;
         FleetPoller _poller;
+        HoloMapController _mapCtrl;
         readonly List<XRGrabInteractable> _grabs = new();
         bool _ordering;
+        HoloToken _dragging;
 
         public void Bind(HoloZoneMap map, FocusContext focus, FleetPoller poller,
             HoloMapController mapCtrl = null)
@@ -37,8 +40,6 @@ namespace Core.Vfx
             }
         }
 
-        HoloMapController _mapCtrl;
-
         void OnDestroy()
         {
             if (_map != null)
@@ -47,6 +48,17 @@ namespace Core.Vfx
         }
 
         void OnTokensRebuilt() => WireTokens();
+
+        void Update()
+        {
+            if (_dragging == null || _mapCtrl == null || _map == null)
+                return;
+            var target = FindNearestDropTarget(_dragging.transform.position);
+            if (target != null)
+                _mapCtrl.ShowMoveGhost(_dragging.HomeLocalPos, target.HomeLocalPos);
+            else
+                _mapCtrl.HideMoveGhost();
+        }
 
         void WireTokens()
         {
@@ -94,7 +106,7 @@ namespace Core.Vfx
         }
 
         static long UnixNow() =>
-            (long)(System.DateTime.UtcNow - new System.DateTime(1970, 1, 1)).TotalSeconds;
+            (long)(DateTime.UtcNow - new DateTime(1970, 1, 1)).TotalSeconds;
 
         void UnwireGrabs()
         {
@@ -120,7 +132,6 @@ namespace Core.Vfx
             }
 
             col.isTrigger = false;
-
             var rb = go.GetComponent<Rigidbody>();
             if (rb == null)
                 rb = go.AddComponent<Rigidbody>();
@@ -134,6 +145,7 @@ namespace Core.Vfx
             var token = args.interactableObject.transform.GetComponent<HoloToken>();
             if (token == null)
                 return;
+            _dragging = token;
             var spin = token.GetComponent<HoloSpin>();
             if (spin != null)
                 spin.enabled = false;
@@ -144,6 +156,8 @@ namespace Core.Vfx
         void OnSelectExited(SelectExitEventArgs args)
         {
             var token = args.interactableObject.transform.GetComponent<HoloToken>();
+            _dragging = null;
+            _mapCtrl?.HideMoveGhost();
             if (token == null || _ordering)
                 return;
             _ = ResolveDrop(token);
@@ -170,33 +184,34 @@ namespace Core.Vfx
                     return;
                 }
 
-                var action = target.Kind == HoloTokenKind.Planet
-                    ? "MoveFleetToPlanet"
-                    : target.Kind == HoloTokenKind.Asteroid
-                        ? "MoveFleetToAsteroid"
-                        : null;
-                if (action == null)
-                {
-                    // Galaxy stub: drop near star token id encoded as system — use MoveFleetToSystem with pos.
-                    if (_mapCtrl != null && _mapCtrl.Mode == HoloMapMode.Galaxy &&
-                        target.Kind == HoloTokenKind.Fleet == false)
-                    {
-                        // no-op fallthrough
-                    }
-
-                    fleetToken.SnapHome();
-                    RestoreSpin(fleetToken);
-                    return;
-                }
-
+                string action;
                 var query = new Dictionary<string, string>
                 {
                     { "fleet", fleetToken.Id.ToString() }
                 };
+
                 if (target.Kind == HoloTokenKind.Planet)
+                {
+                    action = "MoveFleetToPlanet";
                     query["planet"] = target.Id.ToString();
+                }
                 else if (target.Kind == HoloTokenKind.Asteroid)
+                {
+                    action = "MoveFleetToAsteroid";
                     query["asteroid"] = target.Id.ToString();
+                }
+                else if (target.Kind == HoloTokenKind.System)
+                {
+                    action = "MoveFleetToSystem";
+                    query["pos"] = string.Format(System.Globalization.CultureInfo.InvariantCulture,
+                        "{0}.{1}", target.GalaxyX, target.GalaxyY);
+                }
+                else
+                {
+                    fleetToken.SnapHome();
+                    RestoreSpin(fleetToken);
+                    return;
+                }
 
                 _map?.SetReadout(Trans.Get("Loading"));
                 var result = await ActionJs.Get(action, query);
@@ -208,7 +223,6 @@ namespace Core.Vfx
                     return;
                 }
 
-                // Optimistic: park fleet token near target until poll rebuilds.
                 fleetToken.transform.localPosition = target.HomeLocalPos + Vector3.up * 0.04f;
                 fleetToken.CaptureHome();
                 fleetToken.Busy = true;
@@ -241,7 +255,8 @@ namespace Core.Vfx
             {
                 if (token == null)
                     continue;
-                if (token.Kind != HoloTokenKind.Planet && token.Kind != HoloTokenKind.Asteroid)
+                if (token.Kind != HoloTokenKind.Planet && token.Kind != HoloTokenKind.Asteroid &&
+                    token.Kind != HoloTokenKind.System)
                     continue;
                 var d = Vector3.Distance(worldPos, token.transform.position);
                 if (d < bestDist)
@@ -267,11 +282,7 @@ namespace Core.Vfx
                 return $"{action} · {Trans.Get("error_not_logged_in")}";
             var key = error.Trim().Trim('{', '}');
             if (key.StartsWith("error_", StringComparison.Ordinal))
-            {
-                var translated = Trans.Get(key);
-                return $"{action} · {translated}";
-            }
-
+                return $"{action} · {Trans.Get(key)}";
             return $"{action} · {key}";
         }
     }

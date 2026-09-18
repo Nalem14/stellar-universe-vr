@@ -41,6 +41,7 @@ namespace Core.Vfx
             _focus = focus;
             _poller = poller;
             EnsureGhost();
+            EnsureZoomPokes();
             if (_map != null)
             {
                 _map.TokensRebuilt -= OnTokensRebuilt;
@@ -83,20 +84,6 @@ namespace Core.Vfx
 
         public bool MovesLocked => _movesLocked || _mode == HoloMapMode.HexBattle;
 
-        public void SetMode(HoloMapMode mode)
-        {
-            if (_mode == mode)
-                return;
-            _mode = mode;
-            if (_map != null && _map.VolumeRoot != null)
-                _map.VolumeRoot.gameObject.SetActive(mode != HoloMapMode.HexBattle);
-            ModeChanged?.Invoke(mode);
-            if (mode == HoloMapMode.HexBattle)
-                _hex?.Show();
-            else
-                _hex?.Hide();
-        }
-
         public void SetZoom(float zoom)
         {
             _zoom = Mathf.Clamp(zoom, 0.65f, 1.85f);
@@ -110,6 +97,25 @@ namespace Core.Vfx
                 SetMode(HoloMapMode.Galaxy);
             else if (_zoom < 1.15f && _mode == HoloMapMode.Galaxy)
                 SetMode(HoloMapMode.System);
+        }
+
+        public void SetMode(HoloMapMode mode)
+        {
+            if (_mode == mode)
+                return;
+            var prev = _mode;
+            _mode = mode;
+            if (_map != null && _map.VolumeRoot != null)
+                _map.VolumeRoot.gameObject.SetActive(mode != HoloMapMode.HexBattle);
+            if (mode == HoloMapMode.Galaxy && prev != HoloMapMode.Galaxy)
+                _map?.ShowGalaxyAsync();
+            else if (mode == HoloMapMode.System && prev == HoloMapMode.Galaxy)
+                _map?.ShowSystemMap();
+            ModeChanged?.Invoke(mode);
+            if (mode == HoloMapMode.HexBattle)
+                _hex?.Show();
+            else if (prev == HoloMapMode.HexBattle)
+                _hex?.Hide();
         }
 
         public void ToggleSelect(int fleetId)
@@ -149,13 +155,46 @@ namespace Core.Vfx
             var go = new GameObject("MoveGhost");
             go.transform.SetParent(_map.transform, false);
             _ghost = go.AddComponent<LineRenderer>();
-            _ghost.sharedMaterial = new Material(Shader.Find("Sprites/Default") ?? Shader.Find("Unlit/Color"));
+            var art = _map.GetComponentInParent<CicEnvironment>()?.Art;
+            if (art != null)
+                _ghost.sharedMaterial = art.Holo(
+                    art.MoveGhost != null ? art.MoveGhost : Texture2D.whiteTexture,
+                    new Color(0.25f, 1f, 1f, 0.9f));
+            else
+                _ghost.sharedMaterial = new Material(Shader.Find("Sprites/Default") ?? Shader.Find("Unlit/Color"));
             _ghost.startColor = new Color(0.2f, 1f, 1f, 0.85f);
             _ghost.endColor = new Color(0.2f, 1f, 1f, 0.15f);
             _ghost.startWidth = 0.012f;
             _ghost.endWidth = 0.004f;
             _ghost.useWorldSpace = true;
             _ghost.enabled = false;
+        }
+
+        void EnsureZoomPokes()
+        {
+            if (_map == null || _map.transform.Find("ZoomPokes") != null)
+                return;
+            var art = _map.GetComponentInParent<CicEnvironment>()?.Art;
+            if (art == null)
+                return;
+            var root = new GameObject("ZoomPokes");
+            root.transform.SetParent(_map.transform, false);
+            root.transform.localPosition = new Vector3(0.42f, 0.04f, -0.38f);
+            MakeZoomPoke(root.transform, art, "In", new Vector3(0f, 0f, 0f), () => SetZoom(_zoom + 0.12f));
+            MakeZoomPoke(root.transform, art, "Out", new Vector3(0.12f, 0f, 0f), () => SetZoom(_zoom - 0.12f));
+        }
+
+        static void MakeZoomPoke(Transform parent, CicArtKit art, string name, Vector3 local, System.Action act)
+        {
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            go.name = "Zoom_" + name;
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = local;
+            go.transform.localScale = new Vector3(0.08f, 0.03f, 0.05f);
+            go.GetComponent<MeshRenderer>().sharedMaterial =
+                art.Lit(Texture2D.whiteTexture, CicArtKit.Cyan * 0.7f, 1.6f);
+            var interact = go.AddComponent<XRSimpleInteractable>();
+            interact.selectEntered.AddListener(_ => act());
         }
 
         static long UnixNow() =>
