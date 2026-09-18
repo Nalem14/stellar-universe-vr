@@ -23,6 +23,13 @@ namespace Core.App
             _loop = StartCoroutine(Loop());
         }
 
+        public async Task PollNow()
+        {
+            if (_focus == null || !AuthManager.Ensure().IsLoggedIn)
+                return;
+            await PollOnce();
+        }
+
         void OnDestroy()
         {
             if (_loop != null)
