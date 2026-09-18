@@ -101,9 +101,18 @@ namespace Core.Editor
         {
             ConfigureTexture("Assets/_Core/Resources/CIC/Floor.png", TextureWrapMode.Repeat);
             ConfigureTexture("Assets/_Core/Resources/CIC/Wall.png", TextureWrapMode.Repeat);
+            ConfigureTexture("Assets/_Core/Resources/CIC/PanelBrushed.png", TextureWrapMode.Repeat);
+            ConfigureTexture("Assets/_Core/Resources/CIC/DeckRib.png", TextureWrapMode.Repeat);
+            ConfigureTexture("Assets/_Core/Resources/CIC/ScreenIdle.png", TextureWrapMode.Clamp);
+            ConfigureTexture("Assets/_Core/Resources/CIC/VentGrill.png", TextureWrapMode.Repeat);
             ConfigureTexture("Assets/_Core/Resources/CIC/HoloTable.png", TextureWrapMode.Clamp);
             ConfigureTexture("Assets/_Core/Resources/CIC/ViewportStars.png", TextureWrapMode.Clamp);
             ConfigureTexture("Assets/_Core/Resources/CIC/BootTitle.png", TextureWrapMode.Clamp);
+            ConfigureTexture("Assets/_Core/Resources/Holo/OrbitPlate.png", TextureWrapMode.Clamp);
+            ConfigureTexture("Assets/_Core/Resources/Holo/TokenSystem.png", TextureWrapMode.Clamp);
+            ConfigureTexture("Assets/_Core/Resources/Holo/TokenPlanet.png", TextureWrapMode.Clamp);
+            ConfigureTexture("Assets/_Core/Resources/Holo/TokenFleet.png", TextureWrapMode.Clamp);
+            ConfigureTexture("Assets/_Core/Resources/Holo/ProjectorGlow.png", TextureWrapMode.Clamp);
             AssetDatabase.ImportAsset("Assets/_Core/Resources/CIC/ambient.mp3");
         }
 
