@@ -4,12 +4,21 @@ namespace Core.Vfx
 {
     /// <summary>
     /// Nested spatial scales. Full contract: docs/SCALE.md.
-    /// Room = 1:1 VR. System = stylized hublot space. Galaxy = holo table only.
+    /// Room = 1:1 VR. System = stylized hublot space. Galaxy / zone = holo table only.
     /// </summary>
     public static class WorldScale
     {
         public const float CicDeck = 12f;
         public const float CicCeiling = 3.1f;
+
+        /// <summary>Table top height above deck (chest reach).</summary>
+        public const float CicTableHeight = 0.88f;
+        /// <summary>Holo table platter diameter.</summary>
+        public const float CicTableDiameter = 2.4f;
+
+        public const float CicHublotWidth = 1.8f;
+        public const float CicHublotHeight = 1.1f;
+        public const float CicHublotCenterY = 1.65f;
 
         public const int ShipGrid = 9;
         public const int ShipCoreCell = 4;
@@ -33,6 +42,28 @@ namespace Core.Vfx
         public const float BridgeFogDensity = 0.0032f;
         public const float StarLightRange = 900f;
 
+        // --- Holo table (centimetres on the platter). Never reuse OrbitBase / world radii. ---
+
+        /// <summary>Playable holo disc radius on the table surface.</summary>
+        public const float HoloDiscRadius = 0.95f;
+        /// <summary>Star token radius on the holo map.</summary>
+        public const float HoloStarRadius = 0.07f;
+        /// <summary>Planet token base radius (grows slightly with slot).</summary>
+        public const float HoloPlanetRadius = 0.038f;
+        public const float HoloPlanetRadiusStep = 0.004f;
+        /// <summary>Asteroid pip radius.</summary>
+        public const float HoloAsteroidRadius = 0.016f;
+        /// <summary>Fleet pip half-extent (chevron token).</summary>
+        public const float HoloFleetSize = 0.045f;
+        /// <summary>First orbit radius on the platter (slot 1).</summary>
+        public const float HoloOrbitBase = 0.18f;
+        /// <summary>Orbit spacing per planet slot.</summary>
+        public const float HoloOrbitStep = 0.085f;
+        /// <summary>Volume height of the projected holo column above the plate.</summary>
+        public const float HoloVolumeHeight = 0.42f;
+        /// <summary>Vertical lift of tokens above the plate.</summary>
+        public const float HoloTokenLift = 0.06f;
+
         public static float PlanetRadius(int slot)
         {
             return PlanetRadiusMin + (Mathf.Clamp(Mathf.Max(1, slot), 1, 12) - 1) * PlanetRadiusStep;
@@ -46,6 +77,16 @@ namespace Core.Vfx
         public static float OrbitRadius(int slot)
         {
             return OrbitBase + (Mathf.Max(1, slot) - 1) * OrbitStep;
+        }
+
+        public static float HoloOrbitRadius(int slot)
+        {
+            return HoloOrbitBase + (Mathf.Max(1, slot) - 1) * HoloOrbitStep;
+        }
+
+        public static float HoloPlanetTokenRadius(int slot)
+        {
+            return HoloPlanetRadius + (Mathf.Clamp(Mathf.Max(1, slot), 1, 12) - 1) * HoloPlanetRadiusStep;
         }
     }
 }

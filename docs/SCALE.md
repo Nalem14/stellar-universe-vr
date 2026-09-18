@@ -92,9 +92,19 @@ Si un nouvel objet « paraît trop petit / trop gros », comparer à cette pile 
 
 ---
 
-## 6. Table holo (plus tard)
+## 6. Table holo (`Holo*`)
 
-La galaxie et le système **jouables** sont des maquettes sur la table (~1 m). Ne **jamais** réutiliser `WorldScale.OrbitBase` pour un token de table. Quand la table sera branchée : constantes dédiées `Holo*` (centimètres).
+La galaxie et le système **jouables** sont des maquettes sur la table (~1 m). Ne **jamais** réutiliser `WorldScale.OrbitBase` / rayons monde pour un token de table.
+
+| Constante | Valeur | Rôle |
+|---|---|---|
+| `HoloDiscRadius` | 0.95 m | Disque jouable sur le plateau Ø 2.4 m |
+| `HoloOrbitBase` / `HoloOrbitStep` | 0.18 / 0.085 m | Orbites `planet.slot` sur la carte |
+| `HoloStarRadius` | 0.055 m | Étoile token |
+| `HoloPlanetRadius` (+ step) | 0.028 + 0.0035 m/slot | Mondes distincts |
+| `HoloAsteroidRadius` | 0.012 m | Pip rocher |
+| `HoloFleetSize` | 0.032 m | Chevron flotte (pas une sphère) |
+| `HoloVolumeHeight` / `HoloTokenLift` | 0.42 / 0.06 m | Colonne projetée + lift tokens |
 
 `ViewportSystemView` (diorama dans le verre) est un reliquat : les hublots Bridge sont des **trous**. Ne pas y recoller un mini-système.
 
