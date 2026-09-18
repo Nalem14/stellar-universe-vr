@@ -68,19 +68,44 @@ namespace Core.App
             var teleporter = BridgeViewTeleporter.Build(env, env.Art);
             teleporter.Bind(_loader, _focus, env.Art);
 
-            // Command mode: find seat + arm pad + table
-            var seat = FindNamed(interior.transform, "CaptainSeat");
-            var arm = FindNamed(interior.transform, "ArmPadR");
-            var cmd = interior.AddComponent<CaptainCommandMode>();
-            cmd.Bind(env.Table != null ? env.Table.transform : null, seat, arm);
-
             // Shortcut TP on left arm pad
             var armL = FindNamed(interior.transform, "ArmPadL");
             if (armL != null)
             {
+                if (armL.GetComponent<Collider>() == null)
+                {
+                    var box = armL.gameObject.AddComponent<BoxCollider>();
+                    box.size = new Vector3(0.2f, 0.05f, 0.3f);
+                }
+
                 var interact = armL.gameObject.AddComponent<UnityEngine.XR.Interaction.Toolkit.Interactables.XRSimpleInteractable>();
                 interact.selectEntered.AddListener(_ => Core.Utils.AsyncTap.Run(teleporter.RefreshList()));
             }
+
+            // Command mode scales a parent of HoloMapMount so zoom (child localScale) stays independent.
+            var seat = FindNamed(interior.transform, "CaptainSeat");
+            var arm = FindNamed(interior.transform, "ArmPadR");
+            var cmd = interior.AddComponent<CaptainCommandMode>();
+            Transform holoCmdRoot = null;
+            if (_zoneMap != null)
+            {
+                var parent = _zoneMap.transform.parent;
+                var rootGo = new GameObject("HoloCmdRoot");
+                holoCmdRoot = rootGo.transform;
+                holoCmdRoot.SetParent(parent, false);
+                holoCmdRoot.localPosition = _zoneMap.transform.localPosition;
+                holoCmdRoot.localRotation = _zoneMap.transform.localRotation;
+                holoCmdRoot.localScale = Vector3.one;
+                _zoneMap.transform.SetParent(holoCmdRoot, false);
+                _zoneMap.transform.localPosition = Vector3.zero;
+                _zoneMap.transform.localRotation = Quaternion.identity;
+            }
+            else if (env.Table != null)
+            {
+                holoCmdRoot = env.Table.transform;
+            }
+
+            cmd.Bind(holoCmdRoot, seat, arm);
 
             AlcoveSystems.Wire(env, _focus, _poller, hex);
             if (_focus != null)

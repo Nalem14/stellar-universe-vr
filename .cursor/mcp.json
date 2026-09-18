@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "unity": {
+      "command": "/opt/homebrew/bin/unity",
+      "args": [
+        "mcp",
+        "--project-path",
+        "/Users/thommy/Unity/Games/stellar-universe-vr"
+      ]
+    }
+  }
+}

@@ -20,8 +20,8 @@ namespace Core.App
         Transform _seat;
         Transform _exitPad;
         XROrigin _xr;
-        Vector3 _tableRestScale = Vector3.one;
         Vector3 _tableCmdScale = new Vector3(1.55f, 1.55f, 1.55f);
+        Vector3 _scaleBeforeCmd = Vector3.one;
         Vector3 _standLocalPos = new Vector3(0f, 0f, 0.4f);
         Vector3 _sitLocalPos = new Vector3(0f, 0.15f, -0.35f);
         bool _command;
@@ -37,8 +37,6 @@ namespace Core.App
             _table = table;
             _seat = seat;
             _exitPad = exitPad;
-            if (_table != null)
-                _tableRestScale = _table.localScale;
 
             WireSitZone(seat);
             WireExit(exitPad);
@@ -130,7 +128,12 @@ namespace Core.App
             var duration = 0.4f;
             var t0 = Time.time;
             var fromScale = _table != null ? _table.localScale : Vector3.one;
-            var toScale = sit ? Vector3.Scale(_tableRestScale, _tableCmdScale) : _tableRestScale;
+            // Preserve current holomap zoom: enlarge relative to scale at enter, restore that on exit.
+            if (sit)
+                _scaleBeforeCmd = fromScale;
+            var toScale = sit
+                ? Vector3.Scale(_scaleBeforeCmd, _tableCmdScale)
+                : _scaleBeforeCmd;
             var fromPos = _xr != null ? _xr.transform.localPosition : _standLocalPos;
             var toPos = sit ? ResolveSitLocal() : _standLocalPos;
 

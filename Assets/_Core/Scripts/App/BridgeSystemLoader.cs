@@ -96,6 +96,7 @@ namespace Core.App
         {
             _busy = true;
             var fadeFx = fade ? ViewFade.Ensure() : null;
+            var previousSystemId = _lastSystemId;
             try
             {
                 if (fadeFx != null)
@@ -116,7 +117,7 @@ namespace Core.App
                     }
                 }
 
-                var sameSystem = _lastSystemId == systemId && _focus != null && _focus.SystemId == systemId;
+                var sameSystem = previousSystemId == systemId && _focus != null && _focus.SystemId == systemId;
                 if (!sameSystem)
                 {
                     var change = await ActionJs.Get("changesystem", new Dictionary<string, string>
@@ -135,6 +136,7 @@ namespace Core.App
                 var systems = await ActionJs.Get("GetSystems");
                 if (!systems.Ok)
                 {
+                    await RevertServerSystem(sameSystem, previousSystemId);
                     if (fadeFx != null)
                         await fadeFx.FadeIn();
                     return false;
@@ -143,6 +145,16 @@ namespace Core.App
                 var fleets = await ActionJs.Get("GetAllFleetsAround");
                 if (!fleets.Ok)
                 {
+                    await RevertServerSystem(sameSystem, previousSystemId);
+                    if (fadeFx != null)
+                        await fadeFx.FadeIn();
+                    return false;
+                }
+
+                // Validate requested entity before mutating FocusContext / last-system.
+                if (preferredFleetId > 0 && !BodyHasOwnedFleet(fleets.Body, preferredFleetId))
+                {
+                    await RevertServerSystem(sameSystem, previousSystemId);
                     if (fadeFx != null)
                         await fadeFx.FadeIn();
                     return false;
@@ -150,6 +162,9 @@ namespace Core.App
 
                 if (_focus == null)
                     _focus = new FocusContext();
+
+                var prevFleetId = _focus.ViewFleetId;
+                var prevPlanetId = _focus.ViewPlanetId;
 
                 if (sameSystem && preferredFleetId > 0)
                 {
@@ -163,13 +178,31 @@ namespace Core.App
                         _focus.SetViewPlanet(viewPlanetId);
                 }
 
+                if (preferredFleetId > 0 && _focus.ViewFleetId != preferredFleetId)
+                {
+                    await RevertServerSystem(sameSystem, previousSystemId);
+                    await RestoreFocus(previousSystemId, prevFleetId, prevPlanetId);
+                    if (fadeFx != null)
+                        await fadeFx.FadeIn();
+                    return false;
+                }
+
+                if (viewPlanetId > 0 && _focus.ViewPlanetId != viewPlanetId)
+                {
+                    await RevertServerSystem(sameSystem, previousSystemId);
+                    await RestoreFocus(previousSystemId, prevFleetId, prevPlanetId);
+                    if (fadeFx != null)
+                        await fadeFx.FadeIn();
+                    return false;
+                }
+
                 _lastSystemId = systemId;
 
                 if (preferredFleetId > 0 && _focus.ViewFleetId == preferredFleetId)
                     BridgeViewAnchor.SaveShip(preferredFleetId, systemId);
-                else if (viewPlanetId > 0)
+                else if (viewPlanetId > 0 && _focus.ViewPlanetId == viewPlanetId)
                     BridgeViewAnchor.SavePlanet(viewPlanetId, systemId);
-                else if (_focus.ViewFleetId > 0)
+                else if (preferredFleetId <= 0 && viewPlanetId <= 0 && _focus.ViewFleetId > 0)
                     BridgeViewAnchor.SaveShip(_focus.ViewFleetId, systemId);
 
                 if (_poller != null)
@@ -183,6 +216,38 @@ namespace Core.App
             {
                 _busy = false;
             }
+        }
+
+        static async Task RevertServerSystem(bool sameSystem, int previousSystemId)
+        {
+            if (sameSystem || previousSystemId <= 0)
+                return;
+            await ActionJs.Get("changesystem", new Dictionary<string, string>
+            {
+                { "id", previousSystemId.ToString() }
+            });
+        }
+
+        async Task RestoreFocus(int systemId, int fleetId, int planetId)
+        {
+            if (systemId <= 0 || _focus == null)
+                return;
+            var systems = await ActionJs.Get("GetSystems");
+            var fleets = await ActionJs.Get("GetAllFleetsAround");
+            if (!systems.Ok || !fleets.Ok)
+                return;
+            if (planetId > 0)
+            {
+                _focus.SetFromApi(systemId, systems.Body, fleets.Body, 0);
+                _focus.SetViewPlanet(planetId);
+            }
+            else
+            {
+                _focus.SetFromApi(systemId, systems.Body, fleets.Body, fleetId);
+            }
+
+            if (_poller != null)
+                _poller.Bind(_focus);
         }
 
         public static int ResolveOwnedSystem(JObject empire, string systemsBody, int userSystemId)
@@ -227,6 +292,33 @@ namespace Core.App
             }
 
             return 0;
+        }
+
+        static bool BodyHasOwnedFleet(string fleetsBody, int fleetId)
+        {
+            if (string.IsNullOrEmpty(fleetsBody) || fleetId <= 0)
+                return false;
+            try
+            {
+                var root = JToken.Parse(fleetsBody);
+                var arr = root as JArray ?? root["fleets"] as JArray ?? root["data"] as JArray;
+                if (arr == null)
+                    return false;
+                var owned = AuthManager.Ensure().User != null ? AuthManager.Ensure().User.id : 0;
+                foreach (var f in arr)
+                {
+                    if (FocusContext.AsInt(f["id"]) != fleetId)
+                        continue;
+                    if (owned <= 0 || FocusContext.AsInt(f["userid"]) == owned)
+                        return true;
+                }
+            }
+            catch
+            {
+                // Shape varies.
+            }
+
+            return false;
         }
     }
 }

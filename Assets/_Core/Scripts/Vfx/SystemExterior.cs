@@ -127,6 +127,23 @@ namespace Core.Vfx
             return IdleFleetPosition(fleet);
         }
 
+        /// <summary>Stable travel heading from motion endpoints (not current→dest, which shrinks as the rig catches up).</summary>
+        public bool TryGetFleetTravelDirection(FocusFleet fleet, out Vector3 flatDir)
+        {
+            flatDir = Vector3.forward;
+            if (fleet == null)
+                return false;
+            var now = UnixNow();
+            if (!_fleetMotion.TryGetValue(fleet.Id, out var motion) || motion.EndUnix <= now)
+                return false;
+            var d = motion.To - motion.From;
+            d.y = 0f;
+            if (d.sqrMagnitude < 0.01f)
+                return false;
+            flatDir = d.normalized;
+            return true;
+        }
+
         Vector3 IdleFleetPosition(FocusFleet fleet)
         {
             if (fleet.PlanetId > 0 && _planets.TryGetValue(fleet.PlanetId, out var planet))

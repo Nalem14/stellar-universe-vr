@@ -28,6 +28,7 @@ namespace Core.Vfx
         bool _visible;
         float _pollAt;
         CicArtKit _art;
+        bool _detecting;
 
         public bool IsActive => _visible && _battleId > 0;
 
@@ -78,51 +79,73 @@ namespace Core.Vfx
 
         void Update()
         {
-            if (!_visible || _focus == null)
+            if (_focus == null)
                 return;
 
-            if (_battleId <= 0)
-                _ = TryDetectBattle();
+            // Detect server-started battles even while the hex board is hidden.
+            if (!_visible)
+            {
+                if (_battleId <= 0 && !_detecting && Time.time >= _pollAt)
+                {
+                    _pollAt = Time.time + 2f;
+                    Core.Utils.AsyncTap.Run(TryDetectBattle());
+                }
+
+                return;
+            }
+
+            if (_battleId <= 0 && !_detecting)
+                Core.Utils.AsyncTap.Run(TryDetectBattle());
 
             if (_battleId > 0 && Time.time >= _pollAt)
             {
                 _pollAt = Time.time + 1.5f;
-                _ = PollState();
+                Core.Utils.AsyncTap.Run(PollState());
             }
         }
 
         async Task TryDetectBattle()
         {
-            var view = _focus.FindViewFleet();
-            if (view == null || !view.IsInBattle)
+            if (_detecting)
                 return;
-
-            var mine = await ActionJs.Get("GetMyBattles");
-            if (!mine.Ok || string.IsNullOrEmpty(mine.Body))
-                return;
-
+            _detecting = true;
             try
             {
-                var root = JToken.Parse(mine.Body);
-                var arr = root as JArray ?? root["battles"] as JArray ?? root["data"] as JArray;
-                if (arr == null)
+                var view = _focus.FindViewFleet();
+                if (view == null || !view.IsInBattle)
                     return;
-                foreach (var b in arr)
+
+                var mine = await ActionJs.Get("GetMyBattles");
+                if (!mine.Ok || string.IsNullOrEmpty(mine.Body))
+                    return;
+
+                try
                 {
-                    var id = FocusContext.AsInt(b["id"] ?? b["battleid"]);
-                    if (id <= 0)
-                        continue;
-                    _battleId = id;
-                    _fleetId = view.Id;
-                    _mapCtrl?.SetMode(HoloMapMode.HexBattle);
-                    if (_log != null)
-                        _log.text = Trans.Get("Loading");
-                    return;
+                    var root = JToken.Parse(mine.Body);
+                    var arr = root as JArray ?? root["battles"] as JArray ?? root["data"] as JArray;
+                    if (arr == null)
+                        return;
+                    foreach (var b in arr)
+                    {
+                        var id = FocusContext.AsInt(b["id"] ?? b["battleid"]);
+                        if (id <= 0)
+                            continue;
+                        _battleId = id;
+                        _fleetId = view.Id;
+                        _mapCtrl?.SetMode(HoloMapMode.HexBattle);
+                        if (_log != null)
+                            _log.text = Trans.Get("Loading");
+                        return;
+                    }
+                }
+                catch
+                {
+                    // Shape varies — dump live before hardening renderer.
                 }
             }
-            catch
+            finally
             {
-                // Shape varies — dump live before hardening renderer.
+                _detecting = false;
             }
         }
 

@@ -196,10 +196,10 @@ namespace Core.App
 
             Vector3 lookDir;
             var fleetMot = _focus.FindViewFleet();
-            if (fleetMot != null && fleetMot.IsMoving(UnixNow()))
+            if (fleetMot != null && fleetMot.IsMoving(UnixNow()) &&
+                _exterior.TryGetFleetTravelDirection(fleetMot, out var travel))
             {
-                var to = _exterior.ResolveFleetWorldPosition(fleetMot);
-                lookDir = to - _viewShip.position;
+                lookDir = travel;
             }
             else
             {

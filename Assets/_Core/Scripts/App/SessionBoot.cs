@@ -55,7 +55,7 @@ namespace Core.App
                 _focus = _loader.Focus ?? _focus;
                 if (!ok)
                 {
-                    Say(Trans.Get("Loading"));
+                    Say(Trans.Get("BootFromAnchorOrDefault"));
                     return;
                 }
             }
