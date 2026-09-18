@@ -63,7 +63,9 @@ namespace Core.Vfx
             RenderSettings.fogDensity = Layout == CicLayout.BootVoid ? 0.04f :
                 Layout == CicLayout.MenuDeck ? 0.028f : WorldScale.BridgeFogDensity;
             RenderSettings.ambientMode = AmbientMode.Flat;
-            RenderSettings.ambientLight = new Color(0.025f, 0.04f, 0.055f);
+            RenderSettings.ambientLight = Layout == CicLayout.Bridge
+                ? new Color(0.12f, 0.16f, 0.22f)
+                : new Color(0.025f, 0.04f, 0.055f);
             var far = Layout == CicLayout.Bridge ? WorldScale.BridgeFarClip : 40f;
             foreach (var cam in Camera.allCameras)
             {
@@ -307,7 +309,7 @@ namespace Core.Vfx
                     new Vector3(0.03f, scale.y * 0.92f, 0.03f), _art.CyanEmit(3.5f), keepCollider: false);
                 Box("HublotGlowR", pos + new Vector3(hw + 0.02f, 0f, -0.02f),
                     new Vector3(0.03f, scale.y * 0.92f, 0.03f), _art.CyanEmit(3.5f), keepCollider: false);
-                KeyLight("HublotLamp", pos + new Vector3(0f, 0f, -0.55f), CicArtKit.Cyan, 0.85f, 3.2f);
+                KeyLight("HublotLamp", pos + new Vector3(0f, 0f, -0.55f), CicArtKit.Cyan, 1.35f, 3.8f);
 
                 if (registerMount)
                 {
@@ -467,15 +469,15 @@ namespace Core.Vfx
             var profile = ScriptableObject.CreateInstance<VolumeProfile>();
             if (profile.TryGet(out Bloom bloom) == false)
                 bloom = profile.Add<Bloom>(true);
-            bloom.intensity.Override(Layout == CicLayout.MenuDeck ? 0.72f : 0.38f);
-            bloom.threshold.Override(Layout == CicLayout.Bridge ? 0.92f : 0.8f);
+            bloom.intensity.Override(Layout == CicLayout.MenuDeck ? 0.72f : 0.42f);
+            bloom.threshold.Override(Layout == CicLayout.Bridge ? 0.88f : 0.8f);
             bloom.scatter.Override(0.7f);
             if (profile.TryGet(out ChromaticAberration chroma) == false)
                 chroma = profile.Add<ChromaticAberration>(true);
             chroma.intensity.Override(0.08f);
             if (profile.TryGet(out Vignette vignette) == false)
                 vignette = profile.Add<Vignette>(true);
-            vignette.intensity.Override(0.34f);
+            vignette.intensity.Override(Layout == CicLayout.Bridge ? 0.22f : 0.34f);
             vignette.color.Override(new Color(0.02f, 0.05f, 0.08f));
             volume.sharedProfile = profile;
         }

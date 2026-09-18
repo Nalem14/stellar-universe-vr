@@ -47,22 +47,22 @@ namespace Core.Vfx
         /// <summary>Playable holo disc radius on the table surface.</summary>
         public const float HoloDiscRadius = 0.95f;
         /// <summary>Star token radius on the holo map.</summary>
-        public const float HoloStarRadius = 0.07f;
+        public const float HoloStarRadius = 0.09f;
         /// <summary>Planet token base radius (grows slightly with slot).</summary>
-        public const float HoloPlanetRadius = 0.038f;
-        public const float HoloPlanetRadiusStep = 0.004f;
+        public const float HoloPlanetRadius = 0.055f;
+        public const float HoloPlanetRadiusStep = 0.006f;
         /// <summary>Asteroid pip radius.</summary>
-        public const float HoloAsteroidRadius = 0.016f;
+        public const float HoloAsteroidRadius = 0.022f;
         /// <summary>Fleet pip half-extent (chevron token).</summary>
-        public const float HoloFleetSize = 0.045f;
+        public const float HoloFleetSize = 0.07f;
         /// <summary>First orbit radius on the platter (slot 1).</summary>
-        public const float HoloOrbitBase = 0.18f;
+        public const float HoloOrbitBase = 0.22f;
         /// <summary>Orbit spacing per planet slot.</summary>
-        public const float HoloOrbitStep = 0.085f;
+        public const float HoloOrbitStep = 0.1f;
         /// <summary>Volume height of the projected holo column above the plate.</summary>
-        public const float HoloVolumeHeight = 0.42f;
+        public const float HoloVolumeHeight = 0.28f;
         /// <summary>Vertical lift of tokens above the plate.</summary>
-        public const float HoloTokenLift = 0.06f;
+        public const float HoloTokenLift = 0.08f;
 
         public static float PlanetRadius(int slot)
         {

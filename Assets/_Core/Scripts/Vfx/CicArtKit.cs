@@ -10,9 +10,10 @@ namespace Core.Vfx
     {
         public static readonly Color Cyan = new(0.25f, 0.92f, 1f, 1f);
         public static readonly Color Amber = new(1f, 0.62f, 0.22f, 1f);
-        public static readonly Color Metal = new(0.22f, 0.28f, 0.34f, 1f);
-        public static readonly Color DarkMetal = new(0.08f, 0.1f, 0.12f, 1f);
-        public static readonly Color SoftMetal = new(0.16f, 0.2f, 0.24f, 1f);
+        public static readonly Color Metal = new(0.34f, 0.42f, 0.5f, 1f);
+        public static readonly Color DarkMetal = new(0.16f, 0.2f, 0.24f, 1f);
+        public static readonly Color SoftMetal = new(0.28f, 0.34f, 0.4f, 1f);
+        public static readonly Color DeckTint = new(0.55f, 0.62f, 0.7f, 1f);
 
         public Texture Floor { get; private set; }
         public Texture Wall { get; private set; }
@@ -70,12 +71,13 @@ namespace Core.Vfx
                 mat.mainTexture = tex;
             if (mat.HasProperty("_MainTex"))
                 mat.SetTextureScale("_MainTex", Vector2.one * tiling);
+            // Unlit path: albedo carries most of the "light"; emission is a single mul (no square).
             if (mat.HasProperty("_Color"))
                 mat.SetColor("_Color", tint);
             if (mat.HasProperty("_Emission"))
-                mat.SetColor("_Emission", tint * Mathf.Max(0f, emissionMul) * 0.25f);
+                mat.SetColor("_Emission", tint);
             if (mat.HasProperty("_EmissionMul"))
-                mat.SetFloat("_EmissionMul", emissionMul);
+                mat.SetFloat("_EmissionMul", Mathf.Max(0f, emissionMul) * 0.4f);
             _cache[key] = mat;
             return mat;
         }
@@ -102,9 +104,11 @@ namespace Core.Vfx
             return mat;
         }
 
-        public Material MetalPanel(float emission = 0.08f) => Lit(Panel ?? Wall, Metal, emission, 1.4f);
-        public Material DarkPanel(float emission = 0.05f) => Lit(Panel ?? Wall, DarkMetal, emission, 1.2f);
-        public Material SoftPanel(float emission = 0.06f) => Lit(Wall, SoftMetal, emission, 1.3f);
+        public Material MetalPanel(float emission = 0.55f) => Lit(Panel ?? Wall, Metal, emission, 1.4f);
+        public Material DarkPanel(float emission = 0.35f) => Lit(Panel ?? Wall, DarkMetal, emission, 1.2f);
+        public Material SoftPanel(float emission = 0.45f) => Lit(Wall, SoftMetal, emission, 1.3f);
+        public Material DeckMat(float emission = 0.5f) =>
+            Lit(DeckRib != null ? DeckRib : Floor, DeckTint, emission, 5f);
         public Material CyanEmit(float mul = 3.2f) => Lit(Texture2D.whiteTexture, Cyan, mul);
         public Material AmberEmit(float mul = 2.4f) => Lit(Texture2D.whiteTexture, Amber, mul);
 

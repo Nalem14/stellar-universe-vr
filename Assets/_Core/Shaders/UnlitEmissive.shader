@@ -54,7 +54,10 @@ Shader "SU/UnlitEmissive"
             {
                 UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(i);
                 float4 tex = tex2D(_MainTex, i.uv) * _Color;
-                return float4(tex.rgb + _Emission.rgb * _EmissionMul, 1);
+                // Soft ambient lift so CIC interiors aren't pitch-black on unlit mats.
+                float3 amb = UNITY_LIGHTMODEL_AMBIENT.rgb;
+                float3 lit = tex.rgb * (1.0 + amb * 3.5) + _Emission.rgb * _EmissionMul;
+                return float4(lit, 1);
             }
             ENDCG
         }

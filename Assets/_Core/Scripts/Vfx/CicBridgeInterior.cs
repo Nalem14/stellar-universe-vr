@@ -23,31 +23,34 @@ namespace Core.Vfx
             BuildAlcoves(host, art, half);
             var map = BuildHoloTable(host, art);
             BuildAmbient(host, art);
-            host.KeyLight("Fill", new Vector3(0f, wallH - 0.85f, 0.4f), CicArtKit.Cyan, 0.42f, size * 0.85f);
-            host.KeyLight("Warm", new Vector3(-2.2f, 2.0f, -1.6f), CicArtKit.Amber, 0.38f, 5.5f);
-            host.KeyLight("HublotWash", new Vector3(0f, 1.7f, half - 1.2f), CicArtKit.Cyan, 0.55f, 4.5f);
+            // Unlit CIC: brightness comes from emissive surfaces + a few soft point washes.
+            host.KeyLight("Fill", new Vector3(0f, wallH - 0.7f, 0.2f), CicArtKit.Cyan, 1.15f, size * 0.95f);
+            host.KeyLight("Warm", new Vector3(-2.0f, 2.15f, -1.4f), CicArtKit.Amber, 0.85f, 7f);
+            host.KeyLight("WarmStbd", new Vector3(2.0f, 2.0f, -0.8f), CicArtKit.Amber, 0.55f, 6f);
+            host.KeyLight("HublotWash", new Vector3(0f, 1.75f, half - 1.0f), CicArtKit.Cyan, 1.1f, 5.5f);
+            host.KeyLight("DeckBounce", new Vector3(0f, 0.9f, 0.6f), new Color(0.55f, 0.7f, 0.85f), 0.65f, 5f);
             return map;
         }
 
         static void BuildShell(CicEnvironment host, CicArtKit art, float size, float half, float wallH, float wallMid)
         {
-            // Deck with collider.
+            // Deck with collider — brighter unlit base so the room reads inhabited.
             host.Quad("Deck", new Vector3(0f, 0f, 0f), new Vector3(size, size, 1f),
-                art.DeckRib != null ? art.DeckRib : art.Floor, Color.white, 0.12f,
+                art.DeckRib != null ? art.DeckRib : art.Floor, CicArtKit.DeckTint, 0.55f,
                 tiling: 5f, rotateX: 90f, keepCollider: true,
-                materialOverride: art.Lit(art.DeckRib != null ? art.DeckRib : art.Floor, Color.white, 0.12f, 5f));
+                materialOverride: art.DeckMat(0.55f));
 
             // Horseshoe overhead — slightly lower aft soffit, open toward hublots.
             host.Quad("OverheadFwd", new Vector3(0f, wallH, 1.2f), new Vector3(size, size * 0.55f, 1f),
-                art.Panel ?? art.Wall, new Color(0.1f, 0.12f, 0.14f), 0.05f,
+                art.Panel ?? art.Wall, new Color(0.18f, 0.22f, 0.26f), 0.28f,
                 tiling: 3f, rotateX: -90f,
-                materialOverride: art.DarkPanel(0.05f));
+                materialOverride: art.DarkPanel(0.32f));
             host.Box("SoffitAft", new Vector3(0f, wallH - 0.18f, -half + 1.6f),
-                new Vector3(size - 0.4f, 0.22f, 3.2f), art.SoftPanel(0.06f), keepCollider: false);
+                new Vector3(size - 0.4f, 0.22f, 3.2f), art.SoftPanel(0.4f), keepCollider: false);
 
             // Floor / ceiling emissive trim.
-            host.TrimRing("FloorTrim", 0.035f, size - 0.25f, CicArtKit.Cyan * 0.55f, 1.6f);
-            host.TrimRing("CeilTrim", wallH - 0.05f, size - 0.3f, CicArtKit.Amber * 0.35f, 1.0f);
+            host.TrimRing("FloorTrim", 0.035f, size - 0.25f, CicArtKit.Cyan * 0.7f, 2.4f);
+            host.TrimRing("CeilTrim", wallH - 0.05f, size - 0.3f, CicArtKit.Amber * 0.55f, 1.8f);
 
             // Forward windowed bulkhead (real holes).
             host.BuildWindowedForwardWall(half, wallH, wallMid, 3);
@@ -102,6 +105,14 @@ namespace Core.Vfx
             host.Box("RunnerR", new Vector3(2.4f, wallH - 0.2f, 0.2f),
                 new Vector3(0.1f, 0.08f, size - 1.2f), art.SoftPanel(0.08f), keepCollider: false);
 
+            // Overhead light panels (emissive bounce for unlit materials).
+            host.Box("LightPanelC", new Vector3(0f, wallH - 0.1f, 1.0f),
+                new Vector3(2.8f, 0.04f, 0.55f), art.CyanEmit(2.8f), keepCollider: false);
+            host.Box("LightPanelP", new Vector3(-2.6f, wallH - 0.12f, -0.5f),
+                new Vector3(1.4f, 0.04f, 0.4f), art.CyanEmit(2.2f), keepCollider: false);
+            host.Box("LightPanelS", new Vector3(2.6f, wallH - 0.12f, -0.5f),
+                new Vector3(1.4f, 0.04f, 0.4f), art.AmberEmit(1.9f), keepCollider: false);
+
             // Cable conduits along runners.
             for (var i = 0; i < 6; i++)
             {
@@ -128,15 +139,15 @@ namespace Core.Vfx
         {
             // Raised walk plates / coursives toward hublots (U path).
             host.Box("CoursePort", new Vector3(-3.6f, 0.04f, 1.2f),
-                new Vector3(1.4f, 0.08f, 7.5f), art.SoftPanel(0.1f), keepCollider: true);
+                new Vector3(1.4f, 0.08f, 7.5f), art.SoftPanel(0.65f), keepCollider: true);
             host.Box("CourseStbd", new Vector3(3.6f, 0.04f, 1.2f),
-                new Vector3(1.4f, 0.08f, 7.5f), art.SoftPanel(0.1f), keepCollider: true);
+                new Vector3(1.4f, 0.08f, 7.5f), art.SoftPanel(0.65f), keepCollider: true);
             host.Box("CourseFwd", new Vector3(0f, 0.04f, half - 1.6f),
-                new Vector3(8.2f, 0.08f, 1.5f), art.SoftPanel(0.1f), keepCollider: true);
+                new Vector3(8.2f, 0.08f, 1.5f), art.SoftPanel(0.65f), keepCollider: true);
 
             // Center command plate under table / captain.
             host.Box("CommandPlate", new Vector3(0f, 0.03f, 0.35f),
-                new Vector3(3.6f, 0.06f, 5.2f), art.MetalPanel(0.12f), keepCollider: true);
+                new Vector3(3.6f, 0.06f, 5.2f), art.MetalPanel(0.7f), keepCollider: true);
 
             // Floor cable trenches (visual).
             host.Box("TrenchL", new Vector3(-1.1f, 0.02f, 0.2f),
@@ -236,7 +247,7 @@ namespace Core.Vfx
             host.Box("ArmPadR", new Vector3(0.42f, 0.74f, chairZ + 0.15f),
                 new Vector3(0.18f, 0.03f, 0.28f), art.AmberEmit(1.4f), keepCollider: false);
 
-            host.KeyLight("CaptainLamp", new Vector3(0f, 2.1f, chairZ), CicArtKit.Amber, 0.55f, 3.2f);
+            host.KeyLight("CaptainLamp", new Vector3(0f, 2.15f, chairZ), CicArtKit.Amber, 1.05f, 4f);
         }
 
         static void BuildAlcoves(CicEnvironment host, CicArtKit art, float half)
@@ -394,7 +405,8 @@ namespace Core.Vfx
                 keepCollider: true);
             _ = rim;
 
-            // Opaque brushed plate — holo lives in the volume above, not as a blown-out disc.
+            // Opaque brushed plate — holo map mounts on an UNIFORM scale node
+            // (never parent tokens under the scaled cylinder — Y would crush to ~0).
             var table = host.Cylinder("HoloTable", tablePos + new Vector3(0f, h, 0f),
                 new Vector3(radius, 0.02f, radius),
                 art.DarkPanel(0.15f),
@@ -412,12 +424,18 @@ namespace Core.Vfx
                 new Vector3(radius + 0.02f, 0.006f, radius + 0.02f), art.CyanEmit(0.85f),
                 keepCollider: false);
 
-            var map = table.AddComponent<HoloZoneMap>();
-            map.EnsureScaffold(table.transform, art);
+            var mapMount = new GameObject("HoloMapMount");
+            mapMount.transform.SetParent(host.transform, false);
+            mapMount.transform.localPosition = tablePos + new Vector3(0f, h + 0.02f, 0f);
+            mapMount.transform.localRotation = Quaternion.identity;
+            mapMount.transform.localScale = Vector3.one;
 
-            host.KeyLight("TableGlow", tablePos + new Vector3(0f, h + 0.45f, 0f), CicArtKit.Cyan, 0.55f, 2.4f);
-            host.KeyLight("TableAmber", tablePos + new Vector3(0.4f, h + 0.25f, -0.25f), CicArtKit.Amber, 0.28f, 2.0f);
-            host.KeyLight("TableUnder", tablePos + new Vector3(0f, 0.65f, 0f), CicArtKit.Cyan * 0.7f, 0.22f, 1.4f);
+            var map = mapMount.AddComponent<HoloZoneMap>();
+            map.EnsureScaffold(mapMount.transform, art);
+
+            host.KeyLight("TableGlow", tablePos + new Vector3(0f, h + 0.45f, 0f), CicArtKit.Cyan, 0.7f, 2.6f);
+            host.KeyLight("TableAmber", tablePos + new Vector3(0.4f, h + 0.25f, -0.25f), CicArtKit.Amber, 0.4f, 2.2f);
+            host.KeyLight("TableUnder", tablePos + new Vector3(0f, 0.65f, 0f), CicArtKit.Cyan * 0.7f, 0.35f, 1.6f);
             return map;
         }
 
