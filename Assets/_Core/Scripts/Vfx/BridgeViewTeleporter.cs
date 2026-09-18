@@ -53,7 +53,7 @@ namespace Core.Vfx
             host.Box("TpArch", new Vector3(0f, 2.25f, -half + 1.35f),
                 new Vector3(2.0f, 0.16f, 0.22f), art.CyanEmit(2.4f), keepCollider: false);
 
-            // Screen
+            // Screen — emissive idle plate so the arch never reads as a black void.
             var screen = GameObject.CreatePrimitive(PrimitiveType.Quad);
             screen.name = "TpScreen";
             screen.transform.SetParent(root.transform, false);
@@ -62,7 +62,19 @@ namespace Core.Vfx
             CicEnvironment.DropColliderStatic(screen);
             screen.GetComponent<MeshRenderer>().sharedMaterial =
                 art.Lit(art.ScreenIdle != null ? art.ScreenIdle : Texture2D.whiteTexture,
-                    new Color(0.05f, 0.12f, 0.18f), 0.85f);
+                    new Color(0.08f, 0.22f, 0.32f), 1.4f);
+
+            var scan = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            scan.name = "TpScan";
+            scan.transform.SetParent(root.transform, false);
+            scan.transform.localPosition = new Vector3(0f, 1.45f, -0.145f);
+            scan.transform.localScale = new Vector3(1.48f, 0.93f, 1f);
+            CicEnvironment.DropColliderStatic(scan);
+            scan.GetComponent<MeshRenderer>().sharedMaterial =
+                art.Holo(Texture2D.whiteTexture, new Color(0.2f, 0.9f, 1f, 0.12f));
+            var scanSpin = scan.AddComponent<HoloSpin>();
+            scanSpin.DegreesPerSecond = 0f;
+            scanSpin.BobMeters = 0.004f;
 
             var bezel = GameObject.CreatePrimitive(PrimitiveType.Cube);
             bezel.name = "TpBezel";
@@ -73,21 +85,23 @@ namespace Core.Vfx
 
             var titleGo = new GameObject("TpTitle");
             titleGo.transform.SetParent(root.transform, false);
-            titleGo.transform.localPosition = new Vector3(0f, 1.85f, -0.12f);
-            titleGo.transform.localScale = Vector3.one * 0.01f;
+            titleGo.transform.localPosition = new Vector3(0f, 1.88f, -0.12f);
+            titleGo.transform.localScale = Vector3.one * 0.022f;
             var title = titleGo.AddComponent<TextMeshPro>();
             title.alignment = TextAlignmentOptions.Center;
-            title.fontSize = 8f;
+            title.fontSize = 7f;
             title.color = new Color(0.55f, 0.95f, 1f);
-            title.text = "TP";
+            title.text = Trans.Get("spaceships");
 
             var list = new GameObject("TpList").transform;
             list.SetParent(root.transform, false);
             list.localPosition = new Vector3(0f, 1.35f, -0.11f);
 
-            // Tabs
-            MakeTab(root.transform, art, new Vector3(-0.4f, 1.72f, -0.11f), "Ships", true, out var tabShips);
-            MakeTab(root.transform, art, new Vector3(0.4f, 1.72f, -0.11f), "Planets", false, out var tabPlanets);
+            // Tabs — Trans keys (missing → key shown, Editor log file).
+            MakeTab(root.transform, art, new Vector3(-0.4f, 1.72f, -0.11f), Trans.Get("spaceships"), true,
+                out var tabShips);
+            MakeTab(root.transform, art, new Vector3(0.4f, 1.72f, -0.11f), Trans.Get("planets"), false,
+                out var tabPlanets);
 
             var tp = root.AddComponent<BridgeViewTeleporter>();
             tp._title = title;
@@ -136,12 +150,18 @@ namespace Core.Vfx
         {
             ClearRows();
             if (_title != null)
-                _title.text = _shipsTab ? "Spaceships" : "Planets";
+                _title.text = _shipsTab ? Trans.Get("spaceships") : Trans.Get("planets");
 
             if (_shipsTab)
                 await LoadShips();
             else
                 await LoadPlanets();
+
+            if (_rows.Count == 0 && _title != null && !string.IsNullOrEmpty(_title.text))
+            {
+                // Keep a diegetic status row so the screen never looks like a dead black quad.
+                AddStatusRow(_title.text);
+            }
         }
 
         async Task LoadShips()
@@ -276,7 +296,7 @@ namespace Core.Vfx
                 _title.text = Trans.Get("Loading");
             var ok = await _loader.LoadShipView(fleetId, systemId);
             if (_title != null)
-                _title.text = ok ? "Spaceships" : "error";
+                _title.text = ok ? Trans.Get("spaceships") : Trans.Get("error");
         }
 
         async Task ConfirmPlanet(int planetId, int systemId)
@@ -287,7 +307,32 @@ namespace Core.Vfx
                 _title.text = Trans.Get("Loading");
             var ok = await _loader.LoadPlanetStation(planetId, systemId);
             if (_title != null)
-                _title.text = ok ? "Planets" : "error";
+                _title.text = ok ? Trans.Get("planets") : Trans.Get("error");
+        }
+
+        void AddStatusRow(string label)
+        {
+            if (_listRoot == null || _art == null)
+                return;
+            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            go.name = "StatusRow";
+            go.transform.SetParent(_listRoot, false);
+            go.transform.localPosition = new Vector3(0f, 0.15f, 0f);
+            go.transform.localScale = new Vector3(1.2f, 0.12f, 0.03f);
+            CicEnvironment.DropColliderStatic(go);
+            go.GetComponent<MeshRenderer>().sharedMaterial =
+                _art.Lit(Texture2D.whiteTexture, new Color(0.12f, 0.35f, 0.45f), 1.2f);
+
+            var tmpGo = new GameObject("Txt");
+            tmpGo.transform.SetParent(go.transform, false);
+            tmpGo.transform.localPosition = new Vector3(0f, 0f, -0.7f);
+            tmpGo.transform.localScale = Vector3.one * 0.018f;
+            var tmp = tmpGo.AddComponent<TextMeshPro>();
+            tmp.alignment = TextAlignmentOptions.Center;
+            tmp.fontSize = 5f;
+            tmp.color = new Color(0.7f, 0.95f, 1f);
+            tmp.text = label;
+            _rows.Add(go);
         }
 
         void Start()

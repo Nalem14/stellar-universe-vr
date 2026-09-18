@@ -26,7 +26,9 @@ namespace Core.App
             if (!auth.IsLoggedIn)
             {
                 Say(Trans.Get("error_not_logged_in"));
-                SceneFlow.Go(SceneFlow.Menu);
+                // Keep Bridge CIC visible in Editor for MCP / art gates; Quest still returns to Menu.
+                if (!Application.isEditor)
+                    SceneFlow.Go(SceneFlow.Menu);
                 return;
             }
 

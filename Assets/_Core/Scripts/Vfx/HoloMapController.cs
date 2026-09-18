@@ -60,8 +60,11 @@ namespace Core.Vfx
         void Update()
         {
             RefreshMoveLock();
-            // Editor / sim: mouse wheel zoom
-            var scroll = Input.mouseScrollDelta.y;
+            // Editor / sim: mouse wheel zoom (Input System — never legacy Input)
+            var scroll = 0f;
+            var mouse = UnityEngine.InputSystem.Mouse.current;
+            if (mouse != null)
+                scroll = mouse.scroll.ReadValue().y * 0.01f;
             if (Mathf.Abs(scroll) > 0.01f && _mode != HoloMapMode.HexBattle)
                 SetZoom(_zoom + scroll * 0.08f);
         }
