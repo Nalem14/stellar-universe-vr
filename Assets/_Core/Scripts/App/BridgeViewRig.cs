@@ -1,3 +1,4 @@
+using Core.Utils;
 using Core.Vfx;
 using UnityEngine;
 using Unity.XR.CoreUtils;
@@ -18,6 +19,10 @@ namespace Core.App
         XROrigin _xrOrigin;
         Transform _xrOriginalParent;
         bool _playerParented;
+        Vector3 _posVel;
+        float _yawVel;
+        float _bank;
+        float _bankVel;
 
         public Transform BridgeMount => _bridgeMount;
         public Transform ViewShip => _viewShip;
@@ -67,7 +72,6 @@ namespace Core.App
                 return;
 
             var ship = new GameObject("ViewShip");
-            // Sibling of exterior content — never parented under SystemExterior's cleared root.
             ship.transform.SetParent(transform, false);
             _viewShip = ship.transform;
 
@@ -113,21 +117,21 @@ namespace Core.App
                 _playerParented = true;
             }
 
-            // Never keep world pose: BridgeMount lives in system space; keeping (0,0,0)
-            // leaves the player floating outside the CIC and falling forever.
             _xrOrigin.transform.SetParent(_bridgeMount, false);
             PutPlayerOnDeck();
         }
 
-        void PutPlayerOnDeck()
+        public void PutPlayerOnDeck()
         {
             if (_xrOrigin == null || _bridgeMount == null)
+                return;
+
+            if (CaptainCommandMode.Instance != null && CaptainCommandMode.Instance.IsCommandMode)
                 return;
 
             _xrOrigin.transform.localPosition = new Vector3(0f, 0f, 0.4f);
             _xrOrigin.transform.localRotation = Quaternion.identity;
 
-            // Kill residual fall velocity from CharacterController / locomotion.
             var body = _xrOrigin.Origin != null
                 ? _xrOrigin.Origin.GetComponent<CharacterController>()
                 : _xrOrigin.GetComponent<CharacterController>();
@@ -154,7 +158,6 @@ namespace Core.App
             if (_viewShip == null || _exterior == null || _focus == null)
                 return;
 
-            // Before focus resolves, park at a safe orbit — never leave the CIC at world origin.
             Vector3 target;
             if (!_focus.HasSystem)
             {
@@ -169,7 +172,6 @@ namespace Core.App
                     : FallbackStationPosition();
             }
 
-            // Never sit inside the star — windows must see space, not white fill.
             var star = _exterior.transform.position;
             var away = target - star;
             away.y = 0f;
@@ -181,44 +183,77 @@ namespace Core.App
                 target = star + away.normalized * minDist + Vector3.up * WorldScale.EclipticHeight;
             }
 
-            // Keep deck roughly level in world Y so room-scale gravity still hits the floor.
             target.y = WorldScale.EclipticHeight;
 
-            if (force)
-                _viewShip.position = target;
-            else
-                _viewShip.position = Vector3.Lerp(_viewShip.position, target, Time.deltaTime * 3f);
-
-            var look = _exterior.transform.position - _viewShip.position;
-            look.y = 0f;
-            if (look.sqrMagnitude > 0.01f)
+            Vector3 lookDir;
+            var fleetMot = _focus.FindViewFleet();
+            if (fleetMot != null && fleetMot.IsMoving(UnixNow()))
             {
-                var rot = Quaternion.LookRotation(look.normalized, Vector3.up);
-                _viewShip.rotation = force
-                    ? rot
-                    : Quaternion.Slerp(_viewShip.rotation, rot, Time.deltaTime * 2f);
+                var to = _exterior.ResolveFleetWorldPosition(fleetMot);
+                lookDir = to - _viewShip.position;
+            }
+            else
+            {
+                lookDir = star - target;
             }
 
+            lookDir.y = 0f;
+            if (lookDir.sqrMagnitude < 0.01f)
+                lookDir = Vector3.forward;
+
+            var flatLook = lookDir.normalized;
+            var targetYaw = Quaternion.LookRotation(flatLook, Vector3.up);
+
+            // Mild bank from lateral velocity — deck stays mostly level via BridgeMount identity.
+            var lateral = Vector3.Dot(_posVel, Vector3.Cross(Vector3.up, flatLook));
+            var targetBank = Mathf.Clamp(-lateral * 0.015f, -6f, 6f);
+
             if (force)
+            {
+                _viewShip.position = target;
+                _posVel = Vector3.zero;
+                _viewShip.rotation = targetYaw;
+                _bank = 0f;
+                _bankVel = 0f;
                 PutPlayerOnDeck();
+            }
+            else
+            {
+                _viewShip.position = MotionEase.Damp(_viewShip.position, target, ref _posVel, 0.45f);
+                _viewShip.rotation = Quaternion.Slerp(_viewShip.rotation, targetYaw,
+                    1f - Mathf.Exp(-3.2f * Time.deltaTime));
+                _bank = Mathf.SmoothDamp(_bank, targetBank, ref _bankVel, 0.6f);
+                _viewShip.rotation = Quaternion.LookRotation(
+                    Vector3.ProjectOnPlane(_viewShip.forward, Vector3.up).normalized, Vector3.up)
+                    * Quaternion.Euler(0f, 0f, _bank);
+            }
 
             SetHullVisible(false);
         }
+
+        static long UnixNow() =>
+            (long)(System.DateTime.UtcNow - new System.DateTime(1970, 1, 1)).TotalSeconds;
 
         Vector3 FallbackStationPosition()
         {
             var owned = AuthManager.Ensure().User != null ? AuthManager.Ensure().User.id : 0;
             FocusPlanet pick = null;
-            foreach (var planet in _focus.Planets)
-            {
-                if (owned > 0 && planet.UserId == owned)
-                {
-                    pick = planet;
-                    break;
-                }
+            if (_focus.ViewPlanetId > 0)
+                pick = _focus.FindPlanet(_focus.ViewPlanetId);
 
-                if (pick == null)
-                    pick = planet;
+            if (pick == null)
+            {
+                foreach (var planet in _focus.Planets)
+                {
+                    if (owned > 0 && planet.UserId == owned)
+                    {
+                        pick = planet;
+                        break;
+                    }
+
+                    if (pick == null)
+                        pick = planet;
+                }
             }
 
             if (pick != null)
