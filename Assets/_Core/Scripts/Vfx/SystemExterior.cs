@@ -442,8 +442,12 @@ namespace Core.Vfx
         static void StripCollider(GameObject go)
         {
             var col = go.GetComponent<Collider>();
-            if (col != null)
-                Destroy(col);
+            if (col == null)
+                return;
+            if (Application.isPlaying)
+                Object.Destroy(col);
+            else
+                Object.DestroyImmediate(col);
         }
 
         static void SetVisible(Transform root, bool visible)
