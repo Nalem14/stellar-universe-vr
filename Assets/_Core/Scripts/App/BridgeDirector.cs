@@ -79,10 +79,14 @@ namespace Core.App
             if (armL != null)
             {
                 var interact = armL.gameObject.AddComponent<UnityEngine.XR.Interaction.Toolkit.Interactables.XRSimpleInteractable>();
-                interact.selectEntered.AddListener(_ => _ = teleporter.RefreshList());
+                interact.selectEntered.AddListener(_ => Core.Utils.AsyncTap.Run(teleporter.RefreshList()));
             }
 
             AlcoveSystems.Wire(env, _focus, _poller, hex);
+            if (_focus != null)
+            {
+                _focus.Changed += () => BridgeDressing.Apply(env, _focus);
+            }
 
             var readout = _zoneMap != null ? _zoneMap.Readout : CreateReadout(
                 env.Table != null ? env.Table.transform : interior.transform);

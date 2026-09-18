@@ -1,4 +1,5 @@
 using Core.App;
+using Core.Utils;
 using UnityEngine;
 using UnityEngine.XR.Interaction.Toolkit;
 using UnityEngine.XR.Interaction.Toolkit.Interactables;
@@ -146,7 +147,7 @@ namespace Core.Vfx
             var fleet = focus?.FindViewFleet();
             if (fleet == null)
                 return;
-            await ActionJs.Get("UpdateFleetDefendPosition", new System.Collections.Generic.Dictionary<string, string>
+            await Core.Utils.ActionJs.Get("UpdateFleetDefendPosition", new System.Collections.Generic.Dictionary<string, string>
             {
                 { "id", fleet.Id.ToString() },
                 { "position", pos }
@@ -159,7 +160,7 @@ namespace Core.Vfx
             var fleet = focus?.FindViewFleet();
             if (fleet == null || fleet.PlanetId <= 0)
                 return;
-            await ActionJs.Get("FleetAttackPlanet", new System.Collections.Generic.Dictionary<string, string>
+            await Core.Utils.ActionJs.Get("FleetAttackPlanet", new System.Collections.Generic.Dictionary<string, string>
             {
                 { "fleet", fleet.Id.ToString() },
                 { "planet", fleet.PlanetId.ToString() }
@@ -172,7 +173,7 @@ namespace Core.Vfx
             var fleet = focus?.FindViewFleet();
             if (fleet == null || fleet.AsteroidId <= 0)
                 return;
-            await ActionJs.Get("HarvestAsteroid", new System.Collections.Generic.Dictionary<string, string>
+            await Core.Utils.ActionJs.Get("HarvestAsteroid", new System.Collections.Generic.Dictionary<string, string>
             {
                 { "fleet", fleet.Id.ToString() },
                 { "asteroid", fleet.AsteroidId.ToString() }
@@ -180,3 +181,4 @@ namespace Core.Vfx
         }
     }
 }
+

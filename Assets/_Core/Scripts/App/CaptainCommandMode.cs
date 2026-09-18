@@ -63,7 +63,7 @@ namespace Core.App
             var grab = seat.GetComponent<XRSimpleInteractable>();
             if (grab == null)
                 grab = seat.gameObject.AddComponent<XRSimpleInteractable>();
-            grab.selectEntered.AddListener(_ => _ = EnterCommandMode());
+            grab.selectEntered.AddListener(_ => Core.Utils.AsyncTap.Run(EnterCommandMode()));
         }
 
         void WireExit(Transform pad)
@@ -79,7 +79,7 @@ namespace Core.App
             var interact = pad.GetComponent<XRSimpleInteractable>();
             if (interact == null)
                 interact = pad.gameObject.AddComponent<XRSimpleInteractable>();
-            interact.selectEntered.AddListener(_ => _ = ExitCommandMode());
+            interact.selectEntered.AddListener(_ => Core.Utils.AsyncTap.Run(ExitCommandMode()));
         }
 
         void CacheLocomotion()

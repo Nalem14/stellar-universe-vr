@@ -207,13 +207,14 @@ namespace Core.Vfx
             CicEnvironment.DropColliderStatic(go);
             if (_art != null)
                 go.GetComponent<MeshRenderer>().sharedMaterial =
-                    _art.Holo(Texture2D.whiteTexture, new Color(1f, 0.55f, 0.2f, 0.35f));
+                    _art.Holo(_art.HexGrid != null ? _art.HexGrid : Texture2D.whiteTexture,
+                        new Color(1f, 0.55f, 0.2f, 0.45f));
             _cells.Add(go);
 
             var interact = go.AddComponent<XRSimpleInteractable>();
             var qq = q;
             var rr = r;
-            interact.selectEntered.AddListener(_ => _ = TryMove(qq, rr));
+            interact.selectEntered.AddListener(_ => Core.Utils.AsyncTap.Run(TryMove(qq, rr)));
             if (go.GetComponent<Collider>() == null)
                 go.AddComponent<MeshCollider>();
             var col = go.GetComponent<Collider>();

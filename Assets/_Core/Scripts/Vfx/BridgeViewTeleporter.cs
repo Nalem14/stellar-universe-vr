@@ -97,12 +97,12 @@ namespace Core.Vfx
             tabShips.selectEntered.AddListener(_ =>
             {
                 tp._shipsTab = true;
-                _ = tp.RefreshList();
+                Core.Utils.AsyncTap.Run(tp.RefreshList());
             });
             tabPlanets.selectEntered.AddListener(_ =>
             {
                 tp._shipsTab = false;
-                _ = tp.RefreshList();
+                Core.Utils.AsyncTap.Run(tp.RefreshList());
             });
 
             host.KeyLight("TpLamp", new Vector3(0f, 2.4f, -half + 1.35f), CicArtKit.Cyan, 1.1f, 4.5f);
@@ -172,7 +172,7 @@ namespace Core.Vfx
                     var name = FocusContext.AsString(f["name"]);
                     if (string.IsNullOrEmpty(name))
                         name = "ship " + id;
-                    AddRow(name + " · " + sys, () => _ = ConfirmShip(id, sys));
+                    AddRow(name + " · " + sys, () => Core.Utils.AsyncTap.Run(ConfirmShip(id, sys)));
                     i++;
                     if (i >= 8)
                         break;
@@ -198,7 +198,7 @@ namespace Core.Vfx
                         var label = string.IsNullOrEmpty(p.Name) ? "planet " + p.Id : p.Name;
                         var planetId = p.Id;
                         var sys = _focus.SystemId;
-                        AddRow(label, () => _ = ConfirmPlanet(planetId, sys));
+                        AddRow(label, () => Core.Utils.AsyncTap.Run(ConfirmPlanet(planetId, sys)));
                     }
                 }
 
@@ -220,7 +220,7 @@ namespace Core.Vfx
                     var name = FocusContext.AsString(p["name"]);
                     if (string.IsNullOrEmpty(name))
                         name = "planet " + id;
-                    AddRow(name + " · " + sys, () => _ = ConfirmPlanet(id, sys));
+                    AddRow(name + " · " + sys, () => Core.Utils.AsyncTap.Run(ConfirmPlanet(id, sys)));
                     i++;
                     if (i >= 8)
                         break;
@@ -292,7 +292,7 @@ namespace Core.Vfx
 
         void Start()
         {
-            _ = RefreshList();
+            Core.Utils.AsyncTap.Run(RefreshList());
         }
     }
 }

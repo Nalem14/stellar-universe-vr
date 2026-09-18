@@ -20,8 +20,131 @@ namespace Core.Vfx
             WireShipyard(host, art, focus);
             WireResearch(host, art, focus);
             WireComms(host, art);
+            WireDiplomacy(host, art);
+            WireIntendance(host, art);
+            WireStargate(host, art, focus);
+            WireOrderQueue(host, art, focus, poller);
             WireGalaxyColonize(host, art, focus, poller, hex);
             WirePassthroughStub(host, art);
+            BridgeDressing.Apply(host, focus);
+        }
+
+        static void WireDiplomacy(CicEnvironment host, CicArtKit art)
+        {
+            var half = WorldScale.CicDeck * 0.5f;
+            var root = new GameObject("SalonDiplomatie");
+            root.transform.SetParent(host.transform, false);
+            root.transform.localPosition = new Vector3(0f, 0f, -half + 0.8f);
+            host.Box("DiploTable", new Vector3(0f, 0.85f, -half + 0.8f),
+                new Vector3(1.4f, 0.08f, 0.9f), art.MetalPanel(0.12f), keepCollider: true);
+            host.Box("DiploAccent", new Vector3(0f, 0.9f, -half + 0.45f),
+                new Vector3(1.2f, 0.03f, 0.04f), art.AmberEmit(2.2f), keepCollider: false);
+            AddPoke(root.transform, art, "Wars", new Vector3(-0.25f, 1.0f, 0.2f), async () =>
+            {
+                await ActionJs.Get("GetMyWars");
+            });
+            AddPoke(root.transform, art, "Alliance", new Vector3(0.25f, 1.0f, 0.2f), async () =>
+            {
+                await ActionJs.Get("GetMyAlliance");
+            });
+            AddPoke(root.transform, art, "Empires", new Vector3(0f, 1.0f, 0.35f), async () =>
+            {
+                await ActionJs.Get("GetEmpires");
+            });
+        }
+
+        static void WireIntendance(CicEnvironment host, CicArtKit art)
+        {
+            var half = WorldScale.CicDeck * 0.5f;
+            var root = new GameObject("Intendance");
+            root.transform.SetParent(host.transform, false);
+            root.transform.localPosition = new Vector3(half - 1.2f, 0f, -1.2f);
+            host.Box("ShopVitrine", new Vector3(half - 1.2f, 1.3f, -1.2f),
+                new Vector3(0.08f, 1.0f, 1.2f),
+                art.Lit(art.ScreenIdle != null ? art.ScreenIdle : Texture2D.whiteTexture,
+                    new Color(0.2f, 0.15f, 0.35f), 0.8f), keepCollider: false);
+            AddPoke(root.transform, art, "Shop", new Vector3(0f, 1.0f, 0.4f), async () =>
+            {
+                await ActionJs.Get("GetShopData");
+            });
+            AddPoke(root.transform, art, "Goals", new Vector3(0.2f, 1.0f, 0.4f), async () =>
+            {
+                await ActionJs.Get("GetDailyObjectives");
+            });
+        }
+
+        static void WireStargate(CicEnvironment host, CicArtKit art, FocusContext focus)
+        {
+            var half = WorldScale.CicDeck * 0.5f;
+            var root = new GameObject("BaieStargate");
+            root.transform.SetParent(host.transform, false);
+            root.transform.localPosition = new Vector3(half - 1.5f, 0f, half - 3.5f);
+            host.Cylinder("SgVortex", new Vector3(half - 1.5f, 1.4f, half - 3.2f),
+                new Vector3(0.55f, 0.08f, 0.55f),
+                art.Holo(Texture2D.whiteTexture, new Color(0.4f, 0.2f, 1f, 0.55f)), keepCollider: false);
+            host.Box("SgDial", new Vector3(half - 1.5f, 0.95f, half - 3.7f),
+                new Vector3(0.8f, 0.1f, 0.5f), art.DarkPanel(0.1f), keepCollider: true);
+            AddPoke(root.transform, art, "Addresses", new Vector3(0f, 1.05f, 0f), async () =>
+            {
+                var planet = PickOwnedPlanet(focus);
+                if (planet == null)
+                    return;
+                await ActionJs.Get("GetKnownAddresses", new Dictionary<string, string>
+                {
+                    { "planet", planet.Id.ToString() }
+                });
+            });
+            AddPoke(root.transform, art, "Jumpgate", new Vector3(0.25f, 1.05f, 0f), async () =>
+            {
+                var planet = PickOwnedPlanet(focus);
+                if (planet == null)
+                    return;
+                await ActionJs.Get("GetJumpgateDestinations", new Dictionary<string, string>
+                {
+                    { "planet", planet.Id.ToString() }
+                });
+            });
+        }
+
+        static void WireOrderQueue(CicEnvironment host, CicArtKit art, FocusContext focus, FleetPoller poller)
+        {
+            if (host.Table == null)
+                return;
+            var root = new GameObject("OrderQueuePearls");
+            root.transform.SetParent(host.Table.transform, false);
+            root.transform.localPosition = new Vector3(-0.45f, 0.08f, -0.25f);
+            for (var i = 0; i < 3; i++)
+            {
+                var pearl = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                pearl.name = "Pearl_" + i;
+                pearl.transform.SetParent(root.transform, false);
+                pearl.transform.localPosition = new Vector3(i * 0.08f, 0f, 0f);
+                pearl.transform.localScale = Vector3.one * 0.045f;
+                pearl.GetComponent<MeshRenderer>().sharedMaterial =
+                    art.Holo(Texture2D.whiteTexture, new Color(0.3f, 1f, 0.85f, 0.8f));
+            }
+
+            AddPoke(root.transform, art, "Queue", new Vector3(0.12f, 0.08f, 0.1f), async () =>
+            {
+                var fleet = focus?.FindViewFleet();
+                if (fleet == null)
+                    return;
+                await ActionJs.Get("ClearFleetOrderQueue", new Dictionary<string, string>
+                {
+                    { "fleet", fleet.Id.ToString() }
+                });
+                if (fleet.PlanetId > 0)
+                {
+                    await ActionJs.Get("AddFleetOrderStep", new Dictionary<string, string>
+                    {
+                        { "fleet", fleet.Id.ToString() },
+                        { "step", "{\"type\":\"explorePlanet\",\"targetId\":" + fleet.PlanetId + "}" }
+                    });
+                }
+
+                if (poller != null)
+                    await poller.PollNow();
+            });
         }
 
         static void WirePlanet(CicEnvironment host, CicArtKit art, FocusContext focus, FleetPoller poller)
@@ -42,7 +165,6 @@ namespace Core.Vfx
                     { "planet", planet.Id.ToString() },
                     { "raw", "1" }
                 });
-                // Upgrade first common building key if server accepts — sourced enums.buildings.
                 await ActionJs.Get("UpgradeBuilding", new Dictionary<string, string>
                 {
                     { "planet", planet.Id.ToString() },
@@ -50,6 +172,40 @@ namespace Core.Vfx
                 });
                 if (poller != null)
                     await poller.PollNow();
+            });
+            AddPoke(go.transform, art, "Troops", new Vector3(0.2f, 0f, 0f), async () =>
+            {
+                var planet = PickOwnedPlanet(focus);
+                if (planet == null)
+                    return;
+                await ActionJs.Get("RecruitTroop", new Dictionary<string, string>
+                {
+                    { "planet", planet.Id.ToString() },
+                    { "type", "Infantry" },
+                    { "qty", "1" }
+                });
+            });
+            AddPoke(go.transform, art, "Defense", new Vector3(0.4f, 0f, 0f), async () =>
+            {
+                var planet = PickOwnedPlanet(focus);
+                if (planet == null)
+                    return;
+                await ActionJs.Get("BuildDefenseUnit", new Dictionary<string, string>
+                {
+                    { "planet", planet.Id.ToString() },
+                    { "type", "MissileTurret" },
+                    { "qty", "1" }
+                });
+            });
+            AddPoke(go.transform, art, "Decide", new Vector3(0.2f, 0.12f, 0f), async () =>
+            {
+                var planet = PickOwnedPlanet(focus);
+                if (planet == null)
+                    return;
+                await ActionJs.Get("GetPlanetDecisions", new Dictionary<string, string>
+                {
+                    { "planet", planet.Id.ToString() }
+                });
             });
         }
 
@@ -71,6 +227,75 @@ namespace Core.Vfx
                     { "planet", planet.Id.ToString() },
                     { "type", "ShipCore" }
                 });
+            });
+            AddPoke(go.transform, art, "Layout", new Vector3(0.2f, 0f, 0f), async () =>
+            {
+                var fleet = focus?.FindViewFleet();
+                if (fleet == null)
+                    return;
+                await ActionJs.Get("GetShipLayout", new Dictionary<string, string>
+                {
+                    { "fleet", fleet.Id.ToString() }
+                });
+            });
+            AddPoke(go.transform, art, "Queue", new Vector3(0.4f, 0f, 0f), async () =>
+            {
+                var planet = PickOwnedPlanet(focus);
+                if (planet == null)
+                    return;
+                await ActionJs.Get("CheckShipQueue", new Dictionary<string, string>
+                {
+                    { "planet", planet.Id.ToString() }
+                });
+            });
+
+            // 9×9 module affordance grid — PlaceShipModule needs hangar ship id from queue/layout.
+            var grid = new GameObject("YardGrid9x9");
+            grid.transform.SetParent(alcove, false);
+            grid.transform.localPosition = new Vector3(0f, 1.05f, 0.55f);
+            for (var y = 0; y < 9; y++)
+            for (var x = 0; x < 9; x++)
+            {
+                var cell = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                cell.name = $"Cell_{x}_{y}";
+                cell.transform.SetParent(grid.transform, false);
+                cell.transform.localPosition = new Vector3((x - 4) * 0.045f, (y - 4) * 0.045f, 0f);
+                cell.transform.localScale = new Vector3(0.038f, 0.038f, 0.01f);
+                var core = x == 4 && y == 4;
+                cell.GetComponent<MeshRenderer>().sharedMaterial = core
+                    ? art.AmberEmit(2.4f)
+                    : art.Holo(Texture2D.whiteTexture, new Color(0.2f, 0.7f, 0.9f, 0.35f));
+                var gx = x;
+                var gy = y;
+                var interact = cell.AddComponent<XRSimpleInteractable>();
+                interact.selectEntered.AddListener(_ => Core.Utils.AsyncTap.Run(PlaceAt(focus, gx, gy)));
+            }
+        }
+
+        static async Task PlaceAt(FocusContext focus, int gx, int gy)
+        {
+            var fleet = focus?.FindViewFleet();
+            if (fleet == null)
+                return;
+            // Hangar module id: use first non-core module slot id when present; else skip.
+            var shipId = 0;
+            foreach (var m in fleet.Modules)
+            {
+                if (m.Id > 0 && (m.Type == null || m.Type.IndexOf("Core", System.StringComparison.OrdinalIgnoreCase) < 0))
+                {
+                    shipId = m.Id;
+                    break;
+                }
+            }
+
+            if (shipId <= 0)
+                return;
+            await ActionJs.Get("PlaceShipModule", new Dictionary<string, string>
+            {
+                { "ship", shipId.ToString() },
+                { "fleet", fleet.Id.ToString() },
+                { "gx", gx.ToString() },
+                { "gy", gy.ToString() }
             });
         }
 
@@ -94,6 +319,18 @@ namespace Core.Vfx
                 {
                     { "planet", planet.Id.ToString() },
                     { "research", "combustion" }
+                });
+            });
+            AddPoke(root.transform, art, "Explore", new Vector3(0.2f, 1.2f, 0.35f), async () =>
+            {
+                var fleet = focus?.FindViewFleet();
+                var planet = PickPlanet(focus);
+                if (fleet == null || planet == null)
+                    return;
+                await ActionJs.Get("ExplorePlanet", new Dictionary<string, string>
+                {
+                    { "fleet", fleet.Id.ToString() },
+                    { "planet", planet.Id.ToString() }
                 });
             });
         }
@@ -243,7 +480,7 @@ namespace Core.Vfx
             go.GetComponent<MeshRenderer>().sharedMaterial =
                 art.Lit(Texture2D.whiteTexture, CicArtKit.Cyan, 1.8f);
             var interact = go.AddComponent<XRSimpleInteractable>();
-            interact.selectEntered.AddListener(_ => _ = act());
+            interact.selectEntered.AddListener(_ => Core.Utils.AsyncTap.Run(act()));
             var t = new GameObject("L");
             t.transform.SetParent(go.transform, false);
             t.transform.localPosition = new Vector3(0f, 0.8f, -0.6f);
