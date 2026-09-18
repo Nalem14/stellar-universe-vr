@@ -87,9 +87,10 @@ Toujours **première personne casque**. Chaque scène a un XR Origin (rig templa
 
 - Nouveau gameplay : `Assets/_Core/Scripts/`, `Core` / `Core.App` / `Core.Entity` / `Core.UI` / `Core.Utils` / `Core.Vfx`.
 - Ordre spatial : **1:1 = la pièce**. Système courant = **hublots**. Galaxie = **hologramme sur la table**. Constantes : `Core.Vfx.WorldScale` — contrat [`docs/SCALE.md`](docs/SCALE.md). Interdit : `Instantiate` 1:1 de toute la galaxie, `Random` pour l’univers, mètres inventés hors de `WorldScale`.
-- Flottes : `ships[]` / `GetShipLayout` → `grid_x,grid_y` (cœur **4,4**). Spawn `FleetShipView` depuis `SystemExterior`. Textures : `Resources/Ships/`. Shader `SU/HullMetal`.
+- Flottes : **lexique legacy API** — `fleets.id` / « fleet » = **un vaisseau** (une coque + **modules** 9×9). `ships[]` / `GetShipLayout` = **modules** de ce vaisseau (pas des vaisseaux frères). Historiquement « fleet of ships » ; aujourd’hui une entité `fleet` = un ship. Plusieurs `fleets.id` = plusieurs vaisseaux. Grille modules : `grid_x,grid_y` (cœur **4,4**). Spawn `FleetShipView` depuis `SystemExterior`. Textures : `Resources/Ships/`. Shader `SU/HullMetal`.
 - UI joueur = objets de pièce (poke / ray). TextMeshPro + `Trans.Get("key")` uniquement. Missing = clé affichée ; log fichier **Editor only**.
 - Prefabs runtime : `Resources/CIC/` (pièce) ; `Resources/Ships/` (coques).
+- **Vue habitée** : persistée localement (`BridgeViewAnchor` / PlayerPrefs) — ship ou planet→station. Le serveur ne stocke que le système (god-cam web).
 - Commits **descriptifs** (pas `wip` / `jsp`).
 
 ## Vérification
