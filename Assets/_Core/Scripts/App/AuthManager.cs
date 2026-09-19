@@ -27,12 +27,17 @@ namespace Core.App
         {
             if (Instance != null && Instance != this)
             {
-                Destroy(gameObject);
+                // Edit Mode: Destroy() is deferred and leaves Boot hierarchy polluted.
+                if (!Application.isPlaying)
+                    DestroyImmediate(gameObject);
+                else
+                    Destroy(gameObject);
                 return;
             }
 
             Instance = this;
-            DontDestroyOnLoad(gameObject);
+            if (Application.isPlaying)
+                DontDestroyOnLoad(gameObject);
             ActionJs.TokenProvider = () => Token;
         }
 
@@ -50,6 +55,18 @@ namespace Core.App
         {
             if (Instance != null)
                 return Instance;
+
+            // Reclaim a leftover from Edit Mode / prior Play before spawning another.
+            var existing = UnityEngine.Object.FindFirstObjectByType<AuthManager>(FindObjectsInactive.Include);
+            if (existing != null)
+            {
+                Instance = existing;
+                if (Application.isPlaying)
+                    DontDestroyOnLoad(existing.gameObject);
+                ActionJs.TokenProvider = () => Instance.Token;
+                return existing;
+            }
+
             var go = new GameObject("AuthManager");
             return go.AddComponent<AuthManager>();
         }
@@ -124,6 +141,7 @@ namespace Core.App
             PlayerPrefs.DeleteKey(TokenKey);
             PlayerPrefs.Save();
             BridgeViewAnchor.Clear();
+            DiplomacyIndex.Clear();
             LoggedOut?.Invoke();
         }
 

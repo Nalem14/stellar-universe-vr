@@ -17,7 +17,8 @@ public static class BootSceneCleanup
         {
             if (go == null) continue;
             var n = go.name;
-            if (n != "AuthManager" && n != "HublotVerifyRoot")
+            if (n != "AuthManager" && n != "HublotVerifyRoot" &&
+                !n.StartsWith("XR Origin", System.StringComparison.Ordinal))
                 continue;
             removed.Add(n + "#" + go.GetInstanceID());
             Object.DestroyImmediate(go);
