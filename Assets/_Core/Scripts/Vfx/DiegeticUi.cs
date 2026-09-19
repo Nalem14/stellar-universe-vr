@@ -1,16 +1,279 @@
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.UI;
 using UnityEngine.XR.Interaction.Toolkit;
 using UnityEngine.XR.Interaction.Toolkit.Interactables;
+using UnityEngine.XR.Interaction.Toolkit.UI;
 
 namespace Core.Vfx
 {
     /// <summary>
-    /// Production diegetic controls — textured plates, readable TMP, hover emissive.
-    /// Not naked grey cubes.
+    /// Bridge Crew–style diegetic World Space UI: Canvas + textured holo glass buttons.
+    /// Mesh Plate/Button remain for pokeables that are not canvas-backed.
     /// </summary>
     public static class DiegeticUi
     {
+        public static readonly Color Cyan = new(0.45f, 0.95f, 1f, 1f);
+        public static readonly Color CyanDim = new(0.25f, 0.7f, 0.85f, 1f);
+        public static readonly Color Amber = new(1f, 0.72f, 0.35f, 1f);
+
+        static Sprite s_Panel;
+        static Sprite s_PanelDark;
+        static Sprite s_Btn;
+        static Sprite s_BtnHover;
+        static Sprite s_BtnPressed;
+        static Sprite s_BtnDisabled;
+        static Sprite s_BtnAmber;
+        static Sprite s_BtnAmberHover;
+        static Sprite s_BtnAmberPressed;
+        static Sprite s_BtnDanger;
+        static Sprite s_BtnDangerHover;
+        static Sprite s_BtnGhost;
+        static Sprite s_BtnGhostHover;
+        static Sprite s_Header;
+        static Sprite s_TabIdle;
+        static Sprite s_TabActive;
+        static Sprite s_Field;
+        static Sprite s_Readout;
+        static Sprite s_Divider;
+        static Sprite s_Dot;
+        static Sprite s_Ring;
+        static bool s_SpritesReady;
+
+        public static Sprite SprPanel { get { EnsureSprites(); return s_Panel; } }
+        public static Sprite SprBtn { get { EnsureSprites(); return s_Btn; } }
+        public static Sprite SprBtnHover { get { EnsureSprites(); return s_BtnHover; } }
+        public static Sprite SprBtnAmber { get { EnsureSprites(); return s_BtnAmber; } }
+        public static Sprite SprHeader { get { EnsureSprites(); return s_Header; } }
+        public static Sprite SprField { get { EnsureSprites(); return s_Field; } }
+        public static Sprite SprReadout { get { EnsureSprites(); return s_Readout; } }
+        public static Sprite SprTabIdle { get { EnsureSprites(); return s_TabIdle; } }
+        public static Sprite SprTabActive { get { EnsureSprites(); return s_TabActive; } }
+        public static Sprite SprDanger { get { EnsureSprites(); return s_BtnDanger; } }
+        public static Sprite SprGhost { get { EnsureSprites(); return s_BtnGhost; } }
+
+        static void EnsureSprites()
+        {
+            if (s_SpritesReady)
+                return;
+            s_Panel = LoadSprite("CIC/Ui/Panel") ?? LoadSprite("CIC/HoloPanel");
+            s_PanelDark = LoadSprite("CIC/Ui/PanelDark") ?? s_Panel;
+            s_Btn = LoadSprite("CIC/Ui/BtnCyan") ?? LoadSprite("CIC/HoloBtn");
+            s_BtnHover = LoadSprite("CIC/Ui/BtnCyanHover") ?? LoadSprite("CIC/HoloBtnHover");
+            s_BtnPressed = LoadSprite("CIC/Ui/BtnCyanPressed") ?? s_BtnHover;
+            s_BtnDisabled = LoadSprite("CIC/Ui/BtnCyanDisabled") ?? s_Btn;
+            s_BtnAmber = LoadSprite("CIC/Ui/BtnAmber") ?? LoadSprite("CIC/HoloBtnAmber");
+            s_BtnAmberHover = LoadSprite("CIC/Ui/BtnAmberHover") ?? s_BtnAmber;
+            s_BtnAmberPressed = LoadSprite("CIC/Ui/BtnAmberPressed") ?? s_BtnAmber;
+            s_BtnDanger = LoadSprite("CIC/Ui/BtnDanger") ?? s_Btn;
+            s_BtnDangerHover = LoadSprite("CIC/Ui/BtnDangerHover") ?? s_BtnDanger;
+            s_BtnGhost = LoadSprite("CIC/Ui/BtnGhost") ?? s_Btn;
+            s_BtnGhostHover = LoadSprite("CIC/Ui/BtnGhostHover") ?? s_BtnGhost;
+            s_Header = LoadSprite("CIC/Ui/Header") ?? LoadSprite("CIC/HoloHeader");
+            s_TabIdle = LoadSprite("CIC/Ui/TabIdle") ?? s_Btn;
+            s_TabActive = LoadSprite("CIC/Ui/TabActive") ?? s_BtnHover;
+            s_Field = LoadSprite("CIC/Ui/Field") ?? s_PanelDark;
+            s_Readout = LoadSprite("CIC/Ui/Readout") ?? s_Header;
+            s_Divider = LoadSprite("CIC/Ui/Divider");
+            s_Dot = LoadSprite("CIC/Ui/Dot");
+            s_Ring = LoadSprite("CIC/Ui/RingButton");
+            s_SpritesReady = true;
+        }
+
+        static Sprite LoadSprite(string resourcesPath)
+        {
+            // Prefer imported Sprite (9-slice borders from TextureImporter).
+            var sprite = Resources.Load<Sprite>(resourcesPath);
+            if (sprite != null)
+                return sprite;
+            var tex = Resources.Load<Texture2D>(resourcesPath);
+            if (tex == null)
+                return null;
+            // Runtime fallback without borders.
+            return Sprite.Create(tex, new Rect(0f, 0f, tex.width, tex.height), new Vector2(0.5f, 0.5f),
+                100f, 0, SpriteMeshType.FullRect, new Vector4(24f, 20f, 24f, 20f));
+        }
+
+        public static void EnsureEventSystem()
+        {
+            if (Object.FindFirstObjectByType<EventSystem>() != null)
+                return;
+            var go = new GameObject("EventSystem", typeof(EventSystem), typeof(XRUIInputModule));
+            Object.DontDestroyOnLoad(go);
+        }
+
+        /// <summary>
+        /// World Space canvas in meters. scale = metersPerPixel (default 0.001 → 1000px = 1m).
+        /// </summary>
+        public static Canvas WorldCanvas(Transform parent, string name, Vector2 pixelSize,
+            Vector3 localPos, Quaternion localRot, float metersPerPixel = 0.001f)
+        {
+            EnsureEventSystem();
+            EnsureSprites();
+            var go = new GameObject(name, typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler),
+                typeof(GraphicRaycaster), typeof(TrackedDeviceGraphicRaycaster));
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = localPos;
+            go.transform.localRotation = localRot;
+            go.transform.localScale = Vector3.one * metersPerPixel;
+
+            var canvas = go.GetComponent<Canvas>();
+            canvas.renderMode = RenderMode.WorldSpace;
+            canvas.sortingOrder = 20;
+            var rt = go.GetComponent<RectTransform>();
+            rt.sizeDelta = pixelSize;
+            go.GetComponent<CanvasScaler>().dynamicPixelsPerUnit = 2.5f;
+            return canvas;
+        }
+
+        public static RectTransform HoloFrame(Transform canvasRoot, Vector2 size, string header = null)
+        {
+            EnsureSprites();
+            var go = new GameObject("HoloFrame", typeof(RectTransform), typeof(Image));
+            go.transform.SetParent(canvasRoot, false);
+            var rt = go.GetComponent<RectTransform>();
+            rt.sizeDelta = size;
+            var img = go.GetComponent<Image>();
+            img.sprite = s_Panel;
+            img.type = Image.Type.Sliced;
+            img.color = new Color(0.55f, 0.95f, 1f, 0.92f);
+            img.raycastTarget = false;
+
+            if (!string.IsNullOrEmpty(header))
+            {
+                var bar = new GameObject("Header", typeof(RectTransform), typeof(Image));
+                bar.transform.SetParent(go.transform, false);
+                var brt = bar.GetComponent<RectTransform>();
+                brt.anchorMin = new Vector2(0.04f, 0.88f);
+                brt.anchorMax = new Vector2(0.96f, 0.98f);
+                brt.offsetMin = Vector2.zero;
+                brt.offsetMax = Vector2.zero;
+                var bimg = bar.GetComponent<Image>();
+                bimg.sprite = s_Header != null ? s_Header : s_Btn;
+                bimg.type = Image.Type.Sliced;
+                bimg.color = Color.white;
+                bimg.raycastTarget = false;
+
+                var label = new GameObject("HeaderLabel", typeof(RectTransform), typeof(TextMeshProUGUI));
+                label.transform.SetParent(bar.transform, false);
+                Stretch(label.GetComponent<RectTransform>(), 8f);
+                var tmp = label.GetComponent<TextMeshProUGUI>();
+                tmp.text = header;
+                tmp.fontSize = 22f;
+                tmp.fontStyle = FontStyles.Bold;
+                tmp.alignment = TextAlignmentOptions.Center;
+                tmp.color = Color.white;
+                tmp.raycastTarget = false;
+            }
+
+            return rt;
+        }
+
+        public enum BtnStyle
+        {
+            Cyan,
+            Amber,
+            Danger,
+            Ghost
+        }
+
+        public static Button HoloButton(Transform parent, string label, Vector2 anchoredPos, Vector2 size,
+            UnityEngine.Events.UnityAction onClick, bool amber = false) =>
+            HoloButton(parent, label, anchoredPos, size, onClick, amber ? BtnStyle.Amber : BtnStyle.Cyan);
+
+        public static Button HoloButton(Transform parent, string label, Vector2 anchoredPos, Vector2 size,
+            UnityEngine.Events.UnityAction onClick, BtnStyle style)
+        {
+            EnsureSprites();
+            var go = new GameObject("Btn_" + label, typeof(RectTransform), typeof(Image), typeof(Button));
+            go.transform.SetParent(parent, false);
+            var rt = go.GetComponent<RectTransform>();
+            rt.sizeDelta = size;
+            rt.anchoredPosition = anchoredPos;
+
+            Sprite idle = s_Btn, hover = s_BtnHover, pressed = s_BtnPressed;
+            switch (style)
+            {
+                case BtnStyle.Amber:
+                    idle = s_BtnAmber ?? s_Btn;
+                    hover = s_BtnAmberHover ?? idle;
+                    pressed = s_BtnAmberPressed ?? hover;
+                    break;
+                case BtnStyle.Danger:
+                    idle = s_BtnDanger ?? s_Btn;
+                    hover = s_BtnDangerHover ?? idle;
+                    pressed = hover;
+                    break;
+                case BtnStyle.Ghost:
+                    idle = s_BtnGhost ?? s_Btn;
+                    hover = s_BtnGhostHover ?? idle;
+                    pressed = hover;
+                    break;
+            }
+
+            var img = go.GetComponent<Image>();
+            img.sprite = idle;
+            img.type = Image.Type.Sliced;
+            img.color = Color.white;
+
+            var btn = go.GetComponent<Button>();
+            btn.transition = Selectable.Transition.SpriteSwap;
+            var spriteState = btn.spriteState;
+            spriteState.highlightedSprite = hover;
+            spriteState.pressedSprite = pressed;
+            spriteState.disabledSprite = s_BtnDisabled ?? idle;
+            btn.spriteState = spriteState;
+            var colors = btn.colors;
+            colors.fadeDuration = 0.06f;
+            btn.colors = colors;
+
+            btn.onClick.AddListener(() =>
+            {
+                CicCue.Ok(go.transform.position);
+                onClick?.Invoke();
+            });
+
+            var textGo = new GameObject("Label", typeof(RectTransform), typeof(TextMeshProUGUI));
+            textGo.transform.SetParent(go.transform, false);
+            Stretch(textGo.GetComponent<RectTransform>(), 10f);
+            var tmp = textGo.GetComponent<TextMeshProUGUI>();
+            tmp.text = label ?? string.Empty;
+            tmp.fontSize = Mathf.Clamp(size.y * 0.38f, 16f, 28f);
+            tmp.fontStyle = FontStyles.Bold;
+            tmp.alignment = TextAlignmentOptions.Center;
+            tmp.color = Color.white;
+            tmp.raycastTarget = false;
+            return btn;
+        }
+
+        public static TMP_Text HoloLabel(Transform parent, string text, Vector2 anchoredPos, Vector2 size,
+            float fontSize, Color color, TextAlignmentOptions align = TextAlignmentOptions.Center)
+        {
+            var go = new GameObject("Label", typeof(RectTransform), typeof(TextMeshProUGUI));
+            go.transform.SetParent(parent, false);
+            var rt = go.GetComponent<RectTransform>();
+            rt.sizeDelta = size;
+            rt.anchoredPosition = anchoredPos;
+            var tmp = go.GetComponent<TextMeshProUGUI>();
+            tmp.text = text ?? string.Empty;
+            tmp.fontSize = fontSize;
+            tmp.alignment = align;
+            tmp.color = color;
+            tmp.raycastTarget = false;
+            return tmp;
+        }
+
+        static void Stretch(RectTransform rt, float pad = 0f)
+        {
+            rt.anchorMin = Vector2.zero;
+            rt.anchorMax = Vector2.one;
+            rt.offsetMin = new Vector2(pad, 6f);
+            rt.offsetMax = new Vector2(-pad, -6f);
+        }
+
+        // --- Mesh fallbacks (alcoves / hex) — textured when possible ---
+
         public static TMP_Text Label(Transform parent, string name, string text, Vector3 localPos,
             float worldScale, float fontSize, Color color, TextAlignmentOptions align = TextAlignmentOptions.Center)
         {
@@ -27,7 +290,42 @@ namespace Core.Vfx
             tmp.enableWordWrapping = false;
             tmp.overflowMode = TextOverflowModes.Truncate;
             tmp.raycastTarget = false;
+            tmp.rectTransform.sizeDelta = new Vector2(Mathf.Max(12f, fontSize * 4f), Mathf.Max(4f, fontSize * 1.2f));
             return tmp;
+        }
+
+        public static Transform Panel(Transform parent, string name, Vector3 localPos, Vector3 size,
+            CicArtKit art, out MeshRenderer glassRend)
+        {
+            EnsureSprites();
+            var root = new GameObject(name).transform;
+            root.SetParent(parent, false);
+            root.localPosition = localPos;
+
+            var chassis = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            chassis.name = "Chassis";
+            chassis.transform.SetParent(root, false);
+            chassis.transform.localPosition = Vector3.zero;
+            chassis.transform.localScale = size;
+            CicEnvironment.DropColliderStatic(chassis);
+            if (art != null)
+                chassis.GetComponent<MeshRenderer>().sharedMaterial = art.MetalPanel(0.12f);
+
+            var glass = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            glass.name = "Glass";
+            glass.transform.SetParent(root, false);
+            glass.transform.localPosition = new Vector3(0f, 0f, -size.z * 0.52f);
+            glass.transform.localScale = new Vector3(size.x * 0.94f, size.y * 0.92f, 1f);
+            CicEnvironment.DropColliderStatic(glass);
+            glassRend = glass.GetComponent<MeshRenderer>();
+            if (art != null)
+            {
+                var tex = Resources.Load<Texture2D>("CIC/HoloPanel") ?? art.ScreenIdle as Texture2D;
+                glassRend.sharedMaterial = art.Holo(tex != null ? tex : Texture2D.whiteTexture,
+                    new Color(0.25f, 0.9f, 1f, 0.72f));
+            }
+
+            return root;
         }
 
         public static XRSimpleInteractable Plate(Transform parent, string name, Vector3 localPos,
@@ -41,18 +339,19 @@ namespace Core.Vfx
             rend = go.GetComponent<MeshRenderer>();
             rend.sharedMaterial = idle;
             var mesh = rend;
+            var baseSize = size;
             var interact = go.AddComponent<XRSimpleInteractable>();
             interact.hoverEntered.AddListener(_ =>
             {
                 if (hover != null)
                     mesh.sharedMaterial = hover;
-                go.transform.localScale = size * 1.06f;
+                go.transform.localScale = baseSize * 1.06f;
                 CicCue.Hover(go.transform.position);
             });
             interact.hoverExited.AddListener(_ =>
             {
                 mesh.sharedMaterial = idle;
-                go.transform.localScale = size;
+                go.transform.localScale = baseSize;
             });
             if (onSelect != null)
             {
@@ -66,9 +365,66 @@ namespace Core.Vfx
             return interact;
         }
 
+        public static XRSimpleInteractable Button(Transform parent, string name, string label,
+            Vector3 localPos, Vector3 size, CicArtKit art, Color accent, System.Action onSelect,
+            bool interact = true)
+        {
+            Material idle;
+            Material hover;
+            if (art != null)
+            {
+                var tex = Resources.Load<Texture2D>("CIC/HoloBtn") ?? Texture2D.whiteTexture;
+                var texH = Resources.Load<Texture2D>("CIC/HoloBtnHover") ?? tex;
+                idle = art.Holo(tex, new Color(accent.r, accent.g, accent.b, interact ? 0.85f : 0.4f));
+                hover = art.Holo(texH, new Color(accent.r, accent.g, accent.b, 1f));
+            }
+            else
+            {
+                idle = hover = null;
+            }
+
+            System.Action act = interact ? onSelect : null;
+            var xi = Plate(parent, name, localPos, size, idle, interact ? hover : idle, act, out _);
+            if (!interact)
+                CicEnvironment.DropColliderStatic(xi.gameObject);
+
+            var tmp = Label(xi.transform, name + "_L", label ?? string.Empty,
+                new Vector3(0f, 0f, -0.65f), 0.55f, 5f, Color.white);
+            tmp.transform.localScale = Vector3.one *
+                                       Mathf.Clamp(0.028f / Mathf.Max(0.01f, size.y), 0.2f, 1.2f);
+            tmp.rectTransform.sizeDelta = new Vector2(Mathf.Max(16f, size.x * 40f), 5f);
+            return xi;
+        }
+
+        public static XRSimpleInteractable Tab(Transform parent, string name, string label,
+            Vector3 localPos, Vector3 size, CicArtKit art, Color accent, System.Action onSelect) =>
+            Button(parent, name, label, localPos, size, art, accent, onSelect);
+
+        public static XRSimpleInteractable Row(Transform parent, string name, string primary,
+            string secondary, Vector3 localPos, Vector3 size, CicArtKit art, System.Action onSelect)
+        {
+            var xi = Button(parent, name, primary, localPos, size, art, Cyan, onSelect);
+            if (!string.IsNullOrEmpty(secondary))
+            {
+                var sec = Label(xi.transform, name + "_S", secondary,
+                    new Vector3(0f, -0.35f, -0.65f), 0.5f, 4f, CyanDim);
+                sec.transform.localScale = Vector3.one * 0.45f;
+                sec.rectTransform.sizeDelta = new Vector2(Mathf.Max(16f, size.x * 40f), 4f);
+            }
+
+            return xi;
+        }
+
+        public static TMP_Text Readout(Transform parent, string name, string text, Vector3 localPos,
+            float worldScale = 0.025f)
+        {
+            var tmp = Label(parent, name, text ?? string.Empty, localPos, worldScale, 5f, Amber);
+            tmp.rectTransform.sizeDelta = new Vector2(48f, 6f);
+            return tmp;
+        }
+
         public static void FaceCaptain(Transform t)
         {
-            // Content faces -Z in parent space (toward captain seat when board faces table).
             t.localRotation = Quaternion.Euler(0f, 180f, 0f);
         }
     }
