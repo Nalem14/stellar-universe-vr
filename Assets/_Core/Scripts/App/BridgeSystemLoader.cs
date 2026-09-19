@@ -142,7 +142,7 @@ namespace Core.App
                     return false;
                 }
 
-                var fleets = await ActionJs.Get("GetAllFleetsAround");
+                var fleets = await ActionJs.Get("GetAllFleets");
                 if (!fleets.Ok)
                 {
                     await RevertServerSystem(sameSystem, previousSystemId);
@@ -233,7 +233,7 @@ namespace Core.App
             if (systemId <= 0 || _focus == null)
                 return;
             var systems = await ActionJs.Get("GetSystems");
-            var fleets = await ActionJs.Get("GetAllFleetsAround");
+            var fleets = await ActionJs.Get("GetAllFleets");
             if (!systems.Ok || !fleets.Ok)
                 return;
             if (planetId > 0)

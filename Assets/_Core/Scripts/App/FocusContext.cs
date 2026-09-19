@@ -30,6 +30,7 @@ namespace Core.App
         public int PlanetId;
         public int AsteroidId;
         public int UserId;
+        public int EmpireId;
         public int SystemId;
         public int FromSystemId;
         public int DestSystemId;
@@ -39,6 +40,7 @@ namespace Core.App
         public long HarvestEndTime;
         public long ExploreEndTime;
         public bool IsInBattle;
+        public bool IsPirate;
         public string Pos = string.Empty;
         public readonly List<FocusShipModule> Modules = new();
 
@@ -51,6 +53,21 @@ namespace Core.App
         public bool CanIssueMove(long unixNow) =>
             !IsMoving(unixNow) && !IsExploring(unixNow) && !IsHarvesting(unixNow) &&
             !IsSieging(unixNow) && !IsInBattle;
+
+        public bool IsOwnedBy(int userId) => userId > 0 && UserId == userId;
+
+        public bool IsPresentIn(int systemId) => systemId > 0 && SystemId == systemId;
+
+        /// <summary>
+        /// Jump / sublight inbound. Covers both dest already stamped on systemid
+        /// and origin still on systemid while dest/time point here.
+        /// </summary>
+        public bool IsArrivingTo(int systemId, long unixNow) =>
+            systemId > 0 && DestTime > unixNow && DestSystemId == systemId &&
+            (FromSystemId == 0 || FromSystemId != DestSystemId);
+
+        public bool VisibleIn(int systemId, long unixNow) =>
+            IsPresentIn(systemId) || IsArrivingTo(systemId, unixNow);
     }
 
     public sealed class FocusAsteroid
@@ -76,6 +93,7 @@ namespace Core.App
         public int ViewPlanetId { get; private set; }
         public IReadOnlyList<FocusPlanet> Planets => _planets;
         public IReadOnlyList<FocusAsteroid> Asteroids => _asteroids;
+        /// <summary>Full GetAllFleets catalog. Filter with IsMine / VisibleInFocus.</summary>
         public IReadOnlyList<FocusFleet> Fleets => _fleets;
         public bool HasSystem => SystemId > 0;
 
@@ -140,46 +158,26 @@ namespace Core.App
         {
             _fleets.Clear();
             TryParseFleets(fleetsBody);
-            if (ViewFleetId > 0)
-            {
-                var stillThere = false;
-                foreach (var fleet in _fleets)
-                {
-                    if (fleet.Id == ViewFleetId)
-                    {
-                        stillThere = true;
-                        break;
-                    }
-                }
-
-                if (!stillThere)
-                    ViewFleetId = ResolveViewFleetId(0);
-            }
-            else
-            {
-                ViewFleetId = ResolveViewFleetId(0);
-            }
-
+            if (ViewFleetId > 0 && FindFleet(ViewFleetId) == null)
+                ViewFleetId = 0;
             Changed?.Invoke();
         }
 
         int ResolveViewFleetId(int preferred)
         {
-            var owned = AuthManager.Ensure().User != null ? AuthManager.Ensure().User.id : 0;
+            var owned = OwnedUserId();
             if (preferred > 0)
             {
-                foreach (var fleet in _fleets)
-                {
-                    if (fleet.Id == preferred && (owned <= 0 || fleet.UserId == owned))
-                        return fleet.Id;
-                }
+                var preferredFleet = FindFleet(preferred);
+                if (preferredFleet != null && (owned <= 0 || preferredFleet.IsOwnedBy(owned)))
+                    return preferredFleet.Id;
             }
 
             if (owned > 0)
             {
                 foreach (var fleet in _fleets)
                 {
-                    if (fleet.UserId == owned)
+                    if (fleet.IsOwnedBy(owned) && (SystemId <= 0 || fleet.IsPresentIn(SystemId)))
                         return fleet.Id;
                 }
             }
@@ -187,18 +185,43 @@ namespace Core.App
             return 0;
         }
 
-        public FocusFleet FindViewFleet()
+        public static int OwnedUserId()
         {
-            if (ViewFleetId <= 0)
+            var user = AuthManager.Ensure().User;
+            return user != null ? user.id : 0;
+        }
+
+        public bool IsMine(FocusFleet fleet) => fleet != null && fleet.IsOwnedBy(OwnedUserId());
+
+        public bool VisibleInFocus(FocusFleet fleet, long unixNow) =>
+            fleet != null && fleet.VisibleIn(SystemId, unixNow);
+
+        public int CountVisibleInFocus(long unixNow)
+        {
+            var n = 0;
+            for (var i = 0; i < _fleets.Count; i++)
+            {
+                if (_fleets[i].VisibleIn(SystemId, unixNow))
+                    n++;
+            }
+
+            return n;
+        }
+
+        public FocusFleet FindFleet(int fleetId)
+        {
+            if (fleetId <= 0)
                 return null;
             foreach (var fleet in _fleets)
             {
-                if (fleet.Id == ViewFleetId)
+                if (fleet.Id == fleetId)
                     return fleet;
             }
 
             return null;
         }
+
+        public FocusFleet FindViewFleet() => FindFleet(ViewFleetId);
 
         public FocusPlanet FindPlanet(int planetId)
         {
@@ -326,6 +349,7 @@ namespace Core.App
                         PlanetId = AsInt(fleet["planetid"]),
                         AsteroidId = AsInt(fleet["asteroidid"]),
                         UserId = AsInt(fleet["userid"]),
+                        EmpireId = AsInt(fleet["empireid"]),
                         SystemId = fleetSystem > 0 ? fleetSystem : SystemId,
                         FromSystemId = AsInt(fleet["from"]),
                         DestSystemId = AsInt(fleet["dest"]),
@@ -334,6 +358,7 @@ namespace Core.App
                         HarvestEndTime = AsLong(fleet["harvestEndTime"]),
                         ExploreEndTime = AsLong(fleet["exploreEndTime"]),
                         IsInBattle = AsBool(fleet["isInBattle"]),
+                        IsPirate = AsBool(fleet["isPirate"]),
                         Pos = AsString(fleet["pos"])
                     };
                     ParseShipModules(fleet, row.Modules);

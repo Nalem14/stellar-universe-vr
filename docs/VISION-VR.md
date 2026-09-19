@@ -103,7 +103,7 @@ Un seul « niveau » habité, réutilisé toute la session.
 
 - Room-scale ~3×3 m + téléport court **dans** la pièce.
 - **Table holo** au centre : carte interactive (voir §4).
-- **Hublots** : système actuellement focalisé (`user.systemid`). Soleil du bon type, planètes sur `slot`, lumières de flottes locales (`GetAllFleetsAround`). En transit (amiral en jump) : tunnel / étoiles filantes (`hyperportal` SFX déjà là).
+- **Hublots** : système actuellement focalisé (`user.systemid`). Soleil du bon type, planètes sur `slot`, lumières de flottes locales (`GetAllFleets` filtré sur le système focalisé + arrivées). En transit (amiral en jump) : tunnel / étoiles filantes (`hyperportal` SFX déjà là).
 - **Fauteuil de commandement** (option) : snap-turn, moins de locomotion, table toujours à portée.
 
 ### 3.2 Où tu « es » (TP de vue)
