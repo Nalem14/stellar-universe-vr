@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Core.App;
@@ -416,9 +417,10 @@ namespace Core.Vfx
                     return;
                 var ids = new List<int>();
                 var owned = AuthManager.Ensure().User != null ? AuthManager.Ensure().User.id : 0;
+                var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
                 foreach (var f in focus.Fleets)
                 {
-                    if (owned > 0 && f.UserId == owned)
+                    if (owned > 0 && f.IsOwnedBy(owned) && f.VisibleIn(focus.SystemId, now))
                         ids.Add(f.Id);
                 }
 
@@ -472,24 +474,9 @@ namespace Core.Vfx
 
         static void AddPoke(Transform parent, CicArtKit art, string name, Vector3 local, System.Func<Task> act)
         {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            go.name = "Poke_" + name;
-            go.transform.SetParent(parent, false);
-            go.transform.localPosition = local;
-            go.transform.localScale = new Vector3(0.18f, 0.05f, 0.05f);
-            go.GetComponent<MeshRenderer>().sharedMaterial =
-                art.Lit(Texture2D.whiteTexture, CicArtKit.Cyan, 1.8f);
-            var interact = go.AddComponent<XRSimpleInteractable>();
-            interact.selectEntered.AddListener(_ => Core.Utils.AsyncTap.Run(act()));
-            var t = new GameObject("L");
-            t.transform.SetParent(go.transform, false);
-            t.transform.localPosition = new Vector3(0f, 0.8f, -0.6f);
-            t.transform.localScale = Vector3.one * 0.03f;
-            var tmp = t.AddComponent<TextMeshPro>();
-            tmp.alignment = TextAlignmentOptions.Center;
-            tmp.fontSize = 4f;
-            tmp.color = Color.white;
-            tmp.text = name;
+            DiegeticUi.Button(parent, "Poke_" + name, Trans.Get(name), local,
+                new Vector3(0.2f, 0.06f, 0.05f), art, CicArtKit.Cyan,
+                () => Core.Utils.AsyncTap.Run(act()));
         }
 
         static string TrimBody(string body, int max)

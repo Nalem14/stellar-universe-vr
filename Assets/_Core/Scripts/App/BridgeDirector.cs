@@ -69,18 +69,13 @@ namespace Core.App
             var teleporter = BridgeViewTeleporter.Build(env, env.Art);
             teleporter.Bind(_loader, _focus, env.Art);
 
-            // Shortcut TP on left arm pad
+            // Shortcut TP refresh on left arm pad — labeled kit button.
             var armL = FindNamed(interior.transform, "ArmPadL");
             if (armL != null)
             {
-                if (armL.GetComponent<Collider>() == null)
-                {
-                    var box = armL.gameObject.AddComponent<BoxCollider>();
-                    box.size = new Vector3(0.2f, 0.05f, 0.3f);
-                }
-
-                var interact = armL.gameObject.AddComponent<UnityEngine.XR.Interaction.Toolkit.Interactables.XRSimpleInteractable>();
-                interact.selectEntered.AddListener(_ => Core.Utils.AsyncTap.Run(teleporter.RefreshList()));
+                DiegeticUi.Button(armL, "ArmPadL_Refresh", Trans.Get("spaceships"),
+                    new Vector3(0f, 0.04f, 0f), new Vector3(0.18f, 0.04f, 0.12f), env.Art, CicArtKit.Cyan,
+                    () => Core.Utils.AsyncTap.Run(teleporter.RefreshList()));
             }
 
             // Command mode scales a parent of HoloMapMount so zoom (child localScale) stays independent.

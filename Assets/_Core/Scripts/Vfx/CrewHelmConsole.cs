@@ -164,22 +164,8 @@ namespace Core.Vfx
             var y = 0.02f - _rows.Count * 0.095f;
             if (_art == null || _list == null)
                 return;
-            var idle = _art.Lit(Texture2D.whiteTexture, accent * 0.55f, 1.6f);
-            var hover = _art.Lit(Texture2D.whiteTexture, accent, 3.0f);
-            if (interact && act != null)
-            {
-                DiegeticUi.Plate(_list, "Order_" + _rows.Count, new Vector3(0f, y, 0f),
-                    new Vector3(0.48f, 0.08f, 0.03f), idle, hover, act, out _);
-            }
-            else
-            {
-                DiegeticUi.Plate(_list, "Order_" + _rows.Count, new Vector3(0f, y, 0f),
-                    new Vector3(0.48f, 0.08f, 0.03f), idle, idle, null, out _);
-            }
-
-            var tmp = DiegeticUi.Label(_list, "T", label, new Vector3(0f, y, -0.025f), 0.022f, 5f,
-                Color.white);
-            tmp.rectTransform.sizeDelta = new Vector2(22f, 5f);
+            DiegeticUi.Button(_list, "Order_" + _rows.Count, label, new Vector3(0f, y, 0f),
+                new Vector3(0.48f, 0.08f, 0.03f), _art, accent, act, interact);
             var mark = new GameObject("Mark_" + _rows.Count);
             mark.transform.SetParent(_list, false);
             _rows.Add(mark);

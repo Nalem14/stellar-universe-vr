@@ -9,7 +9,7 @@ namespace Core.Vfx
 {
     /// <summary>
     /// Helm / Tactical / Engineering desks + mannequins.
-    /// Helm hosts the context order board for the inhabited ship.
+    /// MoveFleet lives only on CaptainOrdersRail — crew pads are remotes.
     /// </summary>
     public static class CrewStationsBuilder
     {
@@ -17,16 +17,15 @@ namespace Core.Vfx
             HexBattleController hex, HoloZoneMap map = null, FleetPoller poller = null)
         {
             BuildStation(host, art, "CrewHelm", new Vector3(-1.6f, 0f, 2.4f), CicArtKit.Cyan,
-                CrewRole.Helm, orders, hex, map, poller);
+                CrewRole.Helm, orders, hex);
             BuildStation(host, art, "CrewTactical", new Vector3(0f, 0f, 2.85f), CicArtKit.Amber,
-                CrewRole.Tactical, orders, hex, map, poller);
+                CrewRole.Tactical, orders, hex);
             BuildStation(host, art, "CrewEngineering", new Vector3(1.6f, 0f, 2.4f),
-                new Color(0.4f, 0.9f, 0.55f), CrewRole.Engineering, orders, hex, map, poller);
+                new Color(0.4f, 0.9f, 0.55f), CrewRole.Engineering, orders, hex);
         }
 
         static void BuildStation(CicEnvironment host, CicArtKit art, string name, Vector3 pos,
-            Color accent, CrewRole role, ViewFleetOrders orders, HexBattleController hex,
-            HoloZoneMap map, FleetPoller poller)
+            Color accent, CrewRole role, ViewFleetOrders orders, HexBattleController hex)
         {
             var root = new GameObject(name);
             root.transform.SetParent(host.transform, false);
@@ -46,13 +45,14 @@ namespace Core.Vfx
                 new Vector3(0.45f, 0.1f, 0.45f), art.DarkPanel(0.1f), keepCollider: true);
             BuildMannequin(host, art, pos + new Vector3(0f, 0.55f, -0.35f), accent);
 
+            // Helm: status readout only — orders console is CaptainOrdersRail.
             if (role == CrewRole.Helm)
             {
-                BuildHelmBoard(root.transform, art, accent, map, poller);
+                DiegeticUi.Readout(root.transform, "HelmReadout", Trans.Get("CommandBridge"),
+                    new Vector3(0f, 1.35f, 0.35f), 0.028f);
                 return;
             }
 
-            // Tactical / Engineering — pads appear only when the action is feasible.
             var radial = new GameObject(name + "Radial");
             radial.transform.SetParent(root.transform, false);
             radial.transform.localPosition = new Vector3(0f, 1.15f, 0.35f);
@@ -63,38 +63,6 @@ namespace Core.Vfx
             else if (role == CrewRole.Engineering)
                 pad.Bind(FocusContext.Current, art, accent, CrewRolePad.Role.Engineering, radial.transform,
                     orders, hex);
-        }
-
-        static void BuildHelmBoard(Transform station, CicArtKit art, Color accent, HoloZoneMap map,
-            FleetPoller poller)
-        {
-            var board = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            board.name = "HelmBoard";
-            board.transform.SetParent(station, false);
-            board.transform.localPosition = new Vector3(0f, 1.2f, 0.42f);
-            board.transform.localRotation = Quaternion.Euler(12f, 180f, 0f);
-            board.transform.localScale = new Vector3(0.85f, 0.7f, 0.04f);
-            CicEnvironment.DropColliderStatic(board);
-            board.GetComponent<MeshRenderer>().sharedMaterial = art.DarkPanel(0.12f);
-
-            var titleGo = new GameObject("HelmTitle");
-            titleGo.transform.SetParent(board.transform, false);
-            titleGo.transform.localPosition = new Vector3(0f, 0.38f, -0.6f);
-            titleGo.transform.localScale = new Vector3(0.03f / 0.85f, 0.03f / 0.7f, 0.03f);
-            var title = titleGo.AddComponent<TextMeshPro>();
-            title.alignment = TextAlignmentOptions.Center;
-            title.fontSize = 6f;
-            title.color = accent;
-            title.text = Trans.Get("CommandBridge");
-
-            var list = new GameObject("HelmList").transform;
-            list.SetParent(board.transform, false);
-            list.localPosition = new Vector3(0f, 0.12f, -0.55f);
-            // Un-scale so row cubes keep readable world size.
-            list.localScale = new Vector3(1f / 0.85f, 1f / 0.7f, 1f);
-
-            var console = station.gameObject.AddComponent<CrewHelmConsole>();
-            console.Bind(FocusContext.Current, art, map, poller, list, title);
         }
 
         static void BuildMannequin(CicEnvironment host, CicArtKit art, Vector3 seatPos, Color accent)

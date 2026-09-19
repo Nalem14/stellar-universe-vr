@@ -114,6 +114,7 @@ namespace Core.Editor
             ConfigureTexture("Assets/_Core/Resources/Holo/TokenFleet.png", TextureWrapMode.Clamp);
             ConfigureTexture("Assets/_Core/Resources/Holo/ProjectorGlow.png", TextureWrapMode.Clamp);
             AssetDatabase.ImportAsset("Assets/_Core/Resources/CIC/ambient.mp3");
+            HoloUiSpriteImporter.ImportAll();
         }
 
         static void ConfigureTexture(string path, TextureWrapMode wrap)

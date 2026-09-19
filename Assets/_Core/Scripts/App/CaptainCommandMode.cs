@@ -113,7 +113,16 @@ namespace Core.App
             var interact = pad.GetComponent<XRSimpleInteractable>();
             if (interact == null)
                 interact = pad.gameObject.AddComponent<XRSimpleInteractable>();
+            var baseScale = pad.localScale;
             interact.selectEntered.AddListener(_ => Core.Utils.AsyncTap.Run(ExitCommandMode()));
+            interact.hoverEntered.AddListener(_ =>
+            {
+                pad.localScale = baseScale * 1.1f;
+                CicCue.Hover(pad.position);
+            });
+            interact.hoverExited.AddListener(_ => { pad.localScale = baseScale; });
+            DiegeticUi.Label(pad, "ExitLabel", Trans.Get("quit"), new Vector3(0f, 0.08f, 0f),
+                0.04f, 4f, Color.white);
         }
 
         void CacheLocomotion()

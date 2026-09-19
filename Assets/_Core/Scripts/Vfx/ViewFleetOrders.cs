@@ -84,22 +84,12 @@ namespace Core.Vfx
             _panel.localPosition = new Vector3(0.55f, 0.35f, 0.1f);
             _panel.localRotation = Quaternion.Euler(25f, -20f, 0f);
 
-            var board = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            board.name = "Board";
-            board.transform.SetParent(_panel, false);
-            board.transform.localScale = new Vector3(0.35f, 0.45f, 0.03f);
-            if (_art != null)
-                board.GetComponent<MeshRenderer>().sharedMaterial = _art.DarkPanel(0.1f);
+            DiegeticUi.Panel(_panel, "Board", Vector3.zero, new Vector3(0.35f, 0.45f, 0.03f), _art,
+                out _);
 
-            var tmpGo = new GameObject("Label");
-            tmpGo.transform.SetParent(_panel, false);
-            tmpGo.transform.localPosition = new Vector3(0f, 0.18f, -0.02f);
-            tmpGo.transform.localScale = Vector3.one * 0.006f;
-            _label = tmpGo.AddComponent<TextMeshPro>();
-            _label.alignment = TextAlignmentOptions.Center;
-            _label.fontSize = 7f;
-            _label.color = new Color(0.6f, 0.95f, 1f);
-            _label.text = string.Empty;
+            _label = DiegeticUi.Label(_panel, "Label", string.Empty, new Vector3(0f, 0.18f, -0.03f),
+                0.025f, 6f, new Color(0.6f, 0.95f, 1f));
+            _label.rectTransform.sizeDelta = new Vector2(20f, 6f);
 
             _btnRoot = new GameObject("Buttons").transform;
             _btnRoot.SetParent(_panel, false);
@@ -197,49 +187,9 @@ namespace Core.Vfx
 
         void AddButton(string label, string name, Vector3 local, System.Action act, bool interact = true)
         {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            go.name = "Btn_" + name;
-            go.transform.SetParent(_btnRoot, false);
-            go.transform.localPosition = local;
-            go.transform.localScale = new Vector3(0.28f, 0.06f, 0.02f);
-            if (_art != null)
-                go.GetComponent<MeshRenderer>().sharedMaterial =
-                    _art.Lit(Texture2D.whiteTexture,
-                        interact ? CicArtKit.Cyan * 0.5f : new Color(0.2f, 0.25f, 0.3f), 1.4f);
-
-            if (interact && act != null)
-            {
-                var xi = go.AddComponent<XRSimpleInteractable>();
-                xi.hoverEntered.AddListener(_ =>
-                {
-                    go.transform.localScale = new Vector3(0.3f, 0.065f, 0.025f);
-                    CicCue.Hover(go.transform.position);
-                });
-                xi.hoverExited.AddListener(_ =>
-                {
-                    go.transform.localScale = new Vector3(0.28f, 0.06f, 0.02f);
-                });
-                xi.selectEntered.AddListener(_ =>
-                {
-                    CicCue.Ok(go.transform.position);
-                    act();
-                });
-            }
-            else
-            {
-                CicEnvironment.DropColliderStatic(go);
-            }
-
-            var t = new GameObject("T");
-            t.transform.SetParent(go.transform, false);
-            t.transform.localPosition = new Vector3(0f, 0f, -0.6f);
-            t.transform.localScale = Vector3.one * 0.025f;
-            var tmp = t.AddComponent<TextMeshPro>();
-            tmp.alignment = TextAlignmentOptions.Center;
-            tmp.fontSize = 5f;
-            tmp.color = Color.white;
-            tmp.text = label;
-            _buttons.Add(go);
+            var xi = DiegeticUi.Button(_btnRoot, "Btn_" + name, label, local,
+                new Vector3(0.28f, 0.06f, 0.02f), _art, CicArtKit.Cyan, act, interact);
+            _buttons.Add(xi.gameObject);
         }
 
         async Task Stance(string position)

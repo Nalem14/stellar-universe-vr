@@ -54,7 +54,7 @@ namespace Core.Vfx
         /// <summary>Asteroid pip radius.</summary>
         public const float HoloAsteroidRadius = 0.022f;
         /// <summary>Fleet pip half-extent (chevron token).</summary>
-        public const float HoloFleetSize = 0.07f;
+        public const float HoloFleetSize = 0.12f;
         /// <summary>First orbit radius on the platter (slot 1).</summary>
         public const float HoloOrbitBase = 0.22f;
         /// <summary>Orbit spacing per planet slot.</summary>

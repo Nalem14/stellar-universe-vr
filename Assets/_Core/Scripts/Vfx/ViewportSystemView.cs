@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Core.App;
 using UnityEngine;
@@ -124,8 +125,11 @@ namespace Core.Vfx
             }
 
             var fleetIndex = 0;
+            var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             foreach (var fleet in focus.Fleets)
             {
+                if (!fleet.VisibleIn(focus.SystemId, now))
+                    continue;
                 Vector3 pos;
                 if (fleet.PlanetId > 0)
                 {

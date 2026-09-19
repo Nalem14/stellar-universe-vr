@@ -227,22 +227,32 @@ namespace Core.Vfx
             var pos = HexToLocal(q, r);
             go.transform.localPosition = pos;
             go.transform.localScale = new Vector3(0.055f, 0.004f, 0.055f);
-            CicEnvironment.DropColliderStatic(go);
             if (_art != null)
                 go.GetComponent<MeshRenderer>().sharedMaterial =
                     _art.Holo(_art.HexGrid != null ? _art.HexGrid : Texture2D.whiteTexture,
                         new Color(1f, 0.55f, 0.2f, 0.45f));
             _cells.Add(go);
 
+            var col = go.GetComponent<Collider>();
+            if (col == null)
+                col = go.AddComponent<MeshCollider>();
+            col.enabled = true;
+
+            var baseScale = go.transform.localScale;
             var interact = go.AddComponent<XRSimpleInteractable>();
             var qq = q;
             var rr = r;
-            interact.selectEntered.AddListener(_ => Core.Utils.AsyncTap.Run(TryMove(qq, rr)));
-            if (go.GetComponent<Collider>() == null)
-                go.AddComponent<MeshCollider>();
-            var col = go.GetComponent<Collider>();
-            if (col != null)
-                col.enabled = true;
+            interact.hoverEntered.AddListener(_ =>
+            {
+                go.transform.localScale = baseScale * 1.25f;
+                CicCue.Hover(go.transform.position);
+            });
+            interact.hoverExited.AddListener(_ => { go.transform.localScale = baseScale; });
+            interact.selectEntered.AddListener(_ =>
+            {
+                CicCue.Ok(go.transform.position);
+                Core.Utils.AsyncTap.Run(TryMove(qq, rr));
+            });
         }
 
         void BuildShips(JArray ships)
@@ -258,16 +268,32 @@ namespace Core.Vfx
                 go.name = "BShip_" + id;
                 go.transform.SetParent(_root, false);
                 go.transform.localPosition = HexToLocal(q, r) + Vector3.up * 0.03f;
-                go.transform.localScale = Vector3.one * (id == _activeBship ? 0.05f : 0.038f);
-                CicEnvironment.DropColliderStatic(go);
+                var baseScale = Vector3.one * (id == _activeBship ? 0.055f : 0.042f);
+                go.transform.localScale = baseScale;
                 var mine = FocusContext.AsInt(s["fleetid"] ?? s["userid"]) == _fleetId;
-                var col = id == _activeBship
+                var tint = id == _activeBship
                     ? new Color(1f, 0.95f, 0.4f, 0.95f)
                     : mine
                         ? new Color(0.2f, 0.95f, 1f, 0.9f)
                         : new Color(1f, 0.35f, 0.2f, 0.9f);
                 if (_art != null)
-                    go.GetComponent<MeshRenderer>().sharedMaterial = _art.Holo(Texture2D.whiteTexture, col);
+                    go.GetComponent<MeshRenderer>().sharedMaterial = _art.Holo(Texture2D.whiteTexture, tint);
+
+                var shipId = id;
+                var interact = go.AddComponent<XRSimpleInteractable>();
+                interact.hoverEntered.AddListener(_ =>
+                {
+                    go.transform.localScale = baseScale * 1.2f;
+                    CicCue.Hover(go.transform.position);
+                });
+                interact.hoverExited.AddListener(_ => { go.transform.localScale = baseScale; });
+                interact.selectEntered.AddListener(_ =>
+                {
+                    CicCue.Ok(go.transform.position);
+                    _activeBship = shipId;
+                    if (_log != null)
+                        _log.text = Trans.Get("spaceships") + " " + shipId;
+                });
                 _pieces.Add(go);
             }
         }

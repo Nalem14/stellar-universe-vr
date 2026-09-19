@@ -15,7 +15,7 @@ namespace Core.Vfx
     /// </summary>
     public class HoloFleetOrders : MonoBehaviour
     {
-        const float DropRadius = 0.18f;
+        const float DropRadius = 0.28f;
 
         HoloZoneMap _map;
         FocusContext _focus;
