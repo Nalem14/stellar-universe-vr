@@ -23,9 +23,14 @@ namespace Core.Vfx
         public Texture Vent { get; private set; }
         public Texture HoloPlate { get; private set; }
         public Texture OrbitPlate { get; private set; }
+        public Texture OrbitRing { get; private set; }
+        public Texture CompassRose { get; private set; }
         public Texture TokenSystem { get; private set; }
         public Texture TokenPlanet { get; private set; }
         public Texture TokenFleet { get; private set; }
+        public Texture TokenStar { get; private set; }
+        public Texture TokenAsteroid { get; private set; }
+        public Texture TokenActive { get; private set; }
         public Texture HexGrid { get; private set; }
         public Texture MoveGhost { get; private set; }
         public Texture ProjectorGlow { get; private set; }
@@ -48,9 +53,14 @@ namespace Core.Vfx
             Vent = Resources.Load<Texture2D>("CIC/VentGrill");
             HoloPlate = Resources.Load<Texture2D>("CIC/HoloTable");
             OrbitPlate = Resources.Load<Texture2D>("Holo/OrbitPlate");
+            OrbitRing = Resources.Load<Texture2D>("Holo/OrbitRing");
+            CompassRose = Resources.Load<Texture2D>("Holo/CompassRose");
             TokenSystem = Resources.Load<Texture2D>("Holo/TokenSystem");
             TokenPlanet = Resources.Load<Texture2D>("Holo/TokenPlanet");
             TokenFleet = Resources.Load<Texture2D>("Holo/TokenFleet");
+            TokenStar = Resources.Load<Texture2D>("Holo/TokenStar");
+            TokenAsteroid = Resources.Load<Texture2D>("Holo/TokenAsteroid");
+            TokenActive = Resources.Load<Texture2D>("Holo/TokenActive");
             HexGrid = Resources.Load<Texture2D>("Holo/HexGrid");
             MoveGhost = Resources.Load<Texture2D>("Holo/MoveGhost");
             ProjectorGlow = Resources.Load<Texture2D>("Holo/ProjectorGlow");
@@ -104,6 +114,31 @@ namespace Core.Vfx
                 mat.SetFloat("_ScanSpeed", 0.35f);
             if (mat.HasProperty("_Fresnel"))
                 mat.SetFloat("_Fresnel", 2.4f);
+            _cache[key] = mat;
+            return mat;
+        }
+
+        /// <summary>Holo surface that keeps texture detail (radar plate) — low solid emission.</summary>
+        public Material HoloDetail(Texture tex, Color tint, float emission = 0.22f)
+        {
+            var key = $"HD|{(tex != null ? tex.GetInstanceID() : 0)}|{ColorKey(tint)}|{emission:F2}";
+            if (_cache.TryGetValue(key, out var cached) && cached != null)
+                return cached;
+
+            var shader = _holo != null ? _holo : (_emissive != null ? _emissive : _fallback);
+            var mat = new Material(shader);
+            if (tex != null && mat.HasProperty("_MainTex"))
+                mat.mainTexture = tex;
+            if (mat.HasProperty("_Color"))
+                mat.SetColor("_Color", new Color(tint.r, tint.g, tint.b, tint.a));
+            if (mat.HasProperty("_Emission"))
+                mat.SetColor("_Emission", new Color(tint.r, tint.g, tint.b, 1f) * emission);
+            if (mat.HasProperty("_ScanSpeed"))
+                mat.SetFloat("_ScanSpeed", 0.2f);
+            if (mat.HasProperty("_Fresnel"))
+                mat.SetFloat("_Fresnel", 1.6f);
+            if (mat.HasProperty("_EmissionMul"))
+                mat.SetFloat("_EmissionMul", emission);
             _cache[key] = mat;
             return mat;
         }
