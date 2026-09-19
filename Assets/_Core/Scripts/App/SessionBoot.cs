@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Core.App;
@@ -35,6 +36,8 @@ namespace Core.App
             Say(Trans.Get("Loading"));
             if (!await Step("GetConfigs"))
                 return;
+
+            await DiplomacyIndex.EnsureLoaded(force: true);
 
             var me = await auth.FetchMe();
             if (!me.Ok)
@@ -74,10 +77,10 @@ namespace Core.App
                     });
                 }
 
-                var fleets = await ActionJs.Get("GetAllFleetsAround");
+                var fleets = await ActionJs.Get("GetAllFleets");
                 if (!fleets.Ok)
                 {
-                    Say(ActionStatus("GetAllFleetsAround", fleets.Error));
+                    Say(ActionStatus("GetAllFleets", fleets.Error));
                     return;
                 }
 
@@ -96,17 +99,24 @@ namespace Core.App
                 : _focus != null && _focus.ViewPlanetId > 0
                     ? $" · station {_focus.ViewPlanetId}"
                     : " · station";
-            var count = _focus != null ? _focus.Fleets.Count : 0;
+            var count = _focus != null
+                ? _focus.CountVisibleInFocus(DateTimeOffset.UtcNow.ToUnixTimeSeconds())
+                : 0;
             Say($"{Trans.Get("CommandBridge")} · {label} · {count}{view}");
         }
 
         async Task<bool> Step(string action)
         {
             var result = await ActionJs.Get(action);
-            if (result.Ok)
-                return true;
-            Say(ActionStatus(action, result.Error));
-            return false;
+            if (!result.Ok)
+            {
+                Say(ActionStatus(action, result.Error));
+                return false;
+            }
+
+            if (action == "GetConfigs")
+                DiplomacyIndex.IngestConfigsBody(result.Body);
+            return true;
         }
 
         static string ActionStatus(string action, string error) =>

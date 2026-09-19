@@ -6,18 +6,20 @@ using UnityEngine;
 namespace Core.App
 {
     /// <summary>
-    /// Polls GetAllFleetsAround so exterior ships stay in sync with the server.
+    /// Polls fleet list so exterior ships stay in sync with the server.
     /// </summary>
     public class FleetPoller : MonoBehaviour
     {
         FocusContext _focus;
         float _interval = 2.5f;
         Coroutine _loop;
+        int _pollCount;
 
         public void Bind(FocusContext focus, float intervalSeconds = 2.5f)
         {
             _focus = focus;
             _interval = Mathf.Max(1f, intervalSeconds);
+            _pollCount = 0;
             if (_loop != null)
                 StopCoroutine(_loop);
             _loop = StartCoroutine(Loop());
@@ -52,7 +54,12 @@ namespace Core.App
 
         async Task PollOnce()
         {
-            var result = await ActionJs.Get("GetAllFleetsAround");
+            _pollCount++;
+            // Diplomacy ~ every 45s at 2.5s fleet poll (Quest budget).
+            if (_pollCount == 1 || _pollCount % 18 == 0)
+                await DiplomacyIndex.EnsureLoaded();
+
+            var result = await ActionJs.Get("GetAllFleets");
             if (!result.Ok || _focus == null)
                 return;
             _focus.ApplyFleetsBody(result.Body);

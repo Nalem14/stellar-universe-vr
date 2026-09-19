@@ -133,6 +133,13 @@ namespace Core.Vfx
             else if (mode == HoloMapMode.System && prev == HoloMapMode.Galaxy)
                 _map?.ShowSystemMap();
             ModeChanged?.Invoke(mode);
+            if (_map != null)
+            {
+                var key = mode == HoloMapMode.Galaxy ? "galaxy"
+                    : mode == HoloMapMode.HexBattle ? "battle"
+                    : "system";
+                _map.SetReadout(Trans.Get(key));
+            }
             if (mode == HoloMapMode.HexBattle)
                 _hex?.Show();
             else if (prev == HoloMapMode.HexBattle)
@@ -183,10 +190,10 @@ namespace Core.Vfx
                     new Color(0.25f, 1f, 1f, 0.9f));
             else
                 _ghost.sharedMaterial = new Material(Shader.Find("Sprites/Default") ?? Shader.Find("Unlit/Color"));
-            _ghost.startColor = new Color(0.2f, 1f, 1f, 0.95f);
-            _ghost.endColor = new Color(1f, 0.7f, 0.2f, 0.85f);
-            _ghost.startWidth = 0.022f;
-            _ghost.endWidth = 0.01f;
+            _ghost.startColor = new Color(1f, 0.72f, 0.25f, 0.95f);
+            _ghost.endColor = new Color(0.2f, 1f, 1f, 0.9f);
+            _ghost.startWidth = 0.038f;
+            _ghost.endWidth = 0.018f;
             _ghost.useWorldSpace = true;
             _ghost.enabled = false;
 

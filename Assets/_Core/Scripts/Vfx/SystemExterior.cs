@@ -179,21 +179,22 @@ namespace Core.Vfx
 
             var seen = new HashSet<int>();
             var now = UnixNow();
-            var ownedId = AuthManager.Ensure().User != null ? AuthManager.Ensure().User.id : 0;
 
             foreach (var fleet in _focus.Fleets)
             {
+                if (!fleet.VisibleIn(_focus.SystemId, (long)now))
+                    continue;
                 seen.Add(fleet.Id);
                 if (!_fleets.TryGetValue(fleet.Id, out var tf) || tf == null)
                 {
-                    var mine = ownedId > 0 && fleet.UserId == ownedId;
+                    var mine = DiplomacyIndex.ResolveFleet(fleet) == EmpireStance.Owned;
                     var go = CreateFleetShip(fleet, IdleFleetPosition(fleet), mine);
                     tf = go.transform;
                     _fleets[fleet.Id] = tf;
                 }
                 else
                 {
-                    var mine = ownedId > 0 && fleet.UserId == ownedId;
+                    var mine = DiplomacyIndex.ResolveFleet(fleet) == EmpireStance.Owned;
                     var view = tf.GetComponent<FleetShipView>();
                     if (view != null)
                         view.Bind(fleet, mine);
@@ -257,6 +258,8 @@ namespace Core.Vfx
             var now = UnixNow();
             foreach (var fleet in _focus.Fleets)
             {
+                if (!fleet.VisibleIn(_focus.SystemId, (long)now))
+                    continue;
                 if (!_fleets.TryGetValue(fleet.Id, out var tf) || tf == null)
                     continue;
                 if (_focus.ViewFleetId == fleet.Id)

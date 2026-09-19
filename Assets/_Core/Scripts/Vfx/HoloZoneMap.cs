@@ -38,6 +38,9 @@ namespace Core.Vfx
                 _focus.Changed += OnFocusChanged;
             }
 
+            DiplomacyIndex.Changed -= OnDiplomacyChanged;
+            DiplomacyIndex.Changed += OnDiplomacyChanged;
+
             Rebuild();
         }
 
@@ -45,9 +48,11 @@ namespace Core.Vfx
         {
             if (_focus != null)
                 _focus.Changed -= OnFocusChanged;
+            DiplomacyIndex.Changed -= OnDiplomacyChanged;
         }
 
         void OnFocusChanged() => Rebuild();
+        void OnDiplomacyChanged() => Rebuild();
 
         public void EnsureScaffold(Transform tableTop, CicArtKit art)
         {
@@ -60,56 +65,99 @@ namespace Core.Vfx
             _root.localPosition = Vector3.zero;
             _root.localRotation = Quaternion.identity;
 
+            // Soft volume column (very transparent).
             var col = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             col.name = "HoloVolume";
             col.transform.SetParent(_root, false);
             col.transform.localPosition = new Vector3(0f, WorldScale.HoloVolumeHeight * 0.5f, 0f);
             col.transform.localScale = new Vector3(
-                WorldScale.HoloDiscRadius * 1.05f,
+                WorldScale.HoloDiscRadius * 1.02f,
                 WorldScale.HoloVolumeHeight * 0.5f,
-                WorldScale.HoloDiscRadius * 1.05f);
+                WorldScale.HoloDiscRadius * 1.02f);
             DropCollider(col);
-            var volMat = art.Holo(art.OrbitPlate != null ? art.OrbitPlate : art.HoloPlate,
-                new Color(0.12f, 0.7f, 1f, 0.1f));
-            col.GetComponent<MeshRenderer>().sharedMaterial = volMat;
+            col.GetComponent<MeshRenderer>().sharedMaterial = art.Holo(
+                art.ProjectorGlow != null ? art.ProjectorGlow : Texture2D.whiteTexture,
+                new Color(0.15f, 0.75f, 1f, 0.08f));
             var spin = col.AddComponent<HoloSpin>();
-            spin.DegreesPerSecond = -6f;
-            spin.BobMeters = 0.015f;
+            spin.DegreesPerSecond = -4f;
+            spin.BobMeters = 0.01f;
             _volume = col.transform;
 
-            var plate = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            // Main plate — flat quad with radar texture (not a fat cylinder).
+            var plate = GameObject.CreatePrimitive(PrimitiveType.Quad);
             plate.name = "OrbitPlate";
             plate.transform.SetParent(_root, false);
-            plate.transform.localPosition = new Vector3(0f, 0.008f, 0f);
-            plate.transform.localScale = new Vector3(
-                WorldScale.HoloDiscRadius * 2f, 0.006f, WorldScale.HoloDiscRadius * 2f);
+            plate.transform.localPosition = new Vector3(0f, 0.012f, 0f);
+            plate.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            plate.transform.localScale = Vector3.one * (WorldScale.HoloDiscRadius * 2f);
             DropCollider(plate);
-            plate.GetComponent<MeshRenderer>().sharedMaterial = art.Holo(
+            plate.GetComponent<MeshRenderer>().sharedMaterial = art.HoloDetail(
                 art.OrbitPlate != null ? art.OrbitPlate : art.HoloPlate,
-                new Color(0.25f, 0.9f, 1f, 0.65f));
+                new Color(0.75f, 0.95f, 1f, 0.92f), 0.18f);
+
+            // Compass overlay (slow spin) — additive holo on top.
+            var compass = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            compass.name = "CompassRose";
+            compass.transform.SetParent(_root, false);
+            compass.transform.localPosition = new Vector3(0f, 0.014f, 0f);
+            compass.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            compass.transform.localScale = Vector3.one * (WorldScale.HoloDiscRadius * 2.05f);
+            DropCollider(compass);
+            compass.GetComponent<MeshRenderer>().sharedMaterial = art.Holo(
+                art.CompassRose != null ? art.CompassRose : Texture2D.whiteTexture,
+                new Color(0.4f, 0.95f, 1f, 0.35f));
+            var cspin = compass.AddComponent<HoloSpin>();
+            cspin.DegreesPerSecond = 3f;
+            cspin.BobMeters = 0f;
+
+            // Outer rim ring (thin).
+            PlaceRingVisual("ZoneRim", WorldScale.HoloDiscRadius * 0.99f, 0.016f,
+                new Color(0.35f, 0.9f, 1f, 0.7f), permanent: true);
 
             var glow = GameObject.CreatePrimitive(PrimitiveType.Quad);
             glow.name = "ProjectorGlow";
             glow.transform.SetParent(tableTop, false);
-            glow.transform.localPosition = new Vector3(0f, -0.12f, 0f);
+            glow.transform.localPosition = new Vector3(0f, -0.1f, 0f);
             glow.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
-            glow.transform.localScale = new Vector3(0.7f, 0.7f, 1f);
+            glow.transform.localScale = new Vector3(1.1f, 1.1f, 1f);
             DropCollider(glow);
             glow.GetComponent<MeshRenderer>().sharedMaterial = art.Holo(
                 art.ProjectorGlow != null ? art.ProjectorGlow : Texture2D.whiteTexture,
-                new Color(0.2f, 0.9f, 1f, 0.4f));
+                new Color(0.25f, 0.9f, 1f, 0.55f));
 
-            var readoutGo = new GameObject("HoloReadout");
-            readoutGo.transform.SetParent(_root, false);
-            readoutGo.transform.localPosition = new Vector3(0f, WorldScale.HoloVolumeHeight + 0.04f, 0f);
-            readoutGo.transform.localRotation = Quaternion.Euler(18f, 0f, 0f);
-            readoutGo.transform.localScale = Vector3.one * 0.014f;
-            _readout = readoutGo.AddComponent<TextMeshPro>();
-            _readout.alignment = TextAlignmentOptions.Center;
-            _readout.fontSize = 7f;
-            _readout.color = new Color(0.55f, 0.95f, 1f, 0.92f);
-            _readout.text = Trans.Get("Loading");
-            _readout.raycastTarget = false;
+            // World Space readout bar (Bridge Crew style).
+            var canvas = DiegeticUi.WorldCanvas(_root, "HoloReadoutCanvas", new Vector2(720f, 72f),
+                new Vector3(0f, WorldScale.HoloVolumeHeight + 0.06f, 0f),
+                Quaternion.Euler(18f, 0f, 0f), 0.0012f);
+            var frame = DiegeticUi.HoloFrame(canvas.transform, new Vector2(700f, 64f));
+            var frameImg = frame.GetComponent<UnityEngine.UI.Image>();
+            if (frameImg != null && DiegeticUi.SprReadout != null)
+            {
+                frameImg.sprite = DiegeticUi.SprReadout;
+                frameImg.type = UnityEngine.UI.Image.Type.Sliced;
+            }
+
+            _readout = DiegeticUi.HoloLabel(frame, Trans.Get("Loading"), Vector2.zero,
+                new Vector2(660f, 48f), 22f, DiegeticUi.Cyan);
+        }
+
+        void PlaceRingVisual(string name, float radius, float y, Color tint, bool permanent)
+        {
+            var ring = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            ring.name = name;
+            ring.transform.SetParent(_root, false);
+            ring.transform.localPosition = new Vector3(0f, y, 0f);
+            ring.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            // OrbitRing texture is an annulus near the edge — scale so the ring sits at `radius`.
+            ring.transform.localScale = Vector3.one * (radius * 2f / 0.9f);
+            DropCollider(ring);
+            if (_art != null)
+                ring.GetComponent<MeshRenderer>().sharedMaterial = _art.HoloDetail(
+                    _art.OrbitRing != null ? _art.OrbitRing : Texture2D.whiteTexture,
+                    tint, 0.35f);
+            if (permanent)
+                return;
+            _tokenRoots.Add(ring);
         }
 
         public void SetReadout(string text)
@@ -154,29 +202,31 @@ namespace Core.Vfx
 
             foreach (var planet in focus.Planets)
             {
-                var owned = AuthManager.Ensure().User != null &&
-                            planet.UserId == AuthManager.Ensure().User.id && planet.UserId > 0;
-                var foe = planet.UserId > 0 && !owned;
-                var color = owned ? CicArtKit.Cyan : foe ? CicArtKit.Amber : new Color(0.45f, 0.7f, 0.85f, 1f);
-                var pname = string.IsNullOrEmpty(planet.Name) ? "planet " + planet.Id : planet.Name;
-                PlacePlanet(planet.Slot, planet.Id, color, WorldScale.HoloPlanetTokenRadius(planet.Slot), pname);
+                var stance = DiplomacyIndex.Resolve(planet.UserId);
+                var color = DiplomacyIndex.Tint(stance);
+                var pname = string.IsNullOrEmpty(planet.Name) ? "planet" : planet.Name;
+                var station = focus.ViewPlanetId == planet.Id && focus.ViewFleetId <= 0;
+                PlacePlanet(planet.Slot, planet.Id, color, WorldScale.HoloPlanetTokenRadius(planet.Slot),
+                    pname, station);
             }
 
             foreach (var rock in focus.Asteroids)
-                PlaceAsteroid(rock.Slot, rock.Id, "asteroid " + rock.Id);
+                PlaceAsteroid(rock.Slot, rock.Id);
 
-            var myId = AuthManager.Ensure().User != null ? AuthManager.Ensure().User.id : 0;
             var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var viewId = focus.ViewFleetId;
             foreach (var fleet in focus.Fleets)
             {
-                if (fleet.SystemId > 0 && fleet.SystemId != focus.SystemId)
+                if (!fleet.VisibleIn(focus.SystemId, now))
                     continue;
-                var owned = myId > 0 && fleet.UserId == myId;
-                var color = owned ? CicArtKit.Cyan : CicArtKit.Amber;
+                var stance = DiplomacyIndex.ResolveFleet(fleet);
+                var color = DiplomacyIndex.Tint(stance);
+                var owned = stance == EmpireStance.Owned;
                 var slot = ResolveFleetSlot(fleet, focus);
                 var busy = !fleet.CanIssueMove(now);
-                var fname = string.IsNullOrEmpty(fleet.Name) ? "ship " + fleet.Id : fleet.Name;
-                PlaceFleet(slot, fleet.Id, color, fleet.Id * 17, owned, busy, fname);
+                var fname = string.IsNullOrEmpty(fleet.Name) ? "ship" : fleet.Name;
+                var active = viewId > 0 && fleet.Id == viewId;
+                PlaceFleet(slot, fleet.Id, color, fleet.Id * 17, owned, busy, fname, active, stance);
             }
 
             PlaceGalaxyStubRing();
@@ -193,17 +243,18 @@ namespace Core.Vfx
                 var tone = (systemId + i) % 3;
                 var color = tone == 0 ? CicArtKit.Cyan :
                     tone == 1 ? new Color(0.45f, 0.7f, 0.85f, 1f) : CicArtKit.Amber;
-                PlacePlanet(slot, i + 1, color, WorldScale.HoloPlanetTokenRadius(slot), "planet " + (i + 1));
+                PlacePlanet(slot, i + 1, color, WorldScale.HoloPlanetTokenRadius(slot), "planet", false);
             }
 
             for (var i = 0; i < 2 + systemId % 3; i++)
-                PlaceAsteroid(1 + (i * 2 + systemId) % 6, 100 + i, "asteroid " + (100 + i));
+                PlaceAsteroid(1 + (i * 2 + systemId) % 6, 100 + i);
 
             for (var i = 0; i < 2; i++)
             {
-                var color = i == 0 ? CicArtKit.Cyan : CicArtKit.Amber;
+                var stance = i == 0 ? EmpireStance.Owned : EmpireStance.Enemy;
+                var color = DiplomacyIndex.Tint(stance);
                 PlaceFleet(1 + i * 2, 200 + i, color, systemId * 31 + i * 47, owned: i == 0, busy: false,
-                    displayName: "ship " + (200 + i));
+                    displayName: "ship", active: i == 0, stance: stance);
             }
 
             PlaceGalaxyStubRing();
@@ -277,8 +328,10 @@ namespace Core.Vfx
             token.Busy = false;
             token.GalaxyX = gx;
             token.GalaxyY = gy;
-            token.DisplayName = string.Format(
-                System.Globalization.CultureInfo.InvariantCulture, "{0}.{1}", gx, gy);
+            var name = GalaxyCatalog.TryGet(id, out var star) && !string.IsNullOrEmpty(star.Name)
+                ? star.Name
+                : null;
+            token.DisplayName = FormatEntityLabel(name, id);
             token.CaptureHome();
             AddTokenLabel(go.transform, token.DisplayName, 0.04f);
             _tokens.Add(token);
@@ -287,20 +340,22 @@ namespace Core.Vfx
         void PlaceStar(int typeHint)
         {
             var tint = typeHint % 3 == 0
-                ? new Color(1f, 0.92f, 0.55f, 0.85f)
+                ? new Color(1f, 0.92f, 0.55f, 0.95f)
                 : typeHint % 3 == 1
-                    ? new Color(1f, 0.7f, 0.45f, 0.85f)
-                    : new Color(0.7f, 0.85f, 1f, 0.85f);
-            var star = TokenVisual("TokenStar", PrimitiveType.Sphere,
-                new Vector3(0f, WorldScale.HoloTokenLift + WorldScale.HoloStarRadius, 0f),
-                Vector3.one * (WorldScale.HoloStarRadius * 2f),
-                _art.Holo(_art.TokenSystem != null ? _art.TokenSystem : Texture2D.whiteTexture, tint),
+                    ? new Color(1f, 0.7f, 0.45f, 0.95f)
+                    : new Color(0.75f, 0.9f, 1f, 0.95f);
+            var star = TokenVisual("TokenStar", PrimitiveType.Quad,
+                new Vector3(0f, WorldScale.HoloTokenLift + 0.04f, 0f),
+                Vector3.one * (WorldScale.HoloStarRadius * 2.6f),
+                _art.Holo(_art.TokenStar != null ? _art.TokenStar : _art.TokenSystem, tint),
                 keepCollider: true);
+            star.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            PlaceRingVisual("StarCorona", WorldScale.HoloStarRadius * 1.7f, 0.018f,
+                new Color(tint.r, tint.g, tint.b, 0.5f), permanent: false);
             var spin = star.AddComponent<HoloSpin>();
-            spin.DegreesPerSecond = 12f;
-            spin.BobMeters = 0.015f;
+            spin.DegreesPerSecond = 22f;
+            spin.BobMeters = 0.012f;
 
-            // Drop = leave orbit / park at star (MoveFleetToSystem current pos).
             var focus = _focus ?? FocusContext.Current;
             var token = star.GetComponent<HoloToken>();
             if (token == null)
@@ -318,9 +373,12 @@ namespace Core.Vfx
             var label = focus != null && !string.IsNullOrEmpty(focus.SystemName)
                 ? focus.SystemName
                 : "star";
+            if (focus != null && focus.SystemId > 0)
+                label = FormatEntityLabel(label, focus.SystemId);
             token.DisplayName = label;
             token.CaptureHome();
-            AddTokenLabel(star.transform, label, WorldScale.HoloStarRadius + 0.05f);
+            AddTokenLabel(star.transform, label, WorldScale.HoloStarRadius + 0.06f,
+                new Color(1f, 0.95f, 0.7f, 0.98f), bold: true);
             _tokens.Add(token);
         }
 
@@ -344,58 +402,72 @@ namespace Core.Vfx
         void PlaceOrbitRing(int slot)
         {
             var r = WorldScale.HoloOrbitRadius(slot);
-            var ring = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            ring.name = "Orbit_" + slot;
-            ring.transform.SetParent(_root, false);
-            ring.transform.localPosition = new Vector3(0f, 0.02f, 0f);
-            ring.transform.localScale = new Vector3(r * 2f, 0.003f, r * 2f);
-            DropCollider(ring);
-            ring.GetComponent<MeshRenderer>().sharedMaterial = _art.Holo(
-                Texture2D.whiteTexture, new Color(0.25f, 0.85f, 1f, 0.42f));
-            _tokenRoots.Add(ring);
+            PlaceRingVisual("Orbit_" + slot, r, 0.015f + slot * 0.0008f,
+                new Color(0.3f, 0.9f, 1f, 0.55f), permanent: false);
         }
 
-        void PlacePlanet(int slot, int id, Color color, float radius, string displayName)
+        void PlacePlanet(int slot, int id, Color color, float radius, string displayName, bool stationView)
         {
             var r = WorldScale.HoloOrbitRadius(Mathf.Max(1, slot));
             var ang = StableAngle(id * 97 + slot * 13);
             var pos = new Vector3(Mathf.Cos(ang) * r, WorldScale.HoloTokenLift + radius, Mathf.Sin(ang) * r);
             var go = TokenVisual("TokenPlanet_" + id, PrimitiveType.Sphere, pos, Vector3.one * (radius * 2f),
                 _art.Holo(_art.TokenPlanet != null ? _art.TokenPlanet : Texture2D.whiteTexture,
-                    new Color(color.r, color.g, color.b, 0.8f)),
+                    new Color(color.r, color.g, color.b, 0.85f)),
                 keepCollider: true);
             var spin = go.AddComponent<HoloSpin>();
             spin.DegreesPerSecond = 8f + slot;
             spin.BobMeters = 0.006f;
-            var band = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            // Thin equatorial ring — planet silhouette cue (not asteroid cube / not fleet chevron).
+            var band = GameObject.CreatePrimitive(PrimitiveType.Quad);
             band.name = "Band";
             band.transform.SetParent(go.transform, false);
             band.transform.localPosition = Vector3.zero;
             band.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
-            band.transform.localScale = new Vector3(1.15f, 0.08f, 1.15f);
+            band.transform.localScale = Vector3.one * 1.55f;
             DropCollider(band);
             band.GetComponent<MeshRenderer>().sharedMaterial = _art.Holo(
-                Texture2D.whiteTexture, new Color(color.r, color.g, color.b, 0.55f));
+                _art.OrbitRing != null ? _art.OrbitRing : Texture2D.whiteTexture,
+                new Color(color.r, color.g, color.b, 0.75f));
+            if (stationView)
+                AddActiveHalo(go.transform, radius * 2.4f, CicArtKit.Amber);
             AddStem(go.transform, pos.y);
-            AddTokenLabel(go.transform, displayName, radius + 0.04f);
-            Tag(go, HoloTokenKind.Planet, id, slot, owned: false, busy: false, displayName);
+            var label = FormatEntityLabel(displayName, id);
+            AddTokenLabel(go.transform, label, radius + 0.05f,
+                stationView ? CicArtKit.Amber : new Color(0.8f, 0.95f, 1f, 0.98f), bold: stationView);
+            Tag(go, HoloTokenKind.Planet, id, slot, owned: false, busy: false, label);
         }
 
-        void PlaceAsteroid(int slot, int id, string displayName)
+        void PlaceAsteroid(int slot, int id)
         {
             var r = WorldScale.HoloOrbitRadius(Mathf.Max(1, slot)) * 0.92f;
             var ang = StableAngle(id * 53 + 7);
-            var pos = new Vector3(Mathf.Cos(ang) * r, WorldScale.HoloTokenLift, Mathf.Sin(ang) * r);
+            var pos = new Vector3(Mathf.Cos(ang) * r, WorldScale.HoloTokenLift + 0.01f, Mathf.Sin(ang) * r);
+            var rockTex = _art.TokenAsteroid != null ? _art.TokenAsteroid : Texture2D.whiteTexture;
             var go = TokenVisual("TokenRock_" + id, PrimitiveType.Cube, pos,
-                Vector3.one * (WorldScale.HoloAsteroidRadius * 2f),
-                _art.Lit(Texture2D.whiteTexture, new Color(0.55f, 0.58f, 0.62f), 0.4f),
+                new Vector3(WorldScale.HoloAsteroidRadius * 2.2f, WorldScale.HoloAsteroidRadius * 1.6f,
+                    WorldScale.HoloAsteroidRadius * 2.8f),
+                _art.Lit(rockTex, new Color(0.72f, 0.7f, 0.66f), 0.55f),
                 keepCollider: true);
-            go.transform.localRotation = Quaternion.Euler(ang * Mathf.Rad2Deg, id * 20f, 15f);
-            AddTokenLabel(go.transform, displayName, 0.05f);
-            Tag(go, HoloTokenKind.Asteroid, id, slot, owned: false, busy: false, displayName);
+            go.transform.localRotation = Quaternion.Euler(22f + id % 40, id * 37f, 11f);
+            // Second shard — jagged rock silhouette vs smooth planet sphere.
+            var shard = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            shard.name = "Shard";
+            shard.transform.SetParent(go.transform, false);
+            shard.transform.localPosition = new Vector3(0.35f, 0.2f, -0.15f);
+            shard.transform.localRotation = Quaternion.Euler(35f, 50f, 10f);
+            shard.transform.localScale = new Vector3(0.55f, 0.4f, 0.7f);
+            DropCollider(shard);
+            shard.GetComponent<MeshRenderer>().sharedMaterial =
+                _art.Lit(rockTex, new Color(0.55f, 0.52f, 0.48f), 0.35f);
+            AddStem(go.transform, pos.y);
+            var label = FormatEntityLabel(Trans.Get("asteroid"), id);
+            AddTokenLabel(go.transform, label, 0.055f, new Color(0.85f, 0.82f, 0.75f, 0.95f));
+            Tag(go, HoloTokenKind.Asteroid, id, slot, owned: false, busy: false, label);
         }
 
-        void PlaceFleet(int slot, int id, Color color, int seed, bool owned, bool busy, string displayName)
+        void PlaceFleet(int slot, int id, Color color, int seed, bool owned, bool busy, string displayName,
+            bool active, EmpireStance stance = EmpireStance.Unknown)
         {
             var r = WorldScale.HoloOrbitRadius(Mathf.Max(1, slot)) * 1.08f;
             var ang = StableAngle(seed);
@@ -407,49 +479,151 @@ namespace Core.Vfx
                 new Vector3(Mathf.Cos(ang + 1.2f), 0f, Mathf.Sin(ang + 1.2f)), Vector3.up);
             _tokenRoots.Add(go);
 
-            var s = WorldScale.HoloFleetSize;
-            AddBox(go.transform, "Hull", new Vector3(0f, 0f, 0.01f), new Vector3(s * 0.55f, s * 0.22f, s * 1.1f),
-                _art.Holo(_art.TokenFleet != null ? _art.TokenFleet : Texture2D.whiteTexture,
-                    new Color(color.r, color.g, color.b, 0.85f)));
-            AddBox(go.transform, "WingL", new Vector3(-s * 0.35f, 0f, -s * 0.15f),
-                new Vector3(s * 0.2f, s * 0.12f, s * 0.7f),
-                _art.Holo(Texture2D.whiteTexture, new Color(color.r, color.g, color.b, 0.7f)));
-            AddBox(go.transform, "WingR", new Vector3(s * 0.35f, 0f, -s * 0.15f),
-                new Vector3(s * 0.2f, s * 0.12f, s * 0.7f),
-                _art.Holo(Texture2D.whiteTexture, new Color(color.r, color.g, color.b, 0.7f)));
-            AddBox(go.transform, "Engine", new Vector3(0f, 0f, -s * 0.55f),
-                new Vector3(s * 0.18f, s * 0.18f, s * 0.2f),
-                busy ? _art.AmberEmit(4.2f) : _art.AmberEmit(3.5f));
+            var s = WorldScale.HoloFleetSize * (active ? 1.35f : 1f);
+            var billboard = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            billboard.name = "Chevron";
+            billboard.transform.SetParent(go.transform, false);
+            billboard.transform.localPosition = new Vector3(0f, 0.02f, 0f);
+            billboard.transform.localRotation = Quaternion.Euler(70f, 0f, 0f);
+            billboard.transform.localScale = new Vector3(s * 1.6f, s * 1.6f, 1f);
+            DropCollider(billboard);
+            billboard.GetComponent<MeshRenderer>().sharedMaterial = _art.Holo(
+                _art.TokenFleet != null ? _art.TokenFleet : Texture2D.whiteTexture,
+                new Color(color.r, color.g, color.b, active ? 1f : 0.95f));
+
+            AddBox(go.transform, "Hull", new Vector3(0f, 0f, 0.01f), new Vector3(s * 0.35f, s * 0.14f, s * 0.9f),
+                _art.Holo(Texture2D.whiteTexture, new Color(color.r, color.g, color.b, 0.55f)));
+            AddBox(go.transform, "Engine", new Vector3(0f, 0f, -s * 0.5f),
+                new Vector3(s * 0.14f, s * 0.14f, s * 0.16f),
+                EngineMatForStance(stance, busy, active));
             AddStem(go.transform, pos.y);
             if (busy)
                 AddBusyRing(go.transform, s);
-            if (owned)
+            if (active)
+                AddActiveHalo(go.transform, s * 2.8f, CicArtKit.Cyan);
+            else if (owned)
                 AddGrabHalo(go.transform, s);
+            else
+                AddStanceAura(go.transform, s, stance);
 
-            // Parent collider for grab — generous for VR hand / ray.
             var col = go.AddComponent<BoxCollider>();
-            col.size = new Vector3(s * 2.8f, s * 1.8f, s * 3.0f);
-            col.center = new Vector3(0f, 0f, 0f);
+            col.size = new Vector3(s * 3.6f, s * 2.4f, s * 3.8f);
+            col.center = Vector3.zero;
 
             var spin = go.AddComponent<HoloSpin>();
-            spin.DegreesPerSecond = 0f;
-            spin.BobMeters = busy ? 0.018f : 0.01f;
-            AddTokenLabel(go.transform, displayName, s * 0.9f);
-            Tag(go, HoloTokenKind.Fleet, id, slot, owned, busy, displayName);
+            spin.DegreesPerSecond = StanceSpin(stance, active);
+            spin.BobMeters = active ? 0.022f : busy ? 0.018f : StanceBob(stance);
+            var label = FormatEntityLabel(displayName, id);
+            var labelColor = active ? CicArtKit.Cyan : new Color(color.r, color.g, color.b, 0.98f);
+            AddTokenLabel(go.transform, label, s * 1.15f, labelColor, bold: active || stance == EmpireStance.Enemy);
+            Tag(go, HoloTokenKind.Fleet, id, slot, owned, busy, label);
+        }
+
+        Material EngineMatForStance(EmpireStance stance, bool busy, bool active)
+        {
+            if (busy)
+                return _art.AmberEmit(4.5f);
+            if (active)
+                return _art.CyanEmit(5.2f);
+            switch (stance)
+            {
+                case EmpireStance.Owned:
+                    return _art.CyanEmit(3.8f);
+                case EmpireStance.Ally:
+                    return _art.Lit(Texture2D.whiteTexture, DiplomacyIndex.Tint(stance), 3.6f);
+                case EmpireStance.Enemy:
+                    return _art.Lit(Texture2D.whiteTexture, DiplomacyIndex.Tint(stance), 4.2f);
+                case EmpireStance.Pirate:
+                    return _art.AmberEmit(4.8f);
+                default:
+                    return _art.Lit(Texture2D.whiteTexture, DiplomacyIndex.Tint(stance), 2.4f);
+            }
+        }
+
+        static float StanceSpin(EmpireStance stance, bool active)
+        {
+            if (active)
+                return 12f;
+            switch (stance)
+            {
+                case EmpireStance.Enemy:
+                    return 28f;
+                case EmpireStance.Pirate:
+                    return 42f;
+                case EmpireStance.Ally:
+                    return 8f;
+                default:
+                    return 0f;
+            }
+        }
+
+        static float StanceBob(EmpireStance stance)
+        {
+            switch (stance)
+            {
+                case EmpireStance.Pirate:
+                    return 0.016f;
+                case EmpireStance.Enemy:
+                    return 0.012f;
+                default:
+                    return 0.01f;
+            }
+        }
+
+        void AddStanceAura(Transform parent, float s, EmpireStance stance)
+        {
+            if (stance == EmpireStance.Owned || stance == EmpireStance.Unknown)
+                return;
+            var tint = DiplomacyIndex.Tint(stance);
+            var diameter = s * (stance == EmpireStance.Enemy || stance == EmpireStance.Pirate ? 2.6f : 2.2f);
+            var ring = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            ring.name = "StanceAura_" + stance;
+            ring.transform.SetParent(parent, false);
+            ring.transform.localPosition = new Vector3(0f, -0.005f, 0f);
+            ring.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            ring.transform.localScale = Vector3.one * diameter;
+            DropCollider(ring);
+            var tex = _art.TokenActive != null ? _art.TokenActive : Texture2D.whiteTexture;
+            var alpha = stance == EmpireStance.Neutral ? 0.45f : 0.85f;
+            ring.GetComponent<MeshRenderer>().sharedMaterial =
+                _art.Holo(tex, new Color(tint.r, tint.g, tint.b, alpha));
+            var pulse = ring.AddComponent<HoloSpin>();
+            pulse.DegreesPerSecond = stance == EmpireStance.Pirate ? 70f :
+                stance == EmpireStance.Enemy ? 48f :
+                stance == EmpireStance.Ally ? 18f : 10f;
+            pulse.BobMeters = stance == EmpireStance.Enemy || stance == EmpireStance.Pirate ? 0.008f : 0.003f;
+        }
+
+        static string FormatEntityLabel(string name, int id)
+        {
+            if (string.IsNullOrEmpty(name))
+                return "#" + id;
+            return name + "\n#" + id;
+        }
+
+        void AddActiveHalo(Transform parent, float diameter, Color tint)
+        {
+            var ring = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            ring.name = "ActiveHalo";
+            ring.transform.SetParent(parent, false);
+            ring.transform.localPosition = new Vector3(0f, 0.01f, 0f);
+            ring.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            ring.transform.localScale = Vector3.one * diameter;
+            DropCollider(ring);
+            var tex = _art.TokenActive != null ? _art.TokenActive : Texture2D.whiteTexture;
+            ring.GetComponent<MeshRenderer>().sharedMaterial =
+                _art.Holo(tex, new Color(tint.r, tint.g, tint.b, 0.95f));
+            var pulse = ring.AddComponent<HoloSpin>();
+            pulse.DegreesPerSecond = 55f;
+            pulse.BobMeters = 0.006f;
         }
 
         void PlaceGalaxyStubRing()
         {
-            var r = WorldScale.HoloDiscRadius * 0.98f;
-            var ring = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            ring.name = _galaxyStub ? "GalaxyLevelStub" : "ZoneRim";
-            ring.transform.SetParent(_root, false);
-            ring.transform.localPosition = new Vector3(0f, 0.018f, 0f);
-            ring.transform.localScale = new Vector3(r * 2f, 0.0025f, r * 2f);
-            DropCollider(ring);
-            ring.GetComponent<MeshRenderer>().sharedMaterial = _art.Holo(
-                Texture2D.whiteTexture, new Color(0.35f, 0.55f, 0.75f, 0.12f));
-            _tokenRoots.Add(ring);
+            if (!_galaxyStub)
+                return;
+            PlaceRingVisual("GalaxyLevelStub", WorldScale.HoloDiscRadius * 0.92f, 0.017f,
+                new Color(0.55f, 0.45f, 1f, 0.45f), permanent: false);
         }
 
         static int ResolveFleetSlot(FocusFleet fleet, FocusContext focus)
@@ -502,7 +676,7 @@ namespace Core.Vfx
             _tokens.Add(marker);
         }
 
-        void AddTokenLabel(Transform parent, string text, float height)
+        void AddTokenLabel(Transform parent, string text, float height, Color? color = null, bool bold = false)
         {
             if (string.IsNullOrEmpty(text) || _art == null)
                 return;
@@ -510,13 +684,16 @@ namespace Core.Vfx
             go.transform.SetParent(parent, false);
             go.transform.localPosition = new Vector3(0f, height, 0f);
             go.transform.localRotation = Quaternion.Euler(20f, 0f, 0f);
-            go.transform.localScale = Vector3.one * 0.008f;
+            go.transform.localScale = Vector3.one * (bold ? 0.014f : 0.012f);
             var tmp = go.AddComponent<TextMeshPro>();
             tmp.alignment = TextAlignmentOptions.Center;
-            tmp.fontSize = 5f;
-            tmp.color = new Color(0.75f, 0.95f, 1f, 0.95f);
+            tmp.enableWordWrapping = true;
+            tmp.fontSize = bold ? 7.5f : 5.5f;
+            tmp.color = color ?? new Color(0.75f, 0.95f, 1f, 0.95f);
+            tmp.fontStyle = bold ? FontStyles.Bold : FontStyles.Normal;
             tmp.text = text;
             tmp.raycastTarget = false;
+            tmp.rectTransform.sizeDelta = new Vector2(36f, 12f);
         }
 
         void AddGrabHalo(Transform parent, float s)
