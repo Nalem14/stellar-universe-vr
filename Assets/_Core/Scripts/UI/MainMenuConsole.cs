@@ -11,9 +11,9 @@ using UnityEngine.XR.Interaction.Toolkit.UI;
 namespace Core.UI
 {
     /// <summary>
-    /// Diegetic CIC login console. Keys from GetTranslations:
-    /// https://www.stellar-universe.com/actionjs.php?action=GetTranslations
-    /// Login = email + password. Register = email + password + username.
+    /// Diegetic CIC login console.
+    /// Auto LoginToken when saved → Hub (continue / quit / logout).
+    /// Forms otherwise; Login/Register land on Hub (not auto-Bridge).
     /// </summary>
     public class MainMenuConsole : MonoBehaviour
     {
@@ -23,6 +23,12 @@ namespace Core.UI
             SignUp
         }
 
+        enum PanelMode
+        {
+            Forms,
+            Hub
+        }
+
         static readonly Color Cyan = new(0.45f, 0.95f, 1f, 1f);
         static readonly Color CyanDim = new(0.25f, 0.7f, 0.85f, 1f);
         static readonly Color Amber = new(1f, 0.72f, 0.35f, 1f);
@@ -30,19 +36,24 @@ namespace Core.UI
         static readonly Color FieldBg = new(0.03f, 0.1f, 0.14f, 0.92f);
         static readonly Color BtnPrimary = new(0.06f, 0.42f, 0.48f, 0.95f);
         static readonly Color BtnSecondary = new(0.08f, 0.22f, 0.28f, 0.95f);
+        static readonly Color BtnDanger = new(0.42f, 0.12f, 0.14f, 0.95f);
 
         TMP_InputField _email;
         TMP_InputField _password;
         TMP_InputField _username;
         TMP_Text _status;
         TMP_Text _modeHint;
-        Button _continue;
+        TMP_Text _hubGreeting;
         Button _loginTab;
         Button _signUpTab;
         Button _submit;
+        RectTransform _formsRoot;
+        RectTransform _hubRoot;
         Canvas _canvas;
         CicEnvironment _env;
         FormMode _mode = FormMode.SignIn;
+        PanelMode _panel = PanelMode.Forms;
+        bool _busy;
 
         public void Bind(CicEnvironment env)
         {
@@ -54,10 +65,23 @@ namespace Core.UI
             await Trans.EnsureLoaded();
             EnsureEventSystem();
             _canvas = CreateCanvas();
-            var root = Panel(_canvas.transform, new Vector2(1100f, 620f));
+            var root = Panel(_canvas.transform, new Vector2(1100f, 640f));
 
-            Label(root, "STELLAR UNIVERSE", 40f, FontStyles.Bold, new Vector2(0f, 240f), Cyan);
-            Hairline(root, new Vector2(0f, 205f), 720f, Cyan * 0.55f);
+            _formsRoot = SubPanel(root, "Forms");
+            _hubRoot = SubPanel(root, "Hub");
+            _hubRoot.gameObject.SetActive(false);
+
+            BuildForms(_formsRoot);
+            BuildHub(_hubRoot);
+
+            _status = Label(root, string.Empty, 18f, FontStyles.Normal, new Vector2(0f, -290f), Amber);
+
+            SetMode(FormMode.SignIn);
+            await TryAutoLogin();
+        }
+
+        void BuildForms(RectTransform root)
+        {
             _modeHint = Label(root, Trans.Get("connectToUniverse"), 20f, FontStyles.Italic, new Vector2(0f, 175f),
                 CyanDim);
 
@@ -69,16 +93,63 @@ namespace Core.UI
                 TouchScreenKeyboardType.Default);
 
             _loginTab = Button(root, Trans.Get("login"), new Vector2(-250f, -155f), () => SetMode(FormMode.SignIn),
-                true);
+                DiegeticUi.BtnStyle.Cyan);
             _signUpTab = Button(root, Trans.Get("createAccount"), new Vector2(0f, -155f),
-                () => SetMode(FormMode.SignUp), false);
-            _submit = Button(root, Trans.Get("login"), new Vector2(250f, -155f), Submit, true);
+                () => SetMode(FormMode.SignUp), DiegeticUi.BtnStyle.Ghost);
+            _submit = Button(root, Trans.Get("login"), new Vector2(250f, -155f), Submit, DiegeticUi.BtnStyle.Cyan);
+        }
 
-            _continue = Button(root, Trans.Get("gettingStarted"), new Vector2(0f, -230f), Resume, true);
-            _status = Label(root, string.Empty, 18f, FontStyles.Normal, new Vector2(0f, -280f), Amber);
+        void BuildHub(RectTransform root)
+        {
+            _hubGreeting = Label(root, Trans.Get("welcome"), 22f, FontStyles.Italic, new Vector2(0f, 120f),
+                CyanDim);
 
-            SetMode(FormMode.SignIn);
-            RefreshContinue();
+            Button(root, Trans.Get("continue"), new Vector2(0f, 30f), EnterBridge, DiegeticUi.BtnStyle.Cyan);
+            Button(root, Trans.Get("quit"), new Vector2(0f, -55f), QuitApp, DiegeticUi.BtnStyle.Ghost);
+            Button(root, Trans.Get("logout"), new Vector2(0f, -140f), DoLogout, DiegeticUi.BtnStyle.Danger);
+        }
+
+        async Task TryAutoLogin()
+        {
+            var auth = AuthManager.Ensure();
+            if (!auth.HasSavedToken)
+            {
+                ShowPanel(PanelMode.Forms);
+                return;
+            }
+
+            SetStatus(Trans.Get("Loading"), Cyan);
+            var result = await auth.LoginToken();
+            if (!result.Ok)
+            {
+                SetStatus(FriendlyError(result.Error), new Color(1f, 0.4f, 0.35f));
+                ShowPanel(PanelMode.Forms);
+                return;
+            }
+
+            RefreshHubGreeting();
+            SetStatus(Trans.Get("welcome"), new Color(0.45f, 1f, 0.7f));
+            ShowPanel(PanelMode.Hub);
+        }
+
+        void ShowPanel(PanelMode panel)
+        {
+            _panel = panel;
+            if (_formsRoot != null)
+                _formsRoot.gameObject.SetActive(panel == PanelMode.Forms);
+            if (_hubRoot != null)
+                _hubRoot.gameObject.SetActive(panel == PanelMode.Hub);
+        }
+
+        void RefreshHubGreeting()
+        {
+            if (_hubGreeting == null)
+                return;
+            var user = AuthManager.Ensure().User;
+            var name = user != null && !string.IsNullOrEmpty(user.username)
+                ? user.username
+                : Trans.Get("welcome");
+            _hubGreeting.text = name;
         }
 
         void SetMode(FormMode mode)
@@ -88,7 +159,6 @@ namespace Core.UI
             if (_username != null)
                 _username.gameObject.SetActive(signUp);
 
-            // Keep login fields compact when username is hidden.
             if (_password != null)
                 _password.GetComponent<RectTransform>().anchoredPosition =
                     signUp ? new Vector2(0f, 15f) : new Vector2(0f, -10f);
@@ -116,17 +186,13 @@ namespace Core.UI
         {
             if (button == null)
                 return;
-            button.GetComponent<Image>().color = active ? BtnPrimary : BtnSecondary;
-            var outline = button.GetComponent<Outline>();
-            if (outline != null)
-                outline.effectColor = active ? Cyan * 0.85f : CyanDim * 0.5f;
-        }
-
-        void RefreshContinue()
-        {
-            var has = AuthManager.Ensure().HasSavedToken;
-            if (_continue != null)
-                _continue.gameObject.SetActive(has);
+            var img = button.GetComponent<Image>();
+            if (img != null)
+            {
+                img.sprite = active ? DiegeticUi.SprTabActive : DiegeticUi.SprTabIdle;
+                img.type = Image.Type.Sliced;
+                img.color = Color.white;
+            }
         }
 
         void Submit()
@@ -137,37 +203,66 @@ namespace Core.UI
                 SignIn();
         }
 
-        async void Resume()
-        {
-            await Run(Trans.Get("Loading"), () => AuthManager.Ensure().LoginToken());
-        }
-
         async void SignIn()
         {
-            await Run(Trans.Get("Loading"),
-                () => AuthManager.Ensure().Login(_email.text.Trim(), _password.text));
+            await RunAuth(() => AuthManager.Ensure().Login(_email.text.Trim(), _password.text));
         }
 
         async void SignUp()
         {
-            await Run(Trans.Get("Loading"),
-                () => AuthManager.Ensure().Register(_email.text.Trim(), _password.text,
-                    _username.text.Trim()));
+            await RunAuth(() => AuthManager.Ensure().Register(_email.text.Trim(), _password.text,
+                _username.text.Trim()));
         }
 
-        async Task Run(string pending, System.Func<Task<ApiResult>> work)
+        async Task RunAuth(System.Func<Task<ApiResult>> work)
         {
-            SetStatus(pending, Cyan);
+            if (_busy)
+                return;
+            _busy = true;
+            SetStatus(Trans.Get("Loading"), Cyan);
             var result = await work();
+            _busy = false;
             if (!result.Ok)
             {
                 SetStatus(FriendlyError(result.Error), new Color(1f, 0.4f, 0.35f));
-                RefreshContinue();
+                ShowPanel(PanelMode.Forms);
                 return;
             }
 
+            RefreshHubGreeting();
             SetStatus(Trans.Get("welcome"), new Color(0.45f, 1f, 0.7f));
+            ShowPanel(PanelMode.Hub);
+        }
+
+        void EnterBridge()
+        {
+            if (!AuthManager.Ensure().IsLoggedIn)
+            {
+                SetStatus(Trans.Get("error_not_logged_in"), new Color(1f, 0.4f, 0.35f));
+                ShowPanel(PanelMode.Forms);
+                return;
+            }
+
+            CicCue.Ok(transform.position);
             SceneFlow.Go(SceneFlow.Bridge);
+        }
+
+        void DoLogout()
+        {
+            AuthManager.Ensure().Logout();
+            SetStatus(Trans.Get("logout"), Amber);
+            ShowPanel(PanelMode.Forms);
+            SetMode(FormMode.SignIn);
+        }
+
+        void QuitApp()
+        {
+            CicCue.Ok(transform.position);
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+#else
+            Application.Quit();
+#endif
         }
 
         static string FriendlyError(string error)
@@ -202,20 +297,28 @@ namespace Core.UI
 
             var canvas = go.GetComponent<Canvas>();
             canvas.renderMode = RenderMode.WorldSpace;
-            go.GetComponent<RectTransform>().sizeDelta = new Vector2(1100f, 640f);
+            go.GetComponent<RectTransform>().sizeDelta = new Vector2(1100f, 660f);
             go.GetComponent<CanvasScaler>().dynamicPixelsPerUnit = 2.5f;
             return canvas;
         }
 
         static RectTransform Panel(Transform parent, Vector2 size)
         {
-            var go = new GameObject("Panel", typeof(RectTransform), typeof(Image));
+            DiegeticUi.EnsureEventSystem();
+            var frame = DiegeticUi.HoloFrame(parent, size, Trans.Get("connectToUniverse"));
+            return frame;
+        }
+
+        static RectTransform SubPanel(Transform parent, string name)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
             go.transform.SetParent(parent, false);
             var rt = go.GetComponent<RectTransform>();
-            rt.sizeDelta = size;
-            go.GetComponent<Image>().color = PanelGlass;
-            Frame(rt, size, 4f, Cyan * 0.7f);
-            Frame(rt, size - new Vector2(16f, 16f), 1.5f, CyanDim * 0.45f);
+            rt.sizeDelta = Vector2.zero;
+            rt.anchorMin = Vector2.zero;
+            rt.anchorMax = Vector2.one;
+            rt.offsetMin = Vector2.zero;
+            rt.offsetMax = Vector2.zero;
             return rt;
         }
 
@@ -275,7 +378,10 @@ namespace Core.UI
             var rt = go.GetComponent<RectTransform>();
             rt.sizeDelta = new Vector2(700f, 58f);
             rt.anchoredPosition = pos;
-            go.GetComponent<Image>().color = FieldBg;
+            var bg = go.GetComponent<Image>();
+            bg.sprite = DiegeticUi.SprField;
+            bg.type = Image.Type.Sliced;
+            bg.color = Color.white;
 
             var accent = new GameObject("Accent", typeof(RectTransform), typeof(Image));
             accent.transform.SetParent(go.transform, false);
@@ -287,6 +393,9 @@ namespace Core.UI
             art.anchoredPosition = Vector2.zero;
             accent.GetComponent<Image>().color = Cyan;
             accent.GetComponent<Image>().raycastTarget = false;
+            // Field sprite already has left accent — hide duplicate when sprite present.
+            if (DiegeticUi.SprField != null)
+                accent.SetActive(false);
 
             var textGo = new GameObject("Text", typeof(RectTransform), typeof(TextMeshProUGUI));
             textGo.transform.SetParent(go.transform, false);
@@ -321,39 +430,9 @@ namespace Core.UI
         }
 
         static Button Button(Transform parent, string label, Vector2 pos,
-            UnityEngine.Events.UnityAction click, bool primary)
+            UnityEngine.Events.UnityAction click, DiegeticUi.BtnStyle style)
         {
-            var go = new GameObject(label, typeof(RectTransform), typeof(Image), typeof(Button));
-            go.transform.SetParent(parent, false);
-            var rt = go.GetComponent<RectTransform>();
-            rt.sizeDelta = new Vector2(230f, 64f);
-            rt.anchoredPosition = pos;
-            go.GetComponent<Image>().color = primary ? BtnPrimary : BtnSecondary;
-
-            var outline = go.AddComponent<Outline>();
-            outline.effectColor = primary ? Cyan * 0.85f : CyanDim * 0.5f;
-            outline.effectDistance = new Vector2(1.5f, -1.5f);
-
-            var btn = go.GetComponent<Button>();
-            btn.onClick.AddListener(click);
-            var colors = btn.colors;
-            colors.highlightedColor = primary
-                ? new Color(0.12f, 0.55f, 0.6f, 1f)
-                : new Color(0.12f, 0.32f, 0.38f, 1f);
-            colors.pressedColor = new Color(0.05f, 0.25f, 0.3f, 1f);
-            btn.colors = colors;
-
-            var textGo = new GameObject("Label", typeof(RectTransform), typeof(TextMeshProUGUI));
-            textGo.transform.SetParent(go.transform, false);
-            Stretch(textGo.GetComponent<RectTransform>());
-            var tmp = textGo.GetComponent<TextMeshProUGUI>();
-            tmp.text = label;
-            tmp.fontSize = 20f;
-            tmp.fontStyle = FontStyles.Bold;
-            tmp.alignment = TextAlignmentOptions.Center;
-            tmp.color = Cyan;
-            tmp.raycastTarget = false;
-            return btn;
+            return DiegeticUi.HoloButton(parent, label, pos, new Vector2(320f, 64f), click, style);
         }
 
         static void Stretch(RectTransform rt, float pad = 0f)
