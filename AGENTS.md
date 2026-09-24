@@ -39,7 +39,7 @@ Cible **Quest** (Android ARM64, thermals réels). Toute feature se conçoit **av
 
 ## Produit (verrouillé)
 
-**Scope B** : parité features avec `actionjs.php` (147 actions). Pas un compagnon, pas un 4X autonome.
+**Scope B** : parité features avec **toutes** les actions de `action-api.json` / `actionjs.php` (le nombre évolue à chaque release web — suivi action par action dans [`docs/PARITY.md`](docs/PARITY.md)). Pas un compagnon, pas un 4X autonome. Roadmap : [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 **Format** : tu habites un **CIC**. Carte = table holo à portée de main.  
 **TP de vue** (détail [`docs/VISION-VR.md`](docs/VISION-VR.md) §3.2) : n’importe lequel de **tes** vaisseaux (tu es sur **son** pont) ; à défaut, n’importe quelle **planète** → **fausse station en orbite**, pas la surface. Hublots = ce focus (`changesystem` / `changeplanet`). Les vaisseaux bougent avec `MoveFleet*`, pas le joueur.
@@ -57,6 +57,36 @@ Langue joueur : **français** (i18n EN/FR via `Trans` + `GetTranslations`).
 **Interdit** : littéraux joueur FR/EN dans UI / gameplay. Toujours `Trans.Get("key")`.  
 Clé native du dump `GetTranslations` d’abord. **Si absente** : afficher la **clé** telle quelle + (Editor only) append dans `Application.persistentDataPath/su-missing-trans-keys.txt` pour les rajouter côté serveur. Pas de fallback inventé dans le client. Build joueur : warning console seulement, **pas** de fichier.  
 Code / IDs : **anglais**, namespaces `Core.*`.
+
+---
+
+## Client web de référence
+
+Le client web (Phaser 3 + PHP) est disponible en local : **`/Users/thommy/Websites/stellar-universe`**.  
+`action-api.json` donne le **contrat** ; le client web donne le **contexte** (intention, ordre des appels, cas d'erreur, feedback joueur).
+
+**Règle** : avant de coder ou de modifier une feature, **lire son implémentation web** — UI (`assets/js/src/ui/`, `assets/views/*.hbs`), objet JS (`assets/js/src/objects/`, `scenes/`), handler (`actionjs.php`) et règles métier (`model/*.php`). Comprendre comment la feature fonctionne **avant** de l'adapter.
+
+**Adapter, pas copier** : la jouabilité est repensée pour le POV pont VR (stations, crew, table holo, gestes). La compatibilité serveur, elle, reste **stricte** : mêmes actions, mêmes params, mêmes états, mêmes enchaînements.
+
+**Deux clients indépendants** : le web est une référence **pour les développeurs uniquement**. Le jeu VR ne renvoie **jamais** le joueur vers le web — pas de « faites-le sur le site », pas de lien, pas de QR. Chaque feature web a son équivalent en VR (création d'empire, admin d'empire / alliance, shop…). S'il manque une action serveur, on la **spécifie** dans `docs/PARITY.md` et on la demande côté web ; on ne contourne pas par le site.
+
+Points d'entrée utiles :
+
+| Chemin | Contenu |
+|---|---|
+| `actionjs.php` | Dispatch `addAction(name, params, fn)` — source de vérité des params réels |
+| `action-api.json` | Contrat documenté (params, retours, `poll_after`, notes `vr_client`) |
+| `model/*.php` | Règles métier par domaine (fleet, battle, construction_queue, stargate…) |
+| `include/config.production.php` | Équilibrage (surchargé par la DB, exposé via `GetConfigs`) — ne jamais recopier ces valeurs en dur |
+| `assets/js/src/` | Client Phaser : `scenes/`, `objects/`, `ui/`, `scripts/helper.js` (`doAction`) |
+| `assets/langs/{en,fr}.json` | Clés i18n servies par `GetTranslations` |
+
+Le serveur simule **paresseusement** : `GetAllFleets` traite les files d'ordres de flotte, `GetResource` accumule la production et résout les missions stargate. `GetAllFleets` est mis en cache **3 s** côté serveur — ne pas poller plus vite.
+
+Le web évolue : avant chaque feature, `git log` / `git diff` sur le repo web pour repérer les changements d'API (params renommés, nouvelles actions, nouvelles erreurs). Le repo web est en **lecture seule** depuis ici : aucune modification sans demande explicite. Les clés i18n manquantes vont dans [`docs/i18n/missing-keys.md`](docs/i18n/missing-keys.md) (clé + FR + EN) pour intégration côté serveur.
+
+Mettre à jour `docs/PARITY.md` à chaque feature livrée.
 
 ---
 
@@ -95,5 +125,6 @@ Toujours **première personne casque**. Chaque scène a un XR Origin (rig templa
 
 ## Vérification
 
-Pas de casque dans l’environnement agent par défaut. Compiler via **Unity CLI 6** (`unity run`).  
+Pas de casque dans l’environnement agent par défaut. Compiler via **Unity CLI 6** (`unity run`). Le **MCP Unity** (`unity mcp --project-path <repo>`) permet d'inspecter scènes, hiérarchie et console depuis l'agent.  
+Comparer le comportement avec le **client web** (mêmes appels, mêmes réponses, mêmes erreurs) avant de déclarer une feature finie.  
 Si un flux XR n’est pas testable ici, **le dire**. Ne pas prétendre un Play Mode Quest.
