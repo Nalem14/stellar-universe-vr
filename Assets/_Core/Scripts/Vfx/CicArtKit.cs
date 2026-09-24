@@ -28,9 +28,12 @@ namespace Core.Vfx
         public Texture TokenSystem { get; private set; }
         public Texture TokenPlanet { get; private set; }
         public Texture TokenFleet { get; private set; }
+        public Texture TokenFleetAmber { get; private set; }
         public Texture TokenStar { get; private set; }
         public Texture TokenAsteroid { get; private set; }
         public Texture TokenActive { get; private set; }
+        public Texture TokenPad { get; private set; }
+        public Texture TokenPadEnemy { get; private set; }
         public Texture HexGrid { get; private set; }
         public Texture MoveGhost { get; private set; }
         public Texture ProjectorGlow { get; private set; }
@@ -58,9 +61,12 @@ namespace Core.Vfx
             TokenSystem = Resources.Load<Texture2D>("Holo/TokenSystem");
             TokenPlanet = Resources.Load<Texture2D>("Holo/TokenPlanet");
             TokenFleet = Resources.Load<Texture2D>("Holo/TokenFleet");
+            TokenFleetAmber = Resources.Load<Texture2D>("Holo/TokenFleetAmber");
             TokenStar = Resources.Load<Texture2D>("Holo/TokenStar");
             TokenAsteroid = Resources.Load<Texture2D>("Holo/TokenAsteroid");
             TokenActive = Resources.Load<Texture2D>("Holo/TokenActive");
+            TokenPad = Resources.Load<Texture2D>("Holo/TokenPad");
+            TokenPadEnemy = Resources.Load<Texture2D>("Holo/TokenPadEnemy");
             HexGrid = Resources.Load<Texture2D>("Holo/HexGrid");
             MoveGhost = Resources.Load<Texture2D>("Holo/MoveGhost");
             ProjectorGlow = Resources.Load<Texture2D>("Holo/ProjectorGlow");
@@ -114,6 +120,33 @@ namespace Core.Vfx
                 mat.SetFloat("_ScanSpeed", 0.35f);
             if (mat.HasProperty("_Fresnel"))
                 mat.SetFloat("_Fresnel", 2.4f);
+            _cache[key] = mat;
+            return mat;
+        }
+
+        /// <summary>Alpha-blended radar glyph (ships/pads) — no additive wash, black keyed out.</summary>
+        public Material RadarIcon(Texture tex, Color tint)
+        {
+            var key = $"RI|{(tex != null ? tex.GetInstanceID() : 0)}|{ColorKey(tint)}";
+            if (_cache.TryGetValue(key, out var cached) && cached != null)
+                return cached;
+
+            var shader = Shader.Find("SU/RadarIcon")
+                         ?? _emissive
+                         ?? _fallback;
+            var mat = new Material(shader);
+            if (tex != null && mat.HasProperty("_MainTex"))
+                mat.mainTexture = tex;
+            if (mat.HasProperty("_Color"))
+                mat.SetColor("_Color", tint);
+            else
+                mat.color = tint;
+            if (mat.HasProperty("_Emission"))
+                mat.SetColor("_Emission", new Color(tint.r, tint.g, tint.b, 1f) * 0.85f);
+            if (mat.HasProperty("_EmissionMul"))
+                mat.SetFloat("_EmissionMul", 2.4f);
+            if (mat.HasProperty("_Cutoff"))
+                mat.SetFloat("_Cutoff", 0.08f);
             _cache[key] = mat;
             return mat;
         }

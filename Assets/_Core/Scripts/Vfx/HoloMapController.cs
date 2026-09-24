@@ -165,6 +165,18 @@ namespace Core.Vfx
             _ghost.SetPosition(1, _map.transform.TransformPoint(toLocal));
         }
 
+        /// <summary>Ghost from the token in-hand to the drop target (live preview while gripped).</summary>
+        public void ShowMoveGhostWorld(Vector3 fromWorld, Vector3 toWorld)
+        {
+            EnsureGhost();
+            if (_ghost == null)
+                return;
+            _ghost.enabled = true;
+            _ghost.positionCount = 2;
+            _ghost.SetPosition(0, fromWorld);
+            _ghost.SetPosition(1, toWorld);
+        }
+
         public void HideMoveGhost()
         {
             if (_ghost != null)

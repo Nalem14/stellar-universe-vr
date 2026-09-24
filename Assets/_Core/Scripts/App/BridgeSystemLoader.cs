@@ -169,13 +169,16 @@ namespace Core.App
                 if (sameSystem && preferredFleetId > 0)
                 {
                     _focus.ApplyFleetsBody(fleets.Body);
-                    _focus.SetViewFleet(preferredFleetId);
+                    _focus.EnsureBridgeView(preferredFleetId, 0);
+                }
+                else if (sameSystem && viewPlanetId > 0)
+                {
+                    _focus.ApplyFleetsBody(fleets.Body);
+                    _focus.EnsureBridgeView(0, viewPlanetId);
                 }
                 else
                 {
-                    _focus.SetFromApi(systemId, systems.Body, fleets.Body, preferredFleetId);
-                    if (viewPlanetId > 0)
-                        _focus.SetViewPlanet(viewPlanetId);
+                    _focus.SetFromApi(systemId, systems.Body, fleets.Body, preferredFleetId, viewPlanetId);
                 }
 
                 if (preferredFleetId > 0 && _focus.ViewFleetId != preferredFleetId)
@@ -196,14 +199,25 @@ namespace Core.App
                     return false;
                 }
 
+                // Boot / refresh with no preference: must still land on ship or planet.
+                if (preferredFleetId <= 0 && viewPlanetId <= 0)
+                    _focus.EnsureBridgeView(_focus.ViewFleetId, _focus.ViewPlanetId);
+
+                if (!_focus.HasInhabitedView)
+                {
+                    await RevertServerSystem(sameSystem, previousSystemId);
+                    await RestoreFocus(previousSystemId, prevFleetId, prevPlanetId);
+                    if (fadeFx != null)
+                        await fadeFx.FadeIn();
+                    return false;
+                }
+
                 _lastSystemId = systemId;
 
-                if (preferredFleetId > 0 && _focus.ViewFleetId == preferredFleetId)
-                    BridgeViewAnchor.SaveShip(preferredFleetId, systemId);
-                else if (viewPlanetId > 0 && _focus.ViewPlanetId == viewPlanetId)
-                    BridgeViewAnchor.SavePlanet(viewPlanetId, systemId);
-                else if (preferredFleetId <= 0 && viewPlanetId <= 0 && _focus.ViewFleetId > 0)
+                if (_focus.ViewFleetId > 0)
                     BridgeViewAnchor.SaveShip(_focus.ViewFleetId, systemId);
+                else if (_focus.ViewPlanetId > 0)
+                    BridgeViewAnchor.SavePlanet(_focus.ViewPlanetId, systemId);
 
                 if (_poller != null)
                     _poller.Bind(_focus);
@@ -238,12 +252,11 @@ namespace Core.App
                 return;
             if (planetId > 0)
             {
-                _focus.SetFromApi(systemId, systems.Body, fleets.Body, 0);
-                _focus.SetViewPlanet(planetId);
+                _focus.SetFromApi(systemId, systems.Body, fleets.Body, 0, planetId);
             }
             else
             {
-                _focus.SetFromApi(systemId, systems.Body, fleets.Body, fleetId);
+                _focus.SetFromApi(systemId, systems.Body, fleets.Body, fleetId, 0);
             }
 
             if (_poller != null)

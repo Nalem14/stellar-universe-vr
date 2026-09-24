@@ -1,0 +1,767 @@
+using System.Collections.Generic;
+using System.Globalization;
+using System.Threading.Tasks;
+using Core.App;
+using Core.Utils;
+using TMPro;
+using UnityEngine;
+using UnityEngine.XR.Interaction.Toolkit;
+using UnityEngine.XR.Interaction.Toolkit.Interactables;
+
+namespace Core.Vfx
+{
+    /// <summary>
+    /// Star Trek Bridge Crew–style: ray-select a crew mannequin → world-space dialogue
+    /// with context orders for the inhabited ship or orbital station.
+    /// </summary>
+    public sealed class CrewDialogue : MonoBehaviour
+    {
+        public enum Role
+        {
+            Helm,
+            Tactical,
+            Engineering
+        }
+
+        enum DropGroup
+        {
+            None = 0,
+            Planets,
+            Asteroids,
+            Jumps,
+            BoardShips
+        }
+
+        static CrewDialogue s_Open;
+
+        FocusContext _focus;
+        BridgeSystemLoader _loader;
+        CicArtKit _art;
+        Color _accent;
+        Role _role;
+        HoloZoneMap _map;
+        FleetPoller _poller;
+        HexBattleController _hex;
+        ViewFleetOrders _orders;
+        Transform _anchor;
+        Canvas _canvas;
+        RectTransform _listRoot;
+        TMP_Text _title;
+        TMP_Text _subtitle;
+        readonly List<GameObject> _rows = new();
+        readonly List<GalaxyCatalog.Star> _near = new();
+        bool _open;
+        float _nextSigPoll;
+        long _lastSig = -1;
+        int _rebuildGen;
+        DropGroup _dropOpen = DropGroup.None;
+        bool _rebuildBusy;
+
+        public static void Attach(Transform mannequin, CicEnvironment host, CicArtKit art, Color accent,
+            Role role, ViewFleetOrders orders, HexBattleController hex, HoloZoneMap map, FleetPoller poller,
+            FocusContext focus, BridgeSystemLoader loader)
+        {
+            if (mannequin == null || art == null)
+                return;
+
+            var hit = mannequin.Find("DialogueHit");
+            if (hit == null)
+            {
+                var hitGo = new GameObject("DialogueHit");
+                hit = hitGo.transform;
+                hit.SetParent(mannequin, false);
+                hit.localPosition = new Vector3(0f, 0.75f, 0.05f);
+                var col = hitGo.AddComponent<CapsuleCollider>();
+                col.height = 1.35f;
+                col.radius = 0.28f;
+                col.center = new Vector3(0f, 0.05f, 0f);
+                col.isTrigger = false;
+                var rb = hitGo.AddComponent<Rigidbody>();
+                rb.isKinematic = true;
+                rb.useGravity = false;
+            }
+
+            var dialogue = hit.GetComponent<CrewDialogue>();
+            if (dialogue == null)
+                dialogue = hit.gameObject.AddComponent<CrewDialogue>();
+
+            dialogue._focus = focus;
+            dialogue._loader = loader;
+            dialogue._art = art;
+            dialogue._accent = accent;
+            dialogue._role = role;
+            dialogue._orders = orders;
+            dialogue._hex = hex;
+            dialogue._map = map;
+            dialogue._poller = poller;
+            dialogue._anchor = hit;
+            dialogue.EnsureInteractable();
+            dialogue.EnsurePanel(host != null ? host.transform : mannequin.root);
+        }
+
+        FocusContext Focus => _focus ?? FocusContext.Current;
+
+        void EnsureInteractable()
+        {
+            var xi = GetComponent<XRSimpleInteractable>();
+            if (xi == null)
+                xi = gameObject.AddComponent<XRSimpleInteractable>();
+            xi.selectEntered.RemoveListener(OnSelected);
+            xi.selectEntered.AddListener(OnSelected);
+        }
+
+        void EnsurePanel(Transform room)
+        {
+            if (_canvas != null)
+                return;
+
+            var root = new GameObject("CrewDialoguePanel");
+            root.transform.SetParent(room, false);
+            root.SetActive(false);
+
+            _canvas = DiegeticUi.WorldCanvas(root.transform, "DialogueCanvas", new Vector2(640f, 560f),
+                Vector3.zero, Quaternion.identity, 0.00105f);
+            root.AddComponent<BillboardFace>();
+
+            var frame = DiegeticUi.HoloFrame(_canvas.transform, new Vector2(620f, 540f),
+                Trans.Get("CommandBridge"));
+            _title = DiegeticUi.HoloLabel(frame, RoleTitle(), new Vector2(0f, 210f),
+                new Vector2(560f, 40f), 24f, _accent);
+            _subtitle = DiegeticUi.HoloLabel(frame, string.Empty, new Vector2(0f, 170f),
+                new Vector2(560f, 32f), 16f, DiegeticUi.CyanDim);
+
+            var listGo = new GameObject("Rows", typeof(RectTransform));
+            listGo.transform.SetParent(frame, false);
+            _listRoot = listGo.GetComponent<RectTransform>();
+            _listRoot.sizeDelta = new Vector2(580f, 340f);
+            _listRoot.anchoredPosition = new Vector2(0f, -10f);
+
+            DiegeticUi.HoloButton(frame, Trans.Get("ok"), new Vector2(0f, -230f), new Vector2(220f, 48f),
+                Close, DiegeticUi.BtnStyle.Ghost);
+        }
+
+        void OnSelected(SelectEnterEventArgs _)
+        {
+            if (_open && s_Open == this)
+            {
+                Close();
+                return;
+            }
+
+            Open();
+        }
+
+        void Open()
+        {
+            if (s_Open != null && s_Open != this)
+                s_Open.Close();
+
+            s_Open = this;
+            _open = true;
+            _lastSig = -1;
+            _dropOpen = DropGroup.None;
+            if (_canvas != null)
+            {
+                var root = _canvas.transform.parent;
+                root.gameObject.SetActive(true);
+                PlacePanel();
+            }
+
+            CicCue.Ok(transform.position);
+            Core.Utils.AsyncTap.Run(RebuildAsync());
+        }
+
+        public void Close()
+        {
+            _open = false;
+            _dropOpen = DropGroup.None;
+            if (s_Open == this)
+                s_Open = null;
+            ClearRows();
+            if (_canvas != null && _canvas.transform.parent != null)
+                _canvas.transform.parent.gameObject.SetActive(false);
+        }
+
+        void PlacePanel()
+        {
+            if (_canvas == null || _anchor == null)
+                return;
+            var root = _canvas.transform.parent;
+            var cam = Camera.main;
+            var toward = cam != null
+                ? (cam.transform.position - _anchor.position).normalized
+                : Vector3.forward;
+            toward.y = 0f;
+            if (toward.sqrMagnitude < 0.01f)
+                toward = Vector3.forward;
+            toward.Normalize();
+            root.position = _anchor.position + Vector3.up * 0.35f + toward * 0.55f;
+            var face = root.GetComponent<BillboardFace>();
+            face?.FaceNow();
+        }
+
+        void Update()
+        {
+            if (!_open)
+                return;
+            if (Time.unscaledTime < _nextSigPoll)
+                return;
+            _nextSigPoll = Time.unscaledTime + 0.45f;
+            var focus = Focus;
+            var fleet = focus?.FindViewFleet();
+            long sig;
+            if (fleet == null)
+                sig = focus != null ? (-10L - focus.ViewPlanetId) : -2;
+            else
+            {
+                var hex = _hex != null && _hex.IsActive ? 1 : 0;
+                sig = fleet.Id ^ (fleet.PlanetId * 17) ^ (fleet.AsteroidId * 31) ^
+                      (fleet.IsInBattle ? 1 : 0) ^ fleet.DestTime ^ fleet.AttackEndTime ^
+                      fleet.HarvestEndTime ^ fleet.ExploreEndTime ^ (hex * 997);
+            }
+
+            if (sig == _lastSig)
+                return;
+            _lastSig = sig;
+            Core.Utils.AsyncTap.Run(RebuildAsync());
+        }
+
+        void OnDestroy()
+        {
+            if (s_Open == this)
+                s_Open = null;
+        }
+
+        async Task RebuildAsync()
+        {
+            var gen = ++_rebuildGen;
+            while (_rebuildBusy)
+                await Task.Yield();
+            if (gen != _rebuildGen)
+                return;
+
+            _rebuildBusy = true;
+            try
+            {
+                ClearRows();
+                if (_listRoot == null)
+                    return;
+
+                if (_title != null)
+                    _title.text = RoleTitle();
+
+                var focus = Focus;
+                var fleet = focus?.FindViewFleet();
+                if (_subtitle != null)
+                    _subtitle.text = Subtitle(focus, fleet);
+
+                if (focus == null)
+                {
+                    AddStatus(Trans.Get("Loading"));
+                    return;
+                }
+
+                if (fleet == null)
+                {
+                    await BuildStationContext(focus);
+                    if (gen != _rebuildGen)
+                        return;
+                    if (_rows.Count == 0)
+                        AddStatus(Trans.Get("planets"));
+                    return;
+                }
+
+                if (!FleetOrderGate.CanMove(fleet) && _role == Role.Helm)
+                {
+                    AddStatus(Trans.Get(FleetOrderGate.BusyKey(fleet)));
+                    return;
+                }
+
+                switch (_role)
+                {
+                    case Role.Helm:
+                        await BuildHelm(focus, fleet);
+                        break;
+                    case Role.Tactical:
+                        BuildTactical(focus, fleet);
+                        break;
+                    case Role.Engineering:
+                        BuildEngineering(focus, fleet);
+                        break;
+                }
+
+                if (gen != _rebuildGen)
+                    return;
+                if (_rows.Count == 0)
+                    AddStatus(Trans.Get("ok"));
+            }
+            finally
+            {
+                _rebuildBusy = false;
+            }
+        }
+
+        static string Subtitle(FocusContext focus, FocusFleet fleet)
+        {
+            if (fleet != null)
+            {
+                var name = string.IsNullOrEmpty(fleet.Name) ? "#" + fleet.Id : fleet.Name;
+                return name + "  ·  #" + fleet.Id;
+            }
+
+            if (focus != null && focus.ViewPlanetId > 0)
+            {
+                var planet = focus.FindPlanet(focus.ViewPlanetId);
+                var name = planet != null && !string.IsNullOrEmpty(planet.Name)
+                    ? planet.Name
+                    : "#" + focus.ViewPlanetId;
+                return Trans.Get("planets") + "  ·  " + name;
+            }
+
+            return Trans.Get("Loading");
+        }
+
+        /// <summary>
+        /// Virtual orbital station — no MoveFleet* / combat / mine.
+        /// Helm only offers boarding an owned ship in-system (real bridge).
+        /// </summary>
+        async Task BuildStationContext(FocusContext focus)
+        {
+            if (_role != Role.Helm)
+            {
+                AddStatus(Trans.Get("planets"));
+                return;
+            }
+
+            if (_loader == null)
+            {
+                AddStatus(Trans.Get("spaceships"));
+                return;
+            }
+
+            await Task.Yield();
+            var owned = FocusContext.OwnedUserId();
+            var now = FleetOrderGate.UnixNow();
+            var candidates = new List<(int id, int sys, string label)>();
+            foreach (var fleet in focus.Fleets)
+            {
+                if (owned > 0 && !fleet.IsOwnedBy(owned))
+                    continue;
+                if (!fleet.VisibleIn(focus.SystemId, now))
+                    continue;
+                var id = fleet.Id;
+                var sys = fleet.SystemId > 0 ? fleet.SystemId : focus.SystemId;
+                var label = string.IsNullOrEmpty(fleet.Name) ? "#" + id : fleet.Name;
+                candidates.Add((id, sys, label));
+                if (candidates.Count >= 8)
+                    break;
+            }
+
+            if (candidates.Count == 0)
+            {
+                AddStatus(Trans.Get("spaceships"));
+                return;
+            }
+
+            if (candidates.Count == 1)
+            {
+                var only = candidates[0];
+                AddAction(ActionLabel("spaceships", only.label),
+                    () => Core.Utils.AsyncTap.Run(BoardShip(only.id, only.sys)));
+                return;
+            }
+
+            AddDropdown(Trans.Get("spaceships"), candidates.Count, DropGroup.BoardShips);
+            if (_dropOpen != DropGroup.BoardShips)
+                return;
+            BeginDropTray(candidates.Count);
+            for (var i = 0; i < candidates.Count; i++)
+            {
+                var row = candidates[i];
+                AddDropOption(DestLabel(row.label),
+                    () => Core.Utils.AsyncTap.Run(BoardShip(row.id, row.sys)));
+            }
+        }
+
+        async Task BoardShip(int fleetId, int systemId)
+        {
+            if (_loader == null)
+                return;
+            _map?.SetReadout(Trans.Get("Loading"));
+            var ok = await _loader.LoadShipView(fleetId, systemId);
+            if (ok)
+            {
+                CicCue.Ok(transform.position);
+                _dropOpen = DropGroup.None;
+                await RebuildAsync();
+            }
+            else
+            {
+                CicCue.Fail(transform.position);
+                _map?.SetReadout(Trans.Get("error"));
+            }
+        }
+
+        async Task BuildHelm(FocusContext focus, FocusFleet fleet)
+        {
+            await GalaxyCatalog.EnsureLoaded();
+
+            if (FleetOrderGate.CanGoToStar(fleet) &&
+                GalaxyCatalog.TryGet(focus.SystemId, out var here))
+            {
+                var sysName = !string.IsNullOrEmpty(focus.SystemName) ? focus.SystemName : here.Name;
+                if (string.IsNullOrEmpty(sysName))
+                    sysName = "#" + focus.SystemId;
+                var hx = here.X;
+                var hy = here.Y;
+                AddAction(MoveLabel("MoveFleetToSystem", sysName),
+                    () => Core.Utils.AsyncTap.Run(MoveToSystem(fleet.Id, hx, hy)));
+            }
+
+            var planets = new List<FocusPlanet>();
+            var seenPlanet = new HashSet<int>();
+            foreach (var planet in focus.Planets)
+            {
+                if (!FleetOrderGate.CanMoveToPlanet(fleet, planet.Id))
+                    continue;
+                if (!seenPlanet.Add(planet.Id))
+                    continue;
+                planets.Add(planet);
+            }
+
+            if (planets.Count == 1)
+            {
+                var p = planets[0];
+                var pid = p.Id;
+                AddAction(MoveLabel("MoveFleetToPlanet", PlanetLabel(p)),
+                    () => Core.Utils.AsyncTap.Run(MoveToPlanet(fleet.Id, pid)));
+            }
+            else if (planets.Count > 1)
+            {
+                AddDropdown(Trans.Get("MoveFleetToPlanet"), planets.Count, DropGroup.Planets);
+                if (_dropOpen == DropGroup.Planets)
+                {
+                    BeginDropTray(planets.Count);
+                    for (var i = 0; i < planets.Count; i++)
+                    {
+                        var p = planets[i];
+                        var pid = p.Id;
+                        AddDropOption(DestLabel(PlanetLabel(p)),
+                            () => Core.Utils.AsyncTap.Run(MoveToPlanet(fleet.Id, pid)));
+                    }
+                }
+            }
+
+            var rocks = new List<FocusAsteroid>();
+            var seenRock = new HashSet<int>();
+            foreach (var rock in focus.Asteroids)
+            {
+                if (!FleetOrderGate.CanMoveToAsteroid(fleet, rock.Id))
+                    continue;
+                if (!seenRock.Add(rock.Id))
+                    continue;
+                rocks.Add(rock);
+            }
+
+            if (rocks.Count == 1)
+            {
+                var aid = rocks[0].Id;
+                AddAction(MoveLabel("MoveFleetToAsteroid", Trans.Get("asteroid") + " #" + aid),
+                    () => Core.Utils.AsyncTap.Run(MoveToAsteroid(fleet.Id, aid)));
+            }
+            else if (rocks.Count > 1)
+            {
+                AddDropdown(Trans.Get("MoveFleetToAsteroid"), rocks.Count, DropGroup.Asteroids);
+                if (_dropOpen == DropGroup.Asteroids)
+                {
+                    BeginDropTray(rocks.Count);
+                    for (var i = 0; i < rocks.Count; i++)
+                    {
+                        var aid = rocks[i].Id;
+                        AddDropOption(DestLabel(Trans.Get("asteroid") + " #" + aid),
+                            () => Core.Utils.AsyncTap.Run(MoveToAsteroid(fleet.Id, aid)));
+                    }
+                }
+            }
+
+            if (FleetOrderGate.CanJumpSystem(fleet))
+            {
+                GalaxyCatalog.CollectNearest(focus.SystemId, 4, _near);
+                if (_near.Count == 1)
+                {
+                    var star = _near[0];
+                    var label = string.IsNullOrEmpty(star.Name)
+                        ? string.Format(CultureInfo.InvariantCulture, "{0}.{1}", star.X, star.Y)
+                        : star.Name;
+                    var sx = star.X;
+                    var sy = star.Y;
+                    AddAction(MoveLabel("MoveFleetToSystem", label),
+                        () => Core.Utils.AsyncTap.Run(MoveToSystem(fleet.Id, sx, sy)),
+                        DiegeticUi.BtnStyle.Amber);
+                }
+                else if (_near.Count > 1)
+                {
+                    AddDropdown(Trans.Get("MoveFleetToSystem"), _near.Count, DropGroup.Jumps);
+                    if (_dropOpen == DropGroup.Jumps)
+                    {
+                        BeginDropTray(_near.Count);
+                        for (var i = 0; i < _near.Count; i++)
+                        {
+                            var star = _near[i];
+                            var label = string.IsNullOrEmpty(star.Name)
+                                ? string.Format(CultureInfo.InvariantCulture, "{0}.{1}", star.X, star.Y)
+                                : star.Name;
+                            var sx = star.X;
+                            var sy = star.Y;
+                            AddDropOption(DestLabel(label),
+                                () => Core.Utils.AsyncTap.Run(MoveToSystem(fleet.Id, sx, sy)),
+                                DiegeticUi.BtnStyle.Amber);
+                        }
+                    }
+                }
+            }
+        }
+
+        void BuildTactical(FocusContext focus, FocusFleet fleet)
+        {
+            var planetLabel = PlanetLabel(focus.FindPlanet(fleet.PlanetId), fleet.PlanetId);
+
+            if (_hex != null && _hex.IsActive)
+                AddAction(Trans.Get("EndTurn"), () => Core.Utils.AsyncTap.Run(_hex.EndTurn()));
+
+            if (FleetOrderGate.CanStance(fleet))
+            {
+                AddAction(ActionLabel("Flee", planetLabel),
+                    () => Core.Utils.AsyncTap.Run(CrewOrderBridge.Stance(_orders, "RUN_AWAY")));
+                AddAction(ActionLabel("Defend", planetLabel),
+                    () => Core.Utils.AsyncTap.Run(CrewOrderBridge.Stance(_orders, "ATTACK_ATTACKER")));
+                AddAction(ActionLabel("Attack", planetLabel),
+                    () => Core.Utils.AsyncTap.Run(CrewOrderBridge.Stance(_orders, "ATTACK_PLANET")));
+            }
+
+            if (FleetOrderGate.CanSiege(fleet, focus))
+            {
+                AddAction(ActionLabel("Siege", planetLabel),
+                    () => Core.Utils.AsyncTap.Run(CrewOrderBridge.Siege(_orders)));
+            }
+        }
+
+        void BuildEngineering(FocusContext focus, FocusFleet fleet)
+        {
+            if (FleetOrderGate.CanMine(fleet))
+            {
+                AddAction(ActionLabel("Mine", Trans.Get("asteroid") + " #" + fleet.AsteroidId),
+                    () => Core.Utils.AsyncTap.Run(CrewOrderBridge.Mine(_orders)));
+            }
+
+            if (FleetOrderGate.CanExplore(fleet))
+            {
+                var planetLabel = PlanetLabel(focus.FindPlanet(fleet.PlanetId), fleet.PlanetId);
+                AddAction(ActionLabel("Explore", planetLabel),
+                    () => Core.Utils.AsyncTap.Run(Issue("ExplorePlanet", new Dictionary<string, string>
+                    {
+                        { "fleet", fleet.Id.ToString() },
+                        { "planet", fleet.PlanetId.ToString() }
+                    })));
+            }
+
+            if (FleetOrderGate.CanCargo(fleet, focus))
+            {
+                var planetLabel = PlanetLabel(focus.FindPlanet(fleet.PlanetId), fleet.PlanetId);
+                AddAction(ActionLabel("Deposit", planetLabel),
+                    () => Core.Utils.AsyncTap.Run(Issue("DepositCargo", new Dictionary<string, string>
+                    {
+                        { "fleet", fleet.Id.ToString() },
+                        { "planet", fleet.PlanetId.ToString() }
+                    })));
+                AddAction(ActionLabel("Withdraw", planetLabel),
+                    () => Core.Utils.AsyncTap.Run(Issue("WithdrawCargo", new Dictionary<string, string>
+                    {
+                        { "fleet", fleet.Id.ToString() },
+                        { "planet", fleet.PlanetId.ToString() }
+                    })));
+            }
+        }
+
+        static string ActionLabel(string verbKey, string target)
+        {
+            var verb = Trans.Get(verbKey);
+            if (string.IsNullOrEmpty(target))
+                return verb;
+            return verb + "  ·  " + target;
+        }
+
+        /// <summary>Helm move rows — same action keys as <see cref="HoloOrderPreview"/>.</summary>
+        static string MoveLabel(string moveActionKey, string target) =>
+            ActionLabel(moveActionKey, target);
+
+        static string DestLabel(string target) =>
+            string.IsNullOrEmpty(target) ? "→" : "→  " + target;
+
+        static string PlanetLabel(FocusPlanet planet, int fallbackId = 0)
+        {
+            if (planet != null)
+            {
+                if (!string.IsNullOrEmpty(planet.Name))
+                    return planet.Name;
+                return "#" + planet.Id;
+            }
+
+            return fallbackId > 0 ? "#" + fallbackId : "#";
+        }
+
+        string RoleTitle()
+        {
+            switch (_role)
+            {
+                case Role.Helm:
+                    return Trans.Get("MoveFleet");
+                case Role.Tactical:
+                    return Trans.Get("battle");
+                case Role.Engineering:
+                    return Trans.Get("Mine");
+                default:
+                    return Trans.Get("CommandBridge");
+            }
+        }
+
+        float _listCursorY = 130f;
+
+        void ResetListCursor() => _listCursorY = 130f;
+
+        void AddDropdown(string title, int count, DropGroup group)
+        {
+            var open = _dropOpen == group;
+            var headerH = 54f;
+            var btn = DiegeticUi.HoloSelect(_listRoot, title, count, open,
+                new Vector2(0f, _listCursorY), new Vector2(540f, headerH), () =>
+                {
+                    _dropOpen = open ? DropGroup.None : group;
+                    _lastSig = -1;
+                    Core.Utils.AsyncTap.Run(RebuildAsync());
+                });
+            _rows.Add(btn.gameObject);
+            _listCursorY -= headerH + 6f;
+        }
+
+        void BeginDropTray(int optionCount)
+        {
+            if (_listRoot == null || optionCount <= 0)
+                return;
+            const float optH = 44f;
+            const float pad = 10f;
+            var trayH = optionCount * (optH + 4f) + pad;
+            var trayY = _listCursorY - trayH * 0.5f + 4f;
+            var tray = DiegeticUi.HoloSelectTray(_listRoot, new Vector2(0f, trayY),
+                new Vector2(528f, trayH));
+            tray.SetAsFirstSibling(); // behind options added after
+            _rows.Add(tray.gameObject);
+            _listCursorY -= 6f;
+        }
+
+        void AddDropOption(string label, System.Action act,
+            DiegeticUi.BtnStyle style = DiegeticUi.BtnStyle.Ghost)
+        {
+            if (_listRoot == null)
+                return;
+            const float h = 44f;
+            var btn = DiegeticUi.HoloSelectOption(_listRoot, label, new Vector2(8f, _listCursorY),
+                new Vector2(500f, h), () =>
+                {
+                    act?.Invoke();
+                    Core.Utils.AsyncTap.Run(AfterOrder());
+                }, style);
+            _rows.Add(btn.gameObject);
+            _listCursorY -= h + 4f;
+        }
+
+        void AddAction(string label, System.Action act,
+            DiegeticUi.BtnStyle style = DiegeticUi.BtnStyle.Cyan, bool refreshAfter = true)
+        {
+            if (_listRoot == null)
+                return;
+            const float h = 48f;
+            var btn = DiegeticUi.HoloButton(_listRoot, label, new Vector2(0f, _listCursorY),
+                new Vector2(540f, h),
+                () =>
+                {
+                    act?.Invoke();
+                    if (refreshAfter)
+                        Core.Utils.AsyncTap.Run(AfterOrder());
+                }, style);
+            _rows.Add(btn.gameObject);
+            _listCursorY -= h + 6f;
+        }
+
+        void AddStatus(string label)
+        {
+            if (_listRoot == null)
+                return;
+            var tmp = DiegeticUi.HoloLabel(_listRoot, label, new Vector2(0f, _listCursorY),
+                new Vector2(540f, 48f), 20f, DiegeticUi.CyanDim);
+            _rows.Add(tmp.gameObject);
+            _listCursorY -= 52f;
+        }
+
+        void ClearRows()
+        {
+            _rows.Clear();
+            ResetListCursor();
+            if (_listRoot == null)
+                return;
+            // Immediate destroy — deferred Destroy left duplicate rows when Rebuild raced.
+            for (var i = _listRoot.childCount - 1; i >= 0; i--)
+            {
+                var c = _listRoot.GetChild(i).gameObject;
+                DestroyImmediate(c);
+            }
+        }
+
+        async Task AfterOrder()
+        {
+            if (_poller != null)
+                await _poller.PollNow();
+            await RebuildAsync();
+        }
+
+        async Task MoveToPlanet(int fleetId, int planetId) =>
+            await Issue("MoveFleetToPlanet", new Dictionary<string, string>
+            {
+                { "fleet", fleetId.ToString() },
+                { "planet", planetId.ToString() }
+            });
+
+        async Task MoveToAsteroid(int fleetId, int asteroidId) =>
+            await Issue("MoveFleetToAsteroid", new Dictionary<string, string>
+            {
+                { "fleet", fleetId.ToString() },
+                { "asteroid", asteroidId.ToString() }
+            });
+
+        async Task MoveToSystem(int fleetId, float x, float y) =>
+            await Issue("MoveFleetToSystem", new Dictionary<string, string>
+            {
+                { "fleet", fleetId.ToString() },
+                {
+                    "pos", string.Format(CultureInfo.InvariantCulture, "{0}.{1}", x, y)
+                }
+            });
+
+        async Task Issue(string action, Dictionary<string, string> query)
+        {
+            _map?.SetReadout(Trans.Get("Loading"));
+            var result = await ActionJs.Get(action, query);
+            if (!result.Ok)
+            {
+                CicCue.Fail(transform.position);
+                _map?.SetReadout(string.IsNullOrEmpty(result.Error) ? action : result.Error);
+                return;
+            }
+
+            CicCue.Ok(transform.position);
+            _map?.SetReadout(action);
+            if (_poller != null)
+                await _poller.PollNow();
+        }
+    }
+}

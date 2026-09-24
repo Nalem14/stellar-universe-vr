@@ -123,17 +123,30 @@ namespace Core.App
         {
             ViewPlanetId = 0;
             ViewFleetId = ResolveViewFleetId(fleetId);
-            Changed?.Invoke();
+            if (ViewFleetId <= 0)
+                EnsureBridgeView(preferredFleetId: 0, preferredPlanetId: 0);
+            else
+            {
+                Current = this;
+                Changed?.Invoke();
+            }
         }
 
         public void SetViewPlanet(int planetId)
         {
             ViewFleetId = 0;
-            ViewPlanetId = planetId > 0 ? planetId : 0;
-            Changed?.Invoke();
+            ViewPlanetId = planetId > 0 && FindPlanet(planetId) != null ? planetId : 0;
+            if (ViewPlanetId <= 0)
+                EnsureBridgeView(preferredFleetId: 0, preferredPlanetId: 0);
+            else
+            {
+                Current = this;
+                Changed?.Invoke();
+            }
         }
 
-        public void SetFromApi(int systemId, string systemsBody, string fleetsBody, int preferredFleetId = 0)
+        public void SetFromApi(int systemId, string systemsBody, string fleetsBody, int preferredFleetId = 0,
+            int preferredPlanetId = 0)
         {
             SystemId = systemId;
             SystemName = string.Empty;
@@ -149,9 +162,7 @@ namespace Core.App
                 TryParseSystem(systemsBody, systemId);
 
             TryParseFleets(fleetsBody);
-            ViewFleetId = ResolveViewFleetId(preferredFleetId);
-            Current = this;
-            Changed?.Invoke();
+            EnsureBridgeView(preferredFleetId, preferredPlanetId);
         }
 
         public void ApplyFleetsBody(string fleetsBody)
@@ -160,7 +171,86 @@ namespace Core.App
             TryParseFleets(fleetsBody);
             if (ViewFleetId > 0 && FindFleet(ViewFleetId) == null)
                 ViewFleetId = 0;
+            // Bridge must stay bound to a ship or a planet.
+            EnsureBridgeView(ViewFleetId, ViewPlanetId);
+        }
+
+        /// <summary>
+        /// Bridge is always inhabited: a real ship, or a virtual orbital station over a planet.
+        /// Ships win over station except when a planet view is explicitly requested (TP).
+        /// Station has no MoveFleet* — crew orders need a ship.
+        /// </summary>
+        public void EnsureBridgeView(int preferredFleetId = 0, int preferredPlanetId = 0)
+        {
+            if (preferredFleetId > 0)
+            {
+                var fleetId = ResolveViewFleetId(preferredFleetId);
+                if (fleetId > 0)
+                {
+                    ViewFleetId = fleetId;
+                    ViewPlanetId = 0;
+                    Current = this;
+                    Changed?.Invoke();
+                    return;
+                }
+            }
+
+            // Explicit planet TP (virtual station) — only when caller asked for it.
+            if (preferredPlanetId > 0 && FindPlanet(preferredPlanetId) != null)
+            {
+                ViewFleetId = 0;
+                ViewPlanetId = preferredPlanetId;
+                Current = this;
+                Changed?.Invoke();
+                return;
+            }
+
+            if (ViewFleetId > 0 && FindFleet(ViewFleetId) != null)
+            {
+                ViewPlanetId = 0;
+                Current = this;
+                Changed?.Invoke();
+                return;
+            }
+
+            ViewFleetId = 0;
+
+            // Prefer a real ship over staying/landing on a virtual station.
+            var anyShip = ResolveViewFleetId(0);
+            if (anyShip > 0)
+            {
+                ViewFleetId = anyShip;
+                ViewPlanetId = 0;
+                Current = this;
+                Changed?.Invoke();
+                return;
+            }
+
+            if (ViewPlanetId > 0 && FindPlanet(ViewPlanetId) != null)
+            {
+                Current = this;
+                Changed?.Invoke();
+                return;
+            }
+
+            ViewPlanetId = ResolveDefaultPlanetId();
+            Current = this;
             Changed?.Invoke();
+        }
+
+        int ResolveDefaultPlanetId()
+        {
+            var owned = OwnedUserId();
+            if (owned > 0)
+            {
+                foreach (var planet in _planets)
+                {
+                    if (planet.UserId == owned)
+                        return planet.Id;
+                }
+            }
+
+            return _planets.Count > 0 ? _planets[0].Id : 0;
         }
 
         int ResolveViewFleetId(int preferred)
@@ -192,6 +282,8 @@ namespace Core.App
         }
 
         public bool IsMine(FocusFleet fleet) => fleet != null && fleet.IsOwnedBy(OwnedUserId());
+
+        public bool HasInhabitedView => ViewFleetId > 0 || ViewPlanetId > 0;
 
         public bool VisibleInFocus(FocusFleet fleet, long unixNow) =>
             fleet != null && fleet.VisibleIn(SystemId, unixNow);

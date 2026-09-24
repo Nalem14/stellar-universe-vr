@@ -1,31 +1,32 @@
 using Core.App;
 using Core.Utils;
-using TMPro;
 using UnityEngine;
-using UnityEngine.XR.Interaction.Toolkit;
-using UnityEngine.XR.Interaction.Toolkit.Interactables;
 
 namespace Core.Vfx
 {
     /// <summary>
     /// Helm / Tactical / Engineering desks + mannequins.
-    /// MoveFleet lives only on CaptainOrdersRail — crew pads are remotes.
+    /// Orders: ray-select crew → <see cref="CrewDialogue"/> (Bridge Crew style).
+    /// Holomap grab remains the tabletop MoveFleet path.
     /// </summary>
     public static class CrewStationsBuilder
     {
         public static void Build(CicEnvironment host, CicArtKit art, ViewFleetOrders orders,
-            HexBattleController hex, HoloZoneMap map = null, FleetPoller poller = null)
+            HexBattleController hex, HoloZoneMap map, FleetPoller poller, FocusContext focus,
+            BridgeSystemLoader loader)
         {
             BuildStation(host, art, "CrewHelm", new Vector3(-1.6f, 0f, 2.4f), CicArtKit.Cyan,
-                CrewRole.Helm, orders, hex);
+                CrewDialogue.Role.Helm, orders, hex, map, poller, focus, loader);
             BuildStation(host, art, "CrewTactical", new Vector3(0f, 0f, 2.85f), CicArtKit.Amber,
-                CrewRole.Tactical, orders, hex);
+                CrewDialogue.Role.Tactical, orders, hex, map, poller, focus, loader);
             BuildStation(host, art, "CrewEngineering", new Vector3(1.6f, 0f, 2.4f),
-                new Color(0.4f, 0.9f, 0.55f), CrewRole.Engineering, orders, hex);
+                new Color(0.4f, 0.9f, 0.55f), CrewDialogue.Role.Engineering, orders, hex, map, poller,
+                focus, loader);
         }
 
         static void BuildStation(CicEnvironment host, CicArtKit art, string name, Vector3 pos,
-            Color accent, CrewRole role, ViewFleetOrders orders, HexBattleController hex)
+            Color accent, CrewDialogue.Role role, ViewFleetOrders orders, HexBattleController hex,
+            HoloZoneMap map, FleetPoller poller, FocusContext focus, BridgeSystemLoader loader)
         {
             var root = new GameObject(name);
             root.transform.SetParent(host.transform, false);
@@ -43,29 +44,11 @@ namespace Core.Vfx
 
             host.Box(name + "Seat", pos + new Vector3(0f, 0.5f, -0.35f),
                 new Vector3(0.45f, 0.1f, 0.45f), art.DarkPanel(0.1f), keepCollider: true);
-            BuildMannequin(host, art, pos + new Vector3(0f, 0.55f, -0.35f), accent);
-
-            // Helm: status readout only — orders console is CaptainOrdersRail.
-            if (role == CrewRole.Helm)
-            {
-                DiegeticUi.Readout(root.transform, "HelmReadout", Trans.Get("CommandBridge"),
-                    new Vector3(0f, 1.35f, 0.35f), 0.028f);
-                return;
-            }
-
-            var radial = new GameObject(name + "Radial");
-            radial.transform.SetParent(root.transform, false);
-            radial.transform.localPosition = new Vector3(0f, 1.15f, 0.35f);
-            var pad = radial.AddComponent<CrewRolePad>();
-            if (role == CrewRole.Tactical)
-                pad.Bind(FocusContext.Current, art, accent, CrewRolePad.Role.Tactical, radial.transform,
-                    orders, hex);
-            else if (role == CrewRole.Engineering)
-                pad.Bind(FocusContext.Current, art, accent, CrewRolePad.Role.Engineering, radial.transform,
-                    orders, hex);
+            var mannequin = BuildMannequin(host, art, pos + new Vector3(0f, 0.55f, -0.35f), accent);
+            CrewDialogue.Attach(mannequin, host, art, accent, role, orders, hex, map, poller, focus, loader);
         }
 
-        static void BuildMannequin(CicEnvironment host, CicArtKit art, Vector3 seatPos, Color accent)
+        static Transform BuildMannequin(CicEnvironment host, CicArtKit art, Vector3 seatPos, Color accent)
         {
             var root = new GameObject("Mannequin");
             root.transform.SetParent(host.transform, false);
@@ -119,6 +102,7 @@ namespace Core.Vfx
             var bob = root.AddComponent<HoloSpin>();
             bob.DegreesPerSecond = 0f;
             bob.BobMeters = 0.006f;
+            return root.transform;
         }
 
         static void Arm(Transform parent, CicArtKit art, Vector3 localPos, float yaw)
@@ -132,16 +116,9 @@ namespace Core.Vfx
             CicEnvironment.DropColliderStatic(arm);
             arm.GetComponent<MeshRenderer>().sharedMaterial = art.DarkPanel(0.2f);
         }
-
-        enum CrewRole
-        {
-            Helm,
-            Tactical,
-            Engineering
-        }
     }
 
-    /// <summary>Thin bridge so crew radials share ViewFleetOrders without making all methods public.</summary>
+    /// <summary>Thin bridge so crew dialogue shares ViewFleetOrders without making all methods public.</summary>
     public static class CrewOrderBridge
     {
         public static async System.Threading.Tasks.Task Stance(ViewFleetOrders orders, string pos)

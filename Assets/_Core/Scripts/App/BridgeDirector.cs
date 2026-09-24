@@ -23,6 +23,7 @@ namespace Core.App
         void Start()
         {
             _focus = new FocusContext();
+            _focus.Clear(); // register as FocusContext.Current
 
             var world = new GameObject("SystemWorld");
             world.transform.position = Vector3.zero;
@@ -63,8 +64,7 @@ namespace Core.App
             viewOrders.Bind(_focus, _poller, _zoneMap, env.Art,
                 env.Table != null ? env.Table.transform : interior.transform, hex);
 
-            CrewStationsBuilder.Build(env, env.Art, viewOrders, hex, _zoneMap, _poller);
-            CaptainOrdersRail.Build(env, env.Art, _zoneMap, _poller);
+            CrewStationsBuilder.Build(env, env.Art, viewOrders, hex, _zoneMap, _poller, _focus, _loader);
 
             var teleporter = BridgeViewTeleporter.Build(env, env.Art);
             teleporter.Bind(_loader, _focus, env.Art);

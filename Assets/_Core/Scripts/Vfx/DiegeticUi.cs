@@ -247,6 +247,162 @@ namespace Core.Vfx
             return btn;
         }
 
+        /// <summary>
+        /// Select / dropdown header — field chrome, left title, count chip, chevron (▼/▲).
+        /// Reads as a picker, not a plain action button.
+        /// </summary>
+        public static Button HoloSelect(Transform parent, string title, int count, bool open,
+            Vector2 anchoredPos, Vector2 size, UnityEngine.Events.UnityAction onClick)
+        {
+            EnsureSprites();
+            var go = new GameObject("Select_" + (title ?? "drop"), typeof(RectTransform), typeof(Image),
+                typeof(Button));
+            go.transform.SetParent(parent, false);
+            var rt = go.GetComponent<RectTransform>();
+            rt.sizeDelta = size;
+            rt.anchoredPosition = anchoredPos;
+
+            var img = go.GetComponent<Image>();
+            img.sprite = open ? (s_BtnAmber ?? s_Field ?? s_Btn) : (s_Field ?? s_PanelDark ?? s_Btn);
+            img.type = Image.Type.Sliced;
+            img.color = open
+                ? new Color(1f, 0.92f, 0.75f, 1f)
+                : new Color(0.75f, 0.9f, 1f, 0.95f);
+
+            var btn = go.GetComponent<Button>();
+            btn.transition = Selectable.Transition.ColorTint;
+            var colors = btn.colors;
+            colors.highlightedColor = new Color(1.05f, 1.05f, 1.05f, 1f);
+            colors.pressedColor = new Color(0.85f, 0.9f, 0.95f, 1f);
+            colors.fadeDuration = 0.06f;
+            btn.colors = colors;
+            btn.onClick.AddListener(() =>
+            {
+                CicCue.Ok(go.transform.position);
+                onClick?.Invoke();
+            });
+
+            // Left accent bar
+            var accent = new GameObject("Accent", typeof(RectTransform), typeof(Image));
+            accent.transform.SetParent(go.transform, false);
+            var art = accent.GetComponent<RectTransform>();
+            art.anchorMin = new Vector2(0f, 0.12f);
+            art.anchorMax = new Vector2(0f, 0.88f);
+            art.pivot = new Vector2(0f, 0.5f);
+            art.sizeDelta = new Vector2(8f, 0f);
+            art.anchoredPosition = new Vector2(6f, 0f);
+            var aimg = accent.GetComponent<Image>();
+            aimg.color = open ? Amber : Cyan;
+            aimg.raycastTarget = false;
+
+            // Title
+            var titleGo = new GameObject("Title", typeof(RectTransform), typeof(TextMeshProUGUI));
+            titleGo.transform.SetParent(go.transform, false);
+            var trt = titleGo.GetComponent<RectTransform>();
+            trt.anchorMin = new Vector2(0f, 0f);
+            trt.anchorMax = new Vector2(1f, 1f);
+            trt.offsetMin = new Vector2(22f, 4f);
+            trt.offsetMax = new Vector2(-110f, -4f);
+            var ttmp = titleGo.GetComponent<TextMeshProUGUI>();
+            ttmp.text = string.IsNullOrEmpty(title) ? "—" : title;
+            ttmp.fontSize = Mathf.Clamp(size.y * 0.36f, 15f, 24f);
+            ttmp.fontStyle = FontStyles.Bold;
+            ttmp.alignment = TextAlignmentOptions.MidlineLeft;
+            ttmp.color = Color.white;
+            ttmp.raycastTarget = false;
+            ttmp.overflowMode = TextOverflowModes.Ellipsis;
+
+            // Count chip
+            var chip = new GameObject("Count", typeof(RectTransform), typeof(Image));
+            chip.transform.SetParent(go.transform, false);
+            var crt = chip.GetComponent<RectTransform>();
+            crt.anchorMin = new Vector2(1f, 0.5f);
+            crt.anchorMax = new Vector2(1f, 0.5f);
+            crt.pivot = new Vector2(1f, 0.5f);
+            crt.sizeDelta = new Vector2(52f, size.y * 0.62f);
+            crt.anchoredPosition = new Vector2(-48f, 0f);
+            var cimg = chip.GetComponent<Image>();
+            cimg.sprite = s_BtnGhost ?? s_Btn;
+            cimg.type = Image.Type.Sliced;
+            cimg.color = open
+                ? new Color(0.2f, 0.12f, 0.05f, 0.85f)
+                : new Color(0.05f, 0.2f, 0.28f, 0.9f);
+            cimg.raycastTarget = false;
+            var countGo = new GameObject("N", typeof(RectTransform), typeof(TextMeshProUGUI));
+            countGo.transform.SetParent(chip.transform, false);
+            Stretch(countGo.GetComponent<RectTransform>(), 2f);
+            var ctmp = countGo.GetComponent<TextMeshProUGUI>();
+            ctmp.text = count.ToString();
+            ctmp.fontSize = 16f;
+            ctmp.fontStyle = FontStyles.Bold;
+            ctmp.alignment = TextAlignmentOptions.Center;
+            ctmp.color = open ? Amber : Cyan;
+            ctmp.raycastTarget = false;
+
+            // Chevron
+            var chev = new GameObject("Chevron", typeof(RectTransform), typeof(TextMeshProUGUI));
+            chev.transform.SetParent(go.transform, false);
+            var chrt = chev.GetComponent<RectTransform>();
+            chrt.anchorMin = new Vector2(1f, 0f);
+            chrt.anchorMax = new Vector2(1f, 1f);
+            chrt.pivot = new Vector2(1f, 0.5f);
+            chrt.sizeDelta = new Vector2(40f, 0f);
+            chrt.anchoredPosition = new Vector2(-6f, 0f);
+            var chtmp = chev.GetComponent<TextMeshProUGUI>();
+            chtmp.text = open ? "▲" : "▼";
+            chtmp.fontSize = 18f;
+            chtmp.alignment = TextAlignmentOptions.Center;
+            chtmp.color = open ? Amber : Cyan;
+            chtmp.raycastTarget = false;
+
+            return btn;
+        }
+
+        /// <summary>Indented option under an open <see cref="HoloSelect"/> tray.</summary>
+        public static Button HoloSelectOption(Transform parent, string label, Vector2 anchoredPos,
+            Vector2 size, UnityEngine.Events.UnityAction onClick, BtnStyle style = BtnStyle.Ghost)
+        {
+            var btn = HoloButton(parent, label ?? string.Empty, anchoredPos, size, onClick, style);
+            var tmp = btn.GetComponentInChildren<TextMeshProUGUI>();
+            if (tmp != null)
+            {
+                tmp.alignment = TextAlignmentOptions.MidlineLeft;
+                var trt = tmp.rectTransform;
+                trt.offsetMin = new Vector2(28f, 4f);
+                trt.offsetMax = new Vector2(-12f, -4f);
+            }
+
+            var rail = new GameObject("Rail", typeof(RectTransform), typeof(Image));
+            rail.transform.SetParent(btn.transform, false);
+            var rrt = rail.GetComponent<RectTransform>();
+            rrt.anchorMin = new Vector2(0f, 0.18f);
+            rrt.anchorMax = new Vector2(0f, 0.82f);
+            rrt.pivot = new Vector2(0f, 0.5f);
+            rrt.sizeDelta = new Vector2(5f, 0f);
+            rrt.anchoredPosition = new Vector2(10f, 0f);
+            var rimg = rail.GetComponent<Image>();
+            rimg.color = style == BtnStyle.Amber ? Amber : CyanDim;
+            rimg.raycastTarget = false;
+            return btn;
+        }
+
+        /// <summary>Dark inset tray behind expanded select options.</summary>
+        public static RectTransform HoloSelectTray(Transform parent, Vector2 anchoredPos, Vector2 size)
+        {
+            EnsureSprites();
+            var go = new GameObject("SelectTray", typeof(RectTransform), typeof(Image));
+            go.transform.SetParent(parent, false);
+            var rt = go.GetComponent<RectTransform>();
+            rt.sizeDelta = size;
+            rt.anchoredPosition = anchoredPos;
+            var img = go.GetComponent<Image>();
+            img.sprite = s_PanelDark ?? s_Panel ?? s_Field;
+            img.type = Image.Type.Sliced;
+            img.color = new Color(0.08f, 0.18f, 0.24f, 0.92f);
+            img.raycastTarget = false;
+            return rt;
+        }
+
         public static TMP_Text HoloLabel(Transform parent, string text, Vector2 anchoredPos, Vector2 size,
             float fontSize, Color color, TextAlignmentOptions align = TextAlignmentOptions.Center)
         {
