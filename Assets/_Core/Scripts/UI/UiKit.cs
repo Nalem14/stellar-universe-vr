@@ -23,6 +23,7 @@ namespace Core.UI
         static Material _bezel;
         static Material _cap;
         static Material _chassis;
+        static Material _uniform;
 
         static Shader ConsoleShader =>
             _console != null ? _console : _console = Shader.Find("SU/ConsoleMetal");
@@ -38,6 +39,10 @@ namespace Core.UI
         /// <summary>Console / screen housing: large brushed panels, very low accent.</summary>
         public static Material Chassis => _chassis != null ? _chassis : _chassis = Make("UiChassis",
             new Color(0.16f, 0.19f, 0.23f), Cyan, 0.12f, 0.2f, 0f, 0.55f, 28f);
+
+        /// <summary>Crew uniform: dark navy fabric (low gloss, no brushing), role colour on seams.</summary>
+        public static Material Uniform => _uniform != null ? _uniform : _uniform = Make("UiUniform",
+            new Color(0.1f, 0.12f, 0.17f), Cyan, 0.3f, 0.28f, 0f, 0.05f, 10f);
 
         static Material Make(string name, Color baseColor, Color accent, float accentMul, float bevel,
             float faceGlow, float brush, float gloss)

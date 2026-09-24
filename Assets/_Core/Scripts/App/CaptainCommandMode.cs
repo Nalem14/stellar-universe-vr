@@ -23,9 +23,10 @@ namespace Core.App
         XROrigin _xr;
         Vector3 _tableCmdScale = new Vector3(1.55f, 1.55f, 1.55f);
         Vector3 _scaleBeforeCmd = Vector3.one;
-        Vector3 _standLocalPos = new Vector3(0f, 0f, 0.4f);
+        Vector3 _standLocalPos = WorldScale.CicCaptainStand;
         Vector3 _sitLocalPos = new Vector3(0f, 0.15f, -0.35f);
         bool _command;
+        Vector3 _zoneRest = Vector3.one;
         bool _animating;
         MonoBehaviour[] _locomotion;
 
@@ -63,16 +64,21 @@ namespace Core.App
                 var go = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
                 go.name = "SitZone";
                 go.transform.SetParent(seat, false);
-                go.transform.localPosition = new Vector3(0f, 0.55f, 0.1f);
-                go.transform.localScale = new Vector3(0.85f, 0.08f, 0.85f);
+                // Seat is a stretched box: size the disc in metres through its inverse scale.
+                var inv = seat.lossyScale;
+                go.transform.localPosition = new Vector3(0f, 0.5f + 0.004f / Mathf.Max(0.001f, inv.y), 0.05f);
+                go.transform.localScale = new Vector3(0.56f / inv.x, 0.002f / inv.y, 0.52f / inv.z);
+                _zoneRest = go.transform.localScale;
                 Object.Destroy(go.GetComponent<Collider>());
                 var col = go.AddComponent<SphereCollider>();
                 col.isTrigger = true;
                 col.radius = 0.7f;
                 var art = seat.GetComponentInParent<CicEnvironment>()?.Art;
+                // A faint ring on the cushion, not a saturated disc.
                 if (art != null)
                     go.GetComponent<MeshRenderer>().sharedMaterial =
-                        art.Holo(Texture2D.whiteTexture, new Color(0.2f, 0.95f, 1f, 0.45f));
+                        art.Holo(art.OrbitRing != null ? art.OrbitRing : Texture2D.whiteTexture,
+                            new Color(0.2f, 0.95f, 1f, 0.3f));
                 zoneT = go.transform;
 
                 // Prompt in metres on an unscaled socket above the seat, turned toward the standing
@@ -98,12 +104,12 @@ namespace Core.App
             interact.selectEntered.AddListener(_ => Core.Utils.AsyncTap.Run(EnterCommandMode()));
             interact.hoverEntered.AddListener(_ =>
             {
-                zoneT.localScale = new Vector3(0.95f, 0.09f, 0.95f);
+                zoneT.localScale = Vector3.Scale(_zoneRest, new Vector3(1.12f, 1f, 1.12f));
                 CicCue.Hover(zoneT.position);
             });
             interact.hoverExited.AddListener(_ =>
             {
-                zoneT.localScale = new Vector3(0.85f, 0.08f, 0.85f);
+                zoneT.localScale = _zoneRest;
             });
         }
 

@@ -61,6 +61,7 @@ namespace Core.App
             orders.Bind(_zoneMap, _focus, _poller, mapCtrl);
 
             CrewStationsBuilder.Build(env, env.Art, hex, _zoneMap, _poller, _focus, _loader);
+            BridgeViewscreen.Build(env, _focus);
 
             var teleporter = BridgeViewTeleporter.Build(env, env.Art);
             teleporter.Bind(_loader, _focus, env.Art);

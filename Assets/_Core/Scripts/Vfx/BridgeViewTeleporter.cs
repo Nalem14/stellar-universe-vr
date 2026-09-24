@@ -33,36 +33,46 @@ namespace Core.Vfx
 
         public static BridgeViewTeleporter Build(CicEnvironment host, CicArtKit art)
         {
-            var half = WorldScale.CicDeck * 0.5f;
+            // Port side of the captain's dais, ~2 m from the standing spot, turned to face the captain:
+            // in view without turning around (was on the aft wall behind the chair).
             var root = new GameObject("ViewTeleporter");
             root.transform.SetParent(host.transform, false);
-            root.transform.localPosition = new Vector3(0f, 0f, -half + 1.35f);
+            root.transform.localPosition = TeleporterPos;
+            Core.UI.ScreenMount.FaceViewer(root.transform,
+                host.transform.TransformPoint(WorldScale.CicCaptainStand + Vector3.up * WorldScale.EyeStanding), 0f);
 
-            var pad = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            pad.name = "TeleportPad";
-            pad.transform.SetParent(root.transform, false);
-            pad.transform.localPosition = new Vector3(0f, 0.02f, 0f);
-            pad.transform.localScale = new Vector3(1.5f, 0.025f, 1.5f);
-            pad.GetComponent<MeshRenderer>().sharedMaterial =
-                art.Holo(Texture2D.whiteTexture, new Color(0.15f, 0.85f, 1f, 0.55f));
+            // Platform: brushed rounded disc hardware with a thin lit rim (no saturated additive disc).
+            Core.UI.UiKit.MeshPiece(root.transform, "TeleportPad",
+                Core.UI.UiMeshes.RoundedBox(new Vector3(1.15f, 0.06f, 1.15f), 0.028f),
+                Core.UI.UiKit.Chassis, new Vector3(0f, 0.03f, 0.35f));
             var padRing = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             padRing.name = "PadRing";
             padRing.transform.SetParent(root.transform, false);
-            padRing.transform.localPosition = new Vector3(0f, 0.03f, 0f);
-            padRing.transform.localScale = new Vector3(1.65f, 0.008f, 1.65f);
+            padRing.transform.localPosition = new Vector3(0f, 0.062f, 0.35f);
+            padRing.transform.localScale = new Vector3(0.95f, 0.002f, 0.95f);
             CicEnvironment.DropColliderStatic(padRing);
-            padRing.GetComponent<MeshRenderer>().sharedMaterial = art.CyanEmit(2.8f);
+            padRing.GetComponent<MeshRenderer>().sharedMaterial = art.Holo(art.OrbitRing != null ? art.OrbitRing : Texture2D.whiteTexture,
+                new Color(0.2f, 0.85f, 1f, 0.35f));
 
-            host.Box("TpPillarL", new Vector3(-0.95f, 1.25f, -half + 1.35f),
-                new Vector3(0.2f, 2.4f, 0.2f), art.MetalPanel(0.12f), keepCollider: true);
-            host.Box("TpPillarR", new Vector3(0.95f, 1.25f, -half + 1.35f),
-                new Vector3(0.2f, 2.4f, 0.2f), art.MetalPanel(0.12f), keepCollider: true);
-            host.Box("TpArch", new Vector3(0f, 2.4f, -half + 1.35f),
-                new Vector3(2.2f, 0.14f, 0.22f), art.CyanEmit(2.6f), keepCollider: false);
+            // Arch: two rounded pillars and a lintel, cyan bevels.
+            foreach (var x in new[] { -0.72f, 0.72f })
+            {
+                var pillar = Core.UI.UiKit.MeshPiece(root.transform, x < 0f ? "TpPillarL" : "TpPillarR",
+                    Core.UI.UiMeshes.RoundedBox(new Vector3(0.16f, 2.3f, 0.2f), 0.05f), Core.UI.UiKit.Chassis,
+                    new Vector3(x, 1.15f, 0.35f));
+                pillar.AddComponent<BoxCollider>().size = new Vector3(0.16f, 2.3f, 0.2f);
+                Tint(pillar, CicArtKit.Cyan, 0.6f);
+            }
+
+            var lintel = Core.UI.UiKit.MeshPiece(root.transform, "TpArch",
+                Core.UI.UiMeshes.RoundedBox(new Vector3(1.6f, 0.12f, 0.22f), 0.05f), Core.UI.UiKit.Chassis,
+                new Vector3(0f, 2.3f, 0.35f));
+            Tint(lintel, CicArtKit.Cyan, 1.4f);
 
             // Face the pad / captain — World Space holographic console.
+            // Kit front is -Z: root faces away from the captain, so the canvas needs no flip.
             var canvas = DiegeticUi.WorldCanvas(root.transform, "TpCanvas", new Vector2(900f, 720f),
-                new Vector3(0f, 1.45f, -0.12f), Quaternion.Euler(0f, 180f, 0f), 0.00115f);
+                new Vector3(0f, 1.42f, 0.2f), Quaternion.identity, 0.00115f);
             var frame = DiegeticUi.HoloFrame(canvas.transform, new Vector2(880f, 700f),
                 Trans.Get("CommandBridge"));
 
@@ -95,8 +105,18 @@ namespace Core.Vfx
             tp._listRoot.anchoredPosition = new Vector2(0f, -40f);
 
             tp.StyleTabs();
-            host.KeyLight("TpLamp", new Vector3(0f, 2.55f, -half + 1.35f), CicArtKit.Cyan, 1.4f, 5f);
             return tp;
+        }
+
+        /// <summary>Deck position of the view teleporter (port of the captain's dais).</summary>
+        static readonly Vector3 TeleporterPos = new(-2.05f, 0f, WorldScale.CicCaptainChairZ + 0.1f);
+
+        static void Tint(GameObject go, Color accent, float mul)
+        {
+            var block = new MaterialPropertyBlock();
+            block.SetColor(Core.UI.UiKit.AccentId, accent);
+            block.SetFloat(Core.UI.UiKit.AccentMulId, mul);
+            go.GetComponent<MeshRenderer>().SetPropertyBlock(block);
         }
 
         void StyleTabs()

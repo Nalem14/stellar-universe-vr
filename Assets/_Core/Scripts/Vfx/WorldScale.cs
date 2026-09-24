@@ -16,6 +16,20 @@ namespace Core.Vfx
         /// <summary>Holo table platter diameter.</summary>
         public const float CicTableDiameter = 2.4f;
 
+        // --- Bridge floor plan (interior local metres, +Z = forward bulkhead / hublots). docs/SCALE.md ---
+
+        /// <summary>Holo table centre on the deck (Z).</summary>
+        public const float CicTableCenterZ = 0.6f;
+        /// <summary>Captain chair centre (Z), on its dais aft of the table.</summary>
+        public const float CicCaptainChairZ = -1.35f;
+        /// <summary>Standing captain spot: just aft of the table rim, in front of the chair.</summary>
+        public static readonly Vector3 CicCaptainStand = new(0f, 0f, -0.75f);
+        /// <summary>Crew stations horseshoe: radius from the table centre.</summary>
+        public const float CicStationArcRadius = 3.1f;
+        /// <summary>Standing / seated eye heights used to aim screens.</summary>
+        public const float EyeStanding = 1.6f;
+        public const float EyeSeated = 1.18f;
+
         public const float CicHublotWidth = 1.8f;
         public const float CicHublotHeight = 1.1f;
         public const float CicHublotCenterY = 1.65f;

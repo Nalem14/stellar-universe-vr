@@ -138,7 +138,7 @@ namespace Core.App
             if (CaptainCommandMode.Instance != null && CaptainCommandMode.Instance.IsCommandMode)
                 return;
 
-            _xrOrigin.transform.localPosition = new Vector3(0f, 0f, 0.4f);
+            _xrOrigin.transform.localPosition = WorldScale.CicCaptainStand;
             _xrOrigin.transform.localRotation = Quaternion.identity;
 
             var body = _xrOrigin.Origin != null

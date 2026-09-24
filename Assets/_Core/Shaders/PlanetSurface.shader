@@ -81,6 +81,9 @@ Shader "SU/PlanetSurface"
                 float3 v = normalize(_WorldSpaceCameraPos - i.worldPos);
                 float rim = pow(1.0 - saturate(dot(n, v)), _RimPower);
                 col += _RimColor.rgb * rim * _RimMul;
+                // Soft shoulder: shadows ~untouched, a fully lit pale surface tops out ~0.81 — under the
+                // Quest LDR bloom threshold (0.88), so a planet filling a hublot no longer burns to white.
+                col = col * 1.18 / (1.0 + col * 0.45);
                 return float4(col, 1);
             }
             ENDCG

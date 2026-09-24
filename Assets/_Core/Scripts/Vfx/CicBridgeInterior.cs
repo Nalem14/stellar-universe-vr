@@ -76,7 +76,7 @@ namespace Core.Vfx
                 host.Box("Frame", xz, new Vector3(0.16f, wallH, 0.16f), art.DarkPanel(0.04f), keepCollider: true);
             }
 
-            // Hublot apertures + mounts.
+            // Hublot apertures + mounts (centre one sits under the main viewscreen).
             for (var i = 0; i < 3; i++)
             {
                 var t = (i + 1f) / 4f;
@@ -146,8 +146,8 @@ namespace Core.Vfx
                 new Vector3(8.2f, 0.08f, 1.5f), art.SoftPanel(0.65f), keepCollider: true);
 
             // Center command plate under table / captain.
-            host.Box("CommandPlate", new Vector3(0f, 0.03f, 0.35f),
-                new Vector3(3.6f, 0.06f, 5.2f), art.MetalPanel(0.7f), keepCollider: true);
+            host.Box("CommandPlate", new Vector3(0f, 0.03f, -0.3f),
+                new Vector3(3.4f, 0.06f, 4.6f), art.MetalPanel(0.7f), keepCollider: true);
 
             // Floor cable trenches (visual).
             host.Box("TrenchL", new Vector3(-1.1f, 0.02f, 0.2f),
@@ -193,16 +193,6 @@ namespace Core.Vfx
                         keepCollider: false);
                 }
 
-                // Handrail along coursive.
-                host.Box($"Rail_{(side < 0 ? "P" : "S")}",
-                    new Vector3(side * 2.8f, 1.05f, 1.0f),
-                    new Vector3(0.06f, 0.06f, 6.5f), art.MetalPanel(0.2f), keepCollider: false);
-                host.Box($"RailPostA_{(side < 0 ? "P" : "S")}",
-                    new Vector3(side * 2.8f, 0.55f, -1.5f),
-                    new Vector3(0.07f, 1.0f, 0.07f), art.DarkPanel(0.05f), keepCollider: false);
-                host.Box($"RailPostB_{(side < 0 ? "P" : "S")}",
-                    new Vector3(side * 2.8f, 0.55f, 3.2f),
-                    new Vector3(0.07f, 1.0f, 0.07f), art.DarkPanel(0.05f), keepCollider: false);
             }
 
             // Overhead strip accents.
@@ -215,7 +205,7 @@ namespace Core.Vfx
         static void BuildCaptainStation(CicEnvironment host, CicArtKit art)
         {
             // Aft of table, facing +Z (hublots + table). Not a cinema seat.
-            var chairZ = -0.55f;
+            var chairZ = WorldScale.CicCaptainChairZ;
             var station = new GameObject("CaptainStation");
             station.transform.SetParent(host.transform, false);
             station.transform.localPosition = Vector3.zero;
@@ -381,7 +371,7 @@ namespace Core.Vfx
 
         static HoloZoneMap BuildHoloTable(CicEnvironment host, CicArtKit art)
         {
-            var tablePos = new Vector3(0f, 0f, 1.15f);
+            var tablePos = new Vector3(0f, 0f, WorldScale.CicTableCenterZ);
             var diam = WorldScale.CicTableDiameter;
             var radius = diam * 0.5f;
             var h = WorldScale.CicTableHeight;

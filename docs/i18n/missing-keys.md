@@ -83,6 +83,9 @@ Ces clés n'ont pas d'équivalent natif dans le dump.
 | `vr.travel.eta` | ETA {0} | Arrivée dans {0} | Aperçu d'ordre sur la holomap |
 | `vr.travel.cost` | Cost: {0} crystal | Coût : {0} cristal | Aperçu d'ordre (hyperspace / Bond PRL) |
 | `vr.order.confirm` | Confirm order | Confirmer l'ordre | Holomap : confirmation après le lâcher |
+| `vr.crew.standby` | Standing by, Commander. | En attente de vos ordres, Commandant. | Station sans ordre possible / écran de station au repos |
+| `vr.view.stationHeader` | Orbital station | Station orbitale | Vue habitée = fausse station (pas de vaisseau, aucun mouvement) |
+| `vr.view.orbiting` | Orbiting {0} | En orbite de {0} | Viewscreen / écrans de station en vue station (`{0}` = planète) |
 
 ---
 

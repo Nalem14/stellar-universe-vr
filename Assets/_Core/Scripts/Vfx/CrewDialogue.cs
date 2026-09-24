@@ -16,11 +16,15 @@ namespace Core.Vfx
     /// </summary>
     public sealed class CrewDialogue : MonoBehaviour
     {
+        /// <summary>Bridge stations (CrewStationsBuilder.Stations). Domain split follows docs/ROADMAP.md P5.</summary>
         public enum Role
         {
             Helm,
             Tactical,
-            Engineering
+            Engineering,
+            Science,
+            Comms,
+            Ops
         }
 
         enum DropGroup
@@ -69,11 +73,12 @@ namespace Core.Vfx
                 var hitGo = new GameObject("DialogueHit");
                 hit = hitGo.transform;
                 hit.SetParent(mannequin, false);
-                hit.localPosition = new Vector3(0f, 0.75f, 0.05f);
+                // Seated body only (seat top → helmet), so rays aimed past the officer are not stolen.
+                hit.localPosition = new Vector3(0f, 0.45f, 0.05f);
                 var col = hitGo.AddComponent<CapsuleCollider>();
-                col.height = 1.35f;
-                col.radius = 0.28f;
-                col.center = new Vector3(0f, 0.05f, 0f);
+                col.height = 1.0f;
+                col.radius = 0.26f;
+                col.center = Vector3.zero;
                 col.isTrigger = false;
                 var rb = hitGo.AddComponent<Rigidbody>();
                 rb.isKinematic = true;
@@ -164,6 +169,12 @@ namespace Core.Vfx
                 PlacePanel();
             }
 
+            // The addressed officer turns to the captain while the repeater is open.
+            var officer = GetComponentInParent<CrewOfficer>();
+            var cam = Camera.main;
+            if (officer != null && cam != null)
+                officer.LookAt(cam.transform.position);
+
             CicCue.Ok(transform.position);
             Core.Utils.AsyncTap.Run(RebuildAsync());
         }
@@ -172,6 +183,7 @@ namespace Core.Vfx
         {
             _open = false;
             _dropOpen = DropGroup.None;
+            GetComponentInParent<CrewOfficer>()?.LookAt(null);
             if (s_Open == this)
                 s_Open = null;
             ClearRows();
@@ -302,12 +314,19 @@ namespace Core.Vfx
                     case Role.Engineering:
                         BuildEngineering(focus, fleet);
                         break;
+                    case Role.Science:
+                        BuildScience(focus, fleet);
+                        break;
+                    case Role.Ops:
+                        BuildOps(focus, fleet);
+                        break;
+                    // Comms: no fleet order in the API; chat / mail / diplomacy consoles land in P5.
                 }
 
                 if (gen != _rebuildGen)
                     return;
                 if (_rows.Count == 0)
-                    AddStatus(Trans.Get("vr.common.ok"));
+                    AddStatus(Trans.Get("vr.crew.standby"));
             }
             finally
             {
@@ -576,6 +595,11 @@ namespace Core.Vfx
                     }));
             }
 
+        }
+
+        /// <summary>Science: surveys (ExplorePlanet → research points). Anomalies / research tree: P5.</summary>
+        void BuildScience(FocusContext focus, FocusFleet fleet)
+        {
             if (FleetOrderGate.CanExplore(fleet))
             {
                 var planetLabel = PlanetLabel(focus.FindPlanet(fleet.PlanetId), fleet.PlanetId);
@@ -587,6 +611,11 @@ namespace Core.Vfx
                     }));
             }
 
+        }
+
+        /// <summary>Ops: cargo logistics with the planet in orbit. Colonies / buildings: P5.</summary>
+        void BuildOps(FocusContext focus, FocusFleet fleet)
+        {
             if (FleetOrderGate.CanCargo(fleet, focus))
             {
                 var planetLabel = PlanetLabel(focus.FindPlanet(fleet.PlanetId), fleet.PlanetId);
@@ -642,6 +671,12 @@ namespace Core.Vfx
                     return Trans.Get("vr.station.tactical");
                 case Role.Engineering:
                     return Trans.Get("vr.station.engineering");
+                case Role.Science:
+                    return Trans.Get("vr.station.science");
+                case Role.Comms:
+                    return Trans.Get("vr.station.comms");
+                case Role.Ops:
+                    return Trans.Get("vr.station.ops");
                 default:
                     return Trans.Get("CommandBridge");
             }

@@ -514,7 +514,7 @@ namespace Core.Vfx
             var room = parent.GetComponentInParent<CicEnvironment>();
             var mount = xi.transform.parent;
             if (room != null && mount != null)
-                Core.UI.ScreenMount.FaceViewer(mount, room.transform.TransformPoint(new Vector3(0f, 1.6f, 0.4f)), 0.4f);
+                Core.UI.ScreenMount.FaceViewer(mount, room.transform.TransformPoint(WorldScale.CicCaptainStand + Vector3.up * WorldScale.EyeStanding), 0.4f);
         }
 
         static string TrimBody(string body, int max)

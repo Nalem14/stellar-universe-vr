@@ -117,3 +117,22 @@ Les hublots Bridge sont des **trous** sur le `SystemExterior` partagé (l'ancien
 - [ ] Planète / étoile plus petits qu’un vaisseau ? Non.
 - [ ] Fog / far clip Bridge → `WorldScale.Bridge*`.
 - [ ] Locomotion joueur = pièce seulement. Les flottes bougent ; le CIC suit **sa** flotte (`BridgeViewRig`).
+
+---
+
+## Plan du pont (CIC, repère intérieur, +Z = hublots)
+
+Constantes : `WorldScale.CicTableCenterZ`, `CicCaptainChairZ`, `CicCaptainStand`, `CicStationArcRadius`, `EyeStanding` / `EyeSeated`.
+
+| Élément | Position | Note |
+|---|---|---|
+| Table holo | centre `(0, 0, 0.6)`, Ø 2.4 m, plateau 0.88 m | La carte monte sur `HoloMapMount` (échelle uniforme) |
+| Fauteuil captain | `z = -1.35` sur dais | Arm pads = consoles arrondies non scalées, boutons poke sur le dessus |
+| Captain debout | `(0, 0, -0.75)` | Spawn XR (`BridgeViewRig.PutPlayerOnDeck`) et cible de visée des écrans |
+| 6 stations crew | arc r = 3.1 m autour de la table, ±15° / ±45° / ±75° | Comms · Science · Helm \| Tactical · Engineering · Ops ; console vers les hublots, opérateur côté table |
+| Viewscreen | au-dessus du hublot central, visé sur l'œil du captain debout | Système · vaisseau/station · contexte |
+| TP de vue | bâbord du dais `(-2.05, 0, -1.25)`, face au captain | ~2 m du point debout |
+| Répétiteur crew | ~0.95 m de l'œil, ≤ 28° du regard, vers l'officier interpellé | Jamais un billboard verrouillé sur la tête |
+
+**Vue habitée** : vaisseau réel (`ViewFleetId` > 0 → ordres de flotte) **ou** fausse station en orbite (`ViewPlanetId` > 0 → aucun mouvement : table en lecture seule, crew en veille, Helm propose d'embarquer).
+

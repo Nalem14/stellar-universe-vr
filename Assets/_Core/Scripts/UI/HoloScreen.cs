@@ -48,7 +48,12 @@ namespace Core.UI
             var frame = DiegeticUi.HoloFrame(screen.Canvas.transform, px, header);
             screen.Content = frame;
             if (!string.IsNullOrEmpty(header))
+            {
                 screen.Header = frame.Find("Header/HeaderLabel")?.GetComponent<TMP_Text>();
+                // The header band is 10% of the frame height: size its text to the screen, not a fixed 22 px.
+                if (screen.Header != null)
+                    screen.Header.fontSize = Mathf.Max(18f, px.y * 0.062f);
+            }
 
             // Screens are read, not clicked through: only the widgets inside raycast.
             var img = frame.GetComponent<Image>();
