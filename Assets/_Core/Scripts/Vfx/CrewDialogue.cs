@@ -487,6 +487,27 @@ namespace Core.Vfx
                     () => Stance(fleet.Id, "ATTACK_PLANET"));
             }
 
+            // Engage a hostile ship in system (web: right-click enemy fleet → startTacticalBattle).
+            if (_hex != null && !fleet.IsInBattle && FleetOrderGate.CanStance(fleet))
+            {
+                var now = FleetOrderGate.UnixNow();
+                var shown = 0;
+                foreach (var target in focus.Fleets)
+                {
+                    if (shown >= 4)
+                        break;
+                    if (target.Id == fleet.Id || target.IsInBattle || !target.VisibleIn(focus.SystemId, now))
+                        continue;
+                    var stance = DiplomacyIndex.ResolveFleet(target);
+                    if (stance != EmpireStance.Enemy && stance != EmpireStance.Pirate && !target.IsPirate)
+                        continue;
+                    var t = target;
+                    var name = string.IsNullOrEmpty(t.Name) ? "#" + t.Id : t.Name;
+                    AddAction(ActionLabel("attack", name), () => Engage(fleet, t), DiegeticUi.BtnStyle.Danger);
+                    shown++;
+                }
+            }
+
             if (FleetOrderGate.CanSiege(fleet, focus))
             {
                 AddAction(ActionLabel("attackOrbit", planetLabel),
@@ -531,6 +552,21 @@ namespace Core.Vfx
         /// <summary>Ops: cargo logistics with the planet in orbit. Colonies / buildings: P5.</summary>
         void BuildOps(FocusContext focus, FocusFleet fleet)
         {
+            // Colonize the planet in orbit with a ColonyShip module (server: unowned, habitability >= 6,
+            // fleet idle). Same module lookup as the web (objects/fleet.js colonizePlanet).
+            var orbit = focus.FindPlanet(fleet.PlanetId);
+            var colonyModule = ColonyModuleId(fleet);
+            if (orbit != null && orbit.UserId == 0 && colonyModule > 0 && FleetOrderGate.CanStance(fleet) &&
+                (orbit.Habitability == 0 || orbit.Habitability >= 6))
+            {
+                AddAction(ActionLabel("Colonize", PlanetLabel(orbit)),
+                    () => Issue("Colonize", new Dictionary<string, string>
+                    {
+                        { "ship", colonyModule.ToString() },
+                        { "planet", orbit.Id.ToString() }
+                    }));
+            }
+
             if (FleetOrderGate.CanCargo(fleet, focus))
             {
                 var planetLabel = PlanetLabel(focus.FindPlanet(fleet.PlanetId), fleet.PlanetId);
@@ -738,6 +774,37 @@ namespace Core.Vfx
             CicCue.Ok(transform.position);
             var notice = result.NoticeKey;
             _map?.SetReadout(Trans.Get(notice ?? "vr.common.ok"));
+        }
+
+        static int ColonyModuleId(FocusFleet fleet)
+        {
+            foreach (var m in fleet.Modules)
+            {
+                if (m != null && string.Equals(m.Type, "ColonyShip", System.StringComparison.Ordinal))
+                    return m.Id;
+            }
+
+            return 0;
+        }
+
+        async Task Engage(FocusFleet mine, FocusFleet target)
+        {
+            // Open space against pirates; otherwise the orbit we hold (web startTacticalBattle).
+            var planetId = target.IsPirate || DiplomacyIndex.ResolveFleet(target) == EmpireStance.Pirate
+                ? 0
+                : mine.PlanetId;
+            _map?.SetReadout(Trans.Get("Loading"));
+            var result = await _hex.MakeBattle(new[] { mine.Id, target.Id }, planetId);
+            if (result.Ok)
+            {
+                CicCue.Ok(transform.position);
+                _map?.SetReadout(Trans.Get("tacticalBattle"));
+            }
+            else
+            {
+                CicCue.Fail(transform.position);
+                _map?.SetReadout(string.IsNullOrEmpty(result.Error) ? Trans.Get("vr.common.error") : result.Error);
+            }
         }
 
         Task Stance(int fleetId, string position) =>

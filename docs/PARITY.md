@@ -19,17 +19,17 @@ Généré depuis `action-api.json` (152 actions), `actionjs.php` et un grep des 
 | Méta / boot | 2 | 5 | 40 % |
 | Caméra (vue) | 2 | 2 | 100 % |
 | Galaxie | 1 | 8 | 12 % |
-| Flotte | 12 | 23 | 52 % |
-| Vaisseau / chantier | 3 | 9 | 33 % |
-| Planète / bâtiments / recherche | 7 | 17 | 41 % |
+| Flotte | 10 | 23 | 43 % |
+| Vaisseau / chantier | 1 | 9 | 11 % |
+| Planète / bâtiments / recherche | 0 | 17 | 0 % |
 | Combat | 8 | 14 | 57 % |
-| Jumpgate | 1 | 2 | 50 % |
-| Stargate | 1 | 7 | 14 % |
-| Social (chat, mail) | 2 | 11 | 18 % |
-| Guerre | 1 | 9 | 11 % |
+| Jumpgate | 0 | 2 | 0 % |
+| Stargate | 0 | 7 | 0 % |
+| Social (chat, mail) | 0 | 11 | 0 % |
+| Guerre | 0 | 9 | 0 % |
 | Alliance | 1 | 17 | 6 % |
-| Empire / progression / shop | 4 | 25 | 16 % |
-| **Total** | **48** | **152** | **32 %** |
+| Empire / progression / shop | 2 | 25 | 8 % |
+| **Total** | **30** | **152** | **20 %** |
 
 Appelées par le client web : 134/152. « Appelée » ≠ « finie » : voir la colonne *Statut*.
 
@@ -75,11 +75,11 @@ Appelées par le client web : 134/152. « Appelée » ≠ « finie » : voir la 
 
 | Action | R/W | Params | VR | Web | Station | Phase | Statut | Notes |
 |---|---|---|---|---|---|---|---|---|
-| `AddFleetOrderStep` | W | fleet, step | `Vfx/AlcoveSystems.cs` | `objects/fleet.js` | Helm | P4 | Démo |  |
-| `ClearFleetOrderQueue` | W | fleet | `Vfx/AlcoveSystems.cs` | `objects/fleet.js` | Helm | P4 | Démo |  |
-| `Colonize` | W | ship, planet | `Vfx/AlcoveSystems.cs` | `objects/fleet.js` | Ops | P5 | Démo |  |
+| `AddFleetOrderStep` | W | fleet, step | — | `objects/fleet.js` | Helm | P4 | À faire |  |
+| `ClearFleetOrderQueue` | W | fleet | — | `objects/fleet.js` | Helm | P4 | À faire |  |
+| `Colonize` | W | ship, planet | `Vfx/CrewDialogue.cs` | `objects/fleet.js` | Ops | `ship` = id du module `ColonyShip` ; planète libre, habitabilité ≥ 6 | Branché | `ship` = id du module `ColonyShip` ; planète libre, habitabilité ≥ 6 |
 | `DepositCargo` | W | fleet, planet, mineral?, crystal?, biomass? | `Vfx/CrewDialogue.cs` | `objects/fleet.js` | Ops | P5 | Branché |  |
-| `ExplorePlanet` | W | fleet, planet | `Vfx/AlcoveSystems.cs` +1 | `objects/fleet.js` | Science | P5 | Démo |  |
+| `ExplorePlanet` | W | fleet, planet | `Vfx/CrewDialogue.cs` | `objects/fleet.js` | Science | P5 | Branché |  |
 | `GetAllFleets` | R | — | `App/BridgeSystemLoader.cs` +3 | `scenes/galaxy.js` | Helm | P0 | Branché | Cache serveur 3 s → poll VR 3,5 s. Traite les files de flotte. |
 | `GetAllFleetsAround` | R | — | — | `scenes/galaxy.js` | Helm | — | Hors scope | Interdit en VR (règle AGENTS) — `GetAllFleets` + filtre client |
 | `GetSystemAsteroids` | R | systemid | — | `scenes/system.js` | Helm | P5 | À faire |  |
@@ -103,13 +103,13 @@ Appelées par le client web : 134/152. « Appelée » ≠ « finie » : voir la 
 
 | Action | R/W | Params | VR | Web | Station | Phase | Statut | Notes |
 |---|---|---|---|---|---|---|---|---|
-| `AddShip` | W | type, planet | `Vfx/AlcoveSystems.cs` | `objects/fleet.js` | Engineering | P5 | Démo | VR : ShipCore codé en dur |
+| `AddShip` | W | type, planet | — | `objects/fleet.js` | Engineering | P5 | À faire | VR : ShipCore codé en dur |
 | `AddToFleet` | W | fleet, ship, planet? | — | `objects/fleet.js` | Engineering | P5 | À faire |  |
 | `CancelQueuedShip` | W | id | — | `scenes/planet.js` | Engineering | P5 | À faire |  |
 | `DelShip` | W | ship | — | `objects/fleet.js` | Engineering | P5 | À faire |  |
 | `DelToFleet` | W | fleet, ship | — | `objects/fleet.js` | Engineering | P5 | À faire |  |
-| `GetShipLayout` | R | fleet | `Vfx/AlcoveSystems.cs` +1 | `ui/ShipBuilderUI.js` | Engineering | P5 | Branché |  |
-| `PlaceShipModule` | W | ship, fleet, gx, gy | `Vfx/AlcoveSystems.cs` | `ui/ShipBuilderUI.js` | Engineering | P5 | Démo |  |
+| `GetShipLayout` | R | fleet | `Vfx/FleetShipView.cs` | `ui/ShipBuilderUI.js` | Engineering | P5 | Branché |  |
+| `PlaceShipModule` | W | ship, fleet, gx, gy | — | `ui/ShipBuilderUI.js` | Engineering | P5 | À faire |  |
 | `RemoveShipModule` | W | ship | — | `ui/ShipBuilderUI.js` | Engineering | P5 | À faire |  |
 | `SpeedupShipyard` | W | planet, ship? | — | `scenes/planet.js` | Engineering | P5 | À faire |  |
 
@@ -118,22 +118,22 @@ Appelées par le client web : 134/152. « Appelée » ≠ « finie » : voir la 
 | Action | R/W | Params | VR | Web | Station | Phase | Statut | Notes |
 |---|---|---|---|---|---|---|---|---|
 | `AnswerPlanetDecision` | W | planet, decision, choice | — | `objects/planet.js` | Ops | P5 | À faire |  |
-| `BuildDefenseUnit` | W | planet, type, qty | `Vfx/AlcoveSystems.cs` | `objects/planet.js` | Tactical | P5 | Démo | VR : MissileTurret×1 codé en dur |
+| `BuildDefenseUnit` | W | planet, type, qty | — | `objects/planet.js` | Tactical | P5 | À faire | VR : MissileTurret×1 codé en dur |
 | `CancelQueuedBuilding` | W | id | — | `scenes/planet.js` | Ops | P5 | À faire |  |
 | `CancelQueuedResearch` | W | id | — | `scenes/research.js` | Science | P5 | À faire |  |
 | `CheckBuildingQueue` | R | planet | — | `view/game.php` | Ops | P5 | À faire |  |
 | `CheckResearchQueue` | R | — | — | `view/game.php` | Science | P5 | À faire |  |
-| `CheckShipQueue` | R | planet | `Vfx/AlcoveSystems.cs` | `view/game.php` | Engineering | P5 | Démo |  |
+| `CheckShipQueue` | R | planet | — | `view/game.php` | Engineering | P5 | À faire |  |
 | `DowngradeBuilding` | W | buildingtype, planet | — | `objects/planet.js` | Ops | P5 | À faire |  |
-| `GetPlanetDecisions` | R | planet | `Vfx/AlcoveSystems.cs` | `objects/planet.js` | Ops | P5 | Démo |  |
-| `GetResource` | R | planet, raw? | `Vfx/AlcoveSystems.cs` | `objects/planet.js` | Ops (poll global) | P0 | Branché | Accumule la production : poll `raw=1` sur **toutes** les planètes (csv ≤ 50) |
-| `ImproveResearch` | W | research, planet | `Vfx/AlcoveSystems.cs` | `objects/research.js` | Science | P5 | Démo | VR : `combustion` codé en dur |
-| `RecruitTroop` | W | planet, type, qty | `Vfx/AlcoveSystems.cs` | `objects/planet.js` | Tactical | P5 | Démo | VR : Infantry×1 codé en dur |
+| `GetPlanetDecisions` | R | planet | — | `objects/planet.js` | Ops | P5 | À faire |  |
+| `GetResource` | R | planet, raw? | — | `objects/planet.js` | Ops (poll global) | P0 | À faire | Accumule la production : poll `raw=1` sur **toutes** les planètes (csv ≤ 50) |
+| `ImproveResearch` | W | research, planet | — | `objects/research.js` | Science | P5 | À faire | Clé réelle `combustionDrive` — démo retirée en P1c |
+| `RecruitTroop` | W | planet, type, qty | — | `objects/planet.js` | Tactical | P5 | À faire | VR : Infantry×1 codé en dur |
 | `RefreshStats` | W | planet | — | `objects/planet.js` | Ops | P5 | À faire |  |
 | `RenamePlanet` | W | id, name | — | `objects/planet.js` | Ops | P5 | À faire |  |
 | `SpeedupBuilding` | W | planet | — | `scenes/planet.js` | Ops | P5 | À faire |  |
 | `SpeedupResearch` | W | — | — | `scenes/research.js` | Science | P5 | À faire |  |
-| `UpgradeBuilding` | W | buildingtype, planet | `Vfx/AlcoveSystems.cs` | `objects/planet.js` | Ops | P5 | Démo | VR : `metalMine` codé en dur |
+| `UpgradeBuilding` | W | buildingtype, planet | — | `objects/planet.js` | Ops | P5 | À faire | Clé bâtiment réelle `mineralMine` (pas `metalMine`) — démo retirée en P1c |
 
 ## Combat
 
@@ -149,7 +149,7 @@ Appelées par le client web : 134/152. « Appelée » ≠ « finie » : voir la 
 | `GetBattleState` | R | battleid, fleetid | `Vfx/HexBattleController.cs` | `scenes/battle.js` | Tactical | P5 | Branché |  |
 | `GetMyBattles` | R | — | `Vfx/HexBattleController.cs` | `scenes/galaxy.js` | Tactical | P5 | Branché |  |
 | `GetPendingBattles` | R | systemid, planetid | — | — | Tactical | P5 | À faire |  |
-| `MakeBattle` | W | systemid, fleets, planetid? | `Vfx/HexBattleController.cs` | `objects/fleet.js` | Tactical | P5 | Branché |  |
+| `MakeBattle` | W | systemid, fleets, planetid? | `Vfx/HexBattleController.cs` | `objects/fleet.js` | Tactical | fleets = mon vaisseau + cibles, `planetid` seulement si ≠ 0 (0 vs pirates), puis `UpdateBattle` (web startTacticalBattle) | Branché | fleets = mon vaisseau + cibles, `planetid` seulement si ≠ 0 (0 vs pirates), puis `UpdateBattle` (web startTacticalBattle) |
 | `RemoveFleetFromBattle` | W | battleid, fleetid | — | `scenes/battle.js` | Tactical | P5 | À faire |  |
 | `SetFleetState` | W | battleid, fleetid, auto, ready | `Vfx/HexBattleController.cs` | `scenes/battle.js` | Tactical | P5 | Branché |  |
 | `UpdateBattle` | W | battleid | `Vfx/HexBattleController.cs` | `objects/fleet.js` | Tactical | P5 | Branché |  |
@@ -158,7 +158,7 @@ Appelées par le client web : 134/152. « Appelée » ≠ « finie » : voir la 
 
 | Action | R/W | Params | VR | Web | Station | Phase | Statut | Notes |
 |---|---|---|---|---|---|---|---|---|
-| `GetJumpgateDestinations` | R | planet | `Vfx/AlcoveSystems.cs` | `objects/planet.js` | Helm | P5 | Démo |  |
+| `GetJumpgateDestinations` | R | planet | — | `objects/planet.js` | Helm | P5 | À faire |  |
 | `SendFleetToJumpgate` | W | fleet, targetPlanet | — | `objects/planet.js` | Helm | P5 | À faire |  |
 
 ## Stargate
@@ -167,7 +167,7 @@ Appelées par le client web : 134/152. « Appelée » ≠ « finie » : voir la 
 |---|---|---|---|---|---|---|---|---|
 | `CloseStargateConnection` | W | planet | — | `objects/planet.js` | Comms | P5 | À faire |  |
 | `DispatchStargateMission` | W | originPlanet, missionType, mineral?, crystal?, biomass?, troopType?, troopQty? | — | `objects/planet.js` | Comms | P5 | À faire |  |
-| `GetKnownAddresses` | R | planet | `Vfx/AlcoveSystems.cs` | `objects/planet.js` | Comms | P5 | Démo |  |
+| `GetKnownAddresses` | R | planet | — | `objects/planet.js` | Comms | P5 | À faire |  |
 | `GetStargateConnectionStatus` | R | planet | — | `objects/planet.js` | Comms | P5 | À faire |  |
 | `GetStargateMissions` | R | — | — | `objects/planet.js` | Comms | P5 | À faire |  |
 | `OpenStargateConnection` | W | originPlanet, targetPlanet | — | `objects/planet.js` | Comms | P5 | À faire |  |
@@ -179,10 +179,10 @@ Appelées par le client web : 134/152. « Appelée » ≠ « finie » : voir la 
 |---|---|---|---|---|---|---|---|---|
 | `AddChat` | W | message | — | `objects/chat.js` | Comms | P5 | À faire |  |
 | `DeleteMail` | W | id | — | `ui/MailWindowUI.js` | Comms | P5 | À faire |  |
-| `GetChat` | R | lastid? | `Vfx/AlcoveSystems.cs` | `objects/chat.js` | Comms | P5 | Démo | VR affiche du JSON brut |
+| `GetChat` | R | lastid? | — | `objects/chat.js` | Comms | P5 | À faire | VR affiche du JSON brut |
 | `GetMail` | R | id | — | `ui/MailWindowUI.js` | Comms | P5 | À faire |  |
 | `GetMailUnreadCount` | R | — | — | `ui/MailWindowUI.js` | Comms | P5 | À faire |  |
-| `GetMails` | R | folder | `Vfx/AlcoveSystems.cs` | `ui/MailWindowUI.js` | Comms | P5 | Démo | VR affiche du JSON brut |
+| `GetMails` | R | folder | — | `ui/MailWindowUI.js` | Comms | P5 | À faire | VR affiche du JSON brut |
 | `GetPrivateConversations` | R | — | — | `ui/PanelChatUI.js` | Comms | P5 | À faire |  |
 | `GetPrivateMessages` | R | contact_id, lastid | — | `ui/PanelChatUI.js` | Comms | P5 | À faire |  |
 | `SearchPlayers` | R | query | — | — | Comms | P5 | À faire |  |
@@ -198,7 +198,7 @@ Appelées par le client web : 134/152. « Appelée » ≠ « finie » : voir la 
 | `CancelPeaceOffer` | W | war | — | `ui/WarsWindowUI.js` | Comms | P5 | À faire |  |
 | `DeclareWar` | W | target | — | `ui/WarsWindowUI.js` | Comms | P5 | À faire |  |
 | `DeclinePeaceOffer` | W | war | — | `ui/WarsWindowUI.js` | Comms | P5 | À faire |  |
-| `GetMyWars` | R | — | `Vfx/AlcoveSystems.cs` | `ui/WarsWindowUI.js` | Comms | P5 | Démo |  |
+| `GetMyWars` | R | — | — | `ui/WarsWindowUI.js` | Comms | P5 | À faire |  |
 | `GetWarDetails` | R | war | — | — | Comms | P5 | À faire |  |
 | `OfferPeace` | W | war | — | `ui/WarsWindowUI.js` | Comms | P5 | À faire |  |
 | `SurrenderWar` | W | war | — | `ui/WarsWindowUI.js` | Comms | P5 | À faire |  |
@@ -217,7 +217,7 @@ Appelées par le client web : 134/152. « Appelée » ≠ « finie » : voir la 
 | `DisbandAlliance` | W | — | — | `ui/AllianceWindowUI.js` | Comms | P5 | À faire |  |
 | `GetAllianceInvites` | R | — | — | `ui/AllianceWindowUI.js` | Comms | P5 | À faire |  |
 | `GetAlliances` | R | — | — | `ui/AllianceWindowUI.js` | Comms | P5 | À faire |  |
-| `GetMyAlliance` | R | — | `App/DiplomacyIndex.cs` +1 | `ui/AllianceWindowUI.js` | Comms | P5 | Branché |  |
+| `GetMyAlliance` | R | — | `App/DiplomacyIndex.cs` | `ui/AllianceWindowUI.js` | Comms | P5 | Branché |  |
 | `InviteToAlliance` | W | target | — | — | Comms | P5 | À faire |  |
 | `KickAllianceMember` | W | target | — | `ui/AllianceWindowUI.js` | Comms | P5 | À faire |  |
 | `LeaveAlliance` | W | — | — | `ui/AllianceWindowUI.js` | Comms | P5 | À faire |  |
@@ -235,9 +235,9 @@ Appelées par le client web : 134/152. « Appelée » ≠ « finie » : voir la 
 | `GetAchievements` | R | — | — | `scenes/galaxy.js` | Conseil | P6 | À faire |  |
 | `GetActivity` | R | lastid | — | `objects/activity.js` | Comms | P6 | À faire |  |
 | `GetAuthorities` | R | — | — | `ui/EmpireHubUI.js` | Conseil | P6 | À faire |  |
-| `GetDailyObjectives` | R | — | `Vfx/AlcoveSystems.cs` | — | Conseil | P6 | Démo | Web utilise `GetProgressionObjectives` |
+| `GetDailyObjectives` | R | — | — | — | Conseil | P6 | À faire | Web utilise `GetProgressionObjectives` |
 | `GetEmpire` | R | user | — | `scripts/user.js` | Comms | P5 | À faire |  |
-| `GetEmpires` | R | — | `App/DiplomacyIndex.cs` +1 | `objects/empire.js` | Comms | P5 | Branché |  |
+| `GetEmpires` | R | — | `App/DiplomacyIndex.cs` | `objects/empire.js` | Comms | P5 | Branché |  |
 | `GetMeEmpire` | R | — | `App/AuthManager.cs` +1 | `objects/policy.js` | Système (boot) | P0 | Branché |  |
 | `GetMonthlyObjectives` | R | — | — | — | Conseil | P6 | À faire |  |
 | `GetNovaTopupHistory` | R | — | — | — | Conseil | P6 | À faire |  |
@@ -245,7 +245,7 @@ Appelées par le client web : 134/152. « Appelée » ≠ « finie » : voir la 
 | `GetPolitics` | R | — | — | `ui/EmpireHubUI.js` | Conseil | P6 | À faire |  |
 | `GetProgressionObjectives` | R | — | — | `ui/ProgressionWindowUI.js` | Conseil | P6 | À faire |  |
 | `GetRelation` | R | user1, user2 | — | `objects/empire.js` | Comms | P5 | À faire |  |
-| `GetShopData` | R | — | `Vfx/AlcoveSystems.cs` | `ui/ShopWindowUI.js` | Conseil | P6 | Démo |  |
+| `GetShopData` | R | — | — | `ui/ShopWindowUI.js` | Conseil | P6 | À faire |  |
 | `GetSpeciesTraits` | R | — | — | `objects/specy.js` | Conseil | P6 | À faire |  |
 | `GetSpeciesTypes` | R | — | — | `objects/specy.js` | Conseil | P6 | À faire |  |
 | `GetWeeklyObjectives` | R | — | — | — | Conseil | P6 | À faire |  |

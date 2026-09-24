@@ -100,7 +100,7 @@ namespace Core.App
 
             cmd.Bind(holoCmdRoot, seat, arm);
 
-            AlcoveSystems.Wire(env, _focus, _poller, hex);
+            BridgeDressing.Apply(env, _focus);
             if (_focus != null)
             {
                 _focus.Changed += () => BridgeDressing.Apply(env, _focus);

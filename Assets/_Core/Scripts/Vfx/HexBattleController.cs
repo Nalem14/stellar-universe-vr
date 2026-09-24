@@ -337,21 +337,28 @@ namespace Core.Vfx
                 await PollState();
         }
 
-        public async Task MakeBattle(IList<int> fleetIds)
+        /// <summary>
+        /// Engage like the web (objects/fleet.js startTacticalBattle): <paramref name="fleetIds"/> = my ship
+        /// first, then the targets; <paramref name="planetId"/> = the orbit fought over, 0 in open space
+        /// (pirates) — only sent when non-zero. Then UpdateBattle starts it and the table turns hex.
+        /// </summary>
+        public async Task<ApiResult> MakeBattle(IList<int> fleetIds, int planetId = 0)
         {
-            if (_focus == null || fleetIds == null || fleetIds.Count == 0)
-                return;
-            var csv = string.Join(",", fleetIds);
-            var result = await ActionJs.Get("MakeBattle", new Dictionary<string, string>
+            if (_focus == null || fleetIds == null || fleetIds.Count < 2)
+                return ApiResult.Fail(Trans.Get("vr.common.error"));
+            var query = new Dictionary<string, string>
             {
                 { "systemid", _focus.SystemId.ToString() },
-                { "fleets", csv }
-            });
+                { "fleets", string.Join(",", fleetIds) }
+            };
+            if (planetId > 0)
+                query["planetid"] = planetId.ToString();
+            var result = await ActionJs.Get("MakeBattle", query);
             if (!result.Ok)
             {
                 if (_log != null)
                     _log.text = result.Error;
-                return;
+                return result;
             }
 
             try
@@ -380,6 +387,8 @@ namespace Core.Vfx
                 });
                 _mapCtrl?.SetMode(HoloMapMode.HexBattle);
             }
+
+            return result;
         }
 
         static Vector3 HexToLocal(int q, int r)
