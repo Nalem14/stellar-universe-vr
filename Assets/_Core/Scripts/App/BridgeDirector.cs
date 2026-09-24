@@ -60,6 +60,7 @@ namespace Core.App
             var orders = interior.AddComponent<HoloFleetOrders>();
             orders.Bind(_zoneMap, _focus, _poller, mapCtrl);
 
+            Core.Crew.BarkDirector.Build(interior.transform, _focus);
             CrewStationsBuilder.Build(env, env.Art, hex, _zoneMap, _poller, _focus, _loader);
             BridgeViewscreen.Build(env, _focus);
 

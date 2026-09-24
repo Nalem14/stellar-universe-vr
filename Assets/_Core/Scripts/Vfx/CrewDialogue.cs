@@ -363,7 +363,7 @@ namespace Core.Vfx
                 var hx = here.X;
                 var hy = here.Y;
                 AddAction(MoveLabel("moveToSystem", sysName),
-                    () => MoveToSystem(fleet.Id, hx, hy));
+                    () => MoveToSystem(fleet.Id, hx, hy, sysName));
             }
 
             var planets = new List<FocusPlanet>();
@@ -444,7 +444,7 @@ namespace Core.Vfx
                     var sx = star.X;
                     var sy = star.Y;
                     AddAction(MoveLabel("moveToSystem", label),
-                        () => MoveToSystem(fleet.Id, sx, sy),
+                        () => MoveToSystem(fleet.Id, sx, sy, label),
                         DiegeticUi.BtnStyle.Amber);
                 }
                 else if (_near.Count > 1)
@@ -462,7 +462,7 @@ namespace Core.Vfx
                             var sx = star.X;
                             var sy = star.Y;
                             AddDropOption(DestLabel(label),
-                                () => MoveToSystem(fleet.Id, sx, sy),
+                                () => MoveToSystem(fleet.Id, sx, sy, label),
                                 DiegeticUi.BtnStyle.Amber);
                         }
                     }
@@ -750,16 +750,16 @@ namespace Core.Vfx
                 { "asteroid", asteroidId.ToString() }
             });
 
-        async Task MoveToSystem(int fleetId, float x, float y) =>
+        async Task MoveToSystem(int fleetId, float x, float y, string systemLabel = null) =>
             await Issue("MoveFleetToSystem", new Dictionary<string, string>
             {
                 { "fleet", fleetId.ToString() },
                 {
                     "pos", string.Format(CultureInfo.InvariantCulture, "{0}.{1}", x, y)
                 }
-            });
+            }, systemLabel);
 
-        async Task Issue(string action, Dictionary<string, string> query)
+        async Task Issue(string action, Dictionary<string, string> query, string target = null)
         {
             _map?.SetReadout(Trans.Get("Loading"));
             var result = await ActionJs.Get(action, query);
@@ -768,12 +768,25 @@ namespace Core.Vfx
                 CicCue.Fail(transform.position);
                 // Server errors are already localized (error:{Lang(key)}); never show the raw action id.
                 _map?.SetReadout(string.IsNullOrEmpty(result.Error) ? Trans.Get("vr.common.error") : result.Error);
+                Core.Crew.BarkDirector.Instance?.OrderResult(_role, action, result, target);
                 return;
             }
 
             CicCue.Ok(transform.position);
             var notice = result.NoticeKey;
             _map?.SetReadout(Trans.Get(notice ?? "vr.common.ok"));
+            Core.Crew.BarkDirector.Instance?.OrderResult(_role, action, result, target ?? DescribeTarget(query));
+        }
+
+        /// <summary>{0} of a crew line from the order's own params (planet / asteroid).</summary>
+        string DescribeTarget(Dictionary<string, string> query)
+        {
+            var focus = Focus;
+            if (query != null && query.TryGetValue("planet", out var p) && int.TryParse(p, out var pid))
+                return PlanetLabel(focus?.FindPlanet(pid), pid);
+            if (query != null && query.TryGetValue("asteroid", out var a))
+                return Trans.Get("asteroidField") + " #" + a;
+            return string.Empty;
         }
 
         static int ColonyModuleId(FocusFleet fleet)
@@ -795,6 +808,8 @@ namespace Core.Vfx
                 : mine.PlanetId;
             _map?.SetReadout(Trans.Get("Loading"));
             var result = await _hex.MakeBattle(new[] { mine.Id, target.Id }, planetId);
+            Core.Crew.BarkDirector.Instance?.OrderResult(Role.Tactical, "MakeBattle", result,
+                string.IsNullOrEmpty(target.Name) ? "#" + target.Id : target.Name);
             if (result.Ok)
             {
                 CicCue.Ok(transform.position);

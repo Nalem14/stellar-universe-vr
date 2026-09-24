@@ -20,6 +20,12 @@ namespace Core.Vfx
         float _nextGlance;
         Vector3? _lookWorld;
         Renderer _probe;
+        Renderer _visor;
+        Renderer _badge;
+        Color _accent;
+        float _speakUntil;
+        bool _speakLook;
+        MaterialPropertyBlock _block;
 
         public static Transform Build(Transform parent, Vector3 seatTopLocal, Color accent)
         {
@@ -70,14 +76,48 @@ namespace Core.Vfx
             officer._phase = Random.value * 10f;
             officer._nextGlance = Time.time + 2f + Random.value * 4f;
             officer._probe = chest.GetComponentInChildren<Renderer>();
+            officer._visor = head.Find("Visor")?.GetComponent<Renderer>();
+            officer._badge = chest.Find("Badge")?.GetComponent<Renderer>();
+            officer._accent = accent;
+            officer._block = new MaterialPropertyBlock();
             return root;
         }
 
+        public Color Accent => _accent;
+
+        /// <summary>
+        /// Talking on the intercom for <paramref name="seconds"/>: visor and badge pulse, head turns to
+        /// <paramref name="listener"/> unless a dialogue already holds the officer's gaze.
+        /// </summary>
+        public void Speak(float seconds, Vector3 listener)
+        {
+            _speakUntil = Time.time + seconds;
+            if (!_lookWorld.HasValue || _speakLook)
+            {
+                _lookWorld = listener;
+                _speakLook = true;
+            }
+        }
+
+        public Vector3 MouthPosition => _head != null ? _head.position + Vector3.up * 0.1f : transform.position;
+
         /// <summary>Turn the head toward a world point (null = back to idle glances).</summary>
-        public void LookAt(Vector3? world) => _lookWorld = world;
+        public void LookAt(Vector3? world)
+        {
+            _lookWorld = world;
+            _speakLook = false;
+        }
 
         void Update()
         {
+            var speaking = Time.time < _speakUntil;
+            if (!speaking && _speakLook)
+            {
+                _lookWorld = null;
+                _speakLook = false;
+            }
+
+            PulseComms(speaking);
             if (_probe != null && !_probe.isVisible)
                 return;
             var t = Time.time + _phase;
@@ -102,6 +142,29 @@ namespace Core.Vfx
 
             _glanceYaw = Mathf.LerpAngle(_glanceYaw, yaw, 1f - Mathf.Exp(-3f * Time.deltaTime));
             _head.localRotation = Quaternion.Euler(-4f, _glanceYaw, 0f);
+        }
+
+        float _pulseLevel = -1f;
+
+        void PulseComms(bool speaking)
+        {
+            // Syllable-rate flicker while talking, steady otherwise; writes the MPB only on change.
+            var level = speaking ? 2.4f + Mathf.PerlinNoise(Time.time * 9f, _phase) * 2.2f : 0f;
+            if (!speaking && _pulseLevel == 0f)
+                return;
+            _pulseLevel = level;
+            SetGlow(_visor, speaking ? level : 2.2f);
+            SetGlow(_badge, speaking ? level * 0.8f : 1.8f);
+        }
+
+        void SetGlow(Renderer r, float mul)
+        {
+            if (r == null)
+                return;
+            r.GetPropertyBlock(_block);
+            _block.SetColor(UiKit.AccentId, _accent);
+            _block.SetFloat(UiKit.AccentMulId, mul);
+            r.SetPropertyBlock(_block);
         }
 
         static void Part(Transform parent, string name, Vector3 size, float radius, Vector3 pos, Vector3 euler,

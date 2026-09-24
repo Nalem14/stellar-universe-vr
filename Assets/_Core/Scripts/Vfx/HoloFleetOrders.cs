@@ -441,6 +441,7 @@ namespace Core.Vfx
                     : target.DisplayName;
                 _map?.SetReadout($"{Trans.Get("Loading")} · {dest}");
                 var result = await ActionJs.Get(action, query);
+                Core.Crew.BarkDirector.Instance?.OrderResult(CrewDialogue.Role.Helm, action, result, dest);
                 if (!result.Ok)
                 {
                     fleetToken.SnapHome();

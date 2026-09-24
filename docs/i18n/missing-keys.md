@@ -123,7 +123,7 @@ Un événement de jeu peut avoir plusieurs variantes, et `BarkDirector` en tire 
 | `crew.tactical.contact.1` | Contact! Unknown vessel entering the system. | Contact ! Vaisseau inconnu entrant dans le système. |
 | `crew.tactical.hostile.1` | Hostile signature, Commander. {0}. | Signature hostile, Commandant. {0}. |
 | `crew.tactical.hostile.2` | Enemy ships in range. Recommend battle stations. | Vaisseaux ennemis à portée. Je recommande les postes de combat. |
-| `crew.tactical.pirate.1` | Pirate raiders spotted, level {1}. | Pillards pirates repérés, niveau {1}. |
+| `crew.tactical.pirate.1` | Pirate raiders spotted: {0}. | Pillards pirates repérés : {0}. |
 | `crew.tactical.battleStart.1` | Engagement started. Shields up. | Engagement commencé. Boucliers levés. |
 | `crew.tactical.yourTurn.1` | Our move, Commander. | À nous de jouer, Commandant. |
 | `crew.tactical.yourTurn.2` | Firing solution ready. Awaiting your order. | Solution de tir prête. J'attends vos ordres. |
