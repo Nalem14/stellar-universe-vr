@@ -484,72 +484,24 @@ namespace Core.Vfx
             return root;
         }
 
-        public static XRSimpleInteractable Plate(Transform parent, string name, Vector3 localPos,
-            Vector3 size, Material idle, Material hover, System.Action onSelect, out MeshRenderer rend)
-        {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            go.name = name;
-            go.transform.SetParent(parent, false);
-            go.transform.localPosition = localPos;
-            go.transform.localScale = size;
-            rend = go.GetComponent<MeshRenderer>();
-            rend.sharedMaterial = idle;
-            var mesh = rend;
-            var baseSize = size;
-            var interact = go.AddComponent<XRSimpleInteractable>();
-            interact.hoverEntered.AddListener(_ =>
-            {
-                if (hover != null)
-                    mesh.sharedMaterial = hover;
-                go.transform.localScale = baseSize * 1.06f;
-                CicCue.Hover(go.transform.position);
-            });
-            interact.hoverExited.AddListener(_ =>
-            {
-                mesh.sharedMaterial = idle;
-                go.transform.localScale = baseSize;
-            });
-            if (onSelect != null)
-            {
-                interact.selectEntered.AddListener(_ =>
-                {
-                    CicCue.Ok(go.transform.position);
-                    onSelect();
-                });
-            }
-
-            return interact;
-        }
-
+        /// <summary>
+        /// Physical console button (<see cref="Core.UI.PokeButton"/>): poke or ray. <paramref name="localPos"/>
+        /// is in <paramref name="parent"/>'s local units (legacy callers); the button itself is built on an
+        /// unscaled socket at that point, so a stretched parent no longer squashes cap or label.
+        /// <paramref name="size"/>.x/.y = cap face in metres; front faces the parent's -Z.
+        /// </summary>
         public static XRSimpleInteractable Button(Transform parent, string name, string label,
             Vector3 localPos, Vector3 size, CicArtKit art, Color accent, System.Action onSelect,
             bool interact = true)
         {
-            Material idle;
-            Material hover;
-            if (art != null)
-            {
-                var tex = Resources.Load<Texture2D>("CIC/HoloBtn") ?? Texture2D.whiteTexture;
-                var texH = Resources.Load<Texture2D>("CIC/HoloBtnHover") ?? tex;
-                idle = art.Holo(tex, new Color(accent.r, accent.g, accent.b, interact ? 0.85f : 0.4f));
-                hover = art.Holo(texH, new Color(accent.r, accent.g, accent.b, 1f));
-            }
-            else
-            {
-                idle = hover = null;
-            }
-
-            System.Action act = interact ? onSelect : null;
-            var xi = Plate(parent, name, localPos, size, idle, interact ? hover : idle, act, out _);
+            var offsetMeters = Vector3.Scale(localPos, parent.lossyScale);
+            var socket = Core.UI.ScreenMount.Socket(parent, name + "_Mount", offsetMeters, Quaternion.identity);
+            var button = Core.UI.PokeButton.Create(socket, name, label, Vector3.zero, Quaternion.identity,
+                new Vector2(Mathf.Max(0.05f, size.x), Mathf.Max(0.035f, size.y)), accent,
+                interact ? onSelect : null);
             if (!interact)
-                CicEnvironment.DropColliderStatic(xi.gameObject);
-
-            var tmp = Label(xi.transform, name + "_L", label ?? string.Empty,
-                new Vector3(0f, 0f, -0.65f), 0.55f, 5f, Color.white);
-            tmp.transform.localScale = Vector3.one *
-                                       Mathf.Clamp(0.028f / Mathf.Max(0.01f, size.y), 0.2f, 1.2f);
-            tmp.rectTransform.sizeDelta = new Vector2(Mathf.Max(16f, size.x * 40f), 5f);
-            return xi;
+                button.Interactive = false;
+            return button.GetComponent<XRSimpleInteractable>();
         }
 
         public static XRSimpleInteractable Tab(Transform parent, string name, string label,
@@ -562,10 +514,8 @@ namespace Core.Vfx
             var xi = Button(parent, name, primary, localPos, size, art, Cyan, onSelect);
             if (!string.IsNullOrEmpty(secondary))
             {
-                var sec = Label(xi.transform, name + "_S", secondary,
-                    new Vector3(0f, -0.35f, -0.65f), 0.5f, 4f, CyanDim);
-                sec.transform.localScale = Vector3.one * 0.45f;
-                sec.rectTransform.sizeDelta = new Vector2(Mathf.Max(16f, size.x * 40f), 4f);
+                Core.UI.UiKit.Label(xi.transform, name + "_S", secondary,
+                    new Vector3(0f, -size.y * 0.5f - 0.012f, -0.004f), size.x, 0.011f, CyanDim);
             }
 
             return xi;

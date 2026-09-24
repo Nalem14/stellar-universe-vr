@@ -504,9 +504,17 @@ namespace Core.Vfx
         static void AddPoke(Transform parent, CicArtKit art, string name, Vector3 local, System.Func<Task> act)
         {
             var labelKey = PokeLabelKeys.TryGetValue(name, out var key) ? key : name;
-            DiegeticUi.Button(parent, "Poke_" + name, Trans.Get(labelKey), local,
-                new Vector3(0.2f, 0.06f, 0.05f), art, CicArtKit.Cyan,
+            // 0.16 m caps on a 0.2 m pitch: a finger-sized gap between neighbours.
+            var xi = DiegeticUi.Button(parent, "Poke_" + name, Trans.Get(labelKey), local,
+                new Vector3(0.16f, 0.055f, 0.05f), art, CicArtKit.Cyan,
                 () => Core.Utils.AsyncTap.Run(act()));
+
+            // Alcoves sit on walls turned every way: face the bridge centre at standing eye height,
+            // so the readable front never points at the wall (kit front is -Z).
+            var room = parent.GetComponentInParent<CicEnvironment>();
+            var mount = xi.transform.parent;
+            if (room != null && mount != null)
+                Core.UI.ScreenMount.FaceViewer(mount, room.transform.TransformPoint(new Vector3(0f, 1.6f, 0.4f)), 0.4f);
         }
 
         static string TrimBody(string body, int max)

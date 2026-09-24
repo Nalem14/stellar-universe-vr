@@ -75,9 +75,16 @@ namespace Core.App
                         art.Holo(Texture2D.whiteTexture, new Color(0.2f, 0.95f, 1f, 0.45f));
                 zoneT = go.transform;
 
-                var prompt = DiegeticUi.Label(go.transform, "SitPrompt", Trans.Get("CommandBridge"),
-                    new Vector3(0f, 4f, 0f), 0.12f, 5f, Color.white);
-                prompt.rectTransform.sizeDelta = new Vector2(30f, 6f);
+                // Prompt in metres on an unscaled socket above the seat, turned toward the standing
+                // captain (never a child of the squashed sit disc).
+                var promptMount = Core.UI.ScreenMount.Socket(seat, "SitPromptMount",
+                    new Vector3(0f, 0.62f, 0.2f), Quaternion.identity);
+                var standEye = seat.parent != null
+                    ? seat.parent.TransformPoint(_standLocalPos + Vector3.up * 1.6f)
+                    : seat.position + Vector3.up * 1.6f;
+                Core.UI.ScreenMount.FaceViewer(promptMount, standEye, 0.6f);
+                Core.UI.UiKit.Label(promptMount, "SitPrompt", Trans.Get("CommandBridge"), Vector3.zero,
+                    0.5f, 0.045f, Core.UI.UiKit.TextBright);
             }
             else
             {
@@ -104,25 +111,10 @@ namespace Core.App
         {
             if (pad == null)
                 return;
-            if (pad.GetComponent<Collider>() == null)
-            {
-                var box = pad.gameObject.AddComponent<BoxCollider>();
-                box.size = new Vector3(0.2f, 0.05f, 0.3f);
-            }
-
-            var interact = pad.GetComponent<XRSimpleInteractable>();
-            if (interact == null)
-                interact = pad.gameObject.AddComponent<XRSimpleInteractable>();
-            var baseScale = pad.localScale;
-            interact.selectEntered.AddListener(_ => Core.Utils.AsyncTap.Run(ExitCommandMode()));
-            interact.hoverEntered.AddListener(_ =>
-            {
-                pad.localScale = baseScale * 1.1f;
-                CicCue.Hover(pad.position);
-            });
-            interact.hoverExited.AddListener(_ => { pad.localScale = baseScale; });
-            DiegeticUi.Label(pad, "ExitLabel", Trans.Get("quit"), new Vector3(0f, 0.08f, 0f),
-                0.04f, 4f, Color.white);
+            // Physical poke on the right arm console (unscaled rounded pad) — stand up / leave the seat.
+            Core.UI.PokeButton.Create(pad, "ExitCommand", Trans.Get("quit"), BridgeDirector.ArmPadTop,
+                BridgeDirector.ArmPadFaceUp, new Vector2(0.13f, 0.06f), CicArtKit.Amber,
+                () => Core.Utils.AsyncTap.Run(ExitCommandMode()));
         }
 
         void CacheLocomotion()

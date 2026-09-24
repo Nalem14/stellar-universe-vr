@@ -119,13 +119,12 @@ namespace Core.Vfx
 
             _canvas = DiegeticUi.WorldCanvas(root.transform, "DialogueCanvas", new Vector2(640f, 560f),
                 Vector3.zero, Quaternion.identity, 0.00105f);
-            root.AddComponent<BillboardFace>();
 
             var frame = DiegeticUi.HoloFrame(_canvas.transform, new Vector2(620f, 540f),
                 Trans.Get("CommandBridge"));
-            _title = DiegeticUi.HoloLabel(frame, RoleTitle(), new Vector2(0f, 210f),
+            _title = DiegeticUi.HoloLabel(frame, RoleTitle(), new Vector2(0f, 180f),
                 new Vector2(560f, 40f), 24f, _accent);
-            _subtitle = DiegeticUi.HoloLabel(frame, string.Empty, new Vector2(0f, 170f),
+            _subtitle = DiegeticUi.HoloLabel(frame, string.Empty, new Vector2(0f, 146f),
                 new Vector2(560f, 32f), 16f, DiegeticUi.CyanDim);
 
             var listGo = new GameObject("Rows", typeof(RectTransform));
@@ -134,7 +133,7 @@ namespace Core.Vfx
             _listRoot.sizeDelta = new Vector2(580f, 340f);
             _listRoot.anchoredPosition = new Vector2(0f, -10f);
 
-            DiegeticUi.HoloButton(frame, Trans.Get("vr.common.ok"), new Vector2(0f, -230f), new Vector2(220f, 48f),
+            DiegeticUi.HoloButton(frame, Trans.Get("close"), new Vector2(0f, -230f), new Vector2(220f, 48f),
                 Close, DiegeticUi.BtnStyle.Ghost);
         }
 
@@ -180,23 +179,40 @@ namespace Core.Vfx
                 _canvas.transform.parent.gameObject.SetActive(false);
         }
 
+        /// <summary>
+        /// Repeater screen of this officer's station, opened within arm's reach of the captain
+        /// (~0.95 m from the eyes), on the bearing of the officer being addressed so the reply reads as
+        /// theirs, just under eye line and turned once toward the captain. Never a head-locked billboard,
+        /// never out at the station (2 m+ away: unreadable in the headset).
+        /// </summary>
         void PlacePanel()
         {
             if (_canvas == null || _anchor == null)
                 return;
             var root = _canvas.transform.parent;
             var cam = Camera.main;
-            var toward = cam != null
-                ? (cam.transform.position - _anchor.position).normalized
-                : Vector3.forward;
-            toward.y = 0f;
-            if (toward.sqrMagnitude < 0.01f)
-                toward = Vector3.forward;
-            toward.Normalize();
-            root.position = _anchor.position + Vector3.up * 0.35f + toward * 0.55f;
-            var face = root.GetComponent<BillboardFace>();
-            face?.FaceNow();
+            var eye = cam != null ? cam.transform.position : _anchor.position + Vector3.back * 2f;
+            var toOfficer = Vector3.ProjectOnPlane(_anchor.position - eye, Vector3.up);
+            if (toOfficer.sqrMagnitude < 0.01f)
+                toOfficer = cam != null ? Vector3.ProjectOnPlane(cam.transform.forward, Vector3.up) : Vector3.forward;
+            toOfficer.Normalize();
+            // Keep it in the comfortable field of view: lean toward the officer, at most 28° off gaze.
+            var look = cam != null ? Vector3.ProjectOnPlane(cam.transform.forward, Vector3.up) : toOfficer;
+            if (look.sqrMagnitude > 0.01f)
+            {
+                look.Normalize();
+                var angle = Mathf.Clamp(Vector3.SignedAngle(look, toOfficer, Vector3.up), -MaxBearing, MaxBearing);
+                toOfficer = Quaternion.AngleAxis(angle, Vector3.up) * look;
+            }
+
+            var p = eye + toOfficer * ReachDistance;
+            p.y = eye.y - 0.1f;
+            root.position = p;
+            Core.UI.ScreenMount.FaceViewer(root, eye, 1f);
         }
+
+        const float ReachDistance = 0.95f;
+        const float MaxBearing = 28f;
 
         void Update()
         {
@@ -631,9 +647,9 @@ namespace Core.Vfx
             }
         }
 
-        float _listCursorY = 130f;
+        float _listCursorY = 108f;
 
-        void ResetListCursor() => _listCursorY = 130f;
+        void ResetListCursor() => _listCursorY = 108f;
 
         void AddDropdown(string title, int count, DropGroup group)
         {

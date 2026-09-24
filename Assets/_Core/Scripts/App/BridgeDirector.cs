@@ -65,12 +65,12 @@ namespace Core.App
             var teleporter = BridgeViewTeleporter.Build(env, env.Art);
             teleporter.Bind(_loader, _focus, env.Art);
 
-            // Shortcut TP refresh on left arm pad — labeled kit button.
+            // Left arm console: refresh the ship list of the view teleporter (poke from the seat).
             var armL = FindNamed(interior.transform, "ArmPadL");
             if (armL != null)
             {
-                DiegeticUi.Button(armL, "ArmPadL_Refresh", Trans.Get("fleets"),
-                    new Vector3(0f, 0.04f, 0f), new Vector3(0.18f, 0.04f, 0.12f), env.Art, CicArtKit.Cyan,
+                Core.UI.PokeButton.Create(armL, "ArmPadL_Refresh", Trans.Get("fleets"),
+                    ArmPadTop, ArmPadFaceUp, new Vector2(0.13f, 0.06f), CicArtKit.Cyan,
                     () => Core.Utils.AsyncTap.Run(teleporter.RefreshList()));
             }
 
@@ -117,6 +117,12 @@ namespace Core.App
             boot.BindLoader(_loader);
             boot.Run();
         }
+
+        /// <summary>Top face of the 0.03 m arm console, a hair above it, slightly toward the knee.</summary>
+        internal static readonly Vector3 ArmPadTop = new(0f, 0.017f, 0.04f);
+
+        /// <summary>Kit front is -Z; +90° about X turns it to face up (+Y), text reading from the seat.</summary>
+        internal static readonly Quaternion ArmPadFaceUp = Quaternion.Euler(90f, 0f, 0f);
 
         static Transform FindNamed(Transform root, string name)
         {

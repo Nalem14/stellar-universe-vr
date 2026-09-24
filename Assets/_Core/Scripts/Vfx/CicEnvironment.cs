@@ -398,6 +398,24 @@ namespace Core.Vfx
             return go;
         }
 
+        /// <summary>
+        /// Rounded console hardware at true size (unscaled transform, shared mesh) — the kit way to
+        /// build anything that carries buttons, labels or screens. Accent lights its bevels.
+        /// </summary>
+        public GameObject Rounded(string name, Vector3 pos, Vector3 size, float radius, Color accent,
+            float accentMul = 0.35f, bool keepCollider = false)
+        {
+            var go = Core.UI.UiKit.MeshPiece(transform, name, Core.UI.UiMeshes.RoundedBox(size, radius),
+                Core.UI.UiKit.Chassis, pos);
+            var block = new MaterialPropertyBlock();
+            block.SetColor(Core.UI.UiKit.AccentId, accent);
+            block.SetFloat(Core.UI.UiKit.AccentMulId, accentMul);
+            go.GetComponent<MeshRenderer>().SetPropertyBlock(block);
+            if (keepCollider)
+                go.AddComponent<BoxCollider>().size = size;
+            return go;
+        }
+
         public GameObject Cylinder(string name, Vector3 pos, Vector3 scale, Material mat, bool keepCollider = false)
         {
             var go = GameObject.CreatePrimitive(PrimitiveType.Cylinder);

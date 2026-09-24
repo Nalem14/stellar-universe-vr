@@ -241,11 +241,11 @@ namespace Core.Vfx
             host.Box("CaptainHeadrest", new Vector3(0f, 1.35f, chairZ - 0.28f),
                 new Vector3(0.45f, 0.18f, 0.1f), art.MetalPanel(0.2f), keepCollider: false);
 
-            // Arm console pads (diegetic, idle).
-            host.Box("ArmPadL", new Vector3(-0.42f, 0.74f, chairZ + 0.15f),
-                new Vector3(0.18f, 0.03f, 0.28f), art.CyanEmit(1.8f), keepCollider: false);
-            host.Box("ArmPadR", new Vector3(0.42f, 0.74f, chairZ + 0.15f),
-                new Vector3(0.18f, 0.03f, 0.28f), art.AmberEmit(1.4f), keepCollider: false);
+            // Arm consoles: true-size rounded hardware (unscaled) so buttons sit on their top face.
+            host.Rounded("ArmPadL", new Vector3(-0.42f, 0.74f, chairZ + 0.15f),
+                new Vector3(0.18f, 0.03f, 0.28f), 0.01f, CicArtKit.Cyan, 0.4f);
+            host.Rounded("ArmPadR", new Vector3(0.42f, 0.74f, chairZ + 0.15f),
+                new Vector3(0.18f, 0.03f, 0.28f), 0.01f, CicArtKit.Amber, 0.4f);
 
             host.KeyLight("CaptainLamp", new Vector3(0f, 2.15f, chairZ), CicArtKit.Amber, 1.05f, 4f);
         }

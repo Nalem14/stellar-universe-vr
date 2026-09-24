@@ -57,7 +57,9 @@ namespace Core.Utils
             {
                 foreach (var kv in query)
                 {
-                    if (ShouldOmit(kv.Value) || kv.Key == "action" || kv.Key == "token")
+                    // "action" is the endpoint key; the session token is appended below when withToken
+                    // (LoginToken passes its own token with withToken: false and must keep it).
+                    if (ShouldOmit(kv.Value) || kv.Key == "action" || (withToken && kv.Key == "token"))
                         continue;
                     sb.Append('&')
                         .Append(Uri.EscapeDataString(kv.Key))
