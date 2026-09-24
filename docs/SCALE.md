@@ -134,5 +134,5 @@ Constantes : `WorldScale.CicTableCenterZ`, `CicCaptainChairZ`, `CicCaptainStand`
 | TP de vue | bâbord du dais `(-2.05, 0, -1.25)`, face au captain | ~2 m du point debout |
 | Répétiteur crew | ~0.95 m de l'œil, ≤ 28° du regard, vers l'officier interpellé | Jamais un billboard verrouillé sur la tête |
 
-**Vue habitée** : vaisseau réel (`ViewFleetId` > 0 → ordres de flotte) **ou** fausse station en orbite (`ViewPlanetId` > 0 → aucun mouvement : table en lecture seule, crew en veille, Helm propose d'embarquer).
+**Vue habitée** : vaisseau réel (`ViewFleetId` > 0 → ordres de flotte ; le pont suit toujours le système **actuel** du vaisseau, y compris après un saut) **ou** fausse station en orbite (`ViewPlanetId` > 0 → la station ne bouge pas ; la table commande toujours les flottes autour ; station Helm retirée, on embarque via le TP).
 

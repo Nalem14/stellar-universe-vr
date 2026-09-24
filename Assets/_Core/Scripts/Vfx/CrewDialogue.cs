@@ -33,13 +33,11 @@ namespace Core.Vfx
             Planets,
             Asteroids,
             Jumps,
-            BoardShips
         }
 
         static CrewDialogue s_Open;
 
         FocusContext _focus;
-        BridgeSystemLoader _loader;
         CicArtKit _art;
         Color _accent;
         Role _role;
@@ -90,7 +88,6 @@ namespace Core.Vfx
                 dialogue = hit.gameObject.AddComponent<CrewDialogue>();
 
             dialogue._focus = focus;
-            dialogue._loader = loader;
             dialogue._art = art;
             dialogue._accent = accent;
             dialogue._role = role;
@@ -287,13 +284,12 @@ namespace Core.Vfx
                     return;
                 }
 
+                // Virtual orbital station: no inhabited ship, so no ship orders; planet-side consoles of each
+                // station (colony, shipyard, defences, research, comms) land with docs/ROADMAP.md P5.
+                // Boarding a ship goes through the view teleporter; Helm is not even present here.
                 if (fleet == null)
                 {
-                    await BuildStationContext(focus);
-                    if (gen != _rebuildGen)
-                        return;
-                    if (_rows.Count == 0)
-                        AddStatus(Trans.Get("planets"));
+                    AddStatus(Trans.Get("vr.crew.standby"));
                     return;
                 }
 
@@ -352,87 +348,6 @@ namespace Core.Vfx
             }
 
             return Trans.Get("Loading");
-        }
-
-        /// <summary>
-        /// Virtual orbital station — no MoveFleet* / combat / mine.
-        /// Helm only offers boarding an owned ship in-system (real bridge).
-        /// </summary>
-        async Task BuildStationContext(FocusContext focus)
-        {
-            if (_role != Role.Helm)
-            {
-                AddStatus(Trans.Get("planets"));
-                return;
-            }
-
-            if (_loader == null)
-            {
-                AddStatus(Trans.Get("fleets"));
-                return;
-            }
-
-            await Task.Yield();
-            var owned = FocusContext.OwnedUserId();
-            var now = FleetOrderGate.UnixNow();
-            var candidates = new List<(int id, int sys, string label)>();
-            foreach (var fleet in focus.Fleets)
-            {
-                if (owned > 0 && !fleet.IsOwnedBy(owned))
-                    continue;
-                if (!fleet.VisibleIn(focus.SystemId, now))
-                    continue;
-                var id = fleet.Id;
-                var sys = fleet.SystemId > 0 ? fleet.SystemId : focus.SystemId;
-                var label = string.IsNullOrEmpty(fleet.Name) ? "#" + id : fleet.Name;
-                candidates.Add((id, sys, label));
-                if (candidates.Count >= 8)
-                    break;
-            }
-
-            if (candidates.Count == 0)
-            {
-                AddStatus(Trans.Get("fleets"));
-                return;
-            }
-
-            if (candidates.Count == 1)
-            {
-                var only = candidates[0];
-                AddAction(ActionLabel("fleets", only.label),
-                    () => BoardShip(only.id, only.sys));
-                return;
-            }
-
-            AddDropdown(Trans.Get("fleets"), candidates.Count, DropGroup.BoardShips);
-            if (_dropOpen != DropGroup.BoardShips)
-                return;
-            BeginDropTray(candidates.Count);
-            for (var i = 0; i < candidates.Count; i++)
-            {
-                var row = candidates[i];
-                AddDropOption(DestLabel(row.label),
-                    () => BoardShip(row.id, row.sys));
-            }
-        }
-
-        async Task BoardShip(int fleetId, int systemId)
-        {
-            if (_loader == null)
-                return;
-            _map?.SetReadout(Trans.Get("Loading"));
-            var ok = await _loader.LoadShipView(fleetId, systemId);
-            if (ok)
-            {
-                CicCue.Ok(transform.position);
-                _dropOpen = DropGroup.None;
-                await RebuildAsync();
-            }
-            else
-            {
-                CicCue.Fail(transform.position);
-                _map?.SetReadout(Trans.Get("vr.common.error"));
-            }
         }
 
         async Task BuildHelm(FocusContext focus, FocusFleet fleet)

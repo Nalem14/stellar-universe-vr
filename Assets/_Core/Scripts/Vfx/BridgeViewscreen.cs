@@ -50,6 +50,16 @@ namespace Core.Vfx
             return view;
         }
 
+        /// <summary>Focused system name: GetSystems payload, else the galaxy catalogue, else #id.</summary>
+        public static string SystemLabel(FocusContext focus)
+        {
+            if (!string.IsNullOrEmpty(focus.SystemName))
+                return focus.SystemName;
+            if (GalaxyCatalog.TryGet(focus.SystemId, out var star) && !string.IsNullOrEmpty(star.Name))
+                return star.Name;
+            return "#" + focus.SystemId;
+        }
+
         /// <summary>Planet the virtual station orbits (name, else #id).</summary>
         public static string StationPlanetName(FocusContext focus)
         {
@@ -71,7 +81,7 @@ namespace Core.Vfx
         {
             if (_focus == null || _system == null)
                 return;
-            _system.text = _focus.HasSystem ? _focus.SystemName : Trans.Get("Loading");
+            _system.text = _focus.HasSystem ? SystemLabel(_focus) : Trans.Get("Loading");
 
             // Two inhabited modes (docs/VISION-VR.md §3.2): a real ship's bridge, or a virtual
             // orbital station over a planet (no fleet orders there; Helm offers boarding a ship).

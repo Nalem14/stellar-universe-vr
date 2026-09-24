@@ -101,6 +101,7 @@ namespace Core.Vfx
 
             var officer = CrewOfficer.Build(root, new Vector3(0f, 0.5f, -0.28f), def.Accent);
             CrewDialogue.Attach(officer, host, art, def.Accent, def.Role, hex, map, poller, focus, loader);
+            root.gameObject.AddComponent<CrewStationPresence>().Bind(focus, def.Role);
         }
 
         static GameObject Piece(Transform parent, string name, Vector3 size, float radius, Vector3 pos,

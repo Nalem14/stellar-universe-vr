@@ -32,6 +32,57 @@ namespace Core.App
             _viewRig = viewRig;
             _poller = poller;
             _zoneMap = zoneMap;
+            if (_focus != null)
+            {
+                _focus.FleetsChanged -= FollowInhabitedShip;
+                _focus.FleetsChanged += FollowInhabitedShip;
+            }
+        }
+
+        void OnDestroy()
+        {
+            if (_focus != null)
+                _focus.FleetsChanged -= FollowInhabitedShip;
+        }
+
+        /// <summary>
+        /// A ship's bridge always shows that ship's system: when the inhabited ship jumps (server stamps
+        /// systemid = destination as soon as it leaves), swap the exterior / holomap to its system.
+        /// </summary>
+        void FollowInhabitedShip()
+        {
+            if (_busy || _focus == null)
+                return;
+            var ship = _focus.FindViewFleet();
+            if (ship == null || ship.SystemId <= 0 || ship.SystemId == _focus.SystemId)
+                return;
+            AsyncTap.Run(LoadShipView(ship.Id, ship.SystemId));
+        }
+
+        /// <summary>Current system of a fleet from GetAllFleets (0 if unknown).</summary>
+        static async Task<int> LiveFleetSystem(int fleetId)
+        {
+            var result = await ActionJs.Get("GetAllFleets");
+            if (!result.Ok)
+                return 0;
+            try
+            {
+                var root = JToken.Parse(result.Body);
+                var arr = root as JArray ?? root["fleets"] as JArray;
+                if (arr == null)
+                    return 0;
+                foreach (var f in arr)
+                {
+                    if (FocusContext.AsInt(f["id"]) == fleetId)
+                        return FocusContext.AsInt(f["systemid"]);
+                }
+            }
+            catch
+            {
+                // Shape varies; fall back to the saved anchor system.
+            }
+
+            return 0;
         }
 
         public async Task<bool> LoadShipView(int fleetId, int systemId, bool fade = true)
@@ -56,7 +107,9 @@ namespace Core.App
 
             if (kind == BridgeViewKind.Ship && entity > 0)
             {
-                var sys = savedSystem > 0 ? savedSystem : userSystemId;
+                // The ship may have jumped since the anchor was saved: board it where it is now.
+                var live = await LiveFleetSystem(entity);
+                var sys = live > 0 ? live : savedSystem > 0 ? savedSystem : userSystemId;
                 if (sys <= 0)
                     sys = ResolveOwnedSystem(empire, systemsBody, userSystemId);
                 if (sys > 0 && await LoadShipView(entity, sys, fade: false))

@@ -167,10 +167,8 @@ namespace Core.Vfx
             ClearDropHighlight();
             if (_map == null)
                 return;
-            // Virtual orbital station: nothing moves from here (no MoveFleet* on the table). The captain
-            // boards a ship first (Helm) — the map stays a read-only situation display.
-            if (_focus != null && _focus.ViewFleetId <= 0)
-                return;
+            // From a virtual orbital station the table still commands every owned fleet around; the
+            // station itself has no fleet token, so there is nothing of it to drag.
 
             foreach (var token in _map.Tokens)
             {

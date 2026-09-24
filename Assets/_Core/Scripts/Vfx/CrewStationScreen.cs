@@ -59,7 +59,7 @@ namespace Core.Vfx
             // Virtual orbital station: no ship under the crew, stations stand by (Helm can board a ship).
             _primary.text = _focus.ViewPlanetId > 0
                 ? Trans.Format("vr.view.orbiting", BridgeViewscreen.StationPlanetName(_focus))
-                : _focus.SystemName;
+                : BridgeViewscreen.SystemLabel(_focus);
             _status.text = Trans.Get(_focus.HasSystem ? "vr.view.stationHeader" : "Loading");
         }
     }
