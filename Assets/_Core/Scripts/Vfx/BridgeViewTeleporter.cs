@@ -68,12 +68,12 @@ namespace Core.Vfx
 
             var tp = root.AddComponent<BridgeViewTeleporter>();
             tp._art = art;
-            tp._title = DiegeticUi.HoloLabel(frame, Trans.Get("spaceships"), new Vector2(0f, 220f),
+            tp._title = DiegeticUi.HoloLabel(frame, Trans.Get("fleets"), new Vector2(0f, 220f),
                 new Vector2(800f, 40f), 26f, DiegeticUi.Cyan);
             tp._hint = DiegeticUi.HoloLabel(frame, Trans.Get("CommandBridge"), new Vector2(0f, -300f),
                 new Vector2(800f, 36f), 18f, DiegeticUi.CyanDim);
 
-            tp._tabShips = DiegeticUi.HoloButton(frame, Trans.Get("spaceships"),
+            tp._tabShips = DiegeticUi.HoloButton(frame, Trans.Get("fleets"),
                 new Vector2(-200f, 160f), new Vector2(280f, 56f), () =>
                 {
                     tp._shipsTab = true;
@@ -115,7 +115,7 @@ namespace Core.Vfx
         {
             ClearRows();
             if (_title != null)
-                _title.text = _shipsTab ? Trans.Get("spaceships") : Trans.Get("planets");
+                _title.text = _shipsTab ? Trans.Get("fleets") : Trans.Get("planets");
 
             if (_shipsTab)
                 await LoadShips();
@@ -157,7 +157,7 @@ namespace Core.Vfx
                 return;
             }
 
-            _hint.text = _shipsTab ? Trans.Get("spaceships") : Trans.Get("planets");
+            _hint.text = _shipsTab ? Trans.Get("fleets") : Trans.Get("planets");
         }
 
         async Task LoadShips()
@@ -172,6 +172,7 @@ namespace Core.Vfx
 
             if (_focus != null)
                 _focus.ApplyFleetsBody(result.Body);
+            await GalaxyCatalog.EnsureLoaded();
 
             try
             {
@@ -201,7 +202,8 @@ namespace Core.Vfx
                 {
                     var id = row.id;
                     var sys = row.sys;
-                    AddRow(row.name, "#" + id + "  ·  sys " + sys, row.active,
+                    var star = GalaxyCatalog.TryGet(sys, out var s) ? s.Name : string.Empty;
+                    AddRow(row.name, star, row.active,
                         () => Core.Utils.AsyncTap.Run(ConfirmShip(id, sys)));
                     i++;
                     if (i >= 8)
@@ -211,75 +213,45 @@ namespace Core.Vfx
             catch
             {
                 if (_title != null)
-                    _title.text = "GetAllFleets";
+                    _title.text = Trans.Get("vr.common.error");
             }
         }
 
+        static readonly List<GalaxyCatalog.PlanetRef> OwnedScratch = new();
+
+        /// <summary>
+        /// Own planets across the galaxy, as the web builds its planets window: GetSystems planets
+        /// whose userid is mine (GetEmpirePlanets has no systemid, so it cannot drive a TP).
+        /// </summary>
         async Task LoadPlanets()
         {
-            var viewPlanet = _focus != null ? _focus.ViewPlanetId : 0;
-            var result = await ActionJs.Get("GetEmpirePlanets");
-            if (!result.Ok)
-            {
-                if (_focus != null)
-                {
-                    foreach (var p in _focus.Planets)
-                    {
-                        var label = string.IsNullOrEmpty(p.Name) ? "#" + p.Id : p.Name;
-                        var planetId = p.Id;
-                        var sys = _focus.SystemId;
-                        AddRow(label, "#" + planetId + "  ·  sys " + sys,
-                            viewPlanet > 0 && planetId == viewPlanet && (_focus.ViewFleetId <= 0),
-                            () => Core.Utils.AsyncTap.Run(ConfirmPlanet(planetId, sys)));
-                    }
-                }
+            var viewPlanet = _focus != null && _focus.ViewFleetId <= 0 ? _focus.ViewPlanetId : 0;
+            await GalaxyCatalog.EnsureLoaded();
+            GalaxyCatalog.CollectOwnedPlanets(FocusContext.OwnedUserId(), OwnedScratch);
 
-                return;
+            var pending = new List<(int id, int sys, string name, string star, bool active)>(OwnedScratch.Count);
+            foreach (var p in OwnedScratch)
+            {
+                var name = string.IsNullOrEmpty(p.Name) ? "#" + p.Id : p.Name;
+                var star = GalaxyCatalog.TryGet(p.SystemId, out var s) ? s.Name : string.Empty;
+                pending.Add((p.Id, p.SystemId, name, star, viewPlanet > 0 && p.Id == viewPlanet));
             }
 
-            try
+            pending.Sort((a, b) =>
             {
-                var root = Newtonsoft.Json.Linq.JToken.Parse(result.Body);
-                var arr = root as Newtonsoft.Json.Linq.JArray
-                          ?? root["planets"] as Newtonsoft.Json.Linq.JArray;
-                if (arr == null)
-                    return;
-                var pending = new List<(int id, int sys, string name, bool active)>();
-                foreach (var p in arr)
-                {
-                    var id = FocusContext.AsInt(p["id"]);
-                    var sys = FocusContext.AsInt(p["systemid"]);
-                    var name = FocusContext.AsString(p["name"]);
-                    if (string.IsNullOrEmpty(name))
-                        name = "#" + id;
-                    var active = viewPlanet > 0 && id == viewPlanet &&
-                                 (_focus == null || _focus.ViewFleetId <= 0);
-                    pending.Add((id, sys, name, active));
-                }
+                if (a.active != b.active)
+                    return a.active ? -1 : 1;
+                return string.CompareOrdinal(a.name, b.name);
+            });
 
-                pending.Sort((a, b) =>
-                {
-                    if (a.active != b.active)
-                        return a.active ? -1 : 1;
-                    return string.CompareOrdinal(a.name, b.name);
-                });
-
-                var i = 0;
-                foreach (var row in pending)
-                {
-                    var id = row.id;
-                    var sys = row.sys;
-                    AddRow(row.name, "#" + id + "  ·  sys " + sys, row.active,
-                        () => Core.Utils.AsyncTap.Run(ConfirmPlanet(id, sys)));
-                    i++;
-                    if (i >= 8)
-                        break;
-                }
-            }
-            catch
+            var i = 0;
+            foreach (var row in pending)
             {
-                if (_title != null)
-                    _title.text = "GetEmpirePlanets";
+                var id = row.id;
+                var sys = row.sys;
+                AddRow(row.name, row.star, row.active, () => Core.Utils.AsyncTap.Run(ConfirmPlanet(id, sys)));
+                if (++i >= 8)
+                    break;
             }
         }
 
@@ -346,7 +318,7 @@ namespace Core.Vfx
                 _title.text = Trans.Get("Loading");
             var ok = await _loader.LoadShipView(fleetId, systemId);
             if (_title != null)
-                _title.text = ok ? Trans.Get("spaceships") : Trans.Get("error");
+                _title.text = ok ? Trans.Get("fleets") : Trans.Get("vr.common.error");
             if (ok)
             {
                 CicCue.Ok(transform.position);
@@ -364,7 +336,7 @@ namespace Core.Vfx
                 _title.text = Trans.Get("Loading");
             var ok = await _loader.LoadPlanetStation(planetId, systemId);
             if (_title != null)
-                _title.text = ok ? Trans.Get("planets") : Trans.Get("error");
+                _title.text = ok ? Trans.Get("planets") : Trans.Get("vr.common.error");
             if (ok)
             {
                 CicCue.Ok(transform.position);

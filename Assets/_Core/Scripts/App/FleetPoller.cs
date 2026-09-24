@@ -10,15 +10,20 @@ namespace Core.App
     /// </summary>
     public class FleetPoller : MonoBehaviour
     {
+        /// <summary>Server caches GetAllFleets for 3 s (actionjs.php); polling faster returns stale data.</summary>
+        public const float DefaultInterval = 3.5f;
+        /// <summary>Diplomacy refresh ~ every 45 s at the default fleet cadence.</summary>
+        const int DiplomacyEvery = 13;
+
         FocusContext _focus;
-        float _interval = 2.5f;
+        float _interval = DefaultInterval;
         Coroutine _loop;
         int _pollCount;
 
-        public void Bind(FocusContext focus, float intervalSeconds = 2.5f)
+        public void Bind(FocusContext focus, float intervalSeconds = DefaultInterval)
         {
             _focus = focus;
-            _interval = Mathf.Max(1f, intervalSeconds);
+            _interval = Mathf.Max(3.1f, intervalSeconds);
             _pollCount = 0;
             if (_loop != null)
                 StopCoroutine(_loop);
@@ -55,8 +60,7 @@ namespace Core.App
         async Task PollOnce()
         {
             _pollCount++;
-            // Diplomacy ~ every 45s at 2.5s fleet poll (Quest budget).
-            if (_pollCount == 1 || _pollCount % 18 == 0)
+            if (_pollCount == 1 || _pollCount % DiplomacyEvery == 0)
                 await DiplomacyIndex.EnsureLoaded();
 
             var result = await ActionJs.Get("GetAllFleets");

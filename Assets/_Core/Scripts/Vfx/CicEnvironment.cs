@@ -460,6 +460,7 @@ namespace Core.Vfx
 
         void EnsureVolume()
         {
+            EnableCameraPost();
             if (FindFirstObjectByType<Volume>() != null)
                 return;
             var go = new GameObject("CIC Volume");
@@ -472,14 +473,28 @@ namespace Core.Vfx
             bloom.intensity.Override(Layout == CicLayout.MenuDeck ? 0.72f : 0.42f);
             bloom.threshold.Override(Layout == CicLayout.Bridge ? 0.88f : 0.8f);
             bloom.scatter.Override(0.7f);
-            if (profile.TryGet(out ChromaticAberration chroma) == false)
-                chroma = profile.Add<ChromaticAberration>(true);
-            chroma.intensity.Override(0.08f);
+            // No chromatic aberration: full-screen fill-rate on Quest and uncomfortable in a headset.
             if (profile.TryGet(out Vignette vignette) == false)
                 vignette = profile.Add<Vignette>(true);
             vignette.intensity.Override(Layout == CicLayout.Bridge ? 0.22f : 0.34f);
             vignette.color.Override(new Color(0.02f, 0.05f, 0.08f));
             volume.sharedProfile = profile;
+        }
+
+        /// <summary>
+        /// The XR rig camera ships with post-processing off, so the Volume never reached the headset.
+        /// Quest trade-off: LDR bloom + vignette in URP's single uber pass (~1 ms), no HDR target.
+        /// </summary>
+        static void EnableCameraPost()
+        {
+            var cam = Camera.main;
+            if (cam == null)
+                return;
+            var data = cam.GetComponent<UniversalAdditionalCameraData>();
+            if (data == null)
+                data = cam.gameObject.AddComponent<UniversalAdditionalCameraData>();
+            data.renderPostProcessing = true;
+            data.antialiasing = AntialiasingMode.None;
         }
 
         public static void DropColliderStatic(GameObject go)

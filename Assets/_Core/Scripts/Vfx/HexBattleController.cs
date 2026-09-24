@@ -185,13 +185,13 @@ namespace Core.Vfx
                     if (log != null && log.Count > 0)
                         _log.text = FocusContext.AsString(log[log.Count - 1]?["msg"] ?? log[log.Count - 1]);
                     else
-                        _log.text = $"bship {_activeBship}";
+                        _log.text = Trans.Get("fleets") + " #" + _activeBship;
                 }
             }
             catch
             {
                 if (_log != null)
-                    _log.text = "GetBattleState";
+                    _log.text = Trans.Get("vr.common.error");
             }
         }
 
@@ -292,7 +292,7 @@ namespace Core.Vfx
                     CicCue.Ok(go.transform.position);
                     _activeBship = shipId;
                     if (_log != null)
-                        _log.text = Trans.Get("spaceships") + " " + shipId;
+                        _log.text = Trans.Get("fleets") + " #" + shipId;
                 });
                 _pieces.Add(go);
             }
@@ -307,14 +307,17 @@ namespace Core.Vfx
                 { "battleid", _battleId.ToString() },
                 { "fleetid", _fleetId.ToString() },
                 { "bship_id", _activeBship.ToString() },
-                { "action", "move" },
-                { "skill_id", string.Empty },
+                // "action" is the endpoint's own key: the server reads the battle verb from subaction.
+                { "subaction", "move" },
+                { "battle_subaction", "move" },
+                // skill_id is required non-empty; "0" is PHP-empty so the server ignores it for moves.
+                { "skill_id", "0" },
                 { "target_bship_id", "0" },
                 { "target_q", q.ToString() },
                 { "target_r", r.ToString() }
             });
             if (_log != null)
-                _log.text = result.Ok ? $"move {q},{r}" : result.Error;
+                _log.text = result.Ok ? Trans.Get("vr.common.ok") : result.Error;
             if (result.Ok)
                 await PollState();
         }
@@ -329,7 +332,7 @@ namespace Core.Vfx
                 { "fleetid", _fleetId.ToString() }
             });
             if (_log != null)
-                _log.text = result.Ok ? "end turn" : result.Error;
+                _log.text = result.Ok ? Trans.Get("vr.tactical.endTurn") : result.Error;
             if (result.Ok)
                 await PollState();
         }

@@ -103,10 +103,10 @@ La galaxie et le système **jouables** sont des maquettes sur la table (~1 m). N
 | `HoloStarRadius` | 0.09 m | Étoile token |
 | `HoloPlanetRadius` (+ step) | 0.055 + 0.006 m/slot | Mondes distincts |
 | `HoloAsteroidRadius` | 0.022 m | Pip rocher |
-| `HoloFleetSize` | 0.07 m | Chevron flotte (pas une sphère) |
+| `HoloFleetSize` | 0.042 m | Chevron flotte (pas une sphère) |
 | `HoloVolumeHeight` / `HoloTokenLift` | 0.28 / 0.08 m | Colonne projetée + lift tokens |
 
-`ViewportSystemView` (diorama dans le verre) est un reliquat : les hublots Bridge sont des **trous**. Ne pas y recoller un mini-système.
+Les hublots Bridge sont des **trous** sur le `SystemExterior` partagé (l'ancien diorama `ViewportSystemView` a été supprimé). Ne pas y recoller un mini-système.
 
 ---
 

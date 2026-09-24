@@ -97,7 +97,19 @@ namespace Core.App
         public IReadOnlyList<FocusFleet> Fleets => _fleets;
         public bool HasSystem => SystemId > 0;
 
+        /// <summary>
+        /// System or inhabited view (ship / station) changed. Heavy: rig snaps, exterior rebuilds.
+        /// Not raised by a poll that keeps the same view.
+        /// </summary>
         public event Action Changed;
+
+        /// <summary>Fleet data changed (position, timers, battle flag…) while system and view stayed the same.</summary>
+        public event Action FleetsChanged;
+
+        int _emittedSystemId = -1;
+        int _emittedFleetId = -1;
+        int _emittedPlanetId = -1;
+        int _fleetsSignature;
 
         readonly List<FocusPlanet> _planets = new();
         readonly List<FocusAsteroid> _asteroids = new();
@@ -115,8 +127,9 @@ namespace Core.App
             _planets.Clear();
             _asteroids.Clear();
             _fleets.Clear();
+            _fleetsSignature = 0;
             Current = this;
-            Changed?.Invoke();
+            EmitView(force: true);
         }
 
         public void SetViewFleet(int fleetId)
@@ -126,10 +139,7 @@ namespace Core.App
             if (ViewFleetId <= 0)
                 EnsureBridgeView(preferredFleetId: 0, preferredPlanetId: 0);
             else
-            {
-                Current = this;
-                Changed?.Invoke();
-            }
+                EmitView(force: true);
         }
 
         public void SetViewPlanet(int planetId)
@@ -139,10 +149,7 @@ namespace Core.App
             if (ViewPlanetId <= 0)
                 EnsureBridgeView(preferredFleetId: 0, preferredPlanetId: 0);
             else
-            {
-                Current = this;
-                Changed?.Invoke();
-            }
+                EmitView(force: true);
         }
 
         public void SetFromApi(int systemId, string systemsBody, string fleetsBody, int preferredFleetId = 0,
@@ -162,17 +169,74 @@ namespace Core.App
                 TryParseSystem(systemsBody, systemId);
 
             TryParseFleets(fleetsBody);
+            _fleetsSignature = ComputeFleetsSignature();
+            // New system payload: always a full rebuild, even when ids match.
+            _emittedSystemId = -1;
             EnsureBridgeView(preferredFleetId, preferredPlanetId);
         }
 
+        /// <summary>
+        /// Poll path. Raises <see cref="Changed"/> only if the inhabited view had to move,
+        /// else <see cref="FleetsChanged"/> only if fleet data differs from the last poll.
+        /// </summary>
         public void ApplyFleetsBody(string fleetsBody)
         {
             _fleets.Clear();
             TryParseFleets(fleetsBody);
             if (ViewFleetId > 0 && FindFleet(ViewFleetId) == null)
                 ViewFleetId = 0;
+
+            var signature = ComputeFleetsSignature();
+            var fleetsDiffer = signature != _fleetsSignature;
+            _fleetsSignature = signature;
+
             // Bridge must stay bound to a ship or a planet.
-            EnsureBridgeView(ViewFleetId, ViewPlanetId);
+            if (!EnsureBridgeView(ViewFleetId, ViewPlanetId) && fleetsDiffer)
+                FleetsChanged?.Invoke();
+        }
+
+        /// <summary>Raises <see cref="Changed"/> when system / view differs from the last emit. Returns true if raised.</summary>
+        bool EmitView(bool force)
+        {
+            Current = this;
+            if (!force && SystemId == _emittedSystemId && ViewFleetId == _emittedFleetId &&
+                ViewPlanetId == _emittedPlanetId)
+                return false;
+            _emittedSystemId = SystemId;
+            _emittedFleetId = ViewFleetId;
+            _emittedPlanetId = ViewPlanetId;
+            Changed?.Invoke();
+            return true;
+        }
+
+        int ComputeFleetsSignature()
+        {
+            unchecked
+            {
+                var h = 17;
+                for (var i = 0; i < _fleets.Count; i++)
+                {
+                    var f = _fleets[i];
+                    h = h * 31 + f.Id;
+                    h = h * 31 + f.SystemId;
+                    h = h * 31 + f.FromSystemId;
+                    h = h * 31 + f.DestSystemId;
+                    h = h * 31 + f.PlanetId;
+                    h = h * 31 + f.AsteroidId;
+                    h = h * 31 + f.UserId;
+                    h = h * 31 + f.EmpireId;
+                    h = h * 31 + f.DestTime.GetHashCode();
+                    h = h * 31 + f.AttackEndTime.GetHashCode();
+                    h = h * 31 + f.HarvestEndTime.GetHashCode();
+                    h = h * 31 + f.ExploreEndTime.GetHashCode();
+                    h = h * 31 + (f.IsInBattle ? 1 : 0);
+                    h = h * 31 + f.Modules.Count;
+                    h = h * 31 + (f.Name != null ? f.Name.GetHashCode() : 0);
+                    h = h * 31 + (f.Pos != null ? f.Pos.GetHashCode() : 0);
+                }
+
+                return h;
+            }
         }
 
         /// <summary>
@@ -180,7 +244,7 @@ namespace Core.App
         /// Ships win over station except when a planet view is explicitly requested (TP).
         /// Station has no MoveFleet* — crew orders need a ship.
         /// </summary>
-        public void EnsureBridgeView(int preferredFleetId = 0, int preferredPlanetId = 0)
+        public bool EnsureBridgeView(int preferredFleetId = 0, int preferredPlanetId = 0)
         {
             if (preferredFleetId > 0)
             {
@@ -189,9 +253,7 @@ namespace Core.App
                 {
                     ViewFleetId = fleetId;
                     ViewPlanetId = 0;
-                    Current = this;
-                    Changed?.Invoke();
-                    return;
+                    return EmitView(force: false);
                 }
             }
 
@@ -200,17 +262,13 @@ namespace Core.App
             {
                 ViewFleetId = 0;
                 ViewPlanetId = preferredPlanetId;
-                Current = this;
-                Changed?.Invoke();
-                return;
+                return EmitView(force: false);
             }
 
             if (ViewFleetId > 0 && FindFleet(ViewFleetId) != null)
             {
                 ViewPlanetId = 0;
-                Current = this;
-                Changed?.Invoke();
-                return;
+                return EmitView(force: false);
             }
 
             ViewFleetId = 0;
@@ -221,21 +279,16 @@ namespace Core.App
             {
                 ViewFleetId = anyShip;
                 ViewPlanetId = 0;
-                Current = this;
-                Changed?.Invoke();
-                return;
+                return EmitView(force: false);
             }
 
             if (ViewPlanetId > 0 && FindPlanet(ViewPlanetId) != null)
             {
-                Current = this;
-                Changed?.Invoke();
-                return;
+                return EmitView(force: false);
             }
 
             ViewPlanetId = ResolveDefaultPlanetId();
-            Current = this;
-            Changed?.Invoke();
+            return EmitView(force: false);
         }
 
         int ResolveDefaultPlanetId()

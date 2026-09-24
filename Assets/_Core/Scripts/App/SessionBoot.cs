@@ -60,7 +60,7 @@ namespace Core.App
                 _focus = _loader.Focus ?? _focus;
                 if (!ok)
                 {
-                    Say(Trans.Get("BootFromAnchorOrDefault"));
+                    Say(Trans.Get("vr.boot.restoreFailed"));
                     return;
                 }
             }

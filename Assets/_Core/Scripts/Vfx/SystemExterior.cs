@@ -37,6 +37,8 @@ namespace Core.Vfx
             {
                 _focus.Changed -= OnFocusChanged;
                 _focus.Changed += OnFocusChanged;
+                _focus.FleetsChanged -= OnFocusChanged;
+                _focus.FleetsChanged += OnFocusChanged;
             }
 
             RebuildAll();
@@ -45,7 +47,10 @@ namespace Core.Vfx
         void OnDestroy()
         {
             if (_focus != null)
+            {
                 _focus.Changed -= OnFocusChanged;
+                _focus.FleetsChanged -= OnFocusChanged;
+            }
         }
 
         void OnFocusChanged()
@@ -262,11 +267,9 @@ namespace Core.Vfx
                     continue;
                 if (!_fleets.TryGetValue(fleet.Id, out var tf) || tf == null)
                     continue;
+                // Own inhabited hull: hidden by SyncFleets on view / fleet change, never scanned per frame.
                 if (_focus.ViewFleetId == fleet.Id)
-                {
-                    SetVisible(tf, false);
                     continue;
-                }
 
                 if (_fleetMotion.TryGetValue(fleet.Id, out var motion) && motion.EndUnix > now)
                 {
@@ -312,7 +315,8 @@ namespace Core.Vfx
             light.color = Color.Lerp(kit.Color, Color.white, 0.15f);
             light.intensity = Mathf.Clamp(kit.Intensity * 1.15f, 1.6f, 3.2f);
             light.range = WorldScale.StarLightRange;
-            light.shadows = LightShadows.Soft;
+            // No realtime shadows on Quest (additional light shadows are off in the URP config anyway).
+            light.shadows = LightShadows.None;
         }
 
         void CreateStarBillboard(string name, float size, Material mat)
@@ -470,10 +474,14 @@ namespace Core.Vfx
                 Object.DestroyImmediate(col);
         }
 
+        static readonly List<Renderer> RendererScratch = new();
+
         static void SetVisible(Transform root, bool visible)
         {
-            foreach (var r in root.GetComponentsInChildren<Renderer>(true))
-                r.enabled = visible;
+            root.GetComponentsInChildren(true, RendererScratch);
+            for (var i = 0; i < RendererScratch.Count; i++)
+                RendererScratch[i].enabled = visible;
+            RendererScratch.Clear();
         }
 
         static void ClearChildren(Transform parent)

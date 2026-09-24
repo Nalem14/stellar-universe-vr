@@ -60,11 +60,7 @@ namespace Core.App
             var orders = interior.AddComponent<HoloFleetOrders>();
             orders.Bind(_zoneMap, _focus, _poller, mapCtrl);
 
-            var viewOrders = interior.AddComponent<ViewFleetOrders>();
-            viewOrders.Bind(_focus, _poller, _zoneMap, env.Art,
-                env.Table != null ? env.Table.transform : interior.transform, hex);
-
-            CrewStationsBuilder.Build(env, env.Art, viewOrders, hex, _zoneMap, _poller, _focus, _loader);
+            CrewStationsBuilder.Build(env, env.Art, hex, _zoneMap, _poller, _focus, _loader);
 
             var teleporter = BridgeViewTeleporter.Build(env, env.Art);
             teleporter.Bind(_loader, _focus, env.Art);
@@ -73,7 +69,7 @@ namespace Core.App
             var armL = FindNamed(interior.transform, "ArmPadL");
             if (armL != null)
             {
-                DiegeticUi.Button(armL, "ArmPadL_Refresh", Trans.Get("spaceships"),
+                DiegeticUi.Button(armL, "ArmPadL_Refresh", Trans.Get("fleets"),
                     new Vector3(0f, 0.04f, 0f), new Vector3(0.18f, 0.04f, 0.12f), env.Art, CicArtKit.Cyan,
                     () => Core.Utils.AsyncTap.Run(teleporter.RefreshList()));
             }

@@ -3,7 +3,8 @@ using UnityEngine;
 namespace Core.Vfx
 {
     /// <summary>
-    /// Alive engine / weapon glow. Uses an instance material.
+    /// Alive engine / weapon glow. Drives _EmissionMul through a MaterialPropertyBlock so the
+    /// shared hull material stays batched (no per-module material instance).
     /// </summary>
     public class EmissionPulse : MonoBehaviour
     {
@@ -12,21 +13,32 @@ namespace Core.Vfx
         public float Speed = 3.4f;
         public float Phase;
 
-        Material _mat;
+        static readonly int EmissionMulId = Shader.PropertyToID("_EmissionMul");
+
+        Renderer _renderer;
+        MaterialPropertyBlock _block;
 
         void Start()
         {
-            var r = GetComponent<Renderer>();
-            if (r != null)
-                _mat = r.material;
+            _renderer = GetComponent<Renderer>();
+            if (_renderer == null || _renderer.sharedMaterial == null ||
+                !_renderer.sharedMaterial.HasProperty(EmissionMulId))
+            {
+                enabled = false;
+                return;
+            }
+
+            _block = new MaterialPropertyBlock();
         }
 
         void Update()
         {
-            if (_mat == null || !_mat.HasProperty("_EmissionMul"))
+            if (!_renderer.isVisible)
                 return;
             var t = (Mathf.Sin(Time.time * Speed + Phase) + 1f) * 0.5f;
-            _mat.SetFloat("_EmissionMul", Mathf.Lerp(Min, Max, t));
+            _renderer.GetPropertyBlock(_block);
+            _block.SetFloat(EmissionMulId, Mathf.Lerp(Min, Max, t));
+            _renderer.SetPropertyBlock(_block);
         }
     }
 }

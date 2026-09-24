@@ -49,6 +49,8 @@ namespace Core.Vfx
             {
                 _focus.Changed -= OnFocusChanged;
                 _focus.Changed += OnFocusChanged;
+                _focus.FleetsChanged -= OnFocusChanged;
+                _focus.FleetsChanged += OnFocusChanged;
             }
 
             DiplomacyIndex.Changed -= OnDiplomacyChanged;
@@ -60,7 +62,10 @@ namespace Core.Vfx
         void OnDestroy()
         {
             if (_focus != null)
+            {
                 _focus.Changed -= OnFocusChanged;
+                _focus.FleetsChanged -= OnFocusChanged;
+            }
             DiplomacyIndex.Changed -= OnDiplomacyChanged;
         }
 
@@ -297,7 +302,7 @@ namespace Core.Vfx
             ClearTokens();
             _galaxyStub = true;
             BuildGalaxyMap();
-            SetReadout("Galaxy");
+            SetReadout(Trans.Get("galaxy"));
             TokensRebuilt?.Invoke();
         }
 
@@ -579,7 +584,7 @@ namespace Core.Vfx
             spin.DegreesPerSecond = 6f;
             spin.BobMeters = 0.005f;
 
-            var label = FormatEntityLabel(Trans.Get("asteroid"), id);
+            var label = FormatEntityLabel(Trans.Get("asteroidField"), id);
             AddTokenLabel(go.transform, label, 0.09f, new Color(0.9f, 0.86f, 0.75f, 0.95f),
                 plate: false, startVisible: false);
             Tag(go, HoloTokenKind.Asteroid, id, slot, owned: false, busy: false, label);

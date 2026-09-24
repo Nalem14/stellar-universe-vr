@@ -454,10 +454,8 @@ namespace Core.Vfx
                 RestoreSpin(fleetToken);
                 CicCue.Ok(target.transform.position);
 
-                var suffix = result.Body != null && result.Body.StartsWith("ok:", StringComparison.Ordinal)
-                    ? result.Body
-                    : "ok";
-                _map?.SetReadout($"{fleetToken.DisplayName} → {dest} · {suffix}");
+                var notice = Trans.Get(result.NoticeKey ?? "vr.common.ok");
+                _map?.SetReadout($"{fleetToken.DisplayName} → {dest} · {notice}");
 
                 if (_poller != null)
                     await _poller.PollNow();
@@ -572,11 +570,8 @@ namespace Core.Vfx
 
         static string FormatError(string action, string error)
         {
-            if (string.IsNullOrEmpty(error))
-                return action;
-            if (error.StartsWith("error:", StringComparison.Ordinal))
-                return error;
-            return "error:" + error;
+            // Server body is error:{localized message}; ActionJs already stripped the prefix.
+            return string.IsNullOrEmpty(error) ? Trans.Get("vr.common.error") : error;
         }
     }
 }

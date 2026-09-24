@@ -104,7 +104,7 @@ namespace Core.UI
             _hubGreeting = Label(root, Trans.Get("welcome"), 22f, FontStyles.Italic, new Vector2(0f, 120f),
                 CyanDim);
 
-            Button(root, Trans.Get("continue"), new Vector2(0f, 30f), EnterBridge, DiegeticUi.BtnStyle.Cyan);
+            Button(root, Trans.Get("vr.menu.continue"), new Vector2(0f, 30f), EnterBridge, DiegeticUi.BtnStyle.Cyan);
             Button(root, Trans.Get("quit"), new Vector2(0f, -55f), QuitApp, DiegeticUi.BtnStyle.Ghost);
             Button(root, Trans.Get("logout"), new Vector2(0f, -140f), DoLogout, DiegeticUi.BtnStyle.Danger);
         }
@@ -234,12 +234,36 @@ namespace Core.UI
             ShowPanel(PanelMode.Hub);
         }
 
-        void EnterBridge()
+        void EnterBridge() => Core.Utils.AsyncTap.Run(EnterBridgeAsync());
+
+        async Task EnterBridgeAsync()
         {
-            if (!AuthManager.Ensure().IsLoggedIn)
+            var auth = AuthManager.Ensure();
+            if (!auth.IsLoggedIn)
             {
                 SetStatus(Trans.Get("error_not_logged_in"), new Color(1f, 0.4f, 0.35f));
                 ShowPanel(PanelMode.Forms);
+                return;
+            }
+
+            if (_busy)
+                return;
+            _busy = true;
+            SetStatus(Trans.Get("Loading"), Cyan);
+            var me = await auth.FetchMe();
+            _busy = false;
+            if (!me.Ok)
+            {
+                CicCue.Fail(transform.position);
+                SetStatus(FriendlyError(me.Error), new Color(1f, 0.4f, 0.35f));
+                return;
+            }
+
+            // No empire yet: stay in the airlock. Never send the player to the website.
+            if (!auth.HasEmpire)
+            {
+                CicCue.Fail(transform.position);
+                SetStatus(Trans.Get("vr.menu.noEmpire"), Amber);
                 return;
             }
 

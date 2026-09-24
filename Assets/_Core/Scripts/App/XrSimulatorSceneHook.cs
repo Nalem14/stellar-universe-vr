@@ -14,7 +14,9 @@ namespace Core.App
     public sealed class XrSimulatorSceneHook : MonoBehaviour
     {
         static XrSimulatorSceneHook s_Instance;
-        float _suppressUntil;
+        /// <summary>Late coaching spawns (lazy tooltips) are caught by a 1 Hz sweep, not a per-frame scene scan.</summary>
+        static readonly WaitForSecondsRealtime SweepInterval = new(1f);
+        const int LateSweeps = 12;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Boot()
@@ -45,12 +47,6 @@ namespace Core.App
             StartCoroutine(RebindAfterLoad());
         }
 
-        void LateUpdate()
-        {
-            if (Time.unscaledTime <= _suppressUntil)
-                SuppressCoachingUi();
-        }
-
         IEnumerator RebindAfterLoad()
         {
             // Wait one frame so the new XR Origin / modality manager exist.
@@ -73,11 +69,16 @@ namespace Core.App
                 sim.targetedDeviceInput = TargetedDevices.FPS | TargetedDevices.RightDevice;
             }
 
-            _suppressUntil = Time.unscaledTime + 12f;
-            for (var i = 0; i < 12; i++)
+            for (var i = 0; i < 4; i++)
             {
                 SuppressCoachingUi();
                 yield return null;
+            }
+
+            for (var i = 0; i < LateSweeps; i++)
+            {
+                yield return SweepInterval;
+                SuppressCoachingUi();
             }
         }
 

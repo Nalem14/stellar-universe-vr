@@ -1,16 +1,22 @@
 using System.Threading.Tasks;
 using Core.Utils;
 using UnityEngine;
-using UnityEngine.UI;
 
 namespace Core.Vfx
 {
-    /// <summary>Full-view fade for teleporter / system swap (world-space quad in front of XR camera).</summary>
+    /// <summary>
+    /// Full-view fade for teleporter / system swap. A small inside sphere parented to the XR camera,
+    /// drawn last with ZTest Always (SU/ViewFade) — Screen Space Overlay canvases do not render in the headset.
+    /// </summary>
     public class ViewFade : MonoBehaviour
     {
+        const float Radius = 0.25f;
+        static readonly Color Veil = new(0f, 0.02f, 0.05f, 1f);
+        static readonly int ColorId = Shader.PropertyToID("_Color");
+
         static ViewFade _instance;
-        Canvas _canvas;
-        Image _image;
+        MeshRenderer _renderer;
+        Material _material;
         bool _busy;
 
         public static ViewFade Ensure()
@@ -26,23 +32,41 @@ namespace Core.Vfx
 
         void Build()
         {
-            _canvas = gameObject.AddComponent<Canvas>();
-            _canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            _canvas.sortingOrder = 32000;
-            var scaler = gameObject.AddComponent<CanvasScaler>();
-            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            gameObject.AddComponent<GraphicRaycaster>().enabled = false;
+            var sphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            sphere.name = "FadeVeil";
+            sphere.transform.SetParent(transform, false);
+            sphere.transform.localScale = Vector3.one * (Radius * 2f);
+            Destroy(sphere.GetComponent<Collider>());
 
-            var imgGo = new GameObject("Fade");
-            imgGo.transform.SetParent(transform, false);
-            _image = imgGo.AddComponent<Image>();
-            _image.color = new Color(0f, 0.02f, 0.05f, 0f);
-            var rt = _image.rectTransform;
-            rt.anchorMin = Vector2.zero;
-            rt.anchorMax = Vector2.one;
-            rt.offsetMin = Vector2.zero;
-            rt.offsetMax = Vector2.zero;
-            _image.raycastTarget = false;
+            _renderer = sphere.GetComponent<MeshRenderer>();
+            _renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            _renderer.receiveShadows = false;
+            var shader = Shader.Find("SU/ViewFade");
+            if (shader == null)
+            {
+                // Without the veil shader a fade would draw behind the room: skip it, never flash a grey ball.
+                Debug.LogWarning("[SU] ViewFade: SU/ViewFade shader missing, fades disabled.");
+                enabled = false;
+                sphere.SetActive(false);
+                return;
+            }
+
+            _material = new Material(shader);
+            SetAlpha(0f);
+        }
+
+        void LateUpdate()
+        {
+            // Follow whichever XR camera the current scene owns (rig is rebuilt per scene).
+            var cam = Camera.main;
+            if (cam == null)
+                return;
+            if (transform.parent != cam.transform)
+            {
+                transform.SetParent(cam.transform, false);
+                transform.localPosition = Vector3.zero;
+                transform.localRotation = Quaternion.identity;
+            }
         }
 
         public async Task FadeOut(float duration = 0.35f)
@@ -65,21 +89,28 @@ namespace Core.Vfx
 
         async Task Animate(float from, float to, float duration)
         {
-            if (_image == null)
+            if (_material == null)
                 return;
+            LateUpdate();
             var t = 0f;
-            var c = _image.color;
             while (t < duration)
             {
                 t += Time.unscaledDeltaTime;
-                var u = MotionEase.SmoothInOut(t / duration);
-                c.a = Mathf.Lerp(from, to, u);
-                _image.color = c;
+                SetAlpha(Mathf.Lerp(from, to, MotionEase.SmoothInOut(t / duration)));
                 await Task.Yield();
             }
 
-            c.a = to;
-            _image.color = c;
+            SetAlpha(to);
+        }
+
+        void SetAlpha(float a)
+        {
+            var c = Veil;
+            c.a = a;
+            _material.SetColor(ColorId, c);
+            _renderer.sharedMaterial = _material;
+            // Hidden when clear: no overdraw sphere in front of the eyes.
+            _renderer.enabled = a > 0.001f;
         }
     }
 }

@@ -7,7 +7,10 @@ using UnityEngine;
 
 namespace Core.Vfx
 {
-    /// <summary>Cached galaxy points for holomap Galaxy mode (systems.x/y).</summary>
+    /// <summary>
+    /// Cached GetSystems: galaxy points for holomap Galaxy mode (systems.x/y) and every planet's owner,
+    /// the same source the web uses for "my planets" (galaxyScene.planetsList filtered on userid).
+    /// </summary>
     public static class GalaxyCatalog
     {
         public struct Star
@@ -18,10 +21,32 @@ namespace Core.Vfx
             public float Y;
         }
 
+        public struct PlanetRef
+        {
+            public int Id;
+            public int SystemId;
+            public int UserId;
+            public string Name;
+        }
+
         static readonly List<Star> Stars = new();
+        static readonly List<PlanetRef> Planets = new();
         static bool _loaded;
 
         public static IReadOnlyList<Star> All => Stars;
+
+        /// <summary>Planets owned by <paramref name="userId"/> across the galaxy.</summary>
+        public static void CollectOwnedPlanets(int userId, List<PlanetRef> into)
+        {
+            into.Clear();
+            if (userId <= 0)
+                return;
+            for (var i = 0; i < Planets.Count; i++)
+            {
+                if (Planets[i].UserId == userId)
+                    into.Add(Planets[i]);
+            }
+        }
 
         public static bool TryGet(int systemId, out Star star)
         {
@@ -60,14 +85,16 @@ namespace Core.Vfx
                 into.Add(scored[i].s);
         }
 
-        public static async Task EnsureLoaded()
+        /// <param name="force">Re-read ownership (after Colonize / conquest).</param>
+        public static async Task EnsureLoaded(bool force = false)
         {
-            if (_loaded && Stars.Count > 0)
+            if (!force && _loaded && Stars.Count > 0)
                 return;
             var result = await ActionJs.Get("GetSystems");
             if (!result.Ok)
                 return;
             Stars.Clear();
+            Planets.Clear();
             try
             {
                 var root = JToken.Parse(result.Body);
@@ -76,13 +103,25 @@ namespace Core.Vfx
                     return;
                 foreach (var s in arr)
                 {
+                    var systemId = FocusContext.AsInt(s["id"]);
                     Stars.Add(new Star
                     {
-                        Id = FocusContext.AsInt(s["id"]),
+                        Id = systemId,
                         Name = FocusContext.AsString(s["name"]),
                         X = FocusContext.AsFloat(s["x"]),
                         Y = FocusContext.AsFloat(s["y"])
                     });
+
+                    if (s["planets"] is JArray planetArr)
+                    {
+                        foreach (var p in planetArr)
+                            AddPlanet(p, systemId, 0);
+                    }
+                    else if (s["planets"] is JObject planetMap)
+                    {
+                        foreach (var prop in planetMap.Properties())
+                            AddPlanet(prop.Value, systemId, FocusContext.AsInt(prop.Name));
+                    }
                 }
 
                 _loaded = true;
@@ -91,6 +130,25 @@ namespace Core.Vfx
             {
                 // Shape varies.
             }
+        }
+
+        static void AddPlanet(JToken p, int systemId, int fallbackId)
+        {
+            if (p == null || p.Type != JTokenType.Object)
+                return;
+            var id = FocusContext.AsInt(p["id"]);
+            if (id == 0)
+                id = fallbackId;
+            if (id <= 0)
+                return;
+            var sys = FocusContext.AsInt(p["systemid"]);
+            Planets.Add(new PlanetRef
+            {
+                Id = id,
+                SystemId = sys > 0 ? sys : systemId,
+                UserId = FocusContext.AsInt(p["userid"]),
+                Name = FocusContext.AsString(p["name"])
+            });
         }
     }
 }

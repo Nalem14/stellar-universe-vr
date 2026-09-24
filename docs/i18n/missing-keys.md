@@ -65,8 +65,8 @@ Ces clés n'ont pas d'équivalent natif dans le dump.
 | `vr.menu.noEmpire` | No empire is registered to this commander yet. | Aucun empire n'est encore enregistré pour ce commandant. | Sas : compte sans empire, en attendant `CreateEmpire` |
 | `vr.common.ok` | Confirmed | Confirmé | Retour générique d'un ordre réussi |
 | `vr.common.error` | Command failed | Échec de la commande | Retour générique d'un échec, quand le serveur n'envoie pas de message |
-| `vr.boot.restoreView` | Restoring last position… | Restauration de la dernière position… | `SessionBoot` : remplace la clé technique `BootFromAnchorOrDefault` |
-| `vr.bridge.moveFleet` | Helm | Navigation | Titre de la console Helm (remplace `MoveFleet`) |
+| `vr.boot.restoreFailed` | Unable to restore the bridge position. | Impossible de restaurer la position du pont. | `SessionBoot` : remplace la clé technique `BootFromAnchorOrDefault` |
+| `vr.bridge.moveFleet` | Move ship | Déplacer le vaisseau | Aperçu d'ordre holomap sans cible typée (remplace `MoveFleet`) |
 | `vr.tactical.endTurn` | End turn | Fin du tour | Combat hex (`BattleEndFleetTurn`) |
 | `vr.engineering.addCore` | Build core | Construire un noyau | Chantier : premier module `ShipCore` |
 | `vr.engineering.layout` | Ship layout | Plan du vaisseau | Designer 9×9 |

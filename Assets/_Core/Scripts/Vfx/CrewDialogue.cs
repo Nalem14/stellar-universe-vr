@@ -42,7 +42,6 @@ namespace Core.Vfx
         HoloZoneMap _map;
         FleetPoller _poller;
         HexBattleController _hex;
-        ViewFleetOrders _orders;
         Transform _anchor;
         Canvas _canvas;
         RectTransform _listRoot;
@@ -58,7 +57,7 @@ namespace Core.Vfx
         bool _rebuildBusy;
 
         public static void Attach(Transform mannequin, CicEnvironment host, CicArtKit art, Color accent,
-            Role role, ViewFleetOrders orders, HexBattleController hex, HoloZoneMap map, FleetPoller poller,
+            Role role, HexBattleController hex, HoloZoneMap map, FleetPoller poller,
             FocusContext focus, BridgeSystemLoader loader)
         {
             if (mannequin == null || art == null)
@@ -90,7 +89,6 @@ namespace Core.Vfx
             dialogue._art = art;
             dialogue._accent = accent;
             dialogue._role = role;
-            dialogue._orders = orders;
             dialogue._hex = hex;
             dialogue._map = map;
             dialogue._poller = poller;
@@ -136,7 +134,7 @@ namespace Core.Vfx
             _listRoot.sizeDelta = new Vector2(580f, 340f);
             _listRoot.anchoredPosition = new Vector2(0f, -10f);
 
-            DiegeticUi.HoloButton(frame, Trans.Get("ok"), new Vector2(0f, -230f), new Vector2(220f, 48f),
+            DiegeticUi.HoloButton(frame, Trans.Get("vr.common.ok"), new Vector2(0f, -230f), new Vector2(220f, 48f),
                 Close, DiegeticUi.BtnStyle.Ghost);
         }
 
@@ -293,7 +291,7 @@ namespace Core.Vfx
                 if (gen != _rebuildGen)
                     return;
                 if (_rows.Count == 0)
-                    AddStatus(Trans.Get("ok"));
+                    AddStatus(Trans.Get("vr.common.ok"));
             }
             finally
             {
@@ -335,7 +333,7 @@ namespace Core.Vfx
 
             if (_loader == null)
             {
-                AddStatus(Trans.Get("spaceships"));
+                AddStatus(Trans.Get("fleets"));
                 return;
             }
 
@@ -359,19 +357,19 @@ namespace Core.Vfx
 
             if (candidates.Count == 0)
             {
-                AddStatus(Trans.Get("spaceships"));
+                AddStatus(Trans.Get("fleets"));
                 return;
             }
 
             if (candidates.Count == 1)
             {
                 var only = candidates[0];
-                AddAction(ActionLabel("spaceships", only.label),
-                    () => Core.Utils.AsyncTap.Run(BoardShip(only.id, only.sys)));
+                AddAction(ActionLabel("fleets", only.label),
+                    () => BoardShip(only.id, only.sys));
                 return;
             }
 
-            AddDropdown(Trans.Get("spaceships"), candidates.Count, DropGroup.BoardShips);
+            AddDropdown(Trans.Get("fleets"), candidates.Count, DropGroup.BoardShips);
             if (_dropOpen != DropGroup.BoardShips)
                 return;
             BeginDropTray(candidates.Count);
@@ -379,7 +377,7 @@ namespace Core.Vfx
             {
                 var row = candidates[i];
                 AddDropOption(DestLabel(row.label),
-                    () => Core.Utils.AsyncTap.Run(BoardShip(row.id, row.sys)));
+                    () => BoardShip(row.id, row.sys));
             }
         }
 
@@ -398,7 +396,7 @@ namespace Core.Vfx
             else
             {
                 CicCue.Fail(transform.position);
-                _map?.SetReadout(Trans.Get("error"));
+                _map?.SetReadout(Trans.Get("vr.common.error"));
             }
         }
 
@@ -414,8 +412,8 @@ namespace Core.Vfx
                     sysName = "#" + focus.SystemId;
                 var hx = here.X;
                 var hy = here.Y;
-                AddAction(MoveLabel("MoveFleetToSystem", sysName),
-                    () => Core.Utils.AsyncTap.Run(MoveToSystem(fleet.Id, hx, hy)));
+                AddAction(MoveLabel("moveToSystem", sysName),
+                    () => MoveToSystem(fleet.Id, hx, hy));
             }
 
             var planets = new List<FocusPlanet>();
@@ -433,12 +431,12 @@ namespace Core.Vfx
             {
                 var p = planets[0];
                 var pid = p.Id;
-                AddAction(MoveLabel("MoveFleetToPlanet", PlanetLabel(p)),
-                    () => Core.Utils.AsyncTap.Run(MoveToPlanet(fleet.Id, pid)));
+                AddAction(MoveLabel("moveToPlanet", PlanetLabel(p)),
+                    () => MoveToPlanet(fleet.Id, pid));
             }
             else if (planets.Count > 1)
             {
-                AddDropdown(Trans.Get("MoveFleetToPlanet"), planets.Count, DropGroup.Planets);
+                AddDropdown(Trans.Get("moveToPlanet"), planets.Count, DropGroup.Planets);
                 if (_dropOpen == DropGroup.Planets)
                 {
                     BeginDropTray(planets.Count);
@@ -447,7 +445,7 @@ namespace Core.Vfx
                         var p = planets[i];
                         var pid = p.Id;
                         AddDropOption(DestLabel(PlanetLabel(p)),
-                            () => Core.Utils.AsyncTap.Run(MoveToPlanet(fleet.Id, pid)));
+                            () => MoveToPlanet(fleet.Id, pid));
                     }
                 }
             }
@@ -466,20 +464,20 @@ namespace Core.Vfx
             if (rocks.Count == 1)
             {
                 var aid = rocks[0].Id;
-                AddAction(MoveLabel("MoveFleetToAsteroid", Trans.Get("asteroid") + " #" + aid),
-                    () => Core.Utils.AsyncTap.Run(MoveToAsteroid(fleet.Id, aid)));
+                AddAction(MoveLabel("moveToAsteroidField", Trans.Get("asteroidField") + " #" + aid),
+                    () => MoveToAsteroid(fleet.Id, aid));
             }
             else if (rocks.Count > 1)
             {
-                AddDropdown(Trans.Get("MoveFleetToAsteroid"), rocks.Count, DropGroup.Asteroids);
+                AddDropdown(Trans.Get("moveToAsteroidField"), rocks.Count, DropGroup.Asteroids);
                 if (_dropOpen == DropGroup.Asteroids)
                 {
                     BeginDropTray(rocks.Count);
                     for (var i = 0; i < rocks.Count; i++)
                     {
                         var aid = rocks[i].Id;
-                        AddDropOption(DestLabel(Trans.Get("asteroid") + " #" + aid),
-                            () => Core.Utils.AsyncTap.Run(MoveToAsteroid(fleet.Id, aid)));
+                        AddDropOption(DestLabel(Trans.Get("asteroidField") + " #" + aid),
+                            () => MoveToAsteroid(fleet.Id, aid));
                     }
                 }
             }
@@ -495,13 +493,13 @@ namespace Core.Vfx
                         : star.Name;
                     var sx = star.X;
                     var sy = star.Y;
-                    AddAction(MoveLabel("MoveFleetToSystem", label),
-                        () => Core.Utils.AsyncTap.Run(MoveToSystem(fleet.Id, sx, sy)),
+                    AddAction(MoveLabel("moveToSystem", label),
+                        () => MoveToSystem(fleet.Id, sx, sy),
                         DiegeticUi.BtnStyle.Amber);
                 }
                 else if (_near.Count > 1)
                 {
-                    AddDropdown(Trans.Get("MoveFleetToSystem"), _near.Count, DropGroup.Jumps);
+                    AddDropdown(Trans.Get("moveToSystem"), _near.Count, DropGroup.Jumps);
                     if (_dropOpen == DropGroup.Jumps)
                     {
                         BeginDropTray(_near.Count);
@@ -514,7 +512,7 @@ namespace Core.Vfx
                             var sx = star.X;
                             var sy = star.Y;
                             AddDropOption(DestLabel(label),
-                                () => Core.Utils.AsyncTap.Run(MoveToSystem(fleet.Id, sx, sy)),
+                                () => MoveToSystem(fleet.Id, sx, sy),
                                 DiegeticUi.BtnStyle.Amber);
                         }
                     }
@@ -527,22 +525,26 @@ namespace Core.Vfx
             var planetLabel = PlanetLabel(focus.FindPlanet(fleet.PlanetId), fleet.PlanetId);
 
             if (_hex != null && _hex.IsActive)
-                AddAction(Trans.Get("EndTurn"), () => Core.Utils.AsyncTap.Run(_hex.EndTurn()));
+                AddAction(Trans.Get("vr.tactical.endTurn"), () => _hex.EndTurn());
 
             if (FleetOrderGate.CanStance(fleet))
             {
-                AddAction(ActionLabel("Flee", planetLabel),
-                    () => Core.Utils.AsyncTap.Run(CrewOrderBridge.Stance(_orders, "RUN_AWAY")));
-                AddAction(ActionLabel("Defend", planetLabel),
-                    () => Core.Utils.AsyncTap.Run(CrewOrderBridge.Stance(_orders, "ATTACK_ATTACKER")));
-                AddAction(ActionLabel("Attack", planetLabel),
-                    () => Core.Utils.AsyncTap.Run(CrewOrderBridge.Stance(_orders, "ATTACK_PLANET")));
+                AddAction(ActionLabel("defendPositionRunOut", planetLabel),
+                    () => Stance(fleet.Id, "RUN_AWAY"));
+                AddAction(ActionLabel("defendPositionPlanet", planetLabel),
+                    () => Stance(fleet.Id, "ATTACK_ATTACKER"));
+                AddAction(ActionLabel("defendPositionAttacker", planetLabel),
+                    () => Stance(fleet.Id, "ATTACK_PLANET"));
             }
 
             if (FleetOrderGate.CanSiege(fleet, focus))
             {
-                AddAction(ActionLabel("Siege", planetLabel),
-                    () => Core.Utils.AsyncTap.Run(CrewOrderBridge.Siege(_orders)));
+                AddAction(ActionLabel("attackOrbit", planetLabel),
+                    () => Issue("FleetAttackPlanet", new Dictionary<string, string>
+                    {
+                        { "fleet", fleet.Id.ToString() },
+                        { "planet", fleet.PlanetId.ToString() }
+                    }));
             }
         }
 
@@ -550,36 +552,40 @@ namespace Core.Vfx
         {
             if (FleetOrderGate.CanMine(fleet))
             {
-                AddAction(ActionLabel("Mine", Trans.Get("asteroid") + " #" + fleet.AsteroidId),
-                    () => Core.Utils.AsyncTap.Run(CrewOrderBridge.Mine(_orders)));
+                AddAction(ActionLabel("harvestAsteroid", Trans.Get("asteroidField") + " #" + fleet.AsteroidId),
+                    () => Issue("HarvestAsteroid", new Dictionary<string, string>
+                    {
+                        { "fleet", fleet.Id.ToString() },
+                        { "asteroid", fleet.AsteroidId.ToString() }
+                    }));
             }
 
             if (FleetOrderGate.CanExplore(fleet))
             {
                 var planetLabel = PlanetLabel(focus.FindPlanet(fleet.PlanetId), fleet.PlanetId);
-                AddAction(ActionLabel("Explore", planetLabel),
-                    () => Core.Utils.AsyncTap.Run(Issue("ExplorePlanet", new Dictionary<string, string>
+                AddAction(ActionLabel("explorePlanet", planetLabel),
+                    () => Issue("ExplorePlanet", new Dictionary<string, string>
                     {
                         { "fleet", fleet.Id.ToString() },
                         { "planet", fleet.PlanetId.ToString() }
-                    })));
+                    }));
             }
 
             if (FleetOrderGate.CanCargo(fleet, focus))
             {
                 var planetLabel = PlanetLabel(focus.FindPlanet(fleet.PlanetId), fleet.PlanetId);
-                AddAction(ActionLabel("Deposit", planetLabel),
-                    () => Core.Utils.AsyncTap.Run(Issue("DepositCargo", new Dictionary<string, string>
+                AddAction(ActionLabel("depositCargo", planetLabel),
+                    () => Issue("DepositCargo", new Dictionary<string, string>
                     {
                         { "fleet", fleet.Id.ToString() },
                         { "planet", fleet.PlanetId.ToString() }
-                    })));
-                AddAction(ActionLabel("Withdraw", planetLabel),
-                    () => Core.Utils.AsyncTap.Run(Issue("WithdrawCargo", new Dictionary<string, string>
+                    }));
+                AddAction(ActionLabel("withdrawCargo", planetLabel),
+                    () => Issue("WithdrawCargo", new Dictionary<string, string>
                     {
                         { "fleet", fleet.Id.ToString() },
                         { "planet", fleet.PlanetId.ToString() }
-                    })));
+                    }));
             }
         }
 
@@ -615,11 +621,11 @@ namespace Core.Vfx
             switch (_role)
             {
                 case Role.Helm:
-                    return Trans.Get("MoveFleet");
+                    return Trans.Get("vr.station.helm");
                 case Role.Tactical:
-                    return Trans.Get("battle");
+                    return Trans.Get("vr.station.tactical");
                 case Role.Engineering:
-                    return Trans.Get("Mine");
+                    return Trans.Get("vr.station.engineering");
                 default:
                     return Trans.Get("CommandBridge");
             }
@@ -659,23 +665,19 @@ namespace Core.Vfx
             _listCursorY -= 6f;
         }
 
-        void AddDropOption(string label, System.Action act,
+        void AddDropOption(string label, System.Func<Task> act,
             DiegeticUi.BtnStyle style = DiegeticUi.BtnStyle.Ghost)
         {
             if (_listRoot == null)
                 return;
             const float h = 44f;
             var btn = DiegeticUi.HoloSelectOption(_listRoot, label, new Vector2(8f, _listCursorY),
-                new Vector2(500f, h), () =>
-                {
-                    act?.Invoke();
-                    Core.Utils.AsyncTap.Run(AfterOrder());
-                }, style);
+                new Vector2(500f, h), () => Core.Utils.AsyncTap.Run(RunOrder(act, refreshAfter: true)), style);
             _rows.Add(btn.gameObject);
             _listCursorY -= h + 4f;
         }
 
-        void AddAction(string label, System.Action act,
+        void AddAction(string label, System.Func<Task> act,
             DiegeticUi.BtnStyle style = DiegeticUi.BtnStyle.Cyan, bool refreshAfter = true)
         {
             if (_listRoot == null)
@@ -683,12 +685,7 @@ namespace Core.Vfx
             const float h = 48f;
             var btn = DiegeticUi.HoloButton(_listRoot, label, new Vector2(0f, _listCursorY),
                 new Vector2(540f, h),
-                () =>
-                {
-                    act?.Invoke();
-                    if (refreshAfter)
-                        Core.Utils.AsyncTap.Run(AfterOrder());
-                }, style);
+                () => Core.Utils.AsyncTap.Run(RunOrder(act, refreshAfter)), style);
             _rows.Add(btn.gameObject);
             _listCursorY -= h + 6f;
         }
@@ -715,6 +712,19 @@ namespace Core.Vfx
                 var c = _listRoot.GetChild(i).gameObject;
                 DestroyImmediate(c);
             }
+        }
+
+        /// <summary>
+        /// Leaves the button's onClick stack first (rows are DestroyImmediate'd on rebuild), then awaits the
+        /// order itself, and only then polls — the follow-up poll must see the server state after the order.
+        /// </summary>
+        async Task RunOrder(System.Func<Task> act, bool refreshAfter)
+        {
+            await Task.Yield();
+            if (act != null)
+                await act();
+            if (refreshAfter)
+                await AfterOrder();
         }
 
         async Task AfterOrder()
@@ -754,14 +764,21 @@ namespace Core.Vfx
             if (!result.Ok)
             {
                 CicCue.Fail(transform.position);
-                _map?.SetReadout(string.IsNullOrEmpty(result.Error) ? action : result.Error);
+                // Server errors are already localized (error:{Lang(key)}); never show the raw action id.
+                _map?.SetReadout(string.IsNullOrEmpty(result.Error) ? Trans.Get("vr.common.error") : result.Error);
                 return;
             }
 
             CicCue.Ok(transform.position);
-            _map?.SetReadout(action);
-            if (_poller != null)
-                await _poller.PollNow();
+            var notice = result.NoticeKey;
+            _map?.SetReadout(Trans.Get(notice ?? "vr.common.ok"));
         }
+
+        Task Stance(int fleetId, string position) =>
+            Issue("UpdateFleetDefendPosition", new Dictionary<string, string>
+            {
+                { "id", fleetId.ToString() },
+                { "position", position }
+            });
     }
 }

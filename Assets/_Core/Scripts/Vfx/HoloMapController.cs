@@ -57,9 +57,35 @@ namespace Core.Vfx
                 _map.TokensRebuilt -= OnTokensRebuilt;
         }
 
+        UnityEngine.InputSystem.Controls.Vector2Control _rightAxis;
+        bool _rightAxisResolved;
+        float _nextMoveLockRefresh;
+
+        void OnEnable()
+        {
+            UnityEngine.InputSystem.InputSystem.onDeviceChange += OnDeviceChange;
+        }
+
+        void OnDisable()
+        {
+            UnityEngine.InputSystem.InputSystem.onDeviceChange -= OnDeviceChange;
+        }
+
+        void OnDeviceChange(UnityEngine.InputSystem.InputDevice device, UnityEngine.InputSystem.InputDeviceChange change)
+        {
+            // Controllers come and go (sleep, hand tracking): re-resolve the thumbstick lazily.
+            _rightAxis = null;
+            _rightAxisResolved = false;
+        }
+
         void Update()
         {
-            RefreshMoveLock();
+            if (Time.unscaledTime >= _nextMoveLockRefresh)
+            {
+                _nextMoveLockRefresh = Time.unscaledTime + 0.25f;
+                RefreshMoveLock();
+            }
+
             var scroll = 0f;
             var mouse = UnityEngine.InputSystem.Mouse.current;
             if (mouse != null)
@@ -69,7 +95,22 @@ namespace Core.Vfx
             if (gamepad != null)
                 scroll += gamepad.rightStick.ReadValue().y * 0.02f;
 
-            // OpenXR / Quest right controller primary2DAxis (thumbstick / trackpad).
+            if (!_rightAxisResolved)
+            {
+                _rightAxis = ResolveRightAxis();
+                _rightAxisResolved = true;
+            }
+
+            if (_rightAxis != null)
+                scroll += _rightAxis.ReadValue().y * 0.025f;
+
+            if (Mathf.Abs(scroll) > 0.01f && _mode != HoloMapMode.HexBattle)
+                SetZoom(_zoom + scroll * 0.08f);
+        }
+
+        /// <summary>OpenXR / Quest right controller primary2DAxis (thumbstick / trackpad).</summary>
+        static UnityEngine.InputSystem.Controls.Vector2Control ResolveRightAxis()
+        {
             foreach (var device in UnityEngine.InputSystem.InputSystem.devices)
             {
                 if (device == null || !device.added)
@@ -80,11 +121,10 @@ namespace Core.Vfx
                     continue;
                 var axis = device.TryGetChildControl<UnityEngine.InputSystem.Controls.Vector2Control>("primary2DAxis");
                 if (axis != null)
-                    scroll += axis.ReadValue().y * 0.025f;
+                    return axis;
             }
 
-            if (Mathf.Abs(scroll) > 0.01f && _mode != HoloMapMode.HexBattle)
-                SetZoom(_zoom + scroll * 0.08f);
+            return null;
         }
 
         void RefreshMoveLock()

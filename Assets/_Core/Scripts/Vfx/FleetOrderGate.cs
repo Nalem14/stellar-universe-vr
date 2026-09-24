@@ -76,19 +76,20 @@ namespace Core.Vfx
 
         public static string BusyKey(FocusFleet fleet)
         {
+            // Native GetTranslations keys (web fleet.js busy toasts).
             if (fleet == null)
-                return "spaceships";
+                return "noFleet";
             var now = UnixNow();
             if (fleet.IsInBattle)
-                return "battle";
+                return "fleetIsInBattle";
             if (fleet.IsMoving(now))
-                return "Loading";
+                return "fleetIsMoving";
             if (fleet.IsSieging(now))
-                return "Siege";
+                return "fleetIsAttacking";
             if (fleet.IsHarvesting(now))
-                return "Mine";
+                return "fleetIsHarvesting";
             if (fleet.IsExploring(now))
-                return "Explore";
+                return "fleetIsExploring";
             return "Loading";
         }
     }

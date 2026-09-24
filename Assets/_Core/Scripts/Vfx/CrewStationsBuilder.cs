@@ -11,21 +11,21 @@ namespace Core.Vfx
     /// </summary>
     public static class CrewStationsBuilder
     {
-        public static void Build(CicEnvironment host, CicArtKit art, ViewFleetOrders orders,
+        public static void Build(CicEnvironment host, CicArtKit art,
             HexBattleController hex, HoloZoneMap map, FleetPoller poller, FocusContext focus,
             BridgeSystemLoader loader)
         {
             BuildStation(host, art, "CrewHelm", new Vector3(-1.6f, 0f, 2.4f), CicArtKit.Cyan,
-                CrewDialogue.Role.Helm, orders, hex, map, poller, focus, loader);
+                CrewDialogue.Role.Helm, hex, map, poller, focus, loader);
             BuildStation(host, art, "CrewTactical", new Vector3(0f, 0f, 2.85f), CicArtKit.Amber,
-                CrewDialogue.Role.Tactical, orders, hex, map, poller, focus, loader);
+                CrewDialogue.Role.Tactical, hex, map, poller, focus, loader);
             BuildStation(host, art, "CrewEngineering", new Vector3(1.6f, 0f, 2.4f),
-                new Color(0.4f, 0.9f, 0.55f), CrewDialogue.Role.Engineering, orders, hex, map, poller,
+                new Color(0.4f, 0.9f, 0.55f), CrewDialogue.Role.Engineering, hex, map, poller,
                 focus, loader);
         }
 
         static void BuildStation(CicEnvironment host, CicArtKit art, string name, Vector3 pos,
-            Color accent, CrewDialogue.Role role, ViewFleetOrders orders, HexBattleController hex,
+            Color accent, CrewDialogue.Role role, HexBattleController hex,
             HoloZoneMap map, FleetPoller poller, FocusContext focus, BridgeSystemLoader loader)
         {
             var root = new GameObject(name);
@@ -45,7 +45,7 @@ namespace Core.Vfx
             host.Box(name + "Seat", pos + new Vector3(0f, 0.5f, -0.35f),
                 new Vector3(0.45f, 0.1f, 0.45f), art.DarkPanel(0.1f), keepCollider: true);
             var mannequin = BuildMannequin(host, art, pos + new Vector3(0f, 0.55f, -0.35f), accent);
-            CrewDialogue.Attach(mannequin, host, art, accent, role, orders, hex, map, poller, focus, loader);
+            CrewDialogue.Attach(mannequin, host, art, accent, role, hex, map, poller, focus, loader);
         }
 
         static Transform BuildMannequin(CicEnvironment host, CicArtKit art, Vector3 seatPos, Color accent)
@@ -115,51 +115,6 @@ namespace Core.Vfx
             arm.transform.localScale = new Vector3(0.07f, 0.16f, 0.07f);
             CicEnvironment.DropColliderStatic(arm);
             arm.GetComponent<MeshRenderer>().sharedMaterial = art.DarkPanel(0.2f);
-        }
-    }
-
-    /// <summary>Thin bridge so crew dialogue shares ViewFleetOrders without making all methods public.</summary>
-    public static class CrewOrderBridge
-    {
-        public static async System.Threading.Tasks.Task Stance(ViewFleetOrders orders, string pos)
-        {
-            if (orders == null)
-                return;
-            var focus = FocusContext.Current;
-            var fleet = focus?.FindViewFleet();
-            if (fleet == null)
-                return;
-            await Core.Utils.ActionJs.Get("UpdateFleetDefendPosition", new System.Collections.Generic.Dictionary<string, string>
-            {
-                { "id", fleet.Id.ToString() },
-                { "position", pos }
-            });
-        }
-
-        public static async System.Threading.Tasks.Task Siege(ViewFleetOrders orders)
-        {
-            var focus = FocusContext.Current;
-            var fleet = focus?.FindViewFleet();
-            if (fleet == null || fleet.PlanetId <= 0)
-                return;
-            await Core.Utils.ActionJs.Get("FleetAttackPlanet", new System.Collections.Generic.Dictionary<string, string>
-            {
-                { "fleet", fleet.Id.ToString() },
-                { "planet", fleet.PlanetId.ToString() }
-            });
-        }
-
-        public static async System.Threading.Tasks.Task Mine(ViewFleetOrders orders)
-        {
-            var focus = FocusContext.Current;
-            var fleet = focus?.FindViewFleet();
-            if (fleet == null || fleet.AsteroidId <= 0)
-                return;
-            await Core.Utils.ActionJs.Get("HarvestAsteroid", new System.Collections.Generic.Dictionary<string, string>
-            {
-                { "fleet", fleet.Id.ToString() },
-                { "asteroid", fleet.AsteroidId.ToString() }
-            });
         }
     }
 }

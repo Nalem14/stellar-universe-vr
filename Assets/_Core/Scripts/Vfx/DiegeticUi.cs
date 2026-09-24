@@ -578,10 +578,5 @@ namespace Core.Vfx
             tmp.rectTransform.sizeDelta = new Vector2(48f, 6f);
             return tmp;
         }
-
-        public static void FaceCaptain(Transform t)
-        {
-            t.localRotation = Quaternion.Euler(0f, 180f, 0f);
-        }
     }
 }

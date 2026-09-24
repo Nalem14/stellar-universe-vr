@@ -125,7 +125,7 @@ namespace Core.Vfx
                     art.Holo(Texture2D.whiteTexture, new Color(0.3f, 1f, 0.85f, 0.8f));
             }
 
-            AddPoke(root.transform, art, "Queue", new Vector3(0.12f, 0.08f, 0.1f), async () =>
+            AddPoke(root.transform, art, "OrderQueue", new Vector3(0.12f, 0.08f, 0.1f), async () =>
             {
                 var fleet = focus?.FindViewFleet();
                 if (fleet == null)
@@ -239,7 +239,7 @@ namespace Core.Vfx
                     { "fleet", fleet.Id.ToString() }
                 });
             });
-            AddPoke(go.transform, art, "Queue", new Vector3(0.4f, 0f, 0f), async () =>
+            AddPoke(go.transform, art, "ShipQueue", new Vector3(0.4f, 0f, 0f), async () =>
             {
                 var planet = PickOwnedPlanet(focus);
                 if (planet == null)
@@ -354,7 +354,7 @@ namespace Core.Vfx
             tmp.alignment = TextAlignmentOptions.TopLeft;
             tmp.fontSize = 6f;
             tmp.color = new Color(0.4f, 0.95f, 0.7f);
-            tmp.text = "LCARS";
+            tmp.text = Trans.Get("chatPanel");
             tmp.rectTransform.sizeDelta = new Vector2(120f, 80f);
 
             AddPoke(go.transform, art, "Chat", new Vector3(0f, -0.5f, 0f), async () =>
@@ -472,9 +472,39 @@ namespace Core.Vfx
             return null;
         }
 
+        /// <summary>
+        /// Poke id → GetTranslations key. Native web keys first (docs/i18n/missing-keys.md §1);
+        /// vr.* keys are listed there for the server until they land.
+        /// </summary>
+        static readonly Dictionary<string, string> PokeLabelKeys = new()
+        {
+            { "AddCore", "vr.engineering.addCore" },
+            { "Addresses", "vr.stargate.addresses" },
+            { "Alliance", "alliance" },
+            { "Battle", "battle" },
+            { "Chat", "chatPanel" },
+            { "Colonize", "Colonize" },
+            { "Decide", "vr.ops.decide" },
+            { "Defense", "defense" },
+            { "Empires", "empires" },
+            { "Explore", "explorePlanet" },
+            { "Goals", "dailyObjectives" },
+            { "Jumpgate", "jumpgate" },
+            { "Layout", "vr.engineering.layout" },
+            { "Mail", "mailTitle" },
+            { "OrderQueue", "orderQueue" },
+            { "Research", "research" },
+            { "ShipQueue", "shipyardQueue" },
+            { "Shop", "shop" },
+            { "Troops", "vr.tactical.troops" },
+            { "Upgrade", "upGrade" },
+            { "Wars", "wars" }
+        };
+
         static void AddPoke(Transform parent, CicArtKit art, string name, Vector3 local, System.Func<Task> act)
         {
-            DiegeticUi.Button(parent, "Poke_" + name, Trans.Get(name), local,
+            var labelKey = PokeLabelKeys.TryGetValue(name, out var key) ? key : name;
+            DiegeticUi.Button(parent, "Poke_" + name, Trans.Get(labelKey), local,
                 new Vector3(0.2f, 0.06f, 0.05f), art, CicArtKit.Cyan,
                 () => Core.Utils.AsyncTap.Run(act()));
         }

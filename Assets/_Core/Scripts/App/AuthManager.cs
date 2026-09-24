@@ -16,6 +16,12 @@ namespace Core.App
 
         public UserSession User { get; private set; }
         public JObject Empire { get; private set; }
+
+        /// <summary>
+        /// GetMeEmpire answers even without an empire (no id). Creating one has no API action yet
+        /// (docs/PARITY.md, CreateEmpire spec): the bridge cannot boot until the server exposes it.
+        /// </summary>
+        public bool HasEmpire => Empire != null && FocusContext.AsInt(Empire["id"]) > 0;
         public bool IsLoggedIn => User != null && !string.IsNullOrEmpty(User.token);
         public string Token => User?.token;
         public bool HasSavedToken => !string.IsNullOrEmpty(PlayerPrefs.GetString(TokenKey, string.Empty));

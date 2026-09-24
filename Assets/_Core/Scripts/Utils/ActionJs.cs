@@ -43,7 +43,9 @@ namespace Core.Utils
                 return ApiResult.Fail(message);
             }
 
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
             Debug.Log($"[SU] {action} ok ({DescribeBody(body)})");
+#endif
             return ApiResult.Success(body);
         }
 
@@ -55,7 +57,7 @@ namespace Core.Utils
             {
                 foreach (var kv in query)
                 {
-                    if (ShouldOmit(kv.Value))
+                    if (ShouldOmit(kv.Value) || kv.Key == "action" || kv.Key == "token")
                         continue;
                     sb.Append('&')
                         .Append(Uri.EscapeDataString(kv.Key))

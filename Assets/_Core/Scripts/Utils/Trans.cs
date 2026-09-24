@@ -25,56 +25,83 @@ namespace Core.Utils
         static bool _loaded;
         static string _missingLogPath;
 
+        static string _lang;
+        static Task _loading;
+
         public static string Lang
         {
             get
             {
+                if (_lang != null)
+                    return _lang;
                 var saved = PlayerPrefs.GetString(LangPref, string.Empty);
                 if (!string.IsNullOrEmpty(saved))
-                    return saved;
+                    return _lang = saved;
                 var sys = CultureInfo.CurrentCulture.TwoLetterISOLanguageName;
-                return sys == "fr" ? "fr" : "en";
+                return _lang = sys == "fr" ? "fr" : "en";
             }
             set
             {
-                PlayerPrefs.SetString(LangPref, value == "fr" ? "fr" : "en");
+                _lang = value == "fr" ? "fr" : "en";
+                PlayerPrefs.SetString(LangPref, _lang);
                 PlayerPrefs.Save();
             }
         }
 
+        /// <summary>True once a GetTranslations dump was parsed. A failed load stays false and retries on the next call.</summary>
         public static bool IsReady => _loaded;
 
         public static string MissingLogPath =>
             _missingLogPath ??= Path.Combine(Application.persistentDataPath, MissingLogFile);
 
-        public static async Task EnsureLoaded()
+        /// <summary>Concurrent callers share one request; up to 3 attempts with backoff.</summary>
+        public static Task EnsureLoaded()
         {
             if (_loaded)
-                return;
+                return Task.CompletedTask;
+            return _loading ??= LoadWithRetry();
+        }
 
-            var result = await ActionJs.Get("GetTranslations", withToken: false);
-            if (result.Ok)
+        static async Task LoadWithRetry()
+        {
+            try
             {
-                try
+                for (var attempt = 0; attempt < 3 && !_loaded; attempt++)
                 {
-                    var root = JObject.Parse(result.Body);
-                    _en = ToMap(root["en"] as JObject);
-                    _fr = ToMap(root["fr"] as JObject);
-                    _loaded = true;
-                    Debug.Log($"[SU] GetTranslations ok ({_fr.Count} fr / {_en.Count} en)");
-                    return;
-                }
-                catch (Exception e)
-                {
-                    Debug.LogWarning("[SU] GetTranslations parse: " + e.Message);
+                    if (attempt > 0)
+                        await Task.Delay(1000 * attempt);
+                    await LoadOnce();
                 }
             }
-            else
+            finally
+            {
+                _loading = null;
+            }
+        }
+
+        static async Task LoadOnce()
+        {
+            var result = await ActionJs.Get("GetTranslations", withToken: false);
+            if (!result.Ok)
             {
                 Debug.LogWarning("[SU] GetTranslations fail: " + result.Error);
+                return;
             }
 
-            _loaded = true;
+            try
+            {
+                var root = JObject.Parse(result.Body);
+                _en = ToMap(root["en"] as JObject);
+                _fr = ToMap(root["fr"] as JObject);
+                _loaded = _en.Count > 0 || _fr.Count > 0;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                Debug.Log($"[SU] GetTranslations ok ({_fr.Count} fr / {_en.Count} en)");
+#endif
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("[SU] GetTranslations parse: " + e.Message);
+            }
         }
 
         public static string Get(string key)
@@ -109,7 +136,8 @@ namespace Core.Utils
 
         static void LogMissing(string key)
         {
-            if (!_missingLogged.Add(key))
+            // Before the dump arrives every key is "missing": that is not a server gap, do not log it.
+            if (!_loaded || !_missingLogged.Add(key))
                 return;
 
             Debug.LogWarning("[SU] missing Trans key: " + key);

@@ -174,14 +174,15 @@ namespace Core.Vfx
         {
             switch (kind)
             {
+                // Native GetTranslations keys (web right-click order menu).
                 case HoloTokenKind.Planet:
-                    return "MoveFleetToPlanet";
+                    return "moveToPlanet";
                 case HoloTokenKind.Asteroid:
-                    return "MoveFleetToAsteroid";
+                    return "moveToAsteroidField";
                 case HoloTokenKind.System:
-                    return "MoveFleetToSystem";
+                    return "moveToSystem";
                 default:
-                    return "MoveFleet";
+                    return "vr.bridge.moveFleet";
             }
         }
     }
