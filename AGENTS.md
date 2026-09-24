@@ -127,4 +127,5 @@ Toujours **première personne casque**. Chaque scène a un XR Origin (rig templa
 
 Pas de casque dans l’environnement agent par défaut. Compiler via **Unity CLI 6** (`unity run`). Le **MCP Unity** (`unity mcp --project-path <repo>`) permet d'inspecter scènes, hiérarchie et console depuis l'agent.  
 Comparer le comportement avec le **client web** (mêmes appels, mêmes réponses, mêmes erreurs) avant de déclarer une feature finie.  
-Si un flux XR n’est pas testable ici, **le dire**. Ne pas prétendre un Play Mode Quest.
+Si un flux XR n’est pas testable ici, **le dire**. Ne pas prétendre un Play Mode Quest.  
+Captures de vérification (`capture_game_view` / `capture_scene_view`) : dossier **`Screenshots/`** à la racine du projet (ignoré par git), jamais `/tmp` ni `Assets/`.
