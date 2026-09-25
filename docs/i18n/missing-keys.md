@@ -21,7 +21,7 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 ## Intégré côté web
 
 - Clés `vr.*`, `crew.*`, `buildingDesc_*`, `colonyLog_*`, `relation_*` dans `assets/langs/{fr,en}.json`.
-- Clés P3 (création d'empire : `vr.create.*`, `flagShape_*`, `traitEffect_*`), P5 cale sèche (`vr.dock.*`, `vr.yard.*`, `vr.module.family.*`), P5 laboratoire (`vr.lab.*`, `vr.research.*`) et P5 relevé planétaire (`credits`, `vr.survey.*`) dans `assets/langs/{fr,en}.json`.
+- Clés P3 (création d'empire : `vr.create.*`, `flagShape_*`, `traitEffect_*`), P5 cale sèche (`vr.dock.*`, `vr.yard.*`, `vr.module.family.*`), P5 laboratoire (`vr.lab.*`, `vr.research.*`), P5 relevé planétaire (`credits`, `vr.survey.*`) et P5.5 table tactique v2 (`vr.table.*`, `vr.seat.*`) dans `assets/langs/{fr,en}.json`.
 - Remaps client (§1) : le code VR utilise les clés natives (`fleets`, `asteroidField`, `moveToSystem`, `defendPosition*`, `explorePlanet`, `depositCargo`, `withdrawCargo`, `harvestAsteroid`, `attackOrbit`, `cancel`, `sublight` / `hyperdrive`, `buildingDesc_<type>`, plaques `vr.station.*`, etc.).
 
 ---
@@ -41,17 +41,6 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 | `bounty_*` / `bountyDesc_*` | (3 types) | (3 types) | ✅ fr/en — display by `target_type` |
 | `bounty_need_fleet_onsite` | Send one of your ships… | Envoyez un de vos vaisseaux… | ✅ CompleteBounty |
 | `vr.bounty.*` | — | — | ✅ fr/en |
-
-## À intégrer (P5.5 — table tactique v2)
-
-| Clé | EN | FR | Contexte |
-|---|---|---|---|
-| `vr.table.pickShip` | Aim at one of your ships (trigger) | Visez un de vos vaisseaux (gâchette) | Bande d'état, rien de sélectionné |
-| `vr.table.selected` | {0} selected — aim at a destination | {0} sélectionné — visez une destination | Vaisseau sélectionné |
-| `vr.table.alreadyThere` | Already there | Déjà sur place | Cible = position actuelle |
-| `vr.table.notATarget` | Not a destination | Pas une destination | Cible invalide |
-| `vr.seat.sit` | Sit down | S'asseoir | Anneau du fauteuil du capitaine |
-| `vr.seat.stand` | Stand up | Se lever | Bouton de l'accoudoir (quitte le mode assis) |
 
 ## Restant côté web
 
