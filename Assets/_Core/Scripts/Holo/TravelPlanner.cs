@@ -202,7 +202,7 @@ namespace Core.Holo
 
         public static string ModeKey(TravelMode mode) => mode switch
         {
-            TravelMode.Hyperspace => "hyperspaceJump",
+            TravelMode.Hyperspace => "hyperdrive",
             TravelMode.PrlBond => "bondPrlJump",
             _ => "sublight"
         };

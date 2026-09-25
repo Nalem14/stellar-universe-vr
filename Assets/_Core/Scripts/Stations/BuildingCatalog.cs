@@ -26,7 +26,8 @@ namespace Core.Stations
 
         /// <summary>Native key = building type (fr.json "mineralMine": "Mine minérale"…).</summary>
         public string NameKey => Type;
-        public string DescKey => "vr.building." + Type + ".desc";
+        /// <summary>Native desc key from GetTranslations (buildingDesc_&lt;type&gt;).</summary>
+        public string DescKey => "buildingDesc_" + Type;
     }
 
     /// <summary>What the next level of a building costs, quoted like the server will charge it.</summary>
