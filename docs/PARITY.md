@@ -1,6 +1,6 @@
 # PARITY — Stellar Universe VR ↔ `actionjs.php`
 
-Généré depuis `action-api.json` (152 actions), `actionjs.php` et un grep des deux clients. Référence web : `/Users/thommy/Websites/stellar-universe`. Roadmap : [`ROADMAP.md`](ROADMAP.md).
+Généré depuis `action-api.json` (154 actions), `actionjs.php` et un grep des deux clients. Référence web : `/Users/thommy/Websites/stellar-universe`. Roadmap : [`ROADMAP.md`](ROADMAP.md).
 
 **Règle** : chaque feature livrée met à jour sa ligne. Avant de coder, lire l'implémentation web (colonne *Web*) + `model/*.php`. On adapte la jouabilité au pont VR ; le contrat serveur reste strict. La VR ne renvoie **jamais** au web.
 
@@ -28,10 +28,10 @@ Généré depuis `action-api.json` (152 actions), `actionjs.php` et un grep des 
 | Social (chat, mail) | 0 | 11 | 0 % |
 | Guerre | 0 | 9 | 0 % |
 | Alliance | 1 | 17 | 6 % |
-| Empire / progression / shop | 2 | 25 | 8 % |
-| **Total** | **43** | **152** | **28 %** |
+| Empire / progression / shop | 2 | 27 | 7 % |
+| **Total** | **43** | **154** | **28 %** |
 
-Appelées par le client web : 134/152. « Appelée » ≠ « finie » : voir la colonne *Statut*.
+Appelées par le client web : 134/154. « Appelée » ≠ « finie » : voir la colonne *Statut*.
 
 ## Auth
 
@@ -75,12 +75,12 @@ Appelées par le client web : 134/152. « Appelée » ≠ « finie » : voir la 
 
 | Action | R/W | Params | VR | Web | Station | Phase | Statut | Notes |
 |---|---|---|---|---|---|---|---|---|
-| `AddFleetOrderStep` | W | fleet, step | `Holo/OrderQueue.cs` +1 | `objects/fleet.js` | Helm | P4 | Branché | Étape JSON : `targetId` (planète / astéroïde) ; `moveToSystem` avec **`x`,`y`** (le serveur ignore `targetX/targetY`) |
+| `AddFleetOrderStep` | W | fleet, step | `Holo/OrderQueue.cs` +1 | `objects/fleet.js` | Helm | P4 | Branché | Étape JSON : `targetId` (planète / astéroïde) ; `moveToSystem` avec **`x`,`y`** (le serveur accepte aussi `targetX`/`targetY`) |
 | `ClearFleetOrderQueue` | W | fleet | `Holo/OrderQueue.cs` | `objects/fleet.js` | Helm | P4 | Branché |  |
 | `Colonize` | W | ship, planet | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Ops | `ship` = id du module `ColonyShip` ; planète libre, habitabilité ≥ 6 | Branché | `ship` = id du module `ColonyShip` ; planète libre, habitabilité ≥ 6 |
 | `DepositCargo` | W | fleet, planet, mineral?, crystal?, biomass? | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Ops | P5 | Branché |  |
 | `ExplorePlanet` | W | fleet, planet | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Science | P5 | Branché |  |
-| `GetAllFleets` | R | — | `App/BridgeSystemLoader.cs` +3 | `scenes/galaxy.js` | Helm | P0 | Branché | Cache serveur 3 s → poll VR 3,5 s. Traite les files de flotte. |
+| `GetAllFleets` | R | — | `App/BridgeSystemLoader.cs` +3 | `scenes/galaxy.js` | Helm | P0 | Branché | Cache serveur 3 s → poll VR 3,5 s. Traite les files de flotte. `user` = PublicUser (id/username) ; cache fleets purgé au hit |
 | `GetAllFleetsAround` | R | — | — | `scenes/galaxy.js` | Helm | — | Hors scope | Interdit en VR (règle AGENTS) — `GetAllFleets` + filtre client |
 | `GetSystemAsteroids` | R | systemid | — | `scenes/system.js` | Helm | P5 | À faire |  |
 | `HarvestAsteroid` | W | fleet, asteroid | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Engineering | P5 | Branché |  |
@@ -105,7 +105,7 @@ Appelées par le client web : 134/152. « Appelée » ≠ « finie » : voir la 
 |---|---|---|---|---|---|---|---|---|
 | `AddShip` | W | type, planet | — | `objects/fleet.js` | Engineering | P5 | À faire | VR : ShipCore codé en dur |
 | `AddToFleet` | W | fleet, ship, planet? | — | `objects/fleet.js` | Engineering | P5 | À faire |  |
-| `CancelQueuedShip` | W | id | — | `scenes/planet.js` | Engineering | P5 | À faire |  |
+| `CancelQueuedShip` | W | id, queue_id | — | `scenes/planet.js` | Engineering | P5 | À faire |  |
 | `DelShip` | W | ship | — | `objects/fleet.js` | Engineering | P5 | À faire |  |
 | `DelToFleet` | W | fleet, ship | — | `objects/fleet.js` | Engineering | P5 | À faire |  |
 | `GetShipLayout` | R | fleet | `Vfx/FleetShipView.cs` | `ui/ShipBuilderUI.js` | Engineering | P5 | Branché |  |
@@ -117,20 +117,20 @@ Appelées par le client web : 134/152. « Appelée » ≠ « finie » : voir la 
 
 | Action | R/W | Params | VR | Web | Station | Phase | Statut | Notes |
 |---|---|---|---|---|---|---|---|---|
-| `AnswerPlanetDecision` | W | planet, decision, choice | `Stations/OpsConsole.cs` | `objects/planet.js` | Ops | P5 | Branché | `decision` = **`decision_key`** (chaîne), pas l'id ; `choice` yes/no |
+| `AnswerPlanetDecision` | W | planet, decision, choice | `Stations/OpsConsole.cs` | `objects/planet.js` | Ops | P5 | Branché | `decision` = **`decision_key`** (chaîne), pas l'id ; `choice` yes/no ; erreurs i18n |
 | `BuildDefenseUnit` | W | planet, type, qty | — | `objects/planet.js` | Tactical | P5 | À faire | VR : MissileTurret×1 codé en dur |
-| `CancelQueuedBuilding` | W | id | `Stations/OpsConsole.cs` | `scenes/planet.js` | Ops | P5 | Branché | Param **`id`** (le web envoie `queue_id` → échec) ; réponse JSON `{ok:false,error:clé}` sans préfixe `error:` |
-| `CancelQueuedResearch` | W | id | — | `scenes/research.js` | Science | P5 | À faire |  |
-| `CheckBuildingQueue` | R | planet | — | `view/game.php` | Ops | P5 | À faire |  |
+| `CancelQueuedBuilding` | W | id, queue_id | `Stations/OpsConsole.cs` | `scenes/planet.js` | Ops | P5 | Branché | Param `id` ou `queue_id` ; échecs en `error:<clé>` ; file = `buildingtype` + `duration` |
+| `CancelQueuedResearch` | W | id, queue_id | — | `scenes/research.js` | Science | P5 | À faire |  |
+| `CheckBuildingQueue` | R | planet | — | `view/game.php` | Ops | P5 | À faire | `percent` basé sur `workingStart` + `working` (fallback legacy) |
 | `CheckResearchQueue` | R | — | — | `view/game.php` | Science | P5 | À faire |  |
 | `CheckShipQueue` | R | planet | — | `view/game.php` | Engineering | P5 | À faire |  |
 | `DowngradeBuilding` | W | buildingtype, planet | `Stations/OpsConsole.cs` | `objects/planet.js` | Ops | P5 | Branché | Immédiat, sans remboursement : confirmation en deux temps |
-| `GetPlanetDecisions` | R | planet | `Stations/OpsConsole.cs` | `objects/planet.js` | Ops | P5 | Branché | 10 décisions / planète / heure, `nextRefreshAt` → compte à rebours |
-| `GetResource` | R | planet, raw? | `App/EconomyService.cs` | `objects/planet.js` | Ops (poll global) | P0 | Branché | `EconomyService` : `raw=1` sur **toutes** les planètes (csv ≤ 50) toutes les 10 s — accumule la production et fait avancer les files. La ligne `user` (identifiants) est jetée à la lecture |
+| `GetPlanetDecisions` | R | planet | `Stations/OpsConsole.cs` | `objects/planet.js` | Ops | P5 | Branché | 10 décisions / planète / heure, `nextRefreshAt` → compte à rebours ; titres via `decision_*` / `decisionDesc_*` |
+| `GetResource` | R | planet, raw? | `App/EconomyService.cs` | `objects/planet.js` | Ops (poll global) | P0 | Branché | `EconomyService` : `raw=1` sur **toutes** les planètes (csv ≤ 50) toutes les 10 s — accumule la production et fait avancer les files. `user` = PublicUser (id/username) seulement |
 | `ImproveResearch` | W | research, planet | — | `objects/research.js` | Science | P5 | À faire | Clé réelle `combustionDrive` — démo retirée en P1c |
 | `RecruitTroop` | W | planet, type, qty | — | `objects/planet.js` | Tactical | P5 | À faire | VR : Infantry×1 codé en dur |
 | `RefreshStats` | W | planet | — | `objects/planet.js` | Ops | P5 | À faire |  |
-| `RenamePlanet` | W | id, name | `Stations/OpsConsole.cs` | `objects/planet.js` | Ops | P5 | Branché | Aucune validation serveur : VR limite à 32 caractères |
+| `RenamePlanet` | W | id, name | `Stations/OpsConsole.cs` | `objects/planet.js` | Ops | P5 | Branché | Serveur : 1–32 chars, lettres/chiffres/espaces/-_. ; `error:invalidPlanetName` |
 | `SpeedupBuilding` | W | planet | `Stations/OpsConsole.cs` | `scenes/planet.js` | Ops | P5 | Branché | Coût Nova affiché avant (gratuit ≤ 60 s, sinon max(10, ⌈6·min^0.82⌉)) |
 | `SpeedupResearch` | W | — | — | `scenes/research.js` | Science | P5 | À faire |  |
 | `UpgradeBuilding` | W | buildingtype, planet | `Crew/CrewLines.cs` +1 | `objects/planet.js` | Ops | P5 | Branché | Console Ops : devis serveur (coût × niveau cible, temps × computer), « Ajouter à la file » si chantier actif ; réponse texte (niveau) ou JSON `queued` |
@@ -140,7 +140,7 @@ Appelées par le client web : 134/152. « Appelée » ≠ « finie » : voir la 
 | Action | R/W | Params | VR | Web | Station | Phase | Statut | Notes |
 |---|---|---|---|---|---|---|---|---|
 | `AddFleetToBattle` | W | battleid, fleetid | — | `objects/fleet.js` | Tactical | P5 | À faire |  |
-| `BattleDoAction` | W | battleid, fleetid, bship_id, action, subaction, skill_id, target_bship_id, target_q, target_r | `Vfx/HexBattleController.cs` | `scenes/battle.js` | Tactical | P0 | Branché | Envoyer `subaction` + `battle_subaction` (jamais `action`) ; `skill_id=0` pour un move (le serveur refuse un param vide) |
+| `BattleDoAction` | W | battleid, fleetid, bship_id, action, subaction, skill_id, target_bship_id, target_q, target_r | `Vfx/HexBattleController.cs` | `scenes/battle.js` | Tactical | P0 | Branché | Envoyer `subaction` + `battle_subaction` (jamais `action`) ; `skill_id` optionnel (omit / vide / `0` pour un move) |
 | `BattleEndFleetTurn` | W | battleid, fleetid | `Vfx/HexBattleController.cs` | `scenes/battle.js` | Tactical | P5 | Branché |  |
 | `CheckPlanetAttack` | R | planet | — | `objects/planet.js` | Tactical | P5 | À faire |  |
 | `DoTurnBattle` | W | battleid, fleetid, action, target | — | — | Tactical | — | Hors scope | Legacy, non utilisé par le web |
@@ -231,6 +231,7 @@ Appelées par le client web : 134/152. « Appelée » ≠ « finie » : voir la 
 |---|---|---|---|---|---|---|---|---|
 | `AddEmpirePolicy` | W | policy | — | `objects/policy.js` | Conseil | P6 | À faire |  |
 | `BuyShopItem` | W | item | — | `ui/ShopWindowUI.js` | Conseil | P6 | À faire |  |
+| `CreateEmpire` | W | empireName, bgColor, shape1, shape2, shape3, color1, color2, color3, authority, ethics, speciesName, speciesType, traitPos1, traitPos2, traitNeg1, traitNeg2, planetName, empireBio, leaderName, leaderSex, leaderTitle, heirTitle, leaderTraits, shipPrefix | — | — | Conseil | P3 | À faire | Compte sans empire → SAS ; miroir create-empire.php ; `GetMeEmpire` renvoie `error:noEmpire` |
 | `EquipShopItem` | W | item | — | `ui/ShopWindowUI.js` | Conseil | P6 | À faire |  |
 | `GetAchievements` | R | — | — | `scenes/galaxy.js` | Conseil | P6 | À faire |  |
 | `GetActivity` | R | lastid | — | `objects/activity.js` | Comms | P6 | À faire |  |
@@ -238,7 +239,8 @@ Appelées par le client web : 134/152. « Appelée » ≠ « finie » : voir la 
 | `GetDailyObjectives` | R | — | — | — | Conseil | P6 | À faire | Web utilise `GetProgressionObjectives` |
 | `GetEmpire` | R | user | — | `scripts/user.js` | Comms | P5 | À faire |  |
 | `GetEmpires` | R | — | `App/DiplomacyIndex.cs` | `objects/empire.js` | Comms | P5 | Branché |  |
-| `GetMeEmpire` | R | — | `App/AuthManager.cs` +1 | `objects/policy.js` | Système (boot) | P0 | Branché |  |
+| `GetLeaderTraits` | R | — | — | — | Conseil | P3 | À faire | Liste lore pour CreateEmpire |
+| `GetMeEmpire` | R | — | `App/AuthManager.cs` +1 | `objects/policy.js` | Système (boot) | P0 | Branché | `error:noEmpire` si compte sans empire (flux CreateEmpire) |
 | `GetMonthlyObjectives` | R | — | — | — | Conseil | P6 | À faire |  |
 | `GetNovaTopupHistory` | R | — | — | — | Conseil | P6 | À faire |  |
 | `GetNovaTopupPacks` | R | — | — | `ui/ShopWindowUI.js` | Conseil | P6 | À faire |  |
@@ -257,32 +259,28 @@ Appelées par le client web : 134/152. « Appelée » ≠ « finie » : voir la 
 
 ## Écarts serveur à traiter côté web
 
-Le client VR ne contourne jamais un manque serveur par le site. Ces points sont à implémenter / documenter côté `stellar-universe`.
+Corrigés dans `stellar-universe` (`7580501`, 2026-09-25) — le client VR ne contourne jamais un manque serveur par le site.
 
-- **`BattleDoAction` refuse un `skill_id` vide** (`addAction` exige des params non vides), alors qu'un move n'a pas de skill : le web envoie `skill_id=''` et risque la même erreur. La VR envoie `0` en attendant un param optionnel côté serveur.
-- **File d'ordres web cassée pour `moveToSystem`** : `star.js` ajoute l'étape avec `targetX`/`targetY`, mais `ProcessFleetQueue` lit `x`/`y` → l'étape est lue en (0,0) et sautée. La VR envoie `x`/`y`.
-- **`ok:sublight_not_enough_modules`** : renvoyé par `MoveFleet*` mais absent de `response.success_forms`.
-- **Libellés codés en dur côté web** (onglets PlanetScene / EmpireHub, catégories de recherche `research.js`, noms de skills `BATTLE_SKILL_DEFS`, `DECISION_DEFS` FR-only, journal de colonisation, entrées `GetActivity` en anglais brut) : besoin de clés i18n — voir [`i18n/missing-keys.md`](i18n/missing-keys.md).
-- **⚠ Sécurité — `GetResource` renvoie la ligne `users` complète** (dont `email` et le hash bcrypt `password`) dans `user` pour chaque planète possédée (`actionjs.php` GetResource). À retirer côté serveur (ne renvoyer que `id`/`username` si besoin). La VR jette ce champ dès la lecture et ne log jamais les corps de réponse.
-- **`CancelQueuedBuilding` cassé côté web** : `scenes/planet.js` et `ui/PlanetWindowUI.js` envoient `queue_id`, le serveur exige `id`. La file web affiche aussi `building_type` / `duration_seconds`, qui n'existent pas (vrais champs : `buildingtype`, `duration`).
-- **`CancelQueuedBuilding` répond `{ok:false,error:"clé"}`** (HTTP 200, sans `error:`) au lieu du format d'erreur du contrat.
-- **`AnswerPlanetDecision.decision`** est la `decision_key` (chaîne) ; `action-api.json` la documente en `int`. Les erreurs sont des exceptions FR en dur.
-- **`CheckBuildingQueue.percent`** vaut toujours ~100 (`time()/working`) : inutilisable ; la VR calcule la progression elle-même.
-- **`RenamePlanet`** : aucune validation (longueur, caractères) côté serveur.
-- **Noms natifs absents** : `academy`, `defenseFactory`, `stargate` (bâtiments) — voir `missing-keys.md`.
-- **Création d'empire : aucune action API** (le web passe par le POST `controller/create-empire.php`). Bloquant pour tout compte créé en VR. Spec ci-dessous.
+| Point | Statut |
+|---|---|
+| `BattleDoAction` `skill_id` optionnel (move) | Fait |
+| File `moveToSystem` : `x`/`y` (+ accept `targetX`/`targetY`) | Fait |
+| `ok:sublight_not_enough_modules` dans `success_forms` | Fait |
+| `GetResource` / flottes : `PublicUser` (id/username) + purge cache | Fait |
+| `CancelQueuedBuilding` : `id`\|`queue_id` + `error:` + champs `buildingtype`/`duration` | Fait |
+| `AnswerPlanetDecision.decision` = string + erreurs i18n | Fait |
+| `CheckBuildingQueue.percent` via `workingStart` | Fait |
+| `RenamePlanet` validation serveur | Fait |
+| Noms natifs `academy` / `defenseFactory` / `stargate` (+ `buildingDesc_*`) | Fait |
+| `CreateEmpire` + `GetLeaderTraits` (API) ; `GetMeEmpire` → `error:noEmpire` | Fait |
+| i18n web : onglets planète, EmpireHub, catégories recherche, skills, décisions, titre journal colonie | Fait (partiel) |
 
-### Spec proposée — `CreateEmpire`
+### Restants
 
-Miroir exact de `controller/create-empire.php` : mêmes validations, mêmes effets (`AddEmpire` → `SetEmpireAuthority` → `addEmpirePolicy` → `CreateSpecy` / `UpdateSpecy` → `GetFirstPlanet` + `RenamePlanet` → `SetEmpireProfile`). Les noms de params reprennent ceux du formulaire.
+- **`GetActivity`** : entrées toujours stockées en anglais / FR brut en DB — migration clé+params non faite.
+- **Journal de colonisation** : titre / ops i18n ; corps des paragraphes encore en dur FR dans `planet.js`.
+- **Flux VR CreateEmpire** (ROADMAP P3) : Menu détecte `error:noEmpire` → séquence diegetic sas → `CreateEmpire` → Bridge. Spec API livrée ci-dessous.
 
-- **Auth** : oui (token). GET url-encodé comme toutes les actions. Refus si l'utilisateur a déjà un empire.
-- **Requis** : `empireName` (≥ 3 caractères, unique — erreurs `insert3Character`, `empireExist`, `fillAllField`).
-- **Drapeau** : `bgColor`, `shape1..3`, `color1..3` (mêmes défauts que le web : `#001f3f`, `none`, `#ff4136` / `#2ecc40` / `#ffdc00`).
-- **Gouvernement** : `authority` (id `GetAuthorities`), `ethics` (csv d'ids de policies, tronqué à `EMPIRE_MAX_POLICIES`).
-- **Espèce** : `speciesName` (défaut = nom d'empire), `speciesType` (id `GetSpeciesTypes`), `traitPos1`, `traitPos2`, `traitNeg1`, `traitNeg2` (ids `GetSpeciesTraits`, type 1 / type 0).
-- **Monde natal** : `planetName` (optionnel ; `GetFirstPlanet` attribue la planète — erreur `noStarterPlanetAvailable`).
-- **Profil (lore)** : `empireBio`, `leaderName`, `leaderSex`, `leaderTitle`, `heirTitle`, `leaderTraits` (csv ≤ 3, valeurs de `GetLeaderTraits`), `shipPrefix`.
-- **Retour** : JSON `GetMeEmpire` du nouvel empire, ou `error:<message localisé>`.
-- **Action de lecture complémentaire** : `GetLeaderTraits` (aujourd'hui interne au formulaire). Les policies viennent de `GetConfigs.policies`.
-- **Flux VR** (ROADMAP P3) : le Menu détecte « pas d'empire » via `GetMeEmpire` → séquence diegetic de création dans le sas → `CreateEmpire` → onboarding éthiques / espèce → Bridge.
+### Spec livrée — `CreateEmpire`
+
+Miroir de `controller/create-empire.php` via `CreateEmpireForUser` : mêmes validations / effets. Auth token. Requis : `empireName`. Optionnels : drapeau, `authority`, `ethics` (csv), espèce / traits, `planetName`, profil lore (`leaderTraits` csv ≤ 3 via `GetLeaderTraits`). Retour = JSON enrichi type `GetMeEmpire`, ou `error:<clé>`.
