@@ -78,9 +78,9 @@ namespace Core.Stations
                     cyan, amber);
                 // Seated on the arm like the command screens: bottom on the arm head, top leaning back 15°.
                 var mon = Quad(desk, "Monitor", new Vector3(0f, 0.185f, 0.05f), new Vector3(0.62f, 0.36f, 1f), screenIdle);
-                mon.transform.localRotation = Quaternion.Euler(15f, 0f, 0f);
+                mon.transform.localRotation = Quaternion.Euler(20f, 0f, 0f);
                 var back = Box(desk, "MonitorBack", new Vector3(0f, 0.18f, 0.075f), new Vector3(0.66f, 0.4f, 0.03f), dark);
-                back.transform.localRotation = Quaternion.Euler(15f, 0f, 0f);
+                back.transform.localRotation = Quaternion.Euler(20f, 0f, 0f);
                 Chair(room, new Vector3(x, 0f, 0.15f), side * -8f, metal, dark);
                 var officer = CrewOfficer.Build(room, new Vector3(x, 0.5f, 0.2f), side < 0 ? accent : CicArtKit.Cyan);
                 officer.localRotation = Quaternion.Euler(0f, side * -8f, 0f);
@@ -213,12 +213,13 @@ namespace Core.Stations
 
             for (var side = -1; side <= 1; side += 2)
                 Box(root, "Cheek", new Vector3(side * width * 0.5f, 0.55f, 0f), new Vector3(0.05f, 1.05f, 0.66f), metal);
-            Box(root, "Arm", new Vector3(0f, 1.05f, 0.24f), new Vector3(0.08f, 0.4f, 0.08f), metal);
-            Box(root, "ArmHead", new Vector3(0f, 1.25f, 0.24f), new Vector3(0.22f, 0.04f, 0.1f), metal);
+            // Short arm: the screen stands just above the desk's back edge, below a standing eye line.
+            Box(root, "Arm", new Vector3(0f, 0.93f, 0.26f), new Vector3(0.08f, 0.14f, 0.08f), metal);
+            Box(root, "ArmHead", new Vector3(0f, 1.0f, 0.26f), new Vector3(0.22f, 0.04f, 0.1f), metal);
             // Mount = top of the arm, oriented like the desk; a screen parented here sits on it.
             var mount = new GameObject("ScreenMount").transform;
             mount.SetParent(root, false);
-            mount.localPosition = new Vector3(0f, 1.27f, 0.24f);
+            mount.localPosition = new Vector3(0f, 1.02f, 0.26f);
             return mount;
         }
 

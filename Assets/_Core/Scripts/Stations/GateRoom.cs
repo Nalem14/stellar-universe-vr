@@ -249,7 +249,7 @@ namespace Core.Stations
             _journalBody.sizeDelta = new Vector2(760f, 520f);
         }
 
-        const float Recline = 15f;
+        const float Recline = 20f;
 
         /// <summary>
         /// Parent a screen to its desk arm: same heading as the desk, top leaning back <see cref="Recline"/>°,
