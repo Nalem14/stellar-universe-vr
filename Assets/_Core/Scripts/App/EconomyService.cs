@@ -94,11 +94,11 @@ namespace Core.App
 
         public bool TryGet(int planetId, out PlanetEconomy planet) => _planets.TryGetValue(planetId, out planet);
 
-        /// <summary>Owned planet ids, stable order (GetSystems ownership, like the web planetsList).</summary>
+        /// <summary>Owned planets, stable id order (<see cref="OwnedPlanets"/>: fresh DB ownership).</summary>
         public void CollectOwned(List<GalaxyCatalog.PlanetRef> into)
         {
-            GalaxyCatalog.CollectOwnedPlanets(FocusContext.OwnedUserId(), into);
-            into.Sort((a, b) => a.Id.CompareTo(b.Id));
+            into.Clear();
+            into.AddRange(OwnedPlanets.All);
         }
 
         IEnumerator Loop()
@@ -131,6 +131,7 @@ namespace Core.App
             try
             {
                 await GalaxyCatalog.EnsureLoaded();
+                await OwnedPlanets.EnsureLoaded();
                 CollectOwned(_owned);
                 if (_owned.Count == 0)
                     return;

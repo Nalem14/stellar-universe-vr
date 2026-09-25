@@ -105,6 +105,14 @@ namespace Core.App
             var entity = BridgeViewAnchor.EntityId;
             var savedSystem = BridgeViewAnchor.SystemId;
 
+            // A saved station must still be one of our worlds (lost colony, other account, stale save).
+            await OwnedPlanets.EnsureLoaded();
+            if (kind == BridgeViewKind.Planet && OwnedPlanets.All.Count > 0 && !OwnedPlanets.Contains(entity))
+            {
+                BridgeViewAnchor.Clear();
+                kind = BridgeViewKind.None;
+            }
+
             if (kind == BridgeViewKind.Ship && entity > 0)
             {
                 // The ship may have jumped since the anchor was saved: board it where it is now.
@@ -134,6 +142,11 @@ namespace Core.App
 
                 BridgeViewAnchor.Clear();
             }
+
+            // Default: a world we own (fresh list), preferring the account's home system.
+            await OwnedPlanets.EnsureLoaded();
+            if (OwnedPlanets.TryFirst(userSystemId, out var home) || OwnedPlanets.TryFirst(0, out home))
+                return await RunSwap(home.SystemId, preferredFleetId: 0, viewPlanetId: home.Id, fade: false);
 
             var focusId = ResolveOwnedSystem(empire, systemsBody, userSystemId);
             if (focusId <= 0)

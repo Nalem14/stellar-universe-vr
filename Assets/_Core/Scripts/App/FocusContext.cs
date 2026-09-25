@@ -331,9 +331,14 @@ namespace Core.App
             {
                 foreach (var planet in _planets)
                 {
-                    if (planet.UserId == owned)
+                    // GetSystems ownership may lag a brand-new world: the fresh list decides too.
+                    if (planet.UserId == owned || OwnedPlanets.Contains(planet.Id))
                         return planet.Id;
                 }
+
+                // The virtual station is always over one of OUR worlds, never someone else's.
+                if (OwnedPlanets.All.Count > 0)
+                    return 0;
             }
 
             return _planets.Count > 0 ? _planets[0].Id : 0;

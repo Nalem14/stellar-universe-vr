@@ -18,7 +18,7 @@ Généré depuis `action-api.json` (154 actions), `actionjs.php` et un grep des 
 | Auth | 3 | 3 | 100 % |
 | Méta / boot | 2 | 5 | 40 % |
 | Caméra (vue) | 2 | 2 | 100 % |
-| Galaxie | 1 | 8 | 12 % |
+| Galaxie | 2 | 8 | 25 % |
 | Flotte | 15 | 23 | 65 % |
 | Vaisseau / chantier | 1 | 9 | 11 % |
 | Planète / bâtiments / recherche | 8 | 17 | 47 % |
@@ -29,7 +29,7 @@ Généré depuis `action-api.json` (154 actions), `actionjs.php` et un grep des 
 | Guerre | 0 | 9 | 0 % |
 | Alliance | 1 | 17 | 6 % |
 | Empire / progression / shop | 7 | 27 | 26 % |
-| **Total** | **48** | **154** | **31 %** |
+| **Total** | **49** | **154** | **32 %** |
 
 Appelées par le client web : 134/154. « Appelée » ≠ « finie » : voir la colonne *Statut*.
 
@@ -65,7 +65,7 @@ Appelées par le client web : 134/154. « Appelée » ≠ « finie » : voir la 
 | `ClaimBounty` | W | bounty | — | `ui/BountiesWindowUI.js` | Science | P5 | À faire |  |
 | `CompleteBounty` | W | bounty | — | `ui/BountiesWindowUI.js` | Science | P5 | À faire |  |
 | `GetBounties` | R | — | — | `ui/BountiesWindowUI.js` | Science | P5 | À faire |  |
-| `GetEmpirePlanets` | R | empire | — | `ui/WarsWindowUI.js` | Comms | P5 | À faire | Pas de `systemid` dans la réponse : le TP liste mes planètes via `GetSystems` (comme le web) |
+| `GetEmpirePlanets` | R | empire | `App/OwnedPlanets.cs` | `ui/WarsWindowUI.js` | Système (boot) | P5 | Branché | `OwnedPlanets` : mes planètes fraîches (id, `systemid`, slot — web `c94c803`), au boot et après une fondation ; `GetSystems` en secours seulement |
 | `GetPlanet` | R | id | — | `objects/planet.js` | Science | P5 | À faire |  |
 | `GetSystemAnomalies` | R | systemid | — | `ui/StarWindowUI.js` | Science | P5 | À faire |  |
 | `GetSystems` | R | — | `App/BridgeSystemLoader.cs` +2 | `scenes/galaxy.js` | Holo table | P4 | Branché | Galaxie complète sur la table (LOD, territoires par détenteur) |
@@ -280,7 +280,8 @@ Corrigés dans `stellar-universe` (`7580501`, 2026-09-25) — le client VR ne co
 
 - **`GetActivity`** : entrées toujours stockées en anglais / FR brut en DB — migration clé+params non faite.
 - **Flux VR CreateEmpire** : ✅ livré côté VR (`UI/EmpireCreationWizard.cs`) — `error:noEmpire` → assistant du sas → `CreateEmpire` → `GetMeEmpire` → Bridge.
-- **`EMPIRE.RELATION_POLICY_MAX` absent de `GetConfigs`** : la VR affiche « jusqu'à {max} éthiques » avec 2 par défaut (le serveur tronque de toute façon). Exposer p. ex. `GetConfigs.empire.maxPolicies` ; la VR le lit déjà s'il existe.
+- **Plafonds d'empire** : ✅ `GetConfigs.empire.maxPolicies` / `leaderTraitsMax` (web `faf0614`, en prod) — lus par l'assistant de création.
+- **Propriété des planètes** : ✅ cache `GetSystems` vidé à la planète de départ / `ColonizePlanet` / suppression de compte ; `GetEmpirePlanets` renvoie `systemid` + `slot` (web `c94c803`, en prod). Un nouvel empire voyait son monde natal comme non possédé jusqu'à 1 h.
 - **Formes du drapeau** : libellés en dur dans `view/create-empire.php` → clés `flagShape_<id>` (missing-keys).
 
 ### Spec livrée — `CreateEmpire`

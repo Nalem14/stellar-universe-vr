@@ -240,14 +240,15 @@ namespace Core.Vfx
         static readonly List<GalaxyCatalog.PlanetRef> OwnedScratch = new();
 
         /// <summary>
-        /// Own planets across the galaxy, as the web builds its planets window: GetSystems planets
-        /// whose userid is mine (GetEmpirePlanets has no systemid, so it cannot drive a TP).
+        /// Own planets across the galaxy (<see cref="OwnedPlanets"/>: GetEmpirePlanets, fresh ownership).
         /// </summary>
         async Task LoadPlanets()
         {
             var viewPlanet = _focus != null && _focus.ViewFleetId <= 0 ? _focus.ViewPlanetId : 0;
             await GalaxyCatalog.EnsureLoaded();
-            GalaxyCatalog.CollectOwnedPlanets(FocusContext.OwnedUserId(), OwnedScratch);
+            await OwnedPlanets.EnsureLoaded();
+            OwnedScratch.Clear();
+            OwnedScratch.AddRange(OwnedPlanets.All);
 
             var pending = new List<(int id, int sys, string name, string star, bool active)>(OwnedScratch.Count);
             foreach (var p in OwnedScratch)

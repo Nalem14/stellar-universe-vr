@@ -32,7 +32,6 @@ namespace Core.UI
         }
 
         const int StepCount = 6;
-        const int LeaderTraitsMax = 3;
         const int NameMin = 3;
 
         /// <summary>Swatches for the flag (web uses a free colour input; VR offers a curated palette incl. its defaults).</summary>
@@ -83,7 +82,9 @@ namespace Core.UI
         JArray _speciesTypes;
         JArray _traits;
         JArray _leaderTraitList;
+        // GetConfigs.empire (web faf0614); the values until it answers match the server defaults.
         int _maxEthics = 2;
+        int _leaderTraitsMax = 3;
 
         Texture2D _flagTex;
         RawImage _flagPreview;
@@ -196,10 +197,12 @@ namespace Core.UI
                 {
                     var root = JObject.Parse(cfg.Result.Body);
                     _policies = root["policies"] as JArray ?? root["ethics"] as JArray;
-                    // EMPIRE.RELATION_POLICY_MAX is not exposed yet (docs/PARITY.md); the server truncates anyway.
-                    var max = FocusContext.AsInt(root["empire"]?["maxPolicies"] ?? root["maxPolicies"]);
+                    var max = FocusContext.AsInt(root["empire"]?["maxPolicies"]);
                     if (max > 0)
                         _maxEthics = max;
+                    var traits = FocusContext.AsInt(root["empire"]?["leaderTraitsMax"]);
+                    if (traits > 0)
+                        _leaderTraitsMax = traits;
                 }
                 catch
                 {
@@ -571,7 +574,7 @@ namespace Core.UI
             }
 
             Label(Trans.Get("leaderTraits") + "  ·  " + Trans.Get("chooseUpToNLeaderTraits").Replace("{max}",
-                LeaderTraitsMax.ToString(CultureInfo.InvariantCulture)), -510f, 40f, 16f, DiegeticUi.CyanDim, 900f);
+                _leaderTraitsMax.ToString(CultureInfo.InvariantCulture)), -510f, 40f, 16f, DiegeticUi.CyanDim, 900f);
             if (_leaderTraitList != null)
             {
                 for (var i = 0; i < _leaderTraitList.Count; i++)
@@ -580,7 +583,7 @@ namespace Core.UI
                     var col = i % 6;
                     var row = i / 6;
                     Choice(Trans.Get(trait), _leaderTraits.Contains(trait), -440f + col * 176f, 2f - row * 48f,
-                        new Vector2(168f, 42f), () => Toggle(_leaderTraits, trait, LeaderTraitsMax));
+                        new Vector2(168f, 42f), () => Toggle(_leaderTraits, trait, _leaderTraitsMax));
                 }
             }
 

@@ -291,7 +291,10 @@ namespace Core.UI
 
         async void OnEmpireCreated()
         {
+            // The server just gave us a homeworld (users.systemid, planet ownership): re-read both.
+            await AuthManager.Ensure().LoginToken();
             var me = await AuthManager.Ensure().FetchMe();
+            await OwnedPlanets.Refresh();
             if (!me.Ok || !AuthManager.Ensure().HasEmpire)
             {
                 SetStatus(FriendlyError(me.Error), new Color(1f, 0.4f, 0.35f));

@@ -18,11 +18,21 @@ namespace Core.App
         const string KindKey = "su.view.kind";
         const string EntityKey = "su.view.entityId";
         const string SystemKey = "su.view.systemId";
+        /// <summary>Account that saved the view: another login / a fresh sign-up never inherits it.</summary>
+        const string UserKey = "su.view.userId";
+
+        static bool OwnedByCurrentUser()
+        {
+            var uid = FocusContext.OwnedUserId();
+            return uid > 0 && PlayerPrefs.GetInt(UserKey, 0) == uid;
+        }
 
         public static BridgeViewKind Kind
         {
             get
             {
+                if (!OwnedByCurrentUser())
+                    return BridgeViewKind.None;
                 var raw = PlayerPrefs.GetString(KindKey, string.Empty);
                 if (raw == "ship")
                     return BridgeViewKind.Ship;
@@ -40,6 +50,7 @@ namespace Core.App
             if (fleetId <= 0)
                 return;
             PlayerPrefs.SetString(KindKey, "ship");
+            PlayerPrefs.SetInt(UserKey, FocusContext.OwnedUserId());
             PlayerPrefs.SetInt(EntityKey, fleetId);
             PlayerPrefs.SetInt(SystemKey, systemId);
             PlayerPrefs.Save();
@@ -50,6 +61,7 @@ namespace Core.App
             if (planetId <= 0)
                 return;
             PlayerPrefs.SetString(KindKey, "planet");
+            PlayerPrefs.SetInt(UserKey, FocusContext.OwnedUserId());
             PlayerPrefs.SetInt(EntityKey, planetId);
             PlayerPrefs.SetInt(SystemKey, systemId);
             PlayerPrefs.Save();
@@ -60,6 +72,7 @@ namespace Core.App
             PlayerPrefs.DeleteKey(KindKey);
             PlayerPrefs.DeleteKey(EntityKey);
             PlayerPrefs.DeleteKey(SystemKey);
+            PlayerPrefs.DeleteKey(UserKey);
             PlayerPrefs.Save();
         }
     }
