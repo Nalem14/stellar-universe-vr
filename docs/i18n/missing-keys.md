@@ -48,3 +48,15 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 | Source web | Restant | Notes |
 |---|---|---|
 | `GetActivity` (DB) | Entrées du journal d'activité stockées en anglais / FR brut | Migration future : stocker clé + params, localiser à la lecture |
+
+## P5 cale sèche — modèles de vaisseaux
+
+Clés natives réutilisées (web a93b82c) : `shipTemplates`, `saveCurrentTemplate`, `templateNamePlaceholder`, `loadTemplate`, `templateApplied`, `templateSaved`, `templateDeleted`, `templateMissingModules`, `templateAllAvailable`, `confirmApplyTemplate`, `enterTemplateName`, `noTemplatesFound`, `blueprintDesignHint`, `validate`.
+
+| Clé | EN | FR | Contexte |
+|---|---|---|---|
+| `vr.dock.templatePlaced` | {0} modules placed | {0} modules posés | Après `ApplyShipTemplate` (`placed`) |
+| `fleetMustBeDocked` | The ship must be docked at a planet | Le vaisseau doit être à quai sur une planète | Code serveur `ApplyShipTemplate` |
+| `templateNotFound` | Blueprint not found | Modèle introuvable | Code serveur `ApplyShipTemplate` |
+| `templateEmpty` | This blueprint has no modules | Ce modèle ne contient aucun module | Code serveur `ApplyShipTemplate` |
+| `notFound` | Not found | Introuvable | Code serveur `DeleteShipTemplate` |

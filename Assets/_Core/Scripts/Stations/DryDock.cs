@@ -66,7 +66,14 @@ namespace Core.Stations
         RectTransform _rackList;
         RectTransform _yardBody;
         ShipyardPanel _yard;
-        bool _yardTab;
+        /// <summary>Hangar screen tab: 0 hangar rack, 1 shipyard, 2 blueprints.</summary>
+        int _tab;
+        bool _yardTab => _tab == 1;
+        RectTransform _bpBody;
+        BlueprintPanel _blueprints;
+        Blueprint _preview;
+        bool[] _previewOk;
+        Material _blueprintMat;
         float _nextTick;
         TMP_Text _status;
         TMP_InputField _nameField;
@@ -352,7 +359,7 @@ namespace Core.Stations
                 Destroy(_hullBuilt.gameObject);
             _hullBuilt = null;
             var placed = new List<FocusShipModule>();
-            foreach (var m in _layout)
+            foreach (var m in _preview != null ? _preview.Modules : _layout)
                 if (m.OnGrid)
                     placed.Add(m);
             if (placed.Count == 0)
@@ -363,6 +370,49 @@ namespace Core.Stations
             var zSign = ShipHullBuilder.NoseSignFor(placed);
             _hullBuilt.localScale = new Vector3(1f, 1f, zSign);
             ShipHullBuilder.Build(_hullBuilt, placed, owned: true, seed: _fleetId);
+            if (_preview == null)
+                return;
+            // Blueprint: the design stands in the cradle as a hologram of itself (no metal until loaded).
+            _hullBuilt.name = "BlueprintHull";
+            var mat = BlueprintMat();
+            foreach (var r in _hullBuilt.GetComponentsInChildren<Renderer>(true))
+            {
+                if (r is ParticleSystemRenderer)
+                {
+                    r.enabled = false;
+                    continue;
+                }
+
+                var mats = r.sharedMaterials;
+                for (var i = 0; i < mats.Length; i++)
+                    mats[i] = mat;
+                r.sharedMaterials = mats;
+                r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            }
+
+            foreach (var l in _hullBuilt.GetComponentsInChildren<Light>(true))
+                l.enabled = false;
+        }
+
+        Material BlueprintMat()
+        {
+            if (_blueprintMat != null)
+                return _blueprintMat;
+            var shader = Shader.Find("SU/HoloCrystal");
+            _blueprintMat = shader != null
+                ? new Material(shader) { name = "SU_Blueprint" }
+                : _art.Holo(Texture2D.whiteTexture, new Color(0.3f, 0.85f, 1f, 0.5f));
+            if (_blueprintMat.HasProperty("_Color"))
+                _blueprintMat.SetColor("_Color", new Color(0.05f, 0.25f, 0.4f, 1f));
+            if (_blueprintMat.HasProperty("_Emission"))
+                _blueprintMat.SetColor("_Emission", new Color(0.3f, 0.85f, 1f, 1f));
+            if (_blueprintMat.HasProperty("_EmissionMul"))
+                _blueprintMat.SetFloat("_EmissionMul", 1.3f);
+            if (_blueprintMat.HasProperty("_Rim"))
+                _blueprintMat.SetFloat("_Rim", 2.6f);
+            if (_blueprintMat.HasProperty("_Pulse"))
+                _blueprintMat.SetFloat("_Pulse", 0.8f);
+            return _blueprintMat;
         }
 
         void PaintGrid()
@@ -371,9 +421,17 @@ namespace Core.Stations
             for (var x = 0; x < ModuleCatalog.Grid; x++)
             for (var y = 0; y < ModuleCatalog.Grid; y++)
             {
-                var m = At(x, y);
+                var onHand = false;
+                var m = _preview != null ? PreviewAt(x, y, out onHand) : At(x, y);
                 Color c;
-                if (m != null)
+                if (_preview != null)
+                {
+                    // Blueprint projection: green = the part is on hand, red = missing from the hangar.
+                    c = m == null ? new Color(0.3f, 0.8f, 1f, 0.08f)
+                        : onHand ? new Color(0.35f, 1f, 0.55f, 0.8f)
+                        : new Color(1f, 0.3f, 0.25f, 0.85f);
+                }
+                else if (m != null)
                 {
                     c = ModuleCatalog.Accent(ModuleCatalog.Family(m.Type));
                     c.a = 0.85f;
@@ -414,6 +472,21 @@ namespace Core.Stations
         }
 
         static string Short(string name) => string.IsNullOrEmpty(name) ? "?" : name.Length <= 12 ? name : name.Substring(0, 11) + "…";
+
+        FocusShipModule PreviewAt(int x, int y, out bool onHand)
+        {
+            onHand = false;
+            for (var i = 0; i < _preview.Modules.Count; i++)
+            {
+                var m = _preview.Modules[i];
+                if (m.GridX != x || m.GridY != y)
+                    continue;
+                onHand = _previewOk != null && i < _previewOk.Length && _previewOk[i];
+                return m;
+            }
+
+            return null;
+        }
 
         FocusShipModule At(int x, int y)
         {
@@ -468,12 +541,22 @@ namespace Core.Stations
                 RenderRack();
                 RenderShipScreen();
             });
+            _bpBody = Sub(_rackBody, "Blueprints", -45f);
+            _blueprints = new BlueprintPanel(_bpBody, () => _fleetId, Stock, (t, e) => SetStatus(t, e), Preview,
+                async () =>
+                {
+                    await AfterEdit();
+                    RenderAll();
+                    RefreshCrate();
+                });
             _rackTabs = new[]
             {
-                DiegeticUi.HoloButton(_rackScreen.Content, Trans.Get("hangar"), new Vector2(-150f, 262f),
-                    new Vector2(280f, 44f), () => SetYardTab(false), DiegeticUi.BtnStyle.Cyan),
-                DiegeticUi.HoloButton(_rackScreen.Content, Trans.Get("shipyard"), new Vector2(150f, 262f),
-                    new Vector2(280f, 44f), () => SetYardTab(true), DiegeticUi.BtnStyle.Ghost)
+                DiegeticUi.HoloButton(_rackScreen.Content, Trans.Get("hangar"), new Vector2(-300f, 262f),
+                    new Vector2(280f, 44f), () => SetTab(0), DiegeticUi.BtnStyle.Cyan),
+                DiegeticUi.HoloButton(_rackScreen.Content, Trans.Get("shipyard"), new Vector2(0f, 262f),
+                    new Vector2(280f, 44f), () => SetTab(1), DiegeticUi.BtnStyle.Ghost),
+                DiegeticUi.HoloButton(_rackScreen.Content, Trans.Get("shipTemplates"), new Vector2(300f, 262f),
+                    new Vector2(280f, 44f), () => SetTab(2), DiegeticUi.BtnStyle.Ghost)
             };
 
             // Way back: the door in the aft wall, behind the stand (walk through it or use its panel).
@@ -493,12 +576,15 @@ namespace Core.Stations
             return rt;
         }
 
-        void SetYardTab(bool yard)
+        void SetTab(int tab)
         {
-            _yardTab = yard;
+            _tab = tab;
+            // Leaving the blueprints tab drops the projection: the cradle shows the real ship again.
+            if (tab != 2 && _preview != null)
+                _blueprints.Deselect();
             for (var i = 0; i < _rackTabs.Length; i++)
             {
-                var on = (i == 1) == yard;
+                var on = i == tab;
                 var label = _rackTabs[i].GetComponentInChildren<TMP_Text>();
                 label.color = on ? UiKit.Cyan : new Color(0.7f, 0.85f, 0.92f, 0.8f);
                 _rackTabs[i].GetComponent<Image>().color = on ? new Color(0.6f, 1f, 1f, 1f) : new Color(1f, 1f, 1f, 0.55f);
@@ -640,11 +726,18 @@ namespace Core.Stations
         {
             Clear(_rackList);
             Clear(_yardBody);
-            _rackList.gameObject.SetActive(!_yardTab);
-            _yardBody.gameObject.SetActive(_yardTab);
-            if (_yardTab)
+            _rackList.gameObject.SetActive(_tab == 0);
+            _yardBody.gameObject.SetActive(_tab == 1);
+            _bpBody.gameObject.SetActive(_tab == 2);
+            if (_tab == 1)
             {
                 _yard.Render();
+                return;
+            }
+
+            if (_tab == 2)
+            {
+                _blueprints.Render();
                 return;
             }
 
@@ -748,6 +841,30 @@ namespace Core.Stations
             return list;
         }
 
+        /// <summary>Parts a blueprint can draw on: finished hangar modules + the ship's own (non-core) ones.</summary>
+        Dictionary<string, int> Stock()
+        {
+            var stock = new Dictionary<string, int>();
+            foreach (var (type, count) in HangarGroups())
+                stock[type] = count;
+            foreach (var m in _layout)
+                if (m.Type != ModuleCatalog.Core)
+                    stock[m.Type] = (stock.TryGetValue(m.Type, out var n) ? n : 0) + 1;
+            return stock;
+        }
+
+        /// <summary>Project a blueprint (null = back to the real ship) on the table and in the cradle.</summary>
+        void Preview(Blueprint bp)
+        {
+            _preview = bp;
+            _previewOk = bp != null ? _blueprints.Availability(bp) : null;
+            _armedRemove = null;
+            PaintGrid();
+            RebuildHull();
+            if (bp != null)
+                CicCue.Deploy(transform.TransformPoint(Cradle));
+        }
+
         List<FocusFleet> Docked()
         {
             var list = new List<FocusFleet>();
@@ -807,6 +924,7 @@ namespace Core.Stations
             var fade = ViewFade.Ensure();
             await fade.FadeOut();
             Inside = false;
+            _blueprints?.Deselect();
             if (_crate != null)
                 Destroy(_crate);
             _crate = null;
@@ -866,6 +984,8 @@ namespace Core.Stations
 
         void RenderAll()
         {
+            if (_preview != null)
+                _previewOk = _blueprints.Availability(_preview);
             RenderShipScreen();
             RenderRack();
             PaintGrid();
@@ -946,6 +1066,13 @@ namespace Core.Stations
 
         void OnCell(int x, int y)
         {
+            if (_preview != null)
+            {
+                // Editing starts from the real ship: touching the table ends the projection.
+                _blueprints.Deselect();
+                return;
+            }
+
             if (_busy || _fleetId <= 0)
             {
                 if (_fleetId <= 0)
@@ -1201,11 +1328,14 @@ namespace Core.Stations
         {
             if (!Inside)
                 return;
-            if (_yardTab && Time.unscaledTime >= _nextTick)
+            if (_tab == 1 && Time.unscaledTime >= _nextTick)
             {
                 _nextTick = Time.unscaledTime + 0.5f;
                 _yard.Tick();
             }
+
+            if (_tab == 2)
+                _blueprints.Tick();
 
             if (_armedRemove.HasValue && Time.unscaledTime > _armedUntil)
             {
