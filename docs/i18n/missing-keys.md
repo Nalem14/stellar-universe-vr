@@ -83,12 +83,7 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 | `vr.dock.renamed` | Ship renamed | Vaisseau renommé | Retour `RenameFleet` |
 | `vr.dock.hangarEmpty` | The hangar is empty. | Le hangar est vide. | Râtelier vide |
 | `vr.dock.troops` | Troop capacity | Capacité de troupes | Stat de conception (`troopCargo`) |
-| `vr.dock.size` | Hull size | Taille de coque | Stat de conception (`size`, plafond serveur 100) |
-| `positionOccupied` | This cell is already taken. | Cette case est déjà occupée. | Erreur brute `PlaceShipModule` |
-| `invalidPosition` | Invalid position on the grid. | Position invalide sur la grille. | Erreur brute `PlaceShipModule` |
-| `shipNotInHangar` | This module is not available in the hangar. | Ce module n'est pas disponible au hangar. | Erreur brute `PlaceShipModule` |
-| `cannotRemoveCore` | The ship core cannot be removed. | Le cœur du vaisseau ne peut pas être retiré. | Erreur brute `RemoveShipModule` |
-| `shipNotFound` | Module not found. | Module introuvable. | Erreur brute `RemoveShipModule` |
+| `vr.dock.size` | Hull size | Taille de coque | Stat de conception (`size` ; plafond = `GetConfigs.fleet.maxFleetSize`) |
 
 ## Restant côté web
 

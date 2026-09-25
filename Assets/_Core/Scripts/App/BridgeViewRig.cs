@@ -143,6 +143,8 @@ namespace Core.App
 
             _xrOrigin.transform.localPosition = WorldScale.CicCaptainStand;
             _xrOrigin.transform.localRotation = Quaternion.identity;
+            // Head on the captain's spot, whatever the headset's offset in the real play space.
+            XrPlacement.PlaceHead(_xrOrigin, _bridgeMount.TransformPoint(WorldScale.CicCaptainStand), _bridgeMount.forward);
 
             var body = _xrOrigin.Origin != null
                 ? _xrOrigin.Origin.GetComponent<CharacterController>()

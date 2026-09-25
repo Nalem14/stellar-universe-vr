@@ -16,6 +16,10 @@ namespace Core.App
         public static float HyperspaceCrystalPerDistance { get; private set; }
         public static float TravelSecondsPerDistance { get; private set; }
         public static float TravelDurationMin { get; private set; }
+        /// <summary>Sum of module <c>size</c> allowed on one hull (FLEET.MAX_SIZE).</summary>
+        public static int MaxFleetSize { get; private set; }
+        /// <summary>Docked fleets allowed per owned planet (FLEET.MAX_PER_PLANET).</summary>
+        public static int AllowedFleetPerPlanet { get; private set; }
 
         // GetConfigs.prlBond
         public static float PrlBaseRange { get; private set; }
@@ -47,6 +51,8 @@ namespace Core.App
                     HyperspaceCrystalPerDistance = FocusContext.AsFloat(fleet["hyperspaceCrystalCostPerDistance"]);
                     TravelSecondsPerDistance = FocusContext.AsFloat(fleet["systemTravelSecondsPerDistance"]);
                     TravelDurationMin = FocusContext.AsFloat(fleet["systemTravelDurationMin"]);
+                    MaxFleetSize = FocusContext.AsInt(fleet["maxFleetSize"]);
+                    AllowedFleetPerPlanet = FocusContext.AsInt(fleet["allowedFleetPerPlanet"]);
                 }
 
                 if (root["prlBond"] is JObject prl)

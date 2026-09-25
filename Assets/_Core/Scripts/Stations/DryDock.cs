@@ -15,8 +15,8 @@ using UnityEngine.XR.Interaction.Toolkit.Interactables;
 namespace Core.Stations
 {
     /// <summary>
-    /// Engineering dry dock — reached from the Engineering officer (web ShipBuilderUI + planet shipyard,
-    /// rebuilt as a place you stand in). A control room overlooks a hangar bay through a wide window: the
+    /// Engineering dry dock of an orbital station — a room you walk into through a door of the bridge (only
+    /// at a station over one of our worlds; web ShipBuilderUI + planet shipyard, rebuilt as a place). A control room overlooks a hangar bay through a wide window: the
     /// selected ship sits in its cradle at 1:1 (the real procedural hull, <see cref="ShipHullBuilder"/>) and is
     /// rebuilt, with welding sparks, each time a module goes on. The assembly table in the room carries the
     /// 9×9 grid: pick a module on the hangar rack, a holo crate appears on the dispenser — grab it and set it
@@ -76,7 +76,6 @@ namespace Core.Stations
         (int x, int y)? _pendingWeld;
         bool _busy;
         readonly List<FocusShipModule> _layout = new();
-        readonly List<GalaxyCatalog.PlanetRef> _owned = new();
 
         public static DryDock Build(CicArtKit art, FocusContext focus, FleetPoller poller, EconomyService eco)
         {
@@ -457,10 +456,9 @@ namespace Core.Stations
             _rackScreen.SetAccent(Accent, 0.5f);
             _rackBody = Body(_rackScreen);
 
-            // Way back, within reach of the stand.
-            PokeButton.Create(transform, "BackToBridge", Trans.Get("vr.dock.leave"),
-                Stand + new Vector3(-0.85f, 1.05f, 0.25f), Quaternion.Euler(25f, -30f, 0f), new Vector2(0.26f, 0.07f),
-                UiKit.Amber, () => AsyncTap.Run(Leave()));
+            // Way back: the door in the aft wall, behind the stand (walk through it or use its panel).
+            RoomDoor.Build(transform, "DoorToBridge", new Vector3(0f, 0f, -3.44f), 0f, Trans.Get("vr.dock.leave"),
+                UiKit.Amber, _art, () => Inside, () => AsyncTap.Run(Leave()));
         }
 
         static RectTransform Body(HoloScreen screen)
@@ -513,11 +511,9 @@ namespace Core.Stations
             Clear(_shipBody);
             _eco.TryGet(_planetId, out var planet);
             var planetName = planet != null && !string.IsNullOrEmpty(planet.Name) ? planet.Name : "#" + _planetId;
-            Btn(_shipBody, "‹", -405f, 245f, 60f, 48f, () => StepPlanet(-1), DiegeticUi.BtnStyle.Ghost);
             Text(_shipBody, "<b>" + planetName + "</b>  <size=70%><color=#7fd8ff>" +
                             GalaxyCatalog.Label(planet?.SystemId ?? 0) + "</color></size>",
-                -360f, 245f, 560f, 24f, UiKit.TextBright);
-            Btn(_shipBody, "›", 405f, 245f, 60f, 48f, () => StepPlanet(1), DiegeticUi.BtnStyle.Ghost);
+                -440f, 245f, 880f, 24f, UiKit.TextBright);
 
             // Ships docked at this planet (fleets.planetid), then "new ship" from a ShipCore in the hangar.
             var docked = Docked();
@@ -717,10 +713,11 @@ namespace Core.Stations
         {
             if (Inside)
                 return;
+            // The dock belongs to the orbital station you stand in: only one of our worlds has one here.
             await OwnedPlanets.EnsureLoaded();
-            _owned.Clear();
-            _owned.AddRange(OwnedPlanets.All);
-            _planetId = OwnedPlanets.Contains(planetId) ? planetId : _owned.Count > 0 ? _owned[0].Id : 0;
+            if (!OwnedPlanets.Contains(planetId))
+                return;
+            _planetId = planetId;
             _fleetId = 0;
             _selectedType = null;
 
@@ -733,7 +730,7 @@ namespace Core.Stations
                 rig.transform.SetParent(transform, false);
                 rig.transform.localPosition = Stand;
                 rig.transform.localRotation = Quaternion.identity;
-                ResetBody(rig);
+                XrPlacement.PlaceHead(rig, transform.TransformPoint(Stand), transform.forward);
             }
 
             Inside = true;
@@ -771,30 +768,6 @@ namespace Core.Stations
             await fade.FadeIn();
         }
 
-        static void ResetBody(XROrigin rig)
-        {
-            var body = rig.GetComponentInChildren<CharacterController>();
-            if (body == null)
-                return;
-            body.enabled = false;
-            body.enabled = true;
-        }
-
-        void StepPlanet(int delta)
-        {
-            if (_owned.Count == 0)
-                return;
-            var i = _owned.FindIndex(p => p.Id == _planetId);
-            _planetId = _owned[((i < 0 ? 0 : i) + delta + _owned.Count) % _owned.Count].Id;
-            _fleetId = 0;
-            _selectedType = null;
-            _layout.Clear();
-            var docked = Docked();
-            if (docked.Count > 0)
-                AsyncTap.Run(LoadFleet(docked[0].Id));
-            else
-                RenderAll();
-        }
 
         void SelectFleet(int id) => AsyncTap.Run(LoadFleet(id));
 
