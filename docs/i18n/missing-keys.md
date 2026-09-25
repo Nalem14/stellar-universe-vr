@@ -22,6 +22,7 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 
 - Clés `vr.*`, `crew.*`, `buildingDesc_*`, `colonyLog_*`, `relation_*` dans `assets/langs/{fr,en}.json`.
 - Clés P3 (création d'empire : `vr.create.*`, `flagShape_*`, `traitEffect_*`), P5 cale sèche (`vr.dock.*`, `vr.yard.*`, `vr.module.family.*`), P5 laboratoire (`vr.lab.*`, `vr.research.*`), P5 relevé planétaire (`credits`, `vr.survey.*`) et P5.5 table tactique (`vr.table.*`, `vr.seat.*`, `vr.battle.*`) dans `assets/langs/{fr,en}.json`.
+- Clés P5 cale sèche — modèles (`vr.dock.templatePlaced`, `fleetMustBeDocked`, `templateNotFound`, `templateEmpty`, `notFound`), P5.5 H3b file d'ordres 3D (`vr.table.removeStep`, `vr.table.queueRerouted`) et P5 Tactical armurerie (`vr.armory.*`, `crew.tactical.*`) dans `assets/langs/{fr,en}.json`. `fr` et `en` ont désormais exactement le même jeu de clés.
 - Contenu lu dynamiquement par le VR (noms = type du serveur) : troupes `Infantry`, `HeavyTrooper`, `ExoArmorTrooper`, `CyberneticVanguard`, `CombatDroneSquad`, `SynthWarrior` et défenses `MissileTurret`, `FlakCannon`, `PlasmaBattery`, `IonDefenseGrid`, `RailgunBastion`, `QuantumShieldArray` (affichés par `ResearchCatalog.Unlocks`) ; descriptions `descBondPRLModule` et `descTroopBay` (en). Le VR retombe sur la casse native (`Trans.Get`) pour `ScienceModule` / `TroopBay`, absents en PascalCase côté web.
 - Remaps client (§1) : le code VR utilise les clés natives (`fleets`, `asteroidField`, `moveToSystem`, `defendPosition*`, `explorePlanet`, `depositCargo`, `withdrawCargo`, `harvestAsteroid`, `attackOrbit`, `cancel`, `sublight` / `hyperdrive`, `buildingDesc_<type>`, plaques `vr.station.*`, etc.).
 
@@ -48,24 +49,3 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 | Source web | Restant | Notes |
 |---|---|---|
 | `GetActivity` (DB) | Entrées du journal d'activité stockées en anglais / FR brut | Migration future : stocker clé + params, localiser à la lecture |
-
-## P5 cale sèche — modèles de vaisseaux
-
-Clés natives réutilisées (web a93b82c) : `shipTemplates`, `saveCurrentTemplate`, `templateNamePlaceholder`, `loadTemplate`, `templateApplied`, `templateSaved`, `templateDeleted`, `templateMissingModules`, `templateAllAvailable`, `confirmApplyTemplate`, `enterTemplateName`, `noTemplatesFound`, `blueprintDesignHint`, `validate`.
-
-| Clé | EN | FR | Contexte |
-|---|---|---|---|
-| `vr.dock.templatePlaced` | {0} modules placed | {0} modules posés | Après `ApplyShipTemplate` (`placed`) |
-| `fleetMustBeDocked` | The ship must be docked at a planet | Le vaisseau doit être à quai sur une planète | Code serveur `ApplyShipTemplate` |
-| `templateNotFound` | Blueprint not found | Modèle introuvable | Code serveur `ApplyShipTemplate` |
-| `templateEmpty` | This blueprint has no modules | Ce modèle ne contient aucun module | Code serveur `ApplyShipTemplate` |
-| `notFound` | Not found | Introuvable | Code serveur `DeleteShipTemplate` |
-
-## P5.5 H3b — file d'ordres en chemin 3D
-
-Clés natives réutilisées : `orderQueue`, `orderQueueLoop`, `queueLoopEnabled`, `queueLoopDisabled`, `clearQueue`, `queueCleared`, `queueStepRemoved`, `step*`.
-
-| Clé | EN | FR | Contexte |
-|---|---|---|---|
-| `vr.table.removeStep` | Remove step | Retirer l'étape | Plaque ouverte sur une balise de la file |
-| `vr.table.queueRerouted` | Step rerouted | Étape redirigée | Balise lâchée sur une autre cible (`SetFleetOrderQueue`) |

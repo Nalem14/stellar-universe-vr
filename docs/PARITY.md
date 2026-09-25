@@ -19,17 +19,17 @@ Généré depuis `action-api.json` (158 actions), `actionjs.php` et un grep des 
 | Méta / boot | 2 | 5 | 40 % |
 | Caméra (vue) | 2 | 2 | 100 % |
 | Galaxie | 8 | 8 | 100 % |
-| Flotte | 17 | 23 | 74 % |
+| Flotte | 19 | 23 | 83 % |
 | Vaisseau / chantier | 12 | 13 | 92 % |
-| Planète / bâtiments / recherche | 11 | 17 | 65 % |
-| Combat | 9 | 14 | 64 % |
+| Planète / bâtiments / recherche | 13 | 17 | 76 % |
+| Combat | 11 | 14 | 79 % |
 | Jumpgate | 0 | 2 | 0 % |
 | Stargate | 0 | 7 | 0 % |
 | Social (chat, mail) | 0 | 11 | 0 % |
 | Guerre | 0 | 9 | 0 % |
 | Alliance | 1 | 17 | 6 % |
 | Empire / progression / shop | 7 | 27 | 26 % |
-| **Total** | **72** | **158** | **46 %** |
+| **Total** | **78** | **158** | **49 %** |
 
 Appelées par le client web : 138/158. « Appelée » ≠ « finie » : voir la colonne *Statut*.
 
@@ -84,7 +84,7 @@ Appelées par le client web : 138/158. « Appelée » ≠ « finie » : voir la 
 | `GetAllFleetsAround` | R | — | — | `scenes/galaxy.js` | Helm | — | Hors scope | Interdit en VR (règle AGENTS) — `GetAllFleets` + filtre client |
 | `GetSystemAsteroids` | R | systemid | — | `scenes/system.js` | Helm | P5 | À faire |  |
 | `HarvestAsteroid` | W | fleet, asteroid | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Engineering | P5 | Branché |  |
-| `LoadTroops` | W | fleet, planet, troops | — | `objects/fleet.js` | Tactical | P5 | À faire |  |
+| `LoadTroops` | W | fleet, planet, troops | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Tactical | P5 | Branché | Soute à troupes de l'Armurerie : `{type: qty}` ; réponse = unités déplacées → navettes dehors + étincelle sur la table |
 | `MoveFleetToAsteroid` | W | fleet, asteroid, hyperspace? | `Crew/CrewLines.cs` +2 | `objects/fleet.js` | Helm | P4 | Branché | idem hyperspace |
 | `MoveFleetToPlanet` | W | fleet, planet, hyperspace? | `Crew/CrewLines.cs` +2 | `objects/fleet.js` | Helm | P4 | Branché | idem hyperspace |
 | `MoveFleetToSystem` | W | fleet, pos, hyperspace? | `Crew/CrewLines.cs` +2 | `objects/fleet.js` | Helm | P4 | Branché | Toujours `hyperspace` explicite (0 sous-lumière / 1 hyperespace) après devis au pupitre (`TravelPlanner`, formules serveur) ; `ok:sublight_*` → `ApiResult.NoticeKey` |
@@ -95,7 +95,7 @@ Appelées par le client web : 138/158. « Appelée » ≠ « finie » : voir la 
 | `SetFleetOrderQueue` | W | fleet, queue, loop? | `Holo/OrderQueue.cs` | `objects/fleet.js` | Helm | P4 | Branché | Balise de la file lâchée sur une autre planète / un autre champ : on renvoie les étapes restantes (le serveur remet l’index à 0), champs du serveur conservés |
 | `SpeedupFleetTravel` | W | fleet | — | `scripts/helper.js` | Helm | P5 | À faire |  |
 | `ToggleFleetQueueLoop` | W | fleet, loop? | `Holo/OrderQueue.cs` | `objects/fleet.js` | Helm | P4 | Branché | `loop` explicite 0/1 |
-| `UnloadTroops` | W | fleet, planet, troops | — | `objects/fleet.js` | Tactical | P5 | À faire |  |
+| `UnloadTroops` | W | fleet, planet, troops | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Tactical | P5 | Branché | Idem, vers la garnison de nos planètes seulement |
 | `UpdateFleetDefendPosition` | W | id, position | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Tactical | P5 | Branché |  |
 | `WithdrawCargo` | W | fleet, planet, mineral?, crystal?, biomass? | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Ops | P5 | Branché |  |
 
@@ -122,7 +122,7 @@ Appelées par le client web : 138/158. « Appelée » ≠ « finie » : voir la 
 | Action | R/W | Params | VR | Web | Station | Phase | Statut | Notes |
 |---|---|---|---|---|---|---|---|---|
 | `AnswerPlanetDecision` | W | planet, decision, choice | `Stations/OpsConsole.cs` | `objects/planet.js` | Ops | P5 | Branché | `decision` = **`decision_key`** (chaîne), pas l'id ; `choice` yes/no ; erreurs i18n |
-| `BuildDefenseUnit` | W | planet, type, qty | — | `objects/planet.js` | Tactical | P5 | À faire | VR : MissileTurret×1 codé en dur |
+| `BuildDefenseUnit` | W | planet, type, qty | `Crew/CrewLines.cs` +1 | `objects/planet.js` | Tactical | P5 | Branché | Armurerie, onglet Défenses ; plateformes en orbite de nos mondes dans l'espace réel |
 | `CancelQueuedBuilding` | W | id, queue_id | `Stations/OpsConsole.cs` | `scenes/planet.js` | Ops | P5 | Branché | Param `id` ou `queue_id` ; échecs en `error:<clé>` ; file = `buildingtype` + `duration` |
 | `CancelQueuedResearch` | W | id, queue_id | `Stations/ResearchLab.cs` | `scenes/research.js` | Science | P5 | Branché | Param `id` (ligne empire_research_queue, tech en `research`) ; cristal arraché de son pad ou × |
 | `CheckBuildingQueue` | R | planet | — | `view/game.php` | Ops | P5 | À faire | `percent` basé sur `workingStart` + `working` (fallback legacy) |
@@ -132,7 +132,7 @@ Appelées par le client web : 138/158. « Appelée » ≠ « finie » : voir la 
 | `GetPlanetDecisions` | R | planet | `Stations/OpsConsole.cs` | `objects/planet.js` | Ops | P5 | Branché | 10 décisions / planète / heure, `nextRefreshAt` → compte à rebours ; titres via `decision_*` / `decisionDesc_*` |
 | `GetResource` | R | planet, raw? | `App/EconomyService.cs` | `objects/planet.js` | Ops (poll global) | P0 | Branché | `EconomyService` : `raw=1` sur **toutes** les planètes (csv ≤ 50) toutes les 10 s — accumule la production et fait avancer les files. `user` = PublicUser (id/username) seulement |
 | `ImproveResearch` | W | research, planet | `Crew/CrewLines.cs` +1 | `objects/research.js` | Science | P5 | Branché | Labo Science : cristal de la constellation → synthétiseur (ou bouton) ; `planet` = meilleur researchLab ; corps vide = lancé, JSON `{queued,targetLevel}` = en file ; prérequis `GetConfigs.researchs.requiert` |
-| `RecruitTroop` | W | planet, type, qty | — | `objects/planet.js` | Tactical | P5 | À faire | VR : Infantry×1 codé en dur |
+| `RecruitTroop` | W | planet, type, qty | `Crew/CrewLines.cs` +1 | `objects/planet.js` | Tactical | P5 | Branché | Console Armurerie (Tactique) : lot 1–500, coût × qty, durée time×qty×(100−(computer+1))/100, un lot par planète (`troopWorking`) |
 | `RefreshStats` | W | planet | — | `objects/planet.js` | Ops | P5 | À faire |  |
 | `RenamePlanet` | W | id, name | `Stations/OpsConsole.cs` | `objects/planet.js` | Ops | P5 | Branché | Serveur : 1–32 chars, lettres/chiffres/espaces/-_. ; `error:invalidPlanetName` |
 | `SpeedupBuilding` | W | planet | `Stations/OpsConsole.cs` | `scenes/planet.js` | Ops | P5 | Branché | Coût Nova affiché avant (gratuit ≤ 60 s, sinon max(10, ⌈6·min^0.82⌉)) |
@@ -143,15 +143,15 @@ Appelées par le client web : 138/158. « Appelée » ≠ « finie » : voir la 
 
 | Action | R/W | Params | VR | Web | Station | Phase | Statut | Notes |
 |---|---|---|---|---|---|---|---|---|
-| `AddFleetToBattle` | W | battleid, fleetid | — | `objects/fleet.js` | Tactical | P5 | À faire |  |
+| `AddFleetToBattle` | W | battleid, fleetid | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Tactical | P5 | Branché | Onglet Opérations : vaisseau inactif du même système (le serveur ne vérifie pas la position), bataille en préparation ; ouvre le plateau |
 | `BattleDoAction` | W | battleid, fleetid, bship_id, action, subaction, skill_id, target_bship_id, target_q, target_r | `Vfx/HexBattleController.cs` | `scenes/battle.js` | Tactical | P0 | Branché | Plateau de combat sur la table : viser→viser (case = move, compétence armée puis cible) ; `subaction` + `battle_subaction` ; `skill_id` seulement pour une compétence ; erreurs brutes → `vr.battle.err.*` |
 | `BattleEndFleetTurn` | W | battleid, fleetid | `Vfx/HexBattleController.cs` | `scenes/battle.js` | Tactical | P5 | Branché | Bouton Fin du tour du pupitre (et réplique Tactique) |
-| `CheckPlanetAttack` | R | planet | — | `objects/planet.js` | Tactical | P5 | À faire |  |
+| `CheckPlanetAttack` | R | planet | `App/SiegeWatch.cs` | `objects/planet.js` | Tactical | P5 | Branché | `SiegeWatch` : appelé dès que `attackEndTime` expire pour un siège qui nous touche (`wip` → relance 5 s, `ok` → résolu) ; bombardement dehors + anneau sur la table |
 | `DoTurnBattle` | W | battleid, fleetid, action, target | — | — | Tactical | — | Hors scope | Legacy, non utilisé par le web |
 | `FleetAttackPlanet` | W | fleet, planet | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Tactical | P5 | Branché |  |
 | `GetBattle` | R | battleid | — | — | Tactical | — | Hors scope | Legacy |
 | `GetBattleState` | R | battleid, fleetid | `Vfx/HexBattleController.cs` | `scenes/battle.js` | Tactical | P5 | Branché | Plateau diffé toutes les 2,5 s (web) ; tirs rejoués depuis les nouvelles lignes `log` sur la table, dehors et à bord |
-| `GetMyBattles` | R | — | `Vfx/HexBattleController.cs` | `scenes/galaxy.js` | Tactical | P5 | Branché | Seulement si un de nos vaisseaux a `isInBattle` : prend la table (vaisseau habité / système en vue) ou bouton Rejoindre sur le rebord |
+| `GetMyBattles` | R | — | `Stations/ArmoryConsole.cs` +1 | `scenes/galaxy.js` | Tactical | P5 | Branché | Seulement si un de nos vaisseaux a `isInBattle` : prend la table (vaisseau habité / système en vue) ou bouton Rejoindre sur le rebord |
 | `GetPendingBattles` | R | systemid, planetid | — | — | Tactical | P5 | À faire |  |
 | `MakeBattle` | W | systemid, fleets, planetid? | `Crew/CrewLines.cs` +2 | `objects/fleet.js` | Tactical | fleets = mon vaisseau + cibles, `planetid` seulement si ≠ 0 (0 vs pirates), puis `UpdateBattle` (web startTacticalBattle) | Branché | fleets = mon vaisseau + cibles, `planetid` seulement si ≠ 0 (0 vs pirates), puis `UpdateBattle` (web startTacticalBattle) |
 | `RemoveFleetFromBattle` | W | battleid, fleetid | `Vfx/HexBattleController.cs` | `scenes/battle.js` | Tactical | P5 | Branché | Bouton Retirer le vaisseau, bataille en attente seulement |
@@ -280,6 +280,7 @@ Corrigés dans `stellar-universe` (`7580501`, 2026-09-25) — le client VR ne co
 | i18n web : onglets, EmpireHub, recherche, skills, décisions, journal colonie, relations overlay | Fait |
 | Clés `vr.*` + `crew.*` (missing-keys §2–3) dans `assets/langs/{fr,en}.json` | Fait |
 | Clés `vr.battle.*` (missing-keys P5.5 H3, combat sur la table) dans `assets/langs/{fr,en}.json` | Fait |
+| Clés modèles / file 3D / armurerie (`vr.dock.*`, `vr.table.*`, `vr.armory.*`, `crew.tactical.*`) en fr/en | Fait |
 
 ### Restants
 
@@ -323,9 +324,32 @@ Corrigés dans `stellar-universe` (`7580501`, 2026-09-25) — le client VR ne co
 - **⚠ « Surcharge Cybernétique » (`cyber_override`, type `cyber_hack`) ne marchait jamais** : ✅ corrigé — `$targetBship` est résolu comme pour les autres compétences (`target_bship_id`, sinon la case visée `$tQ`/`$tR`) et le tir allié est refusé (`friendly_fire`). La VR envoie déjà `target_bship_id` et `target_q` / `target_r`.
 - **Lignes `battle_actions` sans id de compétence** : ✅ `skill` (id) est désormais ajouté à `$result` — les tirs rejoués (les nôtres comme ceux de l'adversaire) portent la compétence exacte au lieu d'être devinés par la forme du résultat. Reste à l'exploiter côté clients.
 - **Modèles de vaisseaux (commit a93b82c)** : ✅ documentés dans `action-api.json` (`GetShipTemplates`, `SaveShipTemplate`, `DeleteShipTemplate`, `ApplyShipTemplate` — params, retours, erreurs) ; `action_index` et `action_count` réalignés sur le total réel. `BlueprintPanel.cs` les branche déjà côté VR — ils apparaissent maintenant dans la matrice.
-- **⚠ `ApplyShipTemplate` peut produire un vaisseau en morceaux** : les modules sont posés aux coordonnées du modèle sans vérifier la contiguïté au cœur, alors que `PlaceShipModule` l'impose. Si un module intérieur manque au hangar, les modules extérieurs sont quand même posés, déconnectés. Il faudrait sauter tout module dont aucun voisin (4-voisins) n'est déjà posé, en ordre intérieur → extérieur (l'ordre existe déjà), et le compter dans `missing`. La VR montre la projection (vert en stock / rouge manquant) avant de charger.
-- **Codes d'erreur sans clé** : `fleetMustBeDocked`, `templateNotFound`, `templateEmpty` et `notFound` sont renvoyés bruts sans entrée dans `fr.json` / `en.json` (listés dans missing-keys.md).
+- **⚠ `ApplyShipTemplate` pouvait produire un vaisseau en morceaux** : ✅ corrigé — parcours centre → extérieur avec contrôle d'ancrage 4-voisins (même règle que `PlaceShipModule`), gardes de grille (cases 0–8, case libre), ancre (cœur) ramenée au centre **avant** l'assemblage, budget de coque = somme réelle des `size` encore à bord. Les modules non ancrés ou absents du hangar sont comptés dans `missing` / `missingDetails`.
+- **Codes d'erreur sans clé** : ✅ `fleetMustBeDocked`, `templateNotFound`, `templateEmpty`, `notFound` + `vr.dock.templatePlaced` ajoutés en fr/en.
+- **Cœur conservé et `$occupied`** : ✅ un cœur conservé hors (4,4) n'est plus rapporté à tort comme manquant, et la case de tout cœur amarré bloque toute pose (plus d'empilement à la même coordonnée).
+
+### Restant côté web (relevé en relisant `ApplyShipTemplate` et le combat, 2026-09-25)
+
+- **`PlaceShipModule` sous-comptait la taille de coque** : ✅ le budget lit maintenant **toutes** les lignes de la flotte (`GetFleetStats` fait pareil) ; seul le contrôle d'adjacence reste limité aux modules posés sur la grille. Contrôle de plafond aligné sur celui de `ApplyShipTemplate`.
+- **Pas d'atomicité sur `ApplyShipTemplate`** : ✅ démontage + repose dans une transaction PDO — une exception en cours de boucle laisse la flotte intacte.
+- **Ciblage par id non validé (`BattleDoAction`)** : ✅ `BattleResolveTarget` refuse un id étranger à la bataille, et la portée est mesurée sur la **cible résolue** et non sur `target_q`/`target_r`. Vaut pour `attack`, `attack_status`, `debuff`, `heal`, `cyber_hack`.
+- **`LogBattleAction` et la cible** : ✅ le log trace la cible réellement touchée (`$result['target']`).
+- **`debuff_aoe` centré sur le lanceur** : ✅ aligné sur `attack_aoe` — centré sur la case visée, case visée incluse (l'IEM s'appliquait autour du lanceur et ignorait la cible).
+- **`cyber_hack` n'appliquait pas `_CalcDamage`** : ✅ passe par le même calcul que les autres attaques (pénalité « brouillé » comprise).
+- **`teleport` (et `move`)** : ✅ cases bornées à l'arène du plateau (`q` −5..5, `r` −4..4, comme `battle.js`).
+- **`stealth` / `buff_armor` en valeur absolue** : ✅ `max` — lancer `buff_armor` après `stealth` ne rétrograde plus la réduction de 80 % à 50 %.
+- **`ApplyShipTemplate` n'accordait pas `first_ship_assembled`** : ✅ accordé dès qu'un module est assemblé.
+- **Modèle corrompu** (entrées dupliquées, cœur hors (4,4)) : ✅ les gardes (case libre, case bornée, cases des cœurs amarrés) empêchent toute corruption de grille ; le comptage `placed`/`missing` reste approximatif sur des données déjà invalides.
+- **`ScienceModule`** : laissé en camelCase (`scienceModule`) dans `assets/langs/{fr,en}.json` — le repli de casse de `Trans.Get` le résout.
 - **Triangulation stargate (commit a93b82c)** : rien à changer côté VR. La découverte est accordée côté serveur (`ImproveResearch`, rattrapage dans `GetKnownAddresses`) ; les adresses arrivent par `GetKnownAddresses` quand Comms / Stargate sera branché.
+
+### À corriger côté web (relevés en lisant Tactical, 2026-09-25)
+
+- **`AddFleetToBattle` ne vérifie pas la position** : aucun contrôle `systemid` / `planetid` — un vaisseau à l'autre bout de la galaxie peut rejoindre un combat en préparation. La VR ne propose que les vaisseaux inactifs du même système ; il faudrait le même garde serveur (`fleetNotInThisSystem`, comme `MakeBattle`).
+- **Sièges résolus seulement à la lecture** : `CheckPlanetAttack` n'est appelé par le web qu'à l'ouverture de la fenêtre planète — un siège dont personne n'ouvre la planète reste en suspens (`attackEndTime` expiré). La VR l'appelle dès l'échéance pour les sièges qui la concernent ; un cron (ou un appel depuis `GetAllFleets`) le rendrait indépendant des clients.
+- **`CheckPlanetAttack` mélange `echo` et `return`** : `planetNotFound` est émis par `echo` puis `return;` (réponse `error:` OK), les autres issues par `return "ok|ko|wip"` — à uniformiser.
+- **`GetPendingBattles` exige `planetid > 0`** : une bataille en espace ouvert (`planetid = 0`, pirates) n'est jamais listée ; et le handler renvoie `systemOrPlanetNotFound` au lieu d'une liste vide.
+- **Codes bruts sans clé** : `invalid_troop_type`, `invalid_defense_type`, `invalid_troops_payload` (RecruitTroop / BuildDefenseUnit / LoadTroops).
 
 ### Spec livrée — `CreateEmpire`
 
