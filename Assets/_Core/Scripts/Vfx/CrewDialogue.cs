@@ -156,6 +156,7 @@ namespace Core.Vfx
             if (s_Open != null && s_Open != this)
                 s_Open.Close();
             Core.Stations.OpsConsole.Instance?.Close();
+            Core.Stations.ArmoryConsole.Instance?.Close();
 
             // At a virtual station Ops has no ship to order: the officer brings up planet stewardship directly.
             if (_role == Role.Ops && Focus != null && Focus.FindViewFleet() == null)
@@ -304,6 +305,12 @@ namespace Core.Vfx
                     {
                         AddSurvey(focus, focus.ViewPlanetId);
                         BuildAnomalies(focus);
+                        return;
+                    }
+                    // Tactical still runs the planet's garrison and defences from the station.
+                    if (_role == Role.Tactical)
+                    {
+                        AddArmory(focus, null);
                         return;
                     }
                     AddStatus(Trans.Get("vr.crew.standby"));
@@ -547,9 +554,27 @@ namespace Core.Vfx
             }
         }
 
+        /// <summary>Armoury console (garrison, defences, troop bay, sieges and battles) on the world in orbit when it is ours.</summary>
+        void AddArmory(FocusContext focus, FocusFleet fleet)
+        {
+            var console = Core.Stations.ArmoryConsole.Instance;
+            if (console == null)
+                return;
+            AddAction(Trans.Get("vr.armory.title"), () =>
+            {
+                var preferred = fleet != null ? fleet.PlanetId : focus?.ViewPlanetId ?? 0;
+                if (_open)
+                    Close();
+                GetComponentInParent<CrewOfficer>()?.LookAt(Camera.main != null ? Camera.main.transform.position : (Vector3?)null);
+                console.Open(_anchor, preferred, fleet != null ? fleet.Id : 0);
+                return Task.CompletedTask;
+            }, DiegeticUi.BtnStyle.Amber, refreshAfter: false);
+        }
+
         void BuildTactical(FocusContext focus, FocusFleet fleet)
         {
             var planetLabel = PlanetLabel(focus.FindPlanet(fleet.PlanetId), fleet.PlanetId);
+            AddArmory(focus, fleet);
 
             if (_hex != null && _hex.IsActive)
                 AddAction(Trans.Get("vr.tactical.endTurn"), () => _hex.EndTurn());

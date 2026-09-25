@@ -20,6 +20,9 @@ namespace Core.Crew
             { "tactical.battleStart", 1 }, { "tactical.yourTurn", 2 }, { "tactical.hit", 1 }, { "tactical.damaged", 1 },
             { "tactical.victory", 1 }, { "tactical.defeat", 1 }, { "tactical.siege", 1 }, { "tactical.stance", 1 },
             { "tactical.underAttack", 1 }, { "tactical.fail", 1 }, { "tactical.idle", 1 },
+            { "tactical.recruit", 1 }, { "tactical.defenseBuilt", 1 }, { "tactical.troopsLoaded", 1 },
+            { "tactical.troopsUnloaded", 1 }, { "tactical.reinforce", 1 }, { "tactical.siegeWon", 1 },
+            { "tactical.siegeFailed", 1 }, { "tactical.planetHeld", 1 }, { "tactical.planetLost", 1 },
 
             { "engineering.greet", 1 }, { "engineering.ack", 1 }, { "engineering.harvest", 1 },
             { "engineering.cargoFull", 1 }, { "engineering.moduleBuilt", 1 }, { "engineering.modulePlaced", 1 },
@@ -72,6 +75,11 @@ namespace Core.Crew
             "DepositCargo" or "WithdrawCargo" => "cargoDeposited",
             "Colonize" => "colonize",
             "MakeBattle" => "battleStart",
+            "RecruitTroop" => "recruit",
+            "BuildDefenseUnit" => "defenseBuilt",
+            "LoadTroops" => "troopsLoaded",
+            "UnloadTroops" => "troopsUnloaded",
+            "AddFleetToBattle" => "reinforce",
             "UpgradeBuilding" => "buildStart",
             "ImproveResearch" => "researchStart",
             _ => null

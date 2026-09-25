@@ -56,6 +56,22 @@ namespace Core.App
         public long PrlBondReadyAt;
         public bool HasScienceModule;
 
+        // Troop Bay (stats.troopCargo, GetAllFleets troops[] = {type, qty}) and siege stance (defendPosition).
+        public int TroopCargo;
+        public readonly Dictionary<string, int> Troops = new();
+        public string DefendPosition = string.Empty;
+
+        public int TroopsAboard
+        {
+            get
+            {
+                var n = 0;
+                foreach (var kv in Troops)
+                    n += kv.Value;
+                return n;
+            }
+        }
+
         // Server order queue (GetAllFleets orderQueueList / orderQueueIndex / orderQueueLoop).
         public readonly List<FocusQueueStep> Queue = new();
         public int QueueIndex;
@@ -261,6 +277,8 @@ namespace Core.App
                     h = h * 31 + (f.IsInBattle ? 1 : 0);
                     h = h * 31 + f.PrlBondReadyAt.GetHashCode();
                     h = h * 31 + f.CrystalCargo;
+                    h = h * 31 + f.TroopsAboard;
+                    h = h * 31 + (f.DefendPosition != null ? f.DefendPosition.GetHashCode() : 0);
                     h = h * 31 + f.QueueIndex;
                     h = h * 31 + (f.QueueLoop ? 7 : 3);
                     for (var q = 0; q < f.Queue.Count; q++)
@@ -555,6 +573,19 @@ namespace Core.App
                         row.EnoughHyperdrive = AsBool(stats["hasEnoughHyperdrive"]);
                         row.EnoughPrlBond = AsBool(stats["hasEnoughPrlBond"]);
                         row.HasScienceModule = AsBool(stats["hasScienceModule"]);
+                        row.TroopCargo = AsInt(stats["troopCargo"]);
+                    }
+
+                    row.DefendPosition = AsString(fleet["defendPosition"]);
+                    if (fleet["troops"] is JArray troops)
+                    {
+                        foreach (var t in troops)
+                        {
+                            var type = AsString(t["type"]);
+                            var qty = AsInt(t["qty"]);
+                            if (!string.IsNullOrEmpty(type) && qty > 0)
+                                row.Troops[type] = qty;
+                        }
                     }
 
                     row.PrlBondReadyAt = AsLong(fleet["prlBondReadyAt"]);

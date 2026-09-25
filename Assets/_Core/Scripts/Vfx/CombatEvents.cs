@@ -27,10 +27,25 @@ namespace Core.Vfx
 
         public static bool IsEngaged { get; private set; }
 
+        /// <summary>An orbital siege salvo (fleet → planet) or the planet's defences answering (planet → fleet, toPlanet false).</summary>
+        public static event Action<int, int, bool> Bombard;
+
+        /// <summary>Troops crossing between a docked ship and its planet (fleet, planet, toPlanet, units).</summary>
+        public static event Action<int, int, bool, int> TroopTransfer;
+
+        /// <summary>A siege was resolved by the server (planet, attackers won).</summary>
+        public static event Action<int, bool> SiegeResolved;
+
         public static void RaiseShot(int src, int dst, Color color, bool heavy) => Shot?.Invoke(src, dst, color, heavy);
         public static void RaiseSelf(int fleet, Color color) => SelfCast?.Invoke(fleet, color);
         public static void RaiseHit(int fleet, int hull, int shield) => Hit?.Invoke(fleet, hull, shield);
         public static void RaiseDestroyed(int fleet) => Destroyed?.Invoke(fleet);
+        public static void RaiseBombard(int fleet, int planet, bool toPlanet) => Bombard?.Invoke(fleet, planet, toPlanet);
+
+        public static void RaiseTroopTransfer(int fleet, int planet, bool toPlanet, int units) =>
+            TroopTransfer?.Invoke(fleet, planet, toPlanet, units);
+
+        public static void RaiseSiegeResolved(int planet, bool attackersWon) => SiegeResolved?.Invoke(planet, attackersWon);
 
         public static void SetEngaged(bool on)
         {

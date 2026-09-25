@@ -71,6 +71,10 @@ namespace Core.App
             Core.Crew.BarkDirector.Build(interior.transform, _focus);
             var economy = EconomyService.Ensure(interior.transform);
             Core.Stations.OpsConsole.Build(interior.transform, economy);
+            SiegeWatch.Build(interior.transform, _focus, _poller);
+            Core.Stations.ArmoryConsole.Build(interior.transform, economy, _focus, _poller, hex);
+            ExteriorTacticalFx.Attach(_exterior, _focus, economy);
+            Core.Holo.HoloTacticalMarkers.Attach(_zoneMap, _focus);
             Core.Stations.DryDock.Build(env.Art, _focus, _poller, economy);
             Core.Stations.DockDoor.Build(interior.transform, env.Art, _focus);
             Core.Stations.ResearchLab.Build(env.Art, economy, _focus);

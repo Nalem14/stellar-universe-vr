@@ -62,6 +62,8 @@ namespace Core.Vfx
             CombatEvents.Hit += fx.OnHit;
             CombatEvents.Shot += fx.OnShot;
             CombatEvents.Destroyed += fx.OnDestroyed;
+            CombatEvents.Bombard += fx.OnBombard;
+            CombatEvents.TroopTransfer += fx.OnTroops;
             return fx;
         }
 
@@ -114,6 +116,8 @@ namespace Core.Vfx
             CombatEvents.Hit -= OnHit;
             CombatEvents.Shot -= OnShot;
             CombatEvents.Destroyed -= OnDestroyed;
+            CombatEvents.Bombard -= OnBombard;
+            CombatEvents.TroopTransfer -= OnTroops;
         }
 
         void CacheLights()
@@ -158,6 +162,27 @@ namespace Core.Vfx
             CicCue.Boom(front, heavy ? 0.35f : 0.18f);
             _washColor = color;
             _washT = 0f;
+        }
+
+        /// <summary>Our ship's siege salvo: the same rumble and window glow as a battle shot, in bombardment orange.</summary>
+        void OnBombard(int fleet, int planet, bool toPlanet)
+        {
+            if (!toPlanet || !Aboard(fleet))
+                return;
+            var front = transform.TransformPoint(new Vector3(0f, 1.6f, WorldScale.CicDeck * 0.5f - 0.5f));
+            CicCue.Boom(front, 0.28f);
+            _washColor = new Color(1f, 0.45f, 0.2f, 1f);
+            _washT = 0f;
+        }
+
+        /// <summary>Troop bay cycling aboard: shuttle bay clamps and a launch whoosh.</summary>
+        void OnTroops(int fleet, int planet, bool toPlanet, int units)
+        {
+            if (!Aboard(fleet))
+                return;
+            var bay = transform.TransformPoint(new Vector3(0f, 0.4f, -WorldScale.CicDeck * 0.5f + 1f));
+            CicCue.Deploy(bay);
+            CicCue.Whoosh(bay);
         }
 
         void OnDestroyed(int fleet)

@@ -78,6 +78,22 @@ namespace Core.Vfx
             }
         }
 
+        /// <summary>A planet known to GetSystems (any owner). Linear: for occasional labels, not per frame.</summary>
+        public static bool TryGetPlanet(int planetId, out PlanetRef planet)
+        {
+            foreach (var p in Planets)
+            {
+                if (p.Id == planetId)
+                {
+                    planet = p;
+                    return true;
+                }
+            }
+
+            planet = default;
+            return false;
+        }
+
         public static bool TryGet(int systemId, out Star star)
         {
             for (var i = 0; i < Stars.Count; i++)

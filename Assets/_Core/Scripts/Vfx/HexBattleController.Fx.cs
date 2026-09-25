@@ -182,9 +182,12 @@ namespace Core.Vfx
 
         static string SkillIdOf(BattleShip src, JObject r)
         {
-            // The action row stores the result, not the skill: infer from its shape and the caster's kit.
             if (r == null || src == null)
                 return string.Empty;
+            // Rows logged since the server traces the fired skill carry its id; older rows are inferred.
+            var traced = Core.App.FocusContext.AsString(r["skill"]);
+            if (!string.IsNullOrEmpty(traced))
+                return traced;
             if (r["healed"] != null)
                 return "repair";
             if (r["shield"] != null)

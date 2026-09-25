@@ -241,7 +241,8 @@ namespace Core.Stations
             }
 
             var p = eye + dir * Reach;
-            p.y = eye.y - 0.18f;
+            // Above the table rim (its buttons would otherwise cut the lower rows).
+            p.y = eye.y - 0.06f;
             transform.position = p;
             ScreenMount.FaceViewer(transform, eye, 1f, 6f);
         }
