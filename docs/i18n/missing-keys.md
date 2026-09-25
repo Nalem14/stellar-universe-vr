@@ -84,6 +84,18 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 | `vr.dock.hangarEmpty` | The hangar is empty. | Le hangar est vide. | Râtelier vide |
 | `vr.dock.troops` | Troop capacity | Capacité de troupes | Stat de conception (`troopCargo`) |
 | `vr.dock.size` | Hull size | Taille de coque | Stat de conception (`size` ; plafond = `GetConfigs.fleet.maxFleetSize`) |
+| `vr.yard.idle` | Shipyard idle. | Chantier à l'arrêt. | Onglet chantier : rien en construction |
+| `vr.yard.build` | Build | Construire | `AddShip` quand le chantier est libre |
+| `vr.module.family.core` | Core | Cœur | Chantier : filtre de famille de modules |
+| `vr.module.family.weapon` | Weapons | Armement | Chantier : filtre de famille de modules |
+| `vr.module.family.engine` | Propulsion | Propulsion | Chantier : filtre de famille de modules |
+| `vr.module.family.defense` | Defense & power | Défense et énergie | Chantier : filtre de famille de modules |
+| `vr.module.family.cargo` | Cargo & bays | Cargo et soutes | Chantier : filtre de famille de modules |
+| `vr.module.family.troop` | Troops | Troupes | Chantier : filtre de famille de modules |
+| `vr.module.family.colony` | Colony | Colonisation | Chantier : filtre de famille de modules |
+| `vr.module.family.science` | Science | Science | Chantier : filtre de famille de modules |
+| `vr.module.family.special` | Special | Spécial | Chantier : filtre de famille de modules |
+| `vr.module.family.life` | Life & structure | Vie et structure | Chantier : filtre de famille de modules |
 
 ## Restant côté web
 

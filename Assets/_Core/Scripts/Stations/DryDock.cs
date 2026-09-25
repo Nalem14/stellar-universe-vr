@@ -38,7 +38,7 @@ namespace Core.Stations
         static readonly Vector3 Dispenser = new(1.15f, 0f, -1.75f);
         const float Cell = 0.2f;
         const float GridHeight = 0.92f;
-        const int RackPerPage = 8;
+        const int RackPerPage = 7;
         static readonly Color Accent = new(0.4f, 0.95f, 0.55f, 1f);
 
         public static DryDock Instance { get; private set; }
@@ -63,6 +63,11 @@ namespace Core.Stations
         HoloScreen _rackScreen;
         RectTransform _shipBody;
         RectTransform _rackBody;
+        RectTransform _rackList;
+        RectTransform _yardBody;
+        ShipyardPanel _yard;
+        bool _yardTab;
+        float _nextTick;
         TMP_Text _status;
         TMP_InputField _nameField;
 
@@ -455,10 +460,51 @@ namespace Core.Stations
             ScreenMount.FaceViewer(_rackScreen.transform, eye, 1f, 6f);
             _rackScreen.SetAccent(Accent, 0.5f);
             _rackBody = Body(_rackScreen);
+            // Two tabs on the hangar screen: finished modules (rack) | building new ones (shipyard).
+            _rackList = Sub(_rackBody, "Rack", 0f);
+            _yardBody = Sub(_rackBody, "Yard", -45f);
+            _yard = new ShipyardPanel(_yardBody, _eco, () => _planetId, (t, e) => SetStatus(t, e), () =>
+            {
+                RenderRack();
+                RenderShipScreen();
+            });
+            _rackTabs = new[]
+            {
+                DiegeticUi.HoloButton(_rackScreen.Content, Trans.Get("hangar"), new Vector2(-150f, 262f),
+                    new Vector2(280f, 44f), () => SetYardTab(false), DiegeticUi.BtnStyle.Cyan),
+                DiegeticUi.HoloButton(_rackScreen.Content, Trans.Get("shipyard"), new Vector2(150f, 262f),
+                    new Vector2(280f, 44f), () => SetYardTab(true), DiegeticUi.BtnStyle.Ghost)
+            };
 
             // Way back: the door in the aft wall, behind the stand (walk through it or use its panel).
             RoomDoor.Build(transform, "DoorToBridge", new Vector3(0f, 0f, -3.44f), 0f, Trans.Get("vr.dock.leave"),
                 UiKit.Amber, _art, () => Inside, () => AsyncTap.Run(Leave()));
+        }
+
+        UnityEngine.UI.Button[] _rackTabs;
+
+        static RectTransform Sub(RectTransform parent, string name, float y)
+        {
+            var go = new GameObject(name, typeof(RectTransform));
+            go.transform.SetParent(parent, false);
+            var rt = go.GetComponent<RectTransform>();
+            rt.sizeDelta = parent.sizeDelta;
+            rt.anchoredPosition = new Vector2(0f, y);
+            return rt;
+        }
+
+        void SetYardTab(bool yard)
+        {
+            _yardTab = yard;
+            for (var i = 0; i < _rackTabs.Length; i++)
+            {
+                var on = (i == 1) == yard;
+                var label = _rackTabs[i].GetComponentInChildren<TMP_Text>();
+                label.color = on ? UiKit.Cyan : new Color(0.7f, 0.85f, 0.92f, 0.8f);
+                _rackTabs[i].GetComponent<Image>().color = on ? new Color(0.6f, 1f, 1f, 1f) : new Color(1f, 1f, 1f, 0.55f);
+            }
+
+            RenderRack();
         }
 
         static RectTransform Body(HoloScreen screen)
@@ -592,11 +638,20 @@ namespace Core.Stations
 
         void RenderRack()
         {
-            Clear(_rackBody);
+            Clear(_rackList);
+            Clear(_yardBody);
+            _rackList.gameObject.SetActive(!_yardTab);
+            _yardBody.gameObject.SetActive(_yardTab);
+            if (_yardTab)
+            {
+                _yard.Render();
+                return;
+            }
+
             var groups = HangarGroups();
             if (groups.Count == 0)
             {
-                Text(_rackBody, Trans.Get("vr.dock.hangarEmpty"), 0f, 60f, 860f, 20f, DiegeticUi.CyanDim,
+                Text(_rackList, Trans.Get("vr.dock.hangarEmpty"), 0f, 60f, 860f, 20f, DiegeticUi.CyanDim,
                     TextAlignmentOptions.Center);
                 return;
             }
@@ -607,10 +662,10 @@ namespace Core.Stations
             for (var i = first; i < groups.Count && i < first + RackPerPage; i++)
             {
                 var (type, count) = groups[i];
-                var y = 245f - (i - first) * 64f;
+                var y = 200f - (i - first) * 64f;
                 var fam = ModuleCatalog.Family(type);
                 var chip = new GameObject("Chip", typeof(RectTransform), typeof(Image));
-                chip.transform.SetParent(_rackBody, false);
+                chip.transform.SetParent(_rackList, false);
                 var crt = chip.GetComponent<RectTransform>();
                 crt.sizeDelta = new Vector2(10f, 52f);
                 crt.anchoredPosition = new Vector2(-438f, y);
@@ -619,24 +674,24 @@ namespace Core.Stations
 
                 var t = type;
                 var selected = _selectedType == type;
-                Btn(_rackBody, Trans.Get(ModuleCatalog.NameKey(type)) + "  ×" + count, -115f, y, 620f, 56f,
+                Btn(_rackList, Trans.Get(ModuleCatalog.NameKey(type)) + "  ×" + count, -115f, y, 620f, 56f,
                     () => SelectModule(t), selected ? DiegeticUi.BtnStyle.Cyan : DiegeticUi.BtnStyle.Ghost);
                 if (type != ModuleCatalog.Core || count > 0)
-                    Btn(_rackBody, "✕", 380f, y, 70f, 56f, () => AsyncTap.Run(Scrap(t)), DiegeticUi.BtnStyle.Danger);
+                    Btn(_rackList, "✕", 380f, y, 70f, 56f, () => AsyncTap.Run(Scrap(t)), DiegeticUi.BtnStyle.Danger);
             }
 
             if (pages > 1)
             {
-                Btn(_rackBody, "‹", -80f, -300f, 70f, 46f, () => { _rackPage = (_rackPage - 1 + pages) % pages; RenderRack(); },
+                Btn(_rackList, "‹", -80f, -300f, 70f, 46f, () => { _rackPage = (_rackPage - 1 + pages) % pages; RenderRack(); },
                     DiegeticUi.BtnStyle.Ghost);
-                Text(_rackBody, (_rackPage + 1) + " / " + pages, 0f, -300f, 90f, 18f, DiegeticUi.CyanDim,
+                Text(_rackList, (_rackPage + 1) + " / " + pages, 0f, -300f, 90f, 18f, DiegeticUi.CyanDim,
                     TextAlignmentOptions.Center);
-                Btn(_rackBody, "›", 80f, -300f, 70f, 46f, () => { _rackPage = (_rackPage + 1) % pages; RenderRack(); },
+                Btn(_rackList, "›", 80f, -300f, 70f, 46f, () => { _rackPage = (_rackPage + 1) % pages; RenderRack(); },
                     DiegeticUi.BtnStyle.Ghost);
             }
 
             if (_selectedType != null)
-                Text(_rackBody, Trans.Format("vr.dock.placing", Trans.Get(_selectedType)), 0f, -355f, 880f, 16f,
+                Text(_rackList, Trans.Format("vr.dock.placing", Trans.Get(_selectedType)), 0f, -355f, 880f, 16f,
                     UiKit.Ok, TextAlignmentOptions.Center);
         }
 
@@ -1146,6 +1201,12 @@ namespace Core.Stations
         {
             if (!Inside)
                 return;
+            if (_yardTab && Time.unscaledTime >= _nextTick)
+            {
+                _nextTick = Time.unscaledTime + 0.5f;
+                _yard.Tick();
+            }
+
             if (_armedRemove.HasValue && Time.unscaledTime > _armedUntil)
             {
                 _armedRemove = null;

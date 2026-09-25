@@ -20,7 +20,7 @@ Généré depuis `action-api.json` (154 actions), `actionjs.php` et un grep des 
 | Caméra (vue) | 2 | 2 | 100 % |
 | Galaxie | 2 | 8 | 25 % |
 | Flotte | 16 | 23 | 70 % |
-| Vaisseau / chantier | 5 | 9 | 56 % |
+| Vaisseau / chantier | 8 | 9 | 89 % |
 | Planète / bâtiments / recherche | 8 | 17 | 47 % |
 | Combat | 8 | 14 | 57 % |
 | Jumpgate | 0 | 2 | 0 % |
@@ -29,7 +29,7 @@ Généré depuis `action-api.json` (154 actions), `actionjs.php` et un grep des 
 | Guerre | 0 | 9 | 0 % |
 | Alliance | 1 | 17 | 6 % |
 | Empire / progression / shop | 7 | 27 | 26 % |
-| **Total** | **54** | **154** | **35 %** |
+| **Total** | **57** | **154** | **37 %** |
 
 Appelées par le client web : 134/154. « Appelée » ≠ « finie » : voir la colonne *Statut*.
 
@@ -103,15 +103,15 @@ Appelées par le client web : 134/154. « Appelée » ≠ « finie » : voir la 
 
 | Action | R/W | Params | VR | Web | Station | Phase | Statut | Notes |
 |---|---|---|---|---|---|---|---|---|
-| `AddShip` | W | type, planet | — | `objects/fleet.js` | Engineering | P5 | À faire | VR : ShipCore codé en dur |
+| `AddShip` | W | type, planet | `Stations/ShipyardPanel.cs` | `objects/fleet.js` | Engineering | P5 | Démo | Onglet Chantier de la cale : catalogue par famille (shipstats), prérequis `requiert`, Construire / + File ; réponse texte ou JSON `queued` |
 | `AddToFleet` | W | fleet, ship, planet? | `Stations/DryDock.cs` | `objects/fleet.js` | Engineering | P5 | Branché | `fleet=0` + ShipCore → JSON `{ok,fleet}` (systemid=planète) ; refuse notYourShip sans supprimer |
-| `CancelQueuedShip` | W | id, queue_id | — | `scenes/planet.js` | Engineering | P5 | À faire |  |
+| `CancelQueuedShip` | W | id, queue_id | `Stations/ShipyardPanel.cs` | `scenes/planet.js` | Engineering | P5 | Branché | Param `id` (ligne planet_ship_queue) |
 | `DelShip` | W | ship | `Stations/DryDock.cs` | `objects/fleet.js` | Engineering | P5 | Branché | Râtelier du hangar : destruction en deux temps |
 | `DelToFleet` | W | fleet, ship | — | `objects/fleet.js` | Engineering | P5 | À faire |  |
 | `GetShipLayout` | R | fleet | `Stations/DryDock.cs` +1 | `ui/ShipBuilderUI.js` | Engineering | P5 | Branché | Coque 1:1 dans la cale + hublots (`ShipHullBuilder`) |
 | `PlaceShipModule` | W | ship, fleet, gx, gy | `Stations/DryDock.cs` | `ui/ShipBuilderUI.js` | Engineering | P5 | Démo | Cale sèche : caisse posée à la main (ou case visée) ; serveur + VR : adjacence 4-voisins, cœur, planète, MAX_FLEET_SIZE, cache fleet_stats_ |
 | `RemoveShipModule` | W | ship | `Stations/DryDock.cs` | `ui/ShipBuilderUI.js` | Engineering | P5 | Branché | Cale sèche : en deux temps ; refusé si le retrait couperait le vaisseau du cœur |
-| `SpeedupShipyard` | W | planet, ship? | — | `scenes/planet.js` | Engineering | P5 | À faire |  |
+| `SpeedupShipyard` | W | planet, ship? | `Stations/ShipyardPanel.cs` | `scenes/planet.js` | Engineering | P5 | Branché | Coût Nova affiché (gratuit ≤ 60 s) |
 
 ## Planète / bâtiments / recherche
 
