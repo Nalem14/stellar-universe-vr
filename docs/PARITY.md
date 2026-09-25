@@ -273,12 +273,12 @@ Corrigés dans `stellar-universe` (`7580501`, 2026-09-25) — le client VR ne co
 | `RenamePlanet` validation serveur | Fait |
 | Noms natifs `academy` / `defenseFactory` / `stargate` (+ `buildingDesc_*`) | Fait |
 | `CreateEmpire` + `GetLeaderTraits` (API) ; `GetMeEmpire` → `error:noEmpire` | Fait |
-| i18n web : onglets planète, EmpireHub, catégories recherche, skills, décisions, titre journal colonie | Fait (partiel) |
+| i18n web : onglets, EmpireHub, recherche, skills, décisions, journal colonie, relations overlay | Fait |
+| Clés `vr.*` + `crew.*` (missing-keys §2–3) dans `assets/langs/{fr,en}.json` | Fait |
 
 ### Restants
 
 - **`GetActivity`** : entrées toujours stockées en anglais / FR brut en DB — migration clé+params non faite.
-- **Journal de colonisation** : titre / ops i18n ; corps des paragraphes encore en dur FR dans `planet.js`.
 - **Flux VR CreateEmpire** (ROADMAP P3) : Menu détecte `error:noEmpire` → séquence diegetic sas → `CreateEmpire` → Bridge. Spec API livrée ci-dessous.
 
 ### Spec livrée — `CreateEmpire`
