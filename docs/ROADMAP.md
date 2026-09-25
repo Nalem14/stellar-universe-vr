@@ -184,7 +184,7 @@ Avancement : H1, H2a, H2b ✅ (Editor). **H3a combat ✅** (Editor, sur un état
 - viser→viser : cases atteignables en vert, compétence armée au pupitre → portée en rouge / vert / violet, aperçu de zone, arc de visée avec coût ou dégâts ; compétences sur soi immédiates ;
 - chaque tir est joué **trois fois** : sur le plateau holo, entre les vrais vaisseaux dehors (faisceaux, torpilles, impacts, bouclier, explosion) et à bord du vaisseau habité (alerte rouge sur les bandeaux d'accent + klaxon, coups au but : fracas, lumières qui vacillent, étincelles au plafond ; nos salves : grondement et lueur aux hublots ; pas de secousse caméra) ;
 - phase de préparation : Prêt / Retirer le vaisseau, compte à rebours.
-Reste H3b : files d'ordres en chemins 3D éditables, animations de déploiement des jetons.
+**H3b ✅** (Editor, sur de vrais ordres) : la file d'ordres du vaisseau choisi (sinon du vaisseau habité) est un chemin 3D animé, avec une balise numérotée par cible (étape en cours en cyan, saut vers un autre système au bord de la table, retour de boucle plus pâle). Gâchette sur une balise → retirer l'étape, boucle, vider ; balise saisie et lâchée sur une autre planète / un autre champ → étape redirigée. **Même route dans l'espace réel** (tracé depuis le vrai vaisseau, balises à anneau et pilier sur les vrais astres, repère vert sur la cible visée à la table). Les jetons se déploient depuis l'étoile à leur première apparition dans un système.
 
 ### P6 — Méta
 - **Quartiers du capitaine** (idée joueur 2026-09-25) : une pièce à lui — bureau, lit, étagères — où l'on voit ses achievements (trophées / plaques physiques), titres, progression, objectifs du jour ; accessible par une porte comme la cale et le labo.
