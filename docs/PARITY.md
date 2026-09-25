@@ -281,6 +281,7 @@ Corrigés dans `stellar-universe` (`7580501`, 2026-09-25) — le client VR ne co
 | Clés `vr.*` + `crew.*` (missing-keys §2–3) dans `assets/langs/{fr,en}.json` | Fait |
 | Clés `vr.battle.*` (missing-keys P5.5 H3, combat sur la table) dans `assets/langs/{fr,en}.json` | Fait |
 | Clés modèles / file 3D / armurerie (`vr.dock.*`, `vr.table.*`, `vr.armory.*`, `crew.tactical.*`) en fr/en | Fait |
+| Clés Comms et porte (`vr.comms.*`, `vr.gate.*`, `crew.comms.*`) en fr/en ; erreurs Comms et courriers système localisés | Fait |
 
 ### Restants
 
@@ -345,21 +346,21 @@ Corrigés dans `stellar-universe` (`7580501`, 2026-09-25) — le client VR ne co
 
 ### À corriger côté web (relevés en lisant Tactical, 2026-09-25)
 
-- **`AddFleetToBattle` ne vérifie pas la position** : aucun contrôle `systemid` / `planetid` — un vaisseau à l'autre bout de la galaxie peut rejoindre un combat en préparation. La VR ne propose que les vaisseaux inactifs du même système ; il faudrait le même garde serveur (`fleetNotInThisSystem`, comme `MakeBattle`).
-- **Sièges résolus seulement à la lecture** : `CheckPlanetAttack` n'est appelé par le web qu'à l'ouverture de la fenêtre planète — un siège dont personne n'ouvre la planète reste en suspens (`attackEndTime` expiré). La VR l'appelle dès l'échéance pour les sièges qui la concernent ; un cron (ou un appel depuis `GetAllFleets`) le rendrait indépendant des clients.
-- **`CheckPlanetAttack` mélange `echo` et `return`** : `planetNotFound` est émis par `echo` puis `return;` (réponse `error:` OK), les autres issues par `return "ok|ko|wip"` — à uniformiser.
-- **`GetPendingBattles` exige `planetid > 0`** : une bataille en espace ouvert (`planetid = 0`, pirates) n'est jamais listée ; et le handler renvoie `systemOrPlanetNotFound` au lieu d'une liste vide.
-- **Codes bruts sans clé** : `invalid_troop_type`, `invalid_defense_type`, `invalid_troops_payload` (RecruitTroop / BuildDefenseUnit / LoadTroops).
+- **`AddFleetToBattle` ne vérifiait pas la position** : ✅ même garde que `MakeBattle` (`fleetNotInThisSystem`) — un vaisseau à l'autre bout de la galaxie ne peut plus rejoindre un combat en préparation.
+- **Sièges résolus seulement à la lecture** : ✅ le résolveur sort de la closure d'action (`ResolvePlanetAttack($planet)` dans `model/battle.php`, corps déplacé tel quel) et un cron de 5 min le conduit pour les planètes dont `attackEndTime` a expiré, en reprenant sur `wip` — plus besoin qu'un client ouvre la planète. `DoAnAction` passe par `BASE_URL`, donc le résolveur fonctionne aussi hors requête HTTP.
+- **`CheckPlanetAttack` mélangeait `echo` et `return`** : ✅ une seule forme de réponse (`return "error:…"`), et l'action délègue au résolveur.
+- **`GetPendingBattles` exigeait `planetid > 0`** : ✅ `planetid = 0` (espace ouvert, pirates) est listé, et une planète inconnue renvoie une liste vide au lieu d'une erreur.
+- **Codes bruts sans clé** : ✅ `invalid_troop_type`, `invalid_defense_type`, `invalid_troops_payload` passent par `Lang()` (+ clés fr/en).
 
-### À corriger côté web (relevés en lisant Comms — chat / MP / courrier, 2026-09-25)
+### Comms — chat / MP / courrier (corrigés, 2026-09-25)
 
-- **Erreurs en français brut** : `SendMail` (« Champs obligatoires manquants », « Destinataire introuvable », « Vous ne pouvez pas vous envoyer un mail à vous-même », « Erreur lors de l'envoi du message »), `SendPrivateMessage` (« Paramètres invalides », « Destinataire introuvable », « Erreur d'envoi du message privé ») et `AddChat` (`console:Joueur '…' introuvable.`, « Vous ne pouvez pas vous chuchoter à vous-même », « Erreur lors de l'envoi du message privé », `Permission denied`) → la VR affiche ce texte tel quel ; il faudrait des clés (`error:<clé>` / `console:<clé>`).
-- **Courriers système écrits en français dans la base** (`SendNotificationMail` : alerte d'attaque, guerre…) : sujet et corps non localisables à la lecture. Stocker une clé + paramètres (comme le journal d'activité).
-- **`sender_username` = « SYSTÈME » codé en dur** (`GetMails` / `GetMailById`) ; la VR remplace par `system` quand `sender_id = 0`.
-- **`GetChat.username` contient du HTML** (`<strong class='text-…'>`) : un client non-HTML doit prendre `contact_name`. Un champ `rank` suffirait.
-- **`GetChat` ne sert que les messages du jour** (`date >= today`) : le canal paraît vide après minuit.
-- **`DeleteMail` répond `ok` même si l'id n'existe pas** ou n'appartient pas au joueur.
-- **`GetPrivateMessages` marque tout le fil lu** même avec `lastid` (lecture incrémentale) — sans conséquence, mais le badge baisse avant affichage.
+- **Erreurs en français brut** : ✅ `SendMail`, `SendPrivateMessage` et `AddChat` passent par des clés (`missingFields`, `recipientNotFound`, `cantMailYourself`, `mailSendFailed`, `invalidParams`, `pmSendFailed`, `playerNotFoundName`, `cantWhisperYourself`, `permissionDenied`) — `LangFormat` remplit les paramètres (`{0}`).
+- **Courriers système écrits en français dans la base** : ✅ `mails.subject_key` / `content_key` / `params_json` (ajoutés par `EnsureMailTables`), résolus à la lecture par `MailLocalizeRow` — la guerre et l'alerte d'attaque passent leurs clés + paramètres, donc le texte s'affiche dans la langue du **destinataire**. Les courriers antérieurs gardent leur texte stocké.
+- **`sender_username` = « SYSTÈME » codé en dur** : ✅ `sender_is_system` exposé — les clients n'ont plus à inspecter `sender_id` ni à parser un nom français.
+- **`GetChat.username` contient du HTML** : ✅ champ `rank` en clair à côté de `contact_name`.
+- **`GetChat` ne servait que les messages du jour** : ✅ un chargement initial (`lastid = 0`) sans message du jour retombe sur les derniers messages — le canal ne paraît plus vide après minuit. Les polls incrémentaux restent inchangés.
+- **`DeleteMail` répondait `ok` même si l'id n'existe pas** : ✅ `error:mail_not_found` quand rien n'a été supprimé (id inconnu ou courrier d'un autre).
+- **`GetPrivateMessages` marquait tout le fil lu** : ✅ seuls les messages réellement renvoyés par l'appel passent en lu — un poll incrémental ne vide plus le badge avant affichage.
 
 ### À corriger côté web (relevés en lisant la Stargate, 2026-09-26)
 
