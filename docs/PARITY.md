@@ -311,7 +311,7 @@ Corrigés dans `stellar-universe` (`7580501`, 2026-09-25) — le client VR ne co
 - **Toast web** : ✅ message `bounty_completed_success` (+ alias `bounty_completed_successfully`).
 - **`action-api.json` invalide** : ✅ clé `GetBounties` restaurée (casse après edit ScanAnomaly).
 
-- **⚠ `GetPlanet` sans contrôle d'accès** : renvoie ressources, hangar, file du chantier, troupes, défenses et adresse de porte de **n'importe quelle** planète à n'importe quel compte (le web s'en sert pour le panneau des planètes étrangères). À filtrer côté serveur pour un tiers (propriétaire / alliance : tout ; sinon : public + ce que l'exploration a révélé). La VR n'affiche au relevé que des agrégats (défense, garnison, orbite, bâtiments clés) et ne garde jamais `user`.
+- **`GetPlanet` public par conception** (question de design, pas un bug) : toute planète est lisible par tous (ressources, hangar, chantier, troupes, défenses, adresse de porte), comme le panneau web des planètes étrangères. À trancher si l'on veut du renseignement (exploration / espionnage) ; la VR affiche au relevé des agrégats (défense, garnison, orbite, bâtiments clés).
 
 ### Spec livrée — `CreateEmpire`
 
