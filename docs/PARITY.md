@@ -18,7 +18,7 @@ Généré depuis `action-api.json` (154 actions), `actionjs.php` et un grep des 
 | Auth | 3 | 3 | 100 % |
 | Méta / boot | 2 | 5 | 40 % |
 | Caméra (vue) | 2 | 2 | 100 % |
-| Galaxie | 4 | 8 | 50 % |
+| Galaxie | 8 | 8 | 100 % |
 | Flotte | 16 | 23 | 70 % |
 | Vaisseau / chantier | 8 | 9 | 89 % |
 | Planète / bâtiments / recherche | 11 | 17 | 65 % |
@@ -29,7 +29,7 @@ Généré depuis `action-api.json` (154 actions), `actionjs.php` et un grep des 
 | Guerre | 0 | 9 | 0 % |
 | Alliance | 1 | 17 | 6 % |
 | Empire / progression / shop | 7 | 27 | 26 % |
-| **Total** | **62** | **154** | **40 %** |
+| **Total** | **66** | **154** | **43 %** |
 
 Appelées par le client web : 134/154. « Appelée » ≠ « finie » : voir la colonne *Statut*.
 
@@ -62,11 +62,11 @@ Appelées par le client web : 134/154. « Appelée » ≠ « finie » : voir la 
 
 | Action | R/W | Params | VR | Web | Station | Phase | Statut | Notes |
 |---|---|---|---|---|---|---|---|---|
-| `ClaimBounty` | W | bounty | — | `ui/BountiesWindowUI.js` | Science | P5 | À faire |  |
-| `CompleteBounty` | W | bounty | — | `ui/BountiesWindowUI.js` | Science | P5 | À faire |  |
-| `GetBounties` | R | — | — | `ui/BountiesWindowUI.js` | Science | P5 | À faire |  |
+| `ClaimBounty` | W | bounty | `Stations/BountyBoard.cs` | `ui/BountiesWindowUI.js` | Tableau du labo | P5 | Branché |  |
+| `CompleteBounty` | W | bounty | `Stations/BountyBoard.cs` | `ui/BountiesWindowUI.js` | Remise au tableau du labo ; serveur exige flotte empire dans `target_systemid` (`bounty_need_fleet_onsite`) ; `reward_credits` → cristal | P5 | Branché |  |
+| `GetBounties` | R | — | `Stations/BountyBoard.cs` | `ui/BountiesWindowUI.js` | Tableau des contrats du labo, relu toutes les 20 s dans la salle (le serveur en génère quand < 4 ouverts) | P5 | Branché |  |
 | `GetEmpirePlanets` | R | empire | `App/OwnedPlanets.cs` | `ui/WarsWindowUI.js` | Système (boot) | P5 | Branché | `OwnedPlanets` : mes planètes fraîches (id, `systemid`, slot — web `c94c803`), au boot et après une fondation ; `GetSystems` en secours seulement |
-| `GetPlanet` | R | id | — | `objects/planet.js` | Science | P5 | À faire |  |
+| `GetPlanet` | R | id | `Stations/PlanetSurvey.cs` | `objects/planet.js` | Relevé planétaire Science (répéteur → écran face au captain), planètes du système en vue ; `user` jamais gardé | P5 | Branché |  |
 | `GetSystemAnomalies` | R | systemid | `App/AnomalyService.cs` | `ui/StarWindowUI.js` | `AnomalyService` : une lecture par système visité (le serveur fait apparaître une anomalie à 45 % quand il n'y en a pas) ; titres par type (`anomaly_<type>`), pas le texte FR stocké | P5 | Branché |  |
 | `GetSystems` | R | — | `App/BridgeSystemLoader.cs` +2 | `scenes/galaxy.js` | Holo table | P4 | Branché | Galaxie complète sur la table (LOD, territoires par détenteur) |
 | `ScanAnomaly` | W | anomaly, fleet | `App/AnomalyService.cs` +1 | `ui/StarWindowUI.js` | Vaisseau scanneur (ScienceModule / SensorArray / DeepSpaceScanner) déposé sur le jeton, devis des gains au pupitre ; ou répéteur Science | P5 | Branché |  |
@@ -305,10 +305,13 @@ Corrigés dans `stellar-universe` (`7580501`, 2026-09-25) — le client VR ne co
 
 - **Anomalies : titre / description stockés en français** : ✅ clés `anomaly_<type>` / `anomalyDesc_<type>` en fr/en ; spawn stocke les clés ; web + VR affichent via `type` (lignes legacy FR ignorées).
 
-- **⚠ `CompleteBounty` ne vérifie rien** : réclamer puis valider aussitôt paie la prime sans aucune chasse. Il faut une condition serveur (flotte de l'empire présente / combat gagné dans `target_systemid`, pirate détruit…). En attendant, la VR ne propose la remise qu'avec un de nos vaisseaux dans le système cible.
-- **`reward_credits` jamais versé** (affiché par le web, ignoré par `CompleteBounty`) : à verser ou retirer. La VR ne l'affiche pas.
-- **Contrats : titres / descriptions FR en base** : localiser par `target_type` (`bounty_<type>`, clés dans `missing-keys.md`) ; la cible est une coordonnée (systèmes sans nom).
-- **Toast web** : `CompleteBounty` renvoie `message: bounty_completed_successfully`, clé absente (le web affiche `bounty_completed_success`).
+- **⚠ `CompleteBounty` ne vérifie rien** : ✅ exige une flotte de l'empire dans `target_systemid` (`bounty_need_fleet_onsite`).
+- **`reward_credits` jamais versé** : ✅ versé en **cristal** sur la 1ʳᵉ planète (pas de devise crédits) ; chip web = cristal.
+- **Contrats : titres / descriptions FR en base** : ✅ `bounty_<type>` / `bountyDesc_<type>` FR/EN ; spawn stocke les clés ; UI par `target_type`.
+- **Toast web** : ✅ message `bounty_completed_success` (+ alias `bounty_completed_successfully`).
+- **`action-api.json` invalide** : ✅ clé `GetBounties` restaurée (casse après edit ScanAnomaly).
+
+- **⚠ `GetPlanet` sans contrôle d'accès** : renvoie ressources, hangar, file du chantier, troupes, défenses et adresse de porte de **n'importe quelle** planète à n'importe quel compte (le web s'en sert pour le panneau des planètes étrangères). À filtrer côté serveur pour un tiers (propriétaire / alliance : tout ; sinon : public + ce que l'exploration a révélé). La VR n'affiche au relevé que des agrégats (défense, garnison, orbite, bâtiments clés) et ne garde jamais `user`.
 
 ### Spec livrée — `CreateEmpire`
 

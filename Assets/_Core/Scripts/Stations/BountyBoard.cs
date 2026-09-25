@@ -14,9 +14,8 @@ namespace Core.Stations
 {
     /// <summary>
     /// Galactic contracts board of the science lab (web BountiesWindowUI, model/bounty.php): open contracts to
-    /// accept (ClaimBounty) and ours in progress to hand in (CompleteBounty). The server does not check the job
-    /// was done; the VR only lets a contract be handed in with one of our ships in its target system
-    /// (docs/PARITY.md, server gap). Contracts are named by target type; the target is a coordinate.
+    /// accept (ClaimBounty) and ours in progress to hand in (CompleteBounty). The server requires a fleet of
+    /// this empire in the target system (reward_credits is paid as crystal). Contracts are named by target type.
     /// </summary>
     public sealed class BountyBoard
     {
@@ -29,6 +28,7 @@ namespace Core.Stations
             public int SystemId;
             public string Type;
             public int Mineral;
+            public int Credits;
             public int Research;
             public int State;
             public long ExpiresAt;
@@ -101,6 +101,7 @@ namespace Core.Stations
                     SystemId = FocusContext.AsInt(row["target_systemid"]),
                     Type = FocusContext.AsString(row["target_type"]),
                     Mineral = FocusContext.AsInt(row["reward_mineral"]),
+                    Credits = FocusContext.AsInt(row["reward_credits"]),
                     Research = FocusContext.AsInt(row["reward_research"]),
                     State = FocusContext.AsInt(row["state"]),
                     ExpiresAt = FocusContext.AsLong(row["expires_at"])
@@ -151,7 +152,8 @@ namespace Core.Stations
                      GalaxyCatalog.Label(b.SystemId) + "</color></size>", left, y, w - 360f, 27f, UiKit.TextBright);
                 var reward = "<color=#c9a4ff>+" + b.Research.ToString("N0") + " " + Trans.Get("vr.research.pts") +
                              "</color>   <color=#7fd8ff>+" + b.Mineral.ToString("N0") + " " + Trans.Get("vr.res.mineral") +
-                             "</color>   <size=85%>" + Trans.Get(claimed ? "bountyClaimed" : "bountyOpen") + " · " +
+                             "</color>" + (b.Credits > 0 ? "   <color=#ffd27a>+" + b.Credits.ToString("N0") + " " +
+                                           Trans.Get("credits") + "</color>" : string.Empty) + "   <size=85%>" + Trans.Get(claimed ? "bountyClaimed" : "bountyOpen") + " · " +
                              Core.Holo.TravelPlanner.TimeText(b.ExpiresAt - now) + "</size>";
                 Text(reward, left, y - 34f, w - 360f, 21f, new Color(0.8f, 0.88f, 0.95f, 1f));
 
@@ -211,6 +213,9 @@ namespace Core.Stations
                         var o = JObject.Parse(r.Body);
                         text += "  " + Trans.Format("vr.bounty.rewards", FocusContext.AsInt(o["reward_research"]),
                             FocusContext.AsInt(o["reward_mineral"]), FocusContext.AsInt(o["reward_xp"]));
+                        var credits = FocusContext.AsInt(o["reward_credits"]);
+                        if (credits > 0)
+                            text += "  +" + credits.ToString("N0") + " " + Trans.Get("credits");
                     }
                     catch
                     {

@@ -127,16 +127,29 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 | `vr.anomaly.preview` | +{0} research · +{1} minerals · +{2} crystals · difficulty {3} | +{0} recherche · +{1} minéraux · +{2} cristaux · difficulté {3} | ✅ fr/en |
 | `vr.anomaly.rewards` | +{0} research · +{1} minerals · +{2} crystals · +{3} XP | +{0} recherche · +{1} minéraux · +{2} cristaux · +{3} XP | ✅ fr/en |
 
-## À intégrer (P5 — contrats)
+## Contrats (intégré web)
 
 | Clé | EN | FR | Contexte |
 |---|---|---|---|
-| `bounty_pirate_corvette` | Hunt: sector pirates | Traque : pirates du secteur | Nom par `target_type` (la DB stocke le titre FR en dur) |
-| `bounty_smuggler_den` | Intercept: smugglers | Interception : contrebandiers | idem |
-| `bounty_rogue_ai_node` | Purge: rogue AI node | Purge : nœud d'IA déviant | idem |
-| `vr.bounty.none` | No contract on offer. | Aucun contrat proposé. | Tableau vide |
-| `vr.bounty.goThere` | Send a ship to the target | Envoyez un vaisseau sur la cible | Contrat en cours, aucun de nos vaisseaux dans le système cible |
-| `vr.bounty.rewards` | +{0} research · +{1} minerals · +{2} XP | +{0} recherche · +{1} minéraux · +{2} XP | Retour `CompleteBounty` |
+| `bounty_*` / `bountyDesc_*` | (3 types) | (3 types) | ✅ fr/en — display by `target_type` |
+| `bounty_need_fleet_onsite` | Send one of your ships… | Envoyez un de vos vaisseaux… | ✅ CompleteBounty |
+| `vr.bounty.*` | — | — | ✅ fr/en |
+
+## À intégrer (P5 — relevé planétaire)
+
+| Clé | EN | FR | Contexte |
+|---|---|---|---|
+| `credits` | Credits | Crédits | Gains `reward_credits` des contrats (dès qu'ils sont versés) |
+| `vr.survey.title` | Planetary survey | Relevé planétaire | Écran Science (`GetPlanet`) + action du répéteur |
+| `vr.survey.none` | No planet in this system. | Aucune planète dans ce système. | Relevé vide |
+| `vr.survey.owner` | Owner | Propriétaire | Relevé |
+| `vr.survey.unclaimed` | Unclaimed | Libre | Planète sans propriétaire |
+| `vr.survey.claimed` | Claimed | Occupée | Propriétaire sans nom connu |
+| `vr.survey.fields` | Free fields | Cases libres | `freeField / fieldGiven` |
+| `vr.survey.garrison` | Garrison | Garnison | Somme `troops[].qty` |
+| `vr.survey.orbit` | Ships in orbit | Vaisseaux en orbite | `orbit` |
+| `vr.survey.explorePoints` | Research to collect | Recherche à collecter | `researchPoints` de la planète (ExplorePlanet) |
+| `vr.survey.stargate` | Stargate address | Adresse de porte | `stargateAddress` |
 
 ## Restant côté web
 

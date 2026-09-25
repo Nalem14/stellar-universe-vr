@@ -300,8 +300,12 @@ namespace Core.Vfx
                 if (fleet == null)
                 {
                     // Science still surveys the system's anomalies with any of our scanner ships present.
-                    if (_role == Role.Science && BuildAnomalies(focus) > 0)
+                    if (_role == Role.Science)
+                    {
+                        AddSurvey(focus, focus.ViewPlanetId);
+                        BuildAnomalies(focus);
                         return;
+                    }
                     AddStatus(Trans.Get("vr.crew.standby"));
                     return;
                 }
@@ -606,6 +610,21 @@ namespace Core.Vfx
 
         }
 
+        /// <summary>Planetary survey screen (GetPlanet) on the planet in orbit / the station's world first.</summary>
+        void AddSurvey(FocusContext focus, int planetId)
+        {
+            if (Core.Stations.PlanetSurvey.Instance == null || focus == null || focus.Planets.Count == 0)
+                return;
+            AddAction(Trans.Get("vr.survey.title"), () =>
+            {
+                if (_open)
+                    Close();
+                GetComponentInParent<CrewOfficer>()?.LookAt(Camera.main != null ? Camera.main.transform.position : (Vector3?)null);
+                Core.Stations.PlanetSurvey.Instance.Open(_anchor, focus, planetId);
+                return Task.CompletedTask;
+            }, DiegeticUi.BtnStyle.Cyan, refreshAfter: false);
+        }
+
         /// <summary>
         /// Anomalies of the system in view, each scannable by one of our scanner ships present (ScanAnomaly).
         /// Returns how many rows it added.
@@ -657,6 +676,7 @@ namespace Core.Vfx
         /// <summary>Science: surveys (ExplorePlanet → research points) and the system's anomalies.</summary>
         void BuildScience(FocusContext focus, FocusFleet fleet)
         {
+            AddSurvey(focus, fleet.PlanetId);
             BuildAnomalies(focus);
             if (FleetOrderGate.CanExplore(fleet))
             {
