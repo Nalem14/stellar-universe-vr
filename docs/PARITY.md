@@ -24,12 +24,12 @@ Généré depuis `action-api.json` (158 actions), `actionjs.php` et un grep des 
 | Planète / bâtiments / recherche | 13 | 17 | 76 % |
 | Combat | 11 | 14 | 79 % |
 | Jumpgate | 0 | 2 | 0 % |
-| Stargate | 0 | 7 | 0 % |
+| Stargate | 7 | 7 | 100 % |
 | Social (chat, mail) | 11 | 11 | 100 % |
 | Guerre | 0 | 9 | 0 % |
 | Alliance | 1 | 17 | 6 % |
 | Empire / progression / shop | 7 | 27 | 26 % |
-| **Total** | **89** | **158** | **56 %** |
+| **Total** | **96** | **158** | **61 %** |
 
 Appelées par le client web : 138/158. « Appelée » ≠ « finie » : voir la colonne *Statut*.
 
@@ -169,13 +169,13 @@ Appelées par le client web : 138/158. « Appelée » ≠ « finie » : voir la 
 
 | Action | R/W | Params | VR | Web | Station | Phase | Statut | Notes |
 |---|---|---|---|---|---|---|---|---|
-| `CloseStargateConnection` | W | planet | — | `objects/planet.js` | Comms | P5 | À faire |  |
-| `DispatchStargateMission` | W | originPlanet, missionType, mineral?, crystal?, biomass?, troopType?, troopQty? | — | `objects/planet.js` | Comms | P5 | À faire |  |
-| `GetKnownAddresses` | R | planet | — | `objects/planet.js` | Comms | P5 | À faire |  |
-| `GetStargateConnectionStatus` | R | planet | — | `objects/planet.js` | Comms | P5 | À faire |  |
-| `GetStargateMissions` | R | — | — | `objects/planet.js` | Comms | P5 | À faire |  |
-| `OpenStargateConnection` | W | originPlanet, targetPlanet | — | `objects/planet.js` | Comms | P5 | À faire |  |
-| `ResolveStargateAddress` | W | originPlanet, address | — | `objects/planet.js` | Comms | P5 | À faire |  |
+| `CloseStargateConnection` | W | planet | `Stations/GateRoom.cs` | `objects/planet.js` | Comms | P5 | Branché | Bouton Fermer la porte (origine ou cible) |
+| `DispatchStargateMission` | W | originPlanet, missionType, mineral?, crystal?, biomass?, troopType?, troopQty? | `Stations/GateRoom.cs` | `objects/planet.js` | Comms | P5 | Branché | Six missions ; l'équipe (troupes / chariots / colons) traverse l'horizon |
+| `GetKnownAddresses` | R | planet | `Stations/GateRoom.cs` | `objects/planet.js` | Comms | P5 | Branché | Base de la porte : destinations (statut, propriétaire, distance, charge) ; le serveur y inclut la planète d'origine, filtrée côté VR |
+| `GetStargateConnectionStatus` | R | planet | `Stations/GateRoom.cs` | `objects/planet.js` | Comms | P5 | Branché | Toutes les 3 s dans la base ; activation extérieure = alarme, horizon rouge |
+| `GetStargateMissions` | R | — | `Stations/GateRoom.cs` | `objects/planet.js` | Comms | P5 | Branché | Journal à droite, toutes les 10 s ; codes `resultDetail` traduits, réplique à la résolution |
+| `OpenStargateConnection` | W | originPlanet, targetPlanet | `Stations/GateRoom.cs` | `objects/planet.js` | Comms | P5 | Branché | Séquence de composition : piste de glyphes, six verrous, surge de l'horizon |
+| `ResolveStargateAddress` | W | originPlanet, address | `Stations/GateRoom.cs` | `objects/planet.js` | Comms | P5 | Branché | Champ d'adresse de la console (clavier Quest) — la composer juste = découverte |
 
 ## Social (chat, mail)
 
@@ -360,6 +360,14 @@ Corrigés dans `stellar-universe` (`7580501`, 2026-09-25) — le client VR ne co
 - **`GetChat` ne sert que les messages du jour** (`date >= today`) : le canal paraît vide après minuit.
 - **`DeleteMail` répond `ok` même si l'id n'existe pas** ou n'appartient pas au joueur.
 - **`GetPrivateMessages` marque tout le fil lu** même avec `lastid` (lecture incrémentale) — sans conséquence, mais le badge baisse avant affichage.
+
+### À corriger côté web (relevés en lisant la Stargate, 2026-09-26)
+
+- **`GetKnownAddresses` renvoie la planète d'origine** (elle est dans `known_addresses`) alors que `OpenStargateConnection` refuse de la cibler (`cantTargetOwnPlanet`) : à exclure côté serveur (`$pid != $planet['id']` sur les deux sources).
+- **Durée `sendTroops` / `sendResources`** : le défaut du code est 10 min mais la base renvoie 1 h (`resolveAt − createdAt = 3600` sur une mission réelle) — vérifier la valeur `STARGATE.MISSION_TIME` en base.
+- **`resultDetail` d'échec en français** (`'Planet no longer exists.'`, `'Target no longer colonized.'` en anglais brut, `Lang(...)` ailleurs) : des codes (`failed:planetGone`, `failed:notColonized`…) seraient traduisibles côté client, comme les codes de succès.
+- **Libellés web codés en dur** dans la carte Stargate (`scenes/planet.js` : « Composer une adresse », statuts « Non colonisée / À vous / Alliée / Ennemie », types de mission, `_stargateResultLabel`) — la VR a ses clés `vr.gate.*` (missing-keys.md) qui peuvent servir au web.
+- **Pas d'adresse de la planète d'origine dans `GetResource`** : la VR la lit dans `GetKnownAddresses` (qui la renvoie par accident, voir plus haut) ; `stargateAddress` n'est que dans `GetPlanet`. L'ajouter au retour de `GetStargateConnectionStatus` ou `GetKnownAddresses` (`origin`) éviterait la dépendance.
 
 ### Spec livrée — `CreateEmpire`
 

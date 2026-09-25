@@ -36,6 +36,8 @@ namespace Core.Crew
             { "comms.greet", 1 }, { "comms.newMail", 1 }, { "comms.chat", 1 }, { "comms.warDeclared", 1 },
             { "comms.peaceOffer", 1 }, { "comms.allianceInvite", 1 }, { "comms.sent", 1 },
             { "comms.stargateOpen", 1 }, { "comms.fail", 1 }, { "comms.idle", 1 },
+            { "comms.gateDispatch", 1 }, { "comms.gateIncoming", 1 }, { "comms.gateSuccess", 1 },
+            { "comms.gateFailed", 1 },
 
             { "ops.greet", 1 }, { "ops.buildStart", 1 }, { "ops.buildDone", 1 }, { "ops.queueFull", 1 },
             { "ops.decision", 1 }, { "ops.colonize", 1 }, { "ops.lowResources", 1 }, { "ops.cargoDeposited", 1 },
