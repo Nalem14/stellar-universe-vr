@@ -23,6 +23,9 @@ namespace Core.App
         XROrigin _xr;
         Vector3 _tableCmdScale = new Vector3(1.55f, 1.55f, 1.55f);
         Vector3 _scaleBeforeCmd = Vector3.one;
+        Vector3 _posBeforeCmd;
+        /// <summary>Seated, the diorama slides this far toward the chair (docs/design/HOLOTABLE.md §5).</summary>
+        const float SlideToSeat = 0.6f;
         Vector3 _standLocalPos = WorldScale.CicCaptainStand;
         Vector3 _sitLocalPos = new Vector3(0f, 0.15f, -0.35f);
         bool _command;
@@ -89,7 +92,7 @@ namespace Core.App
                     ? seat.parent.TransformPoint(_standLocalPos + Vector3.up * 1.6f)
                     : seat.position + Vector3.up * 1.6f;
                 Core.UI.ScreenMount.FaceViewer(promptMount, standEye, 0.6f);
-                Core.UI.UiKit.Label(promptMount, "SitPrompt", Trans.Get("CommandBridge"), Vector3.zero,
+                Core.UI.UiKit.Label(promptMount, "SitPrompt", Trans.Get("vr.seat.sit"), Vector3.zero,
                     0.5f, 0.045f, Core.UI.UiKit.TextBright);
             }
             else
@@ -118,7 +121,7 @@ namespace Core.App
             if (pad == null)
                 return;
             // Physical poke on the right arm console (unscaled rounded pad) — stand up / leave the seat.
-            Core.UI.PokeButton.Create(pad, "ExitCommand", Trans.Get("quit"), BridgeDirector.ArmPadTop,
+            Core.UI.PokeButton.Create(pad, "ExitCommand", Trans.Get("vr.seat.stand"), BridgeDirector.ArmPadTop,
                 BridgeDirector.ArmPadFaceUp, new Vector2(0.13f, 0.06f), CicArtKit.Amber,
                 () => Core.Utils.AsyncTap.Run(ExitCommandMode()));
         }
@@ -141,6 +144,43 @@ namespace Core.App
             _locomotion = list.ToArray();
         }
 
+        /// <summary>Head this close to the chair (m, horizontal) and this low (m above the floor) = sitting.</summary>
+        const float SitReach = 0.42f;
+        const float SitHeadHeight = 1.25f;
+        const float SitHold = 0.6f;
+        float _lowSince = -1f;
+
+        /// <summary>
+        /// Sitting down for real starts command mode: stand at the chair and lower the head to seated height
+        /// (no button to find). Pointing at the seat ring + grip still works, as does the arm pad to stand up.
+        /// </summary>
+        void Update()
+        {
+            if (_command || _animating || _seat == null)
+                return;
+            var cam = Camera.main;
+            _xr = _xr != null ? _xr : FindFirstObjectByType<XROrigin>();
+            if (cam == null || _xr == null)
+                return;
+            var head = cam.transform.position;
+            var flat = new Vector2(head.x - _seat.position.x, head.z - _seat.position.z).magnitude;
+            var height = head.y - _xr.transform.position.y;
+            if (flat < SitReach && height < SitHeadHeight)
+            {
+                if (_lowSince < 0f)
+                    _lowSince = Time.time;
+                else if (Time.time - _lowSince > SitHold)
+                {
+                    _lowSince = -1f;
+                    Core.Utils.AsyncTap.Run(EnterCommandMode());
+                }
+            }
+            else
+            {
+                _lowSince = -1f;
+            }
+        }
+
         public async Task EnterCommandMode()
         {
             if (_command || _animating)
@@ -151,6 +191,7 @@ namespace Core.App
             await AnimatePose(true);
             _command = true;
             _animating = false;
+            SetSeatCueVisible(false);
             CommandModeChanged?.Invoke(true);
         }
 
@@ -163,6 +204,7 @@ namespace Core.App
             SetLocomotion(true);
             _command = false;
             _animating = false;
+            SetSeatCueVisible(true);
             CommandModeChanged?.Invoke(false);
         }
 
@@ -177,6 +219,10 @@ namespace Core.App
             var toScale = sit
                 ? Vector3.Scale(_scaleBeforeCmd, _tableCmdScale)
                 : _scaleBeforeCmd;
+            var fromTablePos = _table != null ? _table.localPosition : Vector3.zero;
+            if (sit)
+                _posBeforeCmd = fromTablePos;
+            var toTablePos = sit ? _posBeforeCmd + SeatDirection() * SlideToSeat : _posBeforeCmd;
             var fromPos = _xr != null ? _xr.transform.localPosition : _standLocalPos;
             var toPos = sit ? ResolveSitLocal() : _standLocalPos;
 
@@ -184,16 +230,32 @@ namespace Core.App
             {
                 var u = MotionEase.SmoothInOut((Time.time - t0) / duration);
                 if (_table != null)
+                {
                     _table.localScale = Vector3.Lerp(fromScale, toScale, u);
+                    _table.localPosition = Vector3.Lerp(fromTablePos, toTablePos, u);
+                }
                 if (_xr != null)
                     _xr.transform.localPosition = Vector3.Lerp(fromPos, toPos, u);
                 await Task.Yield();
             }
 
             if (_table != null)
+            {
                 _table.localScale = toScale;
+                _table.localPosition = toTablePos;
+            }
             if (_xr != null)
                 _xr.transform.localPosition = toPos;
+        }
+
+        /// <summary>Horizontal direction from the table to the chair, in the table's parent space.</summary>
+        Vector3 SeatDirection()
+        {
+            if (_table == null || _seat == null || _table.parent == null)
+                return Vector3.back;
+            var d = _table.parent.InverseTransformPoint(_seat.position) - _table.localPosition;
+            d.y = 0f;
+            return d.sqrMagnitude > 1e-4f ? d.normalized : Vector3.back;
         }
 
         Vector3 ResolveSitLocal()
@@ -203,6 +265,24 @@ namespace Core.App
             // Seat world → BridgeMount local (XR parent).
             var world = _seat.position + Vector3.up * 0.55f + _seat.forward * 0.15f;
             return _xr.transform.parent.InverseTransformPoint(world);
+        }
+
+        /// <summary>The sit ring and its prompt only make sense standing.</summary>
+        void SetSeatCueVisible(bool on)
+        {
+            if (_seat == null)
+                return;
+            var zone = _seat.Find("SitZone");
+            if (zone != null)
+            {
+                var r = zone.GetComponent<MeshRenderer>();
+                if (r != null)
+                    r.enabled = on;
+            }
+
+            var prompt = _seat.Find("SitPromptMount_Socket");
+            if (prompt != null)
+                prompt.gameObject.SetActive(on);
         }
 
         void SetLocomotion(bool on)

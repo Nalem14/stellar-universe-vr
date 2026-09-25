@@ -90,11 +90,60 @@ namespace Core.Holo
         }
 
         readonly List<Option> _current = new();
+        Vector3 _homePos;
+        Quaternion _homeRot;
+        bool _homeSaved;
+
+        /// <summary>
+        /// Holo table v2: the quote opens beside the destination (above it, turned to the captain), so the
+        /// eye never leaves the target. Falls back to the rim lectern when no point is given.
+        /// </summary>
+        public Task<object> AskAt(Vector3 worldTarget, string destination, IReadOnlyList<Option> options)
+        {
+            Resolve(null);
+            var t = _screen.transform;
+            if (!_homeSaved)
+            {
+                _homePos = t.localPosition;
+                _homeRot = t.localRotation;
+                _homeSaved = true;
+            }
+
+            var cam = Camera.main;
+            if (cam != null)
+            {
+                var eye = cam.transform.position;
+                var toEye = eye - worldTarget;
+                toEye.y = 0f;
+                var near = toEye.sqrMagnitude > 1e-4f ? toEye.normalized : Vector3.back;
+                // A little toward the captain and above the target, never inside the diorama.
+                var p = worldTarget + near * 0.14f + Vector3.up * 0.2f;
+                // Keep it within comfortable reach of the eye.
+                var d = p - eye;
+                if (d.magnitude > 1.1f)
+                    p = eye + d.normalized * 1.1f;
+                t.position = p;
+                ScreenMount.FaceViewer(t, eye, 1f, 8f);
+            }
+
+            return Ask(destination, options);
+        }
+
+        void RestoreHome()
+        {
+            if (!_homeSaved || _screen == null)
+                return;
+            _screen.transform.localPosition = _homePos;
+            _screen.transform.localRotation = _homeRot;
+        }
 
         /// <summary>Ask the captain. Resolves with the chosen option's payload, or null if cancelled.</summary>
         public Task<object> Ask(string destination, IReadOnlyList<Option> options)
         {
-            Resolve(null);
+            if (_pending != null)
+            {
+                Resolve(null);
+            }
             _current.Clear();
             for (var i = 0; i < options.Count && i < MaxOptions; i++)
                 _current.Add(options[i]);
@@ -133,6 +182,8 @@ namespace Core.Holo
             _pending = null;
             if (_screenGo != null)
                 _screenGo.SetActive(false);
+            if (pending != null)
+                RestoreHome();
             enabled = false;
             pending?.TrySetResult(payload);
         }

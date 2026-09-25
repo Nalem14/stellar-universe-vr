@@ -42,6 +42,17 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 | `bounty_need_fleet_onsite` | Send one of your ships… | Envoyez un de vos vaisseaux… | ✅ CompleteBounty |
 | `vr.bounty.*` | — | — | ✅ fr/en |
 
+## À intégrer (P5.5 — table tactique v2)
+
+| Clé | EN | FR | Contexte |
+|---|---|---|---|
+| `vr.table.pickShip` | Aim at one of your ships (trigger) | Visez un de vos vaisseaux (gâchette) | Bande d'état, rien de sélectionné |
+| `vr.table.selected` | {0} selected — aim at a destination | {0} sélectionné — visez une destination | Vaisseau sélectionné |
+| `vr.table.alreadyThere` | Already there | Déjà sur place | Cible = position actuelle |
+| `vr.table.notATarget` | Not a destination | Pas une destination | Cible invalide |
+| `vr.seat.sit` | Sit down | S'asseoir | Anneau du fauteuil du capitaine |
+| `vr.seat.stand` | Stand up | Se lever | Bouton de l'accoudoir (quitte le mode assis) |
+
 ## Restant côté web
 
 | Source web | Restant | Notes |

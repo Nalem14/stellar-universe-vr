@@ -61,6 +61,7 @@ namespace Core.App
             orders.Bind(_zoneMap, _focus, _poller, mapCtrl);
             orders.BindConsole(Core.Holo.OrderConsole.Build(interior.transform));
             Core.Holo.QueuePathView.Attach(_zoneMap, _focus, env.Art);
+            Core.Holo.TacticalCommand.Build(interior.transform, _zoneMap, _focus, orders, env.Art);
 
             Core.Crew.BarkDirector.Build(interior.transform, _focus);
             var economy = EconomyService.Ensure(interior.transform);

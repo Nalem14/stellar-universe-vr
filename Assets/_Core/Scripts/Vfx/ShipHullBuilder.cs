@@ -88,6 +88,31 @@ namespace Core.Vfx
             AddNavLights(kit, occupied);
         }
 
+        static readonly Dictionary<string, Mesh> Silhouettes = new();
+
+        /// <summary>
+        /// The hull shell alone (every occupied cell, engines included), as one mesh in ship metres — the holo
+        /// table's mini ships. Cached by layout signature: identical ships share one mesh.
+        /// </summary>
+        public static Mesh SilhouetteMesh(IReadOnlyList<FocusShipModule> modules, int seed)
+        {
+            var laid = ResolveLayout(modules, seed);
+            var key = Signature(laid);
+            if (Silhouettes.TryGetValue(key, out var cached) && cached != null)
+                return cached;
+            var occ = new bool[WorldScale.ShipGrid, WorldScale.ShipGrid];
+            foreach (var m in laid)
+                if (m.OnGrid)
+                    occ[m.GridX, m.GridY] = true;
+            CloseRooms(occ);
+            StitchLinks(occ);
+            var mesh = BuildHullMesh(occ, NoseSign(laid));
+            if (mesh != null)
+                mesh.name = "HoloShip";
+            Silhouettes[key] = mesh;
+            return mesh;
+        }
+
         static Palette CachePalette(bool owned)
         {
             if (owned)

@@ -39,9 +39,9 @@ namespace Core.Vfx
         {
             // Between planet orbits, on a stable bearing: the server gives anomalies no position.
             var slot = 2 + a.Id % 4;
-            var r = (WorldScale.HoloOrbitRadius(slot) + WorldScale.HoloOrbitRadius(slot + 1)) * 0.5f;
+            var r = OrbitR(slot + 0.5f);
             var ang = StableAngle(a.Id * 71 + 3);
-            var pos = new Vector3(Mathf.Cos(ang) * r, WorldScale.HoloTokenLift + 0.07f, Mathf.Sin(ang) * r);
+            var pos = new Vector3(Mathf.Cos(ang) * r, DioramaLift + 0.03f, Mathf.Sin(ang) * r);
             var tint = AnomalyTint(a.Type);
             var go = new GameObject("TokenAnomaly_" + a.Id);
             go.transform.SetParent(_root, false);
@@ -50,7 +50,7 @@ namespace Core.Vfx
 
             var ringTex = _art.OrbitRing != null ? _art.OrbitRing : Texture2D.whiteTexture;
             var ringMat = _art.RadarIcon(ringTex, new Color(tint.r, tint.g, tint.b, 0.9f));
-            var s = WorldScale.HoloAsteroidRadius * 4.6f;
+            var s = 0.055f;
             var gyro = new GameObject("Gyro").transform;
             gyro.SetParent(go.transform, false);
             for (var i = 0; i < 2; i++)
@@ -81,15 +81,15 @@ namespace Core.Vfx
             var beam = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
             beam.name = "SignalBeam";
             beam.transform.SetParent(go.transform, false);
-            beam.transform.localPosition = new Vector3(0f, -0.035f, 0f);
-            beam.transform.localScale = new Vector3(0.006f, 0.035f, 0.006f);
+            beam.transform.localPosition = new Vector3(0f, -0.015f, 0f);
+            beam.transform.localScale = new Vector3(0.004f, 0.015f, 0.004f);
             DropCollider(beam);
             beam.GetComponent<MeshRenderer>().sharedMaterial = _art.Holo(Texture2D.whiteTexture,
                 new Color(tint.r, tint.g, tint.b, 0.55f));
             var foot = GameObject.CreatePrimitive(PrimitiveType.Quad);
             foot.name = "SignalFoot";
             foot.transform.SetParent(go.transform, false);
-            foot.transform.localPosition = new Vector3(0f, -0.068f, 0f);
+            foot.transform.localPosition = new Vector3(0f, -0.029f, 0f);
             foot.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
             foot.transform.localScale = Vector3.one * s * 1.3f;
             DropCollider(foot);

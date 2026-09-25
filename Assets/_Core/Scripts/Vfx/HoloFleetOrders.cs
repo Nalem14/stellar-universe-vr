@@ -18,7 +18,7 @@ namespace Core.Vfx
     public class HoloFleetOrders : MonoBehaviour
     {
         /// <summary>Horizontal snap radius on the holo disc (meters).</summary>
-        const float DropRadius = 0.7f;
+        const float DropRadius = 0.16f;
         /// <summary>Stars sit a few cm apart on the galaxy: the target must be the one under the hand.</summary>
         const float GalaxyDropRadius = 0.09f;
         const float DragLift = 0.14f;
@@ -271,10 +271,10 @@ namespace Core.Vfx
                     UnityEngine.Object.DestroyImmediate(existing[i]);
             }
 
-            // Generous aim assist: ~32 cm radius — tabletop grab shouldn't need pixel aim.
+            // Aim assist sized to the diorama ship (~8 cm): neighbours no longer steal the ray.
             var sphere = go.AddComponent<SphereCollider>();
-            sphere.radius = 0.32f;
-            sphere.center = new Vector3(0f, 0.12f, 0f);
+            sphere.radius = 0.06f;
+            sphere.center = Vector3.zero;
             sphere.isTrigger = false;
 
             var rb = go.GetComponent<Rigidbody>();
@@ -294,8 +294,7 @@ namespace Core.Vfx
                 return;
             SetHoverHighlight(token);
             HoloZoneMap.SetTokenLabelVisible(token, true);
-            var name = string.IsNullOrEmpty(token.DisplayName) ? "ship " + token.Id : token.DisplayName;
-            _map?.SetReadout($"⟶ {name}");
+            // The status strip belongs to TacticalCommand (point → point); hover only lights the token.
             CicCue.Hover(token.transform.position);
         }
 
@@ -305,11 +304,10 @@ namespace Core.Vfx
             var label = token.transform.Find("Label");
             if (label == null || !label.gameObject.activeSelf)
                 return;
-            var tmp = label.GetComponentInChildren<TMPro.TextMeshProUGUI>();
+            var tmp = label.GetComponentInChildren<TMPro.TMP_Text>();
             if (tmp == null)
                 return;
-            tmp.fontSize = on ? 18f : 16f;
-            tmp.color = on ? Color.white : new Color(0.85f, 0.98f, 1f, 1f);
+            label.localScale = on ? Vector3.one * 1.3f : Vector3.one;
         }
 
         void OnHoverExited(HoverExitEventArgs args)
@@ -404,6 +402,25 @@ namespace Core.Vfx
                     return;
                 }
 
+                await Command(fleetToken, target, dragged: true);
+            }
+            finally
+            {
+                _ordering = false;
+                _map?.SetInteractionLock(false);
+            }
+        }
+
+        /// <summary>A ship selected on the table (point → point, or dropped by hand) is ordered to a target.</summary>
+        public bool Busy => _ordering;
+
+        public async Task Command(HoloToken fleetToken, HoloToken target, bool dragged)
+        {
+            var nested = _ordering && dragged;
+            _ordering = true;
+            _map?.SetInteractionLock(true);
+            try
+            {
                 if (_focus == null || !AuthManager.Ensure().IsLoggedIn)
                 {
                     fleetToken.SnapHome();
@@ -468,9 +485,11 @@ namespace Core.Vfx
                 var mode = Core.Holo.TravelMode.Sublight;
                 if (_console != null && fleet != null)
                 {
-                    fleetToken.transform.localPosition = target.HomeLocalPos + Vector3.up * 0.04f;
+                    if (dragged)
+                        fleetToken.transform.localPosition = target.HomeLocalPos + Vector3.up * 0.04f;
                     var options = BuildOptions(fleet, target, action);
-                    var choice = await _console.Ask(fleetToken.DisplayName.Replace('\n', ' ') + "  →  " + dest, options);
+                    var choice = await _console.AskAt(target.transform.position,
+                        fleetToken.DisplayName.Replace('\n', ' ') + "  →  " + dest, options);
                     if (choice == null)
                     {
                         fleetToken.SnapHome();
@@ -522,8 +541,12 @@ namespace Core.Vfx
                     return;
                 }
 
-                fleetToken.transform.localPosition = target.HomeLocalPos + Vector3.up * 0.04f;
-                fleetToken.CaptureHome();
+                if (dragged)
+                {
+                    fleetToken.transform.localPosition = target.HomeLocalPos + Vector3.up * 0.04f;
+                    fleetToken.CaptureHome();
+                }
+
                 fleetToken.Busy = true;
                 RestoreSpin(fleetToken);
                 CicCue.Ok(target.transform.position);
@@ -536,8 +559,11 @@ namespace Core.Vfx
             }
             finally
             {
-                _ordering = false;
-                _map?.SetInteractionLock(false);
+                if (!nested)
+                {
+                    _ordering = false;
+                    _map?.SetInteractionLock(false);
+                }
             }
         }
 
@@ -576,7 +602,8 @@ namespace Core.Vfx
                 {
                     new(Trans.Get("scanAnomaly") + "  ·  " + detail, true, HoloZoneMap.AnomalyTint(anomaly.Type), "scan")
                 };
-                var choice = await _console.Ask(fleetToken.DisplayName.Replace('\n', ' ') + "  →  " + name, options);
+                var choice = await _console.AskAt(target.transform.position,
+                    fleetToken.DisplayName.Replace('\n', ' ') + "  →  " + name, options);
                 if (choice == null)
                 {
                     _map?.SetReadout(Trans.Get("cancel"));
@@ -684,9 +711,8 @@ namespace Core.Vfx
             var hover = token.transform.Find("HoverRing");
             if (hover == null)
                 return;
-            var s = WorldScale.HoloFleetSize;
-            var mul = bright ? 4.2f : 2.8f;
-            hover.localScale = Vector3.one * (s * mul);
+            var r = bright ? 0.045f : 0.03f;
+            hover.localScale = new Vector3(r, 1f, r);
 
             var label = token.transform.Find("Label");
             if (label != null)
