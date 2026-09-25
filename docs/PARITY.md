@@ -26,10 +26,10 @@ Généré depuis `action-api.json` (158 actions), `actionjs.php` et un grep des 
 | Jumpgate | 0 | 2 | 0 % |
 | Stargate | 7 | 7 | 100 % |
 | Social (chat, mail) | 11 | 11 | 100 % |
-| Guerre | 0 | 9 | 0 % |
-| Alliance | 1 | 17 | 6 % |
-| Empire / progression / shop | 7 | 27 | 26 % |
-| **Total** | **96** | **158** | **61 %** |
+| Guerre | 9 | 9 | 100 % |
+| Alliance | 17 | 17 | 100 % |
+| Empire / progression / shop | 8 | 27 | 30 % |
+| **Total** | **122** | **158** | **77 %** |
 
 Appelées par le client web : 138/158. « Appelée » ≠ « finie » : voir la colonne *Statut*.
 
@@ -65,7 +65,7 @@ Appelées par le client web : 138/158. « Appelée » ≠ « finie » : voir la 
 | `ClaimBounty` | W | bounty | `Stations/BountyBoard.cs` | `ui/BountiesWindowUI.js` | Tableau du labo | P5 | Branché |  |
 | `CompleteBounty` | W | bounty | `Stations/BountyBoard.cs` | `ui/BountiesWindowUI.js` | Remise au tableau du labo ; serveur exige flotte empire dans `target_systemid` (`bounty_need_fleet_onsite`) ; `reward_credits` → cristal | P5 | Branché |  |
 | `GetBounties` | R | — | `Stations/BountyBoard.cs` | `ui/BountiesWindowUI.js` | Tableau des contrats du labo, relu toutes les 20 s dans la salle (le serveur en génère quand < 4 ouverts) | P5 | Branché |  |
-| `GetEmpirePlanets` | R | empire | `App/OwnedPlanets.cs` | `ui/WarsWindowUI.js` | Système (boot) | P5 | Branché | `OwnedPlanets` : mes planètes fraîches (id, `systemid`, slot — web `c94c803`), au boot et après une fondation ; `GetSystems` en secours seulement |
+| `GetEmpirePlanets` | R | empire | `App/OwnedPlanets.cs` +1 | `ui/WarsWindowUI.js` | Système (boot) | P5 | Branché | `OwnedPlanets` : mes planètes fraîches (id, `systemid`, slot — web `c94c803`), au boot et après une fondation ; `GetSystems` en secours seulement |
 | `GetPlanet` | R | id | `Stations/PlanetSurvey.cs` | `objects/planet.js` | Relevé planétaire Science (répéteur → écran face au captain), planètes du système en vue ; `user` jamais gardé | P5 | Branché |  |
 | `GetSystemAnomalies` | R | systemid | `App/AnomalyService.cs` | `ui/StarWindowUI.js` | `AnomalyService` : une lecture par système visité (le serveur fait apparaître une anomalie à 45 % quand il n'y en a pas) ; titres par type (`anomaly_<type>`), pas le texte FR stocké | P5 | Branché |  |
 | `GetSystems` | R | — | `App/BridgeSystemLoader.cs` +2 | `scenes/galaxy.js` | Holo table | P4 | Branché | Galaxie complète sur la table (LOD, territoires par détenteur) |
@@ -197,37 +197,37 @@ Appelées par le client web : 138/158. « Appelée » ≠ « finie » : voir la 
 
 | Action | R/W | Params | VR | Web | Station | Phase | Statut | Notes |
 |---|---|---|---|---|---|---|---|---|
-| `AcceptPeaceOffer` | W | war | — | `ui/WarsWindowUI.js` | Comms | P5 | À faire |  |
-| `AcceptWarDemands` | W | war | — | `ui/WarsWindowUI.js` | Comms | P5 | À faire |  |
-| `CancelPeaceOffer` | W | war | — | `ui/WarsWindowUI.js` | Comms | P5 | À faire |  |
-| `DeclareWar` | W | target | — | `ui/WarsWindowUI.js` | Comms | P5 | À faire |  |
-| `DeclinePeaceOffer` | W | war | — | `ui/WarsWindowUI.js` | Comms | P5 | À faire |  |
-| `GetMyWars` | R | — | — | `ui/WarsWindowUI.js` | Comms | P5 | À faire |  |
-| `GetWarDetails` | R | war | — | — | Comms | P5 | À faire |  |
-| `OfferPeace` | W | war | — | `ui/WarsWindowUI.js` | Comms | P5 | À faire |  |
-| `SurrenderWar` | W | war | — | `ui/WarsWindowUI.js` | Comms | P5 | À faire |  |
+| `AcceptPeaceOffer` | W | war | `Stations/DiplomacyRoom.cs` | `ui/WarsWindowUI.js` | Comms | P5 | Branché |  |
+| `AcceptWarDemands` | W | war | `Stations/DiplomacyRoom.cs` | `ui/WarsWindowUI.js` | Comms | P5 | Branché |  |
+| `CancelPeaceOffer` | W | war | `Stations/DiplomacyRoom.cs` | `ui/WarsWindowUI.js` | Comms | P5 | Branché |  |
+| `DeclareWar` | W | target | `Stations/DiplomacyRoom.cs` | `ui/WarsWindowUI.js` | Comms | P5 | Branché |  |
+| `DeclinePeaceOffer` | W | war | `Stations/DiplomacyRoom.cs` | `ui/WarsWindowUI.js` | Comms | P5 | Branché |  |
+| `GetMyWars` | R | — | `App/DiplomacyService.cs` | `ui/WarsWindowUI.js` | Comms | P5 | Démo |  |
+| `GetWarDetails` | R | war | `Stations/DiplomacyRoom.cs` | — | Comms | P5 | Branché |  |
+| `OfferPeace` | W | war | `Stations/DiplomacyRoom.cs` | `ui/WarsWindowUI.js` | Comms | P5 | Branché |  |
+| `SurrenderWar` | W | war | `Stations/DiplomacyRoom.cs` | `ui/WarsWindowUI.js` | Comms | P5 | Branché |  |
 
 ## Alliance
 
 | Action | R/W | Params | VR | Web | Station | Phase | Statut | Notes |
 |---|---|---|---|---|---|---|---|---|
-| `AcceptAllianceApplication` | W | application | — | `ui/AllianceWindowUI.js` | Comms | P5 | À faire |  |
-| `AcceptAllianceInvite` | W | invite | — | `ui/AllianceWindowUI.js` | Comms | P5 | À faire |  |
-| `ApplyToAlliance` | W | alliance | — | `ui/AllianceWindowUI.js` | Comms | P5 | À faire |  |
-| `CancelAllianceInvite` | W | invite | — | — | Comms | P5 | À faire |  |
-| `CreateAlliance` | W | name, tag, description? | — | `ui/AllianceWindowUI.js` | Comms | P5 | À faire |  |
-| `DeclineAllianceApplication` | W | application | — | `ui/AllianceWindowUI.js` | Comms | P5 | À faire |  |
-| `DeclineAllianceInvite` | W | invite | — | `ui/AllianceWindowUI.js` | Comms | P5 | À faire |  |
-| `DisbandAlliance` | W | — | — | `ui/AllianceWindowUI.js` | Comms | P5 | À faire |  |
-| `GetAllianceInvites` | R | — | — | `ui/AllianceWindowUI.js` | Comms | P5 | À faire |  |
-| `GetAlliances` | R | — | — | `ui/AllianceWindowUI.js` | Comms | P5 | À faire |  |
-| `GetMyAlliance` | R | — | `App/DiplomacyIndex.cs` | `ui/AllianceWindowUI.js` | Comms | P5 | Branché |  |
-| `InviteToAlliance` | W | target | — | — | Comms | P5 | À faire |  |
-| `KickAllianceMember` | W | target | — | `ui/AllianceWindowUI.js` | Comms | P5 | À faire |  |
-| `LeaveAlliance` | W | — | — | `ui/AllianceWindowUI.js` | Comms | P5 | À faire |  |
-| `SetAllianceMemberRole` | W | target, role | — | `ui/AllianceWindowUI.js` | Comms | P5 | À faire |  |
-| `TransferAllianceLeadership` | W | target | — | `ui/AllianceWindowUI.js` | Comms | P5 | À faire |  |
-| `UpdateAllianceDescription` | W | description? | — | `ui/AllianceWindowUI.js` | Comms | P5 | À faire |  |
+| `AcceptAllianceApplication` | W | application | `Stations/DiplomacyRoom.cs` | `ui/AllianceWindowUI.js` | Comms | P5 | Branché |  |
+| `AcceptAllianceInvite` | W | invite | `Stations/DiplomacyRoom.cs` | `ui/AllianceWindowUI.js` | Comms | P5 | Branché |  |
+| `ApplyToAlliance` | W | alliance | `Stations/DiplomacyRoom.cs` | `ui/AllianceWindowUI.js` | Comms | P5 | Branché |  |
+| `CancelAllianceInvite` | W | invite | `Stations/DiplomacyRoom.cs` | — | Comms | P5 | Branché |  |
+| `CreateAlliance` | W | name, tag, description? | `Stations/DiplomacyRoom.cs` | `ui/AllianceWindowUI.js` | Comms | P5 | Branché |  |
+| `DeclineAllianceApplication` | W | application | `Stations/DiplomacyRoom.cs` | `ui/AllianceWindowUI.js` | Comms | P5 | Branché |  |
+| `DeclineAllianceInvite` | W | invite | `Stations/DiplomacyRoom.cs` | `ui/AllianceWindowUI.js` | Comms | P5 | Branché |  |
+| `DisbandAlliance` | W | — | `Stations/DiplomacyRoom.cs` | `ui/AllianceWindowUI.js` | Comms | P5 | Branché |  |
+| `GetAllianceInvites` | R | — | `App/DiplomacyService.cs` | `ui/AllianceWindowUI.js` | Comms | P5 | Branché |  |
+| `GetAlliances` | R | — | `Stations/DiplomacyRoom.cs` | `ui/AllianceWindowUI.js` | Comms | P5 | Branché |  |
+| `GetMyAlliance` | R | — | `App/DiplomacyIndex.cs` +1 | `ui/AllianceWindowUI.js` | Comms | P5 | Branché |  |
+| `InviteToAlliance` | W | target | `Stations/DiplomacyRoom.cs` | — | Comms | P5 | Branché |  |
+| `KickAllianceMember` | W | target | `Stations/DiplomacyRoom.cs` | `ui/AllianceWindowUI.js` | Comms | P5 | Branché |  |
+| `LeaveAlliance` | W | — | `Stations/DiplomacyRoom.cs` | `ui/AllianceWindowUI.js` | Comms | P5 | Branché |  |
+| `SetAllianceMemberRole` | W | target, role | `Stations/DiplomacyRoom.cs` | `ui/AllianceWindowUI.js` | Comms | P5 | Branché |  |
+| `TransferAllianceLeadership` | W | target | `Stations/DiplomacyRoom.cs` | `ui/AllianceWindowUI.js` | Comms | P5 | Branché |  |
+| `UpdateAllianceDescription` | W | description? | `Stations/DiplomacyRoom.cs` | `ui/AllianceWindowUI.js` | Comms | P5 | Branché |  |
 
 ## Empire / progression / shop
 
@@ -242,7 +242,7 @@ Appelées par le client web : 138/158. « Appelée » ≠ « finie » : voir la 
 | `GetAuthorities` | R | — | `UI/EmpireCreationWizard.cs` | `ui/EmpireHubUI.js` | Conseil | P6 | Branché |  |
 | `GetDailyObjectives` | R | — | — | — | Conseil | P6 | À faire | Web utilise `GetProgressionObjectives` |
 | `GetEmpire` | R | user | — | `scripts/user.js` | Comms | P5 | À faire |  |
-| `GetEmpires` | R | — | `App/DiplomacyIndex.cs` | `objects/empire.js` | Comms | P5 | Branché |  |
+| `GetEmpires` | R | — | `App/DiplomacyIndex.cs` +1 | `objects/empire.js` | Comms | P5 | Branché |  |
 | `GetLeaderTraits` | R | — | `UI/EmpireCreationWizard.cs` | — | Conseil | P3 | Branché | Liste lore pour CreateEmpire |
 | `GetMeEmpire` | R | — | `App/AuthManager.cs` +1 | `objects/policy.js` | Système (boot) | P0 | Branché | `error:noEmpire` si compte sans empire (flux CreateEmpire) |
 | `GetMonthlyObjectives` | R | — | — | — | Conseil | P6 | À faire |  |
@@ -250,7 +250,7 @@ Appelées par le client web : 138/158. « Appelée » ≠ « finie » : voir la 
 | `GetNovaTopupPacks` | R | — | — | `ui/ShopWindowUI.js` | Conseil | P6 | À faire |  |
 | `GetPolitics` | R | — | — | `ui/EmpireHubUI.js` | Conseil | P6 | À faire |  |
 | `GetProgressionObjectives` | R | — | — | `ui/ProgressionWindowUI.js` | Conseil | P6 | À faire |  |
-| `GetRelation` | R | user1, user2 | — | `objects/empire.js` | Comms | P5 | À faire |  |
+| `GetRelation` | R | user1, user2 | `Stations/DiplomacyRoom.cs` | `objects/empire.js` | Comms | P5 | Branché |  |
 | `GetShopData` | R | — | — | `ui/ShopWindowUI.js` | Conseil | P6 | À faire |  |
 | `GetSpeciesTraits` | R | — | `UI/EmpireCreationWizard.cs` | `objects/specy.js` | Conseil | P6 | Branché |  |
 | `GetSpeciesTypes` | R | — | `UI/EmpireCreationWizard.cs` | `objects/specy.js` | Conseil | P6 | Branché |  |
@@ -370,13 +370,18 @@ Corrigés dans `stellar-universe` (`7580501`, 2026-09-25) — le client VR ne co
 - **Planète orpheline = flotte parquée** : si la planète visée a été supprimée (le cron quotidien supprime les planètes dont le système n'existe plus) alors qu'une flotte attend `attackEndTime`, la jointure l'ignore et la flotte reste « en attaque » indéfiniment. Aucun nettoyage ne rattrape ce cas.
 - **Marquage « lu » d'un fil** : les ids renvoyés sont bien ceux marqués, mais au-delà de 50 nouveaux messages le client ne voit jamais les plus anciens (fenêtre `DESC LIMIT 50`) — ils restent non lus, ce qui est le comportement sûr.
 
-### À corriger côté web (relevés en lisant la Stargate, 2026-09-26)
+### Stargate (corrigés, 2026-09-26)
 
-- **`GetKnownAddresses` renvoie la planète d'origine** (elle est dans `known_addresses`) alors que `OpenStargateConnection` refuse de la cibler (`cantTargetOwnPlanet`) : à exclure côté serveur (`$pid != $planet['id']` sur les deux sources).
-- **Durée `sendTroops` / `sendResources`** : le défaut du code est 10 min mais la base renvoie 1 h (`resolveAt − createdAt = 3600` sur une mission réelle) — vérifier la valeur `STARGATE.MISSION_TIME` en base.
-- **`resultDetail` d'échec en français** (`'Planet no longer exists.'`, `'Target no longer colonized.'` en anglais brut, `Lang(...)` ailleurs) : des codes (`failed:planetGone`, `failed:notColonized`…) seraient traduisibles côté client, comme les codes de succès.
-- **Libellés web codés en dur** dans la carte Stargate (`scenes/planet.js` : « Composer une adresse », statuts « Non colonisée / À vous / Alliée / Ennemie », types de mission, `_stargateResultLabel`) — la VR a ses clés `vr.gate.*` (missing-keys.md) qui peuvent servir au web.
-- **Pas d'adresse de la planète d'origine dans `GetResource`** : la VR la lit dans `GetKnownAddresses` (qui la renvoie par accident, voir plus haut) ; `stargateAddress` n'est que dans `GetPlanet`. L'ajouter au retour de `GetStargateConnectionStatus` ou `GetKnownAddresses` (`origin`) éviterait la dépendance.
+- **`GetKnownAddresses` renvoyait la planète d'origine** : ✅ elle reste dans la liste — les clients y lisent l'adresse de la base — mais porte `isOrigin: true`, et le web l'exclut du sélecteur de cible. Sans ce drapeau, le serveur proposait une destination que `OpenStargateConnection` refuse (`cantTargetOwnPlanet`).
+- **Durée `sendTroops` / `sendResources`** : ✅ `GetSetConfig` stocke le tableau **entier**, donc une mission ajoutée après l'écriture de la ligne est absente de la copie stockée et tombait sur le repli codé en dur `3600` (1 h). Les défauts vivent maintenant dans `$STARGATE_MISSION_TIME_DEFAULTS` et servent de repli par mission. **Si la ligne en base porte vraiment 3600 pour ces deux clés**, il faudra la corriger côté admin : la valeur stockée reste prioritaire.
+- **`resultDetail` d'échec** : ✅ codes au lieu de phrases (`failed:planetGone`, `failed:notColonized`, `failed:alreadyColonized`, `failed:alreadyExplored`) — `Lang()` répondait dans la langue de la **requête**, pas du lecteur. Les deux clients les traduisent (`vr.gate.result.failed.*`).
+- **Libellés web codés en dur** : ✅ toute la carte stargate (`scenes/planet.js`) passe par `Helper.lang` et les clés `vr.gate.*` partagées avec la VR — plus de doublon de traduction.
+- **Adresse de la planète d'origine** : ✅ disponible dans la liste `GetKnownAddresses` via l'entrée marquée `isOrigin`. Côté VR, `GateRoom` lit toujours l'adresse de la base dans cette liste (moniteur mural) : elle peut aussi venir de `GetPlanet.stargateAddress`, ce qui permettrait de sortir l'origine de la liste plus tard.
+
+### Restant côté VR (relevé en corrigeant la Stargate, 2026-09-26)
+
+- **`ResultLabel` traduit les codes d'échec** (`failed:*`) : la modification est **dans l'arbre de travail** (`Assets/_Core/Scripts/Stations/GateRoom.cs`), mêlée au chantier de la salle de la porte — à committer avec.
+- **La langue de requête n'est toujours pas envoyée** : les textes rendus par le serveur (courriers système, résumés de décision) arrivent en anglais à un joueur FR. Ajouter `&lang=<Trans.Lang>` aux requêtes règle le problème sans changement serveur.
 
 ### Spec livrée — `CreateEmpire`
 
