@@ -8,10 +8,21 @@ namespace Core.Vfx
         public float BobMeters = 0.02f;
 
         Vector3 _origin;
+        bool _hasOrigin;
 
         void Start()
         {
-            _origin = transform.localPosition;
+            if (!_hasOrigin)
+                _origin = transform.localPosition;
+            _hasOrigin = true;
+        }
+
+        /// <summary>Move the rest position (token relaid out while the map pans).</summary>
+        public void SetOrigin(Vector3 localPos)
+        {
+            _origin = localPos;
+            _hasOrigin = true;
+            transform.localPosition = localPos;
         }
 
         void Update()

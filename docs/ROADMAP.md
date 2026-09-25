@@ -151,10 +151,13 @@ Dépend de `CreateEmpire` côté serveur (spec dans PARITY).
   - profil du leader (bio, nom, titre, traits, préfixe des vaisseaux).
 - Onboarding forcé comme sur le web (éthiques et espèce valides) avant d'accéder au pont.
 
-### P4 — Holomap produit
-- Tokens mis à jour par diff incrémental ; pinch et pan à deux mains ; galaxie en LOD et paginée (plus de plafond à 120).
-- **Au lâcher : preview + confirmation** (bouton ou réplique du Helm). On choisit sublight, hyperspace ou Bond PRL, avec ETA et coût calculés depuis `GetConfigs`.
-- Trajectoires et file d'ordres éditable (`SetFleetOrderQueue`, `RemoveFleetOrderStep`, `ToggleFleetQueueLoop`).
+### P4 — Holomap produit ✅ (Editor ; non testé en casque)
+- ✅ Tokens mis à jour par diff incrémental : un poll ne redessine que les tokens de flotte dont l'état a changé ; changement de système / de vue = redessin complet.
+- ✅ Zoom / pan : deux grips au-dessus de la table (écarter = zoomer, déplacer les deux mains = faire glisser la galaxie), ou stick droit (haut = zoom avant). Dézoomer au-delà de la vue système ouvre la galaxie ; zoomer au-delà de son niveau le plus proche revient au système.
+- ✅ Galaxie complète sans plafond : tous les systèmes en **un** mesh (`SU/HoloStarField`, teinte par détenteur = territoires web), placés sur `visual_x/visual_y` comme le web. 24 tokens interactifs recyclés près du centre ; la cible d'un lâcher est l'étoile la plus proche de la main parmi **tous** les systèmes. Tes vaisseaux sont posés sur leur étoile et se glissent vers une autre pour un saut devisé.
+- ✅ **Au lâcher : preview + confirmation** au pupitre : sublight, hyperspace ou Bond PRL, avec ETA et coût calculés depuis `GetConfigs` (distance PRL sur les coordonnées visuelles, comme le serveur).
+- ✅ Trajectoires et file d'ordres éditable (`SetFleetOrderQueue`, `RemoveFleetOrderStep`, `ToggleFleetQueueLoop`).
+- Reste : pinch en hand tracking (sans manettes) — à faire avec XR Hands en P7.
 
 ### P5 — Stations = domaines de jeu (parité)
 

@@ -11,7 +11,7 @@ namespace Core.Vfx
     /// Strategic zone map on the CIC holo table — system disc, orbits, planet/fleet tokens.
     /// Uses WorldScale.Holo* only (never OrbitBase / world radii).
     /// </summary>
-    public class HoloZoneMap : MonoBehaviour
+    public partial class HoloZoneMap : MonoBehaviour
     {
         FocusContext _focus;
         CicArtKit _art;
@@ -24,20 +24,38 @@ namespace Core.Vfx
         bool _galaxyStub;
         bool _interactionLock;
         bool _rebuildPending;
+        bool _syncPending;
+        /// <summary>Galaxy overview on the table: system events are dropped, ShowSystemMap redraws fresh.</summary>
+        bool _showingGalaxy;
+
+        /// <summary>Fleet token per fleet id + its visual signature — polls only touch what changed.</summary>
+        readonly Dictionary<int, (GameObject Root, string Sig)> _fleetViews = new();
+        readonly HashSet<int> _seenFleets = new();
+        readonly List<int> _staleFleets = new();
 
         public Transform VolumeRoot => _volume;
         public TMP_Text Readout => _readout;
         public IReadOnlyList<HoloToken> Tokens => _tokens;
         public event Action TokensRebuilt;
+        /// <summary>A fleet token is in hand (or an order is being quoted): no map gestures.</summary>
+        public bool InteractionLocked => _interactionLock;
 
         /// <summary>Hold Focus/diplomacy rebuilds while the player is grabbing a fleet token.</summary>
         public void SetInteractionLock(bool locked)
         {
             _interactionLock = locked;
-            if (!locked && _rebuildPending)
+            if (locked)
+                return;
+            if (_rebuildPending)
             {
                 _rebuildPending = false;
+                _syncPending = false;
                 Rebuild();
+            }
+            else if (_syncPending)
+            {
+                _syncPending = false;
+                SyncFleets();
             }
         }
 
@@ -49,8 +67,8 @@ namespace Core.Vfx
             {
                 _focus.Changed -= OnFocusChanged;
                 _focus.Changed += OnFocusChanged;
-                _focus.FleetsChanged -= OnFocusChanged;
-                _focus.FleetsChanged += OnFocusChanged;
+                _focus.FleetsChanged -= OnFleetsChanged;
+                _focus.FleetsChanged += OnFleetsChanged;
             }
 
             DiplomacyIndex.Changed -= OnDiplomacyChanged;
@@ -64,13 +82,24 @@ namespace Core.Vfx
             if (_focus != null)
             {
                 _focus.Changed -= OnFocusChanged;
-                _focus.FleetsChanged -= OnFocusChanged;
+                _focus.FleetsChanged -= OnFleetsChanged;
             }
             DiplomacyIndex.Changed -= OnDiplomacyChanged;
+            if (_gMesh != null)
+                Destroy(_gMesh);
         }
 
-        void OnFocusChanged()
+        /// <summary>System / inhabited view changed: the whole system map is redrawn.</summary>
+        void OnFocusChanged() => RequestRebuild();
+
+        /// <summary>Diplomacy re-tints planets and fleets alike (rare: every ~45 s at most).</summary>
+        void OnDiplomacyChanged() => RequestRebuild();
+
+        void RequestRebuild()
         {
+            if (_showingGalaxy)
+                return;
+
             if (_interactionLock)
             {
                 _rebuildPending = true;
@@ -80,15 +109,123 @@ namespace Core.Vfx
             Rebuild();
         }
 
-        void OnDiplomacyChanged()
+        /// <summary>Fleet poll delta: add / drop / redraw only the fleet tokens whose state changed.</summary>
+        void OnFleetsChanged()
         {
             if (_interactionLock)
             {
-                _rebuildPending = true;
+                _syncPending = true;
                 return;
             }
 
-            Rebuild();
+            SyncFleets();
+        }
+
+        void SyncFleets()
+        {
+            if (_showingGalaxy)
+            {
+                RefreshGalaxyFleets();
+                return;
+            }
+
+            var focus = _focus ?? FocusContext.Current;
+            if (_root == null || _art == null || focus == null || !focus.HasSystem || _galaxyStub ||
+                focus.SystemId != _builtForSystem)
+            {
+                Rebuild();
+                return;
+            }
+
+            var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var viewId = focus.ViewFleetId;
+            var changed = false;
+            _seenFleets.Clear();
+            foreach (var fleet in focus.Fleets)
+            {
+                if (!fleet.VisibleIn(focus.SystemId, now))
+                    continue;
+                _seenFleets.Add(fleet.Id);
+                var view = DescribeFleet(fleet, focus, now, viewId);
+                if (_fleetViews.TryGetValue(fleet.Id, out var existing))
+                {
+                    if (existing.Sig == view.Sig)
+                        continue;
+                    RemoveFleetView(fleet.Id);
+                }
+
+                AddFleetView(fleet.Id, view);
+                changed = true;
+            }
+
+            _staleFleets.Clear();
+            foreach (var id in _fleetViews.Keys)
+            {
+                if (!_seenFleets.Contains(id))
+                    _staleFleets.Add(id);
+            }
+
+            foreach (var id in _staleFleets)
+            {
+                RemoveFleetView(id);
+                changed = true;
+            }
+
+            if (changed)
+                TokensRebuilt?.Invoke();
+        }
+
+        readonly struct FleetView
+        {
+            public readonly int Slot;
+            public readonly Color Color;
+            public readonly bool Owned;
+            public readonly bool Busy;
+            public readonly bool Active;
+            public readonly EmpireStance Stance;
+            public readonly string Name;
+            public readonly string Sig;
+
+            public FleetView(int slot, Color color, bool owned, bool busy, bool active, EmpireStance stance,
+                string name)
+            {
+                Slot = slot;
+                Color = color;
+                Owned = owned;
+                Busy = busy;
+                Active = active;
+                Stance = stance;
+                Name = name;
+                Sig = slot + "|" + (int)stance + "|" + (busy ? 1 : 0) + (active ? 1 : 0) + (owned ? 1 : 0) + "|" + name;
+            }
+        }
+
+        static FleetView DescribeFleet(FocusFleet fleet, FocusContext focus, long now, int viewId)
+        {
+            var stance = DiplomacyIndex.ResolveFleet(fleet);
+            return new FleetView(ResolveFleetSlot(fleet, focus), DiplomacyIndex.Tint(stance),
+                stance == EmpireStance.Owned, !fleet.CanIssueMove(now), viewId > 0 && fleet.Id == viewId, stance,
+                string.IsNullOrEmpty(fleet.Name) ? "ship" : fleet.Name);
+        }
+
+        void AddFleetView(int id, in FleetView v)
+        {
+            var go = PlaceFleet(v.Slot, id, v.Color, id * 17, v.Owned, v.Busy, v.Name, v.Active, v.Stance);
+            _fleetViews[id] = (go, v.Sig);
+        }
+
+        void RemoveFleetView(int id)
+        {
+            if (!_fleetViews.TryGetValue(id, out var view))
+                return;
+            _fleetViews.Remove(id);
+            if (view.Root == null)
+                return;
+            _tokenRoots.Remove(view.Root);
+            var token = view.Root.GetComponent<HoloToken>();
+            if (token != null)
+                _tokens.Remove(token);
+            Destroy(view.Root);
         }
 
         public void EnsureScaffold(Transform tableTop, CicArtKit art)
@@ -251,16 +388,8 @@ namespace Core.Vfx
             var viewId = focus.ViewFleetId;
             foreach (var fleet in focus.Fleets)
             {
-                if (!fleet.VisibleIn(focus.SystemId, now))
-                    continue;
-                var stance = DiplomacyIndex.ResolveFleet(fleet);
-                var color = DiplomacyIndex.Tint(stance);
-                var owned = stance == EmpireStance.Owned;
-                var slot = ResolveFleetSlot(fleet, focus);
-                var busy = !fleet.CanIssueMove(now);
-                var fname = string.IsNullOrEmpty(fleet.Name) ? "ship" : fleet.Name;
-                var active = viewId > 0 && fleet.Id == viewId;
-                PlaceFleet(slot, fleet.Id, color, fleet.Id * 17, owned, busy, fname, active, stance);
+                if (fleet.VisibleIn(focus.SystemId, now))
+                    AddFleetView(fleet.Id, DescribeFleet(fleet, focus, now, viewId));
             }
 
             PlaceGalaxyStubRing();
@@ -296,8 +425,11 @@ namespace Core.Vfx
 
         public async void ShowGalaxyAsync()
         {
+            _showingGalaxy = true;
             await GalaxyCatalog.EnsureLoaded();
             if (_root == null || _art == null)
+                return;
+            if (!_showingGalaxy)
                 return;
             ClearTokens();
             _galaxyStub = true;
@@ -308,65 +440,10 @@ namespace Core.Vfx
 
         public void ShowSystemMap()
         {
+            _showingGalaxy = false;
+            _rebuildPending = false;
+            _syncPending = false;
             Rebuild();
-        }
-
-        void BuildGalaxyMap()
-        {
-            var stars = GalaxyCatalog.All;
-            if (stars.Count == 0)
-            {
-                PlaceGalaxyStubRing();
-                return;
-            }
-
-            float minX = float.MaxValue, maxX = float.MinValue, minY = float.MaxValue, maxY = float.MinValue;
-            foreach (var s in stars)
-            {
-                minX = Mathf.Min(minX, s.X);
-                maxX = Mathf.Max(maxX, s.X);
-                minY = Mathf.Min(minY, s.Y);
-                maxY = Mathf.Max(maxY, s.Y);
-            }
-
-            var dx = Mathf.Max(1f, maxX - minX);
-            var dy = Mathf.Max(1f, maxY - minY);
-            var scale = WorldScale.HoloDiscRadius * 0.85f / Mathf.Max(dx, dy) * 2f;
-            var cx = (minX + maxX) * 0.5f;
-            var cy = (minY + maxY) * 0.5f;
-            var count = 0;
-            foreach (var s in stars)
-            {
-                if (count++ > 120)
-                    break;
-                var lx = (s.X - cx) * scale;
-                var lz = (s.Y - cy) * scale;
-                PlaceSystemToken(s.Id, s.X, s.Y, new Vector3(lx, WorldScale.HoloTokenLift, lz));
-            }
-        }
-
-        void PlaceSystemToken(int id, float gx, float gy, Vector3 localPos)
-        {
-            var go = TokenVisual("TokenSystem_" + id, PrimitiveType.Sphere, localPos,
-                Vector3.one * 0.035f,
-                _art.RadarIcon(_art.TokenSystem != null ? _art.TokenSystem : Texture2D.whiteTexture,
-                    new Color(0.85f, 0.95f, 1f, 0.95f)),
-                keepCollider: true);
-            var token = go.GetComponent<HoloToken>();
-            if (token == null)
-                token = go.AddComponent<HoloToken>();
-            token.Kind = HoloTokenKind.System;
-            token.Id = id;
-            token.Slot = 0;
-            token.Owned = false;
-            token.Busy = false;
-            token.GalaxyX = gx;
-            token.GalaxyY = gy;
-            // Systems are known by coordinates (no names in the game).
-            token.DisplayName = GalaxyCatalog.Coordinates(gx, gy);
-            token.CaptureHome();
-            AddTokenLabel(go.transform, token.DisplayName, 0.04f);
-            _tokens.Add(token);
         }
 
         void PlaceStar(int typeHint)
@@ -394,6 +471,8 @@ namespace Core.Vfx
                 token = star.AddComponent<HoloToken>();
             token.Kind = HoloTokenKind.System;
             token.Id = focus != null ? focus.SystemId : 0;
+            // Slot -1 = the local star: not a MoveFleetToSystem target from its own system map.
+            token.Slot = -1;
             token.Owned = false;
             token.Busy = false;
             if (focus != null && GalaxyCatalog.TryGet(focus.SystemId, out var here))
@@ -588,7 +667,7 @@ namespace Core.Vfx
             Tag(go, HoloTokenKind.Asteroid, id, slot, owned: false, busy: false, label);
         }
 
-        void PlaceFleet(int slot, int id, Color color, int seed, bool owned, bool busy, string displayName,
+        GameObject PlaceFleet(int slot, int id, Color color, int seed, bool owned, bool busy, string displayName,
             bool active, EmpireStance stance = EmpireStance.Unknown)
         {
             var r = WorldScale.HoloOrbitRadius(Mathf.Max(1, slot)) * 1.08f;
@@ -661,6 +740,7 @@ namespace Core.Vfx
                     color.b * 0.85f + 0.15f, 1f),
                 bold: true, plate: true, startVisible: active || owned);
             Tag(go, HoloTokenKind.Fleet, id, slot, owned, busy, label);
+            return go;
         }
 
         void AddFleetPad(Transform parent, float s, EmpireStance stance, bool active, bool owned)
@@ -928,6 +1008,12 @@ namespace Core.Vfx
 
             _tokenRoots.Clear();
             _tokens.Clear();
+            _fleetViews.Clear();
+            _gFleets.Clear();
+            _gPool.Clear();
+            _gSlot = System.Array.Empty<GalaxyCatalog.Star>();
+            _gSlotUsed = System.Array.Empty<bool>();
+            _gField = null;
         }
 
         static float StableAngle(int seed)

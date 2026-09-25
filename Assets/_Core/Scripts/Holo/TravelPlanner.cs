@@ -34,7 +34,7 @@ namespace Core.Holo
     /// <summary>
     /// Interstellar travel quotes and orders, mirroring the server exactly (actionjs.php MoveFleetToSystem /
     /// PrlBondFleetToSystem, web objects/fleet.js getHyperspaceQuoteTo / getPrlBondQuoteTo):
-    /// distance = hypot on galaxy x/y; speed = ship speed (hyperspace) or min(speed, sublightSpeedCap);
+    /// distance = hypot on galaxy x/y (PRL: on visual_x/visual_y, as the server measures it); speed = ship speed (hyperspace) or min(speed, sublightSpeedCap);
     /// time = max(systemTravelDurationMin, distance × systemTravelSecondsPerDistance / speed);
     /// hyperspace crystal = ⌈distance × cost⌉ (falls back to sub-light if short); PRL range = base + level × step.
     /// Speed boosters are server-side only, so ETAs are shown as estimates (~).
@@ -48,6 +48,19 @@ namespace Core.Holo
                 return false;
             var dx = here.X - tx;
             var dy = here.Y - ty;
+            distance = Mathf.Sqrt(dx * dx + dy * dy);
+            return true;
+        }
+
+        /// <summary>PRL distance: the server measures it on the drawn layout (visual coords), not the grid.</summary>
+        static bool TryBondDistance(FocusFleet fleet, float tx, float ty, out float distance)
+        {
+            distance = 0f;
+            if (fleet == null || !GalaxyCatalog.TryGet(fleet.SystemId, out var here) ||
+                !GalaxyCatalog.TryGetAt(tx, ty, out var there))
+                return false;
+            var dx = here.BondX - there.BondX;
+            var dy = here.BondY - there.BondY;
             distance = Mathf.Sqrt(dx * dx + dy * dy);
             return true;
         }
@@ -90,6 +103,8 @@ namespace Core.Holo
                     break;
 
                 case TravelMode.PrlBond:
+                    if (TryBondDistance(fleet, tx, ty, out var bond))
+                        q.Distance = bond;
                     q.MaxRange = GameConfig.PrlBaseRange + PrlLevel() * GameConfig.PrlRangePerLevel;
                     q.CrystalCost = Mathf.CeilToInt(q.Distance * GameConfig.PrlCrystalPerDistance);
                     q.EtaSeconds = GameConfig.PrlTransitSeconds;

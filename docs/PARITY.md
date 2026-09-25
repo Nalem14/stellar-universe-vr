@@ -68,7 +68,7 @@ Appelées par le client web : 134/152. « Appelée » ≠ « finie » : voir la 
 | `GetEmpirePlanets` | R | empire | — | `ui/WarsWindowUI.js` | Comms | P5 | À faire | Pas de `systemid` dans la réponse : le TP liste mes planètes via `GetSystems` (comme le web) |
 | `GetPlanet` | R | id | — | `objects/planet.js` | Science | P5 | À faire |  |
 | `GetSystemAnomalies` | R | systemid | — | `ui/StarWindowUI.js` | Science | P5 | À faire |  |
-| `GetSystems` | R | — | `App/BridgeSystemLoader.cs` +2 | `scenes/galaxy.js` | Holo table | P0 | Branché |  |
+| `GetSystems` | R | — | `App/BridgeSystemLoader.cs` +2 | `scenes/galaxy.js` | Holo table | P4 | Branché | Galaxie complète sur la table (LOD, territoires par détenteur) |
 | `ScanAnomaly` | W | anomaly, fleet | — | `ui/StarWindowUI.js` | Science | P5 | À faire |  |
 
 ## Flotte
@@ -88,7 +88,7 @@ Appelées par le client web : 134/152. « Appelée » ≠ « finie » : voir la 
 | `MoveFleetToAsteroid` | W | fleet, asteroid, hyperspace? | `Crew/CrewLines.cs` +2 | `objects/fleet.js` | Helm | P4 | Branché | idem hyperspace |
 | `MoveFleetToPlanet` | W | fleet, planet, hyperspace? | `Crew/CrewLines.cs` +2 | `objects/fleet.js` | Helm | P4 | Branché | idem hyperspace |
 | `MoveFleetToSystem` | W | fleet, pos, hyperspace? | `Crew/CrewLines.cs` +2 | `objects/fleet.js` | Helm | P4 | Branché | Toujours `hyperspace` explicite (0 sous-lumière / 1 hyperespace) après devis au pupitre (`TravelPlanner`, formules serveur) ; `ok:sublight_*` → `ApiResult.NoticeKey` |
-| `PrlBondFleetToSystem` | W | fleet, system?, pos? | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Helm | P4 | Branché | Devis portée / coût / recharge au pupitre (`TravelPlanner`), `fleet` + `system` + `pos` |
+| `PrlBondFleetToSystem` | W | fleet, system?, pos? | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Helm | P4 | Branché | Devis portée / coût / recharge au pupitre (`TravelPlanner`, distance sur `visual_x/visual_y` comme le serveur), `fleet` + `system` + `pos` ; lâcher sur une étoile de la galaxie |
 | `ProcessFleetOrderQueue` | W | fleet | — | — | Helm | — | Hors scope | Géré par cron + `GetAllFleets` ; pas d'UI |
 | `RemoveFleetOrderStep` | W | fleet, stepIndex | `Holo/OrderQueue.cs` | `objects/fleet.js` | Helm | P4 | Branché | `stepIndex` 0-based, repeater Helm |
 | `RenameFleet` | W | id, name | — | `objects/fleet.js` | Helm | P5 | À faire |  |

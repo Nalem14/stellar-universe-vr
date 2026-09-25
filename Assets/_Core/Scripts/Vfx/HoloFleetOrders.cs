@@ -19,6 +19,8 @@ namespace Core.Vfx
     {
         /// <summary>Horizontal snap radius on the holo disc (meters).</summary>
         const float DropRadius = 0.7f;
+        /// <summary>Stars sit a few cm apart on the galaxy: the target must be the one under the hand.</summary>
+        const float GalaxyDropRadius = 0.09f;
         const float DragLift = 0.14f;
 
         HoloZoneMap _map;
@@ -448,6 +450,15 @@ namespace Core.Vfx
 
                 // Quote on the lectern first; nothing leaves before Confirm.
                 var fleet = _focus.FindFleet(fleetToken.Id);
+                if (target.Kind == HoloTokenKind.System && fleet != null && fleet.SystemId == target.Id)
+                {
+                    // Put back on its own star (galaxy map): nothing to order.
+                    fleetToken.SnapHome();
+                    RestoreSpin(fleetToken);
+                    _map?.SetReadout(Trans.Get("galaxy"));
+                    return;
+                }
+
                 var mode = Core.Holo.TravelMode.Sublight;
                 if (_console != null && fleet != null)
                 {
@@ -528,6 +539,9 @@ namespace Core.Vfx
         {
             if (_map == null)
                 return null;
+            // Galaxy: every star on the plate is a target, not just the ones holding a token.
+            if (_map.ShowingGalaxy)
+                return _map.GalaxyTargetNear(worldPos, GalaxyDropRadius);
             HoloToken best = null;
             var bestDist = DropRadius;
             foreach (var token in _map.Tokens)
@@ -538,8 +552,7 @@ namespace Core.Vfx
                     token.Kind != HoloTokenKind.System)
                     continue;
                 // Ignore the local star as a MoveFleetToSystem target (same-system map).
-                if (token.Kind == HoloTokenKind.System && token.Slot == 0 &&
-                    token.HomeLocalPos.sqrMagnitude < 0.05f * 0.05f)
+                if (token.Kind == HoloTokenKind.System && token.Slot < 0)
                     continue;
 
                 var a = token.transform.position;

@@ -124,6 +124,23 @@ namespace Core.Vfx
             return mat;
         }
 
+        /// <summary>Galaxy star field (one mesh for every system; per-vertex stance tint, rim fade).</summary>
+        public Material StarField()
+        {
+            const string key = "SF";
+            if (_cache.TryGetValue(key, out var cached) && cached != null)
+                return cached;
+            var shader = Shader.Find("SU/HoloStarField");
+            // Fallback keeps the stars as soft emissive dots (no vertex tint) rather than magenta.
+            var mat = shader != null ? new Material(shader) : Holo(TokenSystem, new Color(0.6f, 0.9f, 1f, 0.9f));
+            if (mat.HasProperty("_DiscRadius"))
+                mat.SetFloat("_DiscRadius", WorldScale.HoloDiscRadius * 0.97f);
+            if (mat.HasProperty("_RimFade"))
+                mat.SetFloat("_RimFade", 0.09f);
+            _cache[key] = mat;
+            return mat;
+        }
+
         /// <summary>Alpha-blended radar glyph (ships/pads) — no additive wash, black keyed out.</summary>
         public Material RadarIcon(Texture tex, Color tint)
         {

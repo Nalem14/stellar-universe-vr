@@ -19,6 +19,20 @@ namespace Core.Vfx
             public string Name;
             public float X;
             public float Y;
+            /// <summary>systems.visual_x / visual_y (0 = unset) — the drawn galaxy layout.</summary>
+            public float VisualX;
+            public float VisualY;
+            public int Type;
+            /// <summary>User holding most of the system's planets (0 = unclaimed) — the web territory tint.</summary>
+            public int OwnerId;
+
+            /// <summary>Server PRL distance basis (actionjs PrlBondFleetToSystem): visual coords, else x/y.</summary>
+            public float BondX => VisualX > 0f ? VisualX : X;
+            public float BondY => VisualY > 0f ? VisualY : Y;
+
+            /// <summary>Web galaxy layout (galaxy.js buildSystemsAndPosition): visual coords, else x/y + 100.</summary>
+            public float MapX => VisualX > 0f ? VisualX : X + 100f;
+            public float MapY => VisualY > 0f ? VisualY : Y + 100f;
 
             /// <summary>Systems carry no names in the game — they are known by galaxy coordinates.</summary>
             public string Label => Coordinates(X, Y);
@@ -78,6 +92,21 @@ namespace Core.Vfx
             return false;
         }
 
+        /// <summary>System at grid x/y (the server's GetSystemByXY for a pos order).</summary>
+        public static bool TryGetAt(float x, float y, out Star star)
+        {
+            for (var i = 0; i < Stars.Count; i++)
+            {
+                if (!Mathf.Approximately(Stars[i].X, x) || !Mathf.Approximately(Stars[i].Y, y))
+                    continue;
+                star = Stars[i];
+                return true;
+            }
+
+            star = default;
+            return false;
+        }
+
         public static void CollectNearest(int fromSystemId, int max, List<Star> into)
         {
             into.Clear();
@@ -120,13 +149,17 @@ namespace Core.Vfx
                 foreach (var s in arr)
                 {
                     var systemId = FocusContext.AsInt(s["id"]);
-                    Stars.Add(new Star
+                    var firstPlanet = Planets.Count;
+                    var star = new Star
                     {
                         Id = systemId,
                         Name = FocusContext.AsString(s["name"]),
                         X = FocusContext.AsFloat(s["x"]),
-                        Y = FocusContext.AsFloat(s["y"])
-                    });
+                        Y = FocusContext.AsFloat(s["y"]),
+                        VisualX = FocusContext.AsFloat(s["visual_x"]),
+                        VisualY = FocusContext.AsFloat(s["visual_y"]),
+                        Type = FocusContext.AsInt(s["type"])
+                    };
 
                     if (s["planets"] is JArray planetArr)
                     {
@@ -138,6 +171,9 @@ namespace Core.Vfx
                         foreach (var prop in planetMap.Properties())
                             AddPlanet(prop.Value, systemId, FocusContext.AsInt(prop.Name));
                     }
+
+                    star.OwnerId = DominantOwner(firstPlanet);
+                    Stars.Add(star);
                 }
 
                 _loaded = true;
@@ -146,6 +182,29 @@ namespace Core.Vfx
             {
                 // Shape varies.
             }
+        }
+
+        static readonly Dictionary<int, int> OwnerCounts = new();
+
+        static int DominantOwner(int fromPlanet)
+        {
+            OwnerCounts.Clear();
+            int best = 0, bestCount = 0;
+            for (var i = fromPlanet; i < Planets.Count; i++)
+            {
+                var uid = Planets[i].UserId;
+                if (uid <= 0)
+                    continue;
+                OwnerCounts.TryGetValue(uid, out var n);
+                OwnerCounts[uid] = ++n;
+                if (n > bestCount)
+                {
+                    best = uid;
+                    bestCount = n;
+                }
+            }
+
+            return best;
         }
 
         static void AddPlanet(JToken p, int systemId, int fallbackId)
