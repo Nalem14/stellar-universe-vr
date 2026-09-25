@@ -171,6 +171,7 @@ Chaque phase livre **l'art complet** de ce qu'elle touche, sans placeholder. Une
 | **Ops** | ✅ Console Intendance (Editor) : `GetResource` raw sur toutes les planètes (`EconomyService`, 10 s) ; bâtiments avec devis serveur (améliorer / ajouter à la file / réduire), chantier actif + Nova, annulation de file (`id`) ; décisions horaires ; rapport ; `RenamePlanet` ; réplique « construction terminée ». Reste : troupes et défenses avec quantités (→ Tactical) |
 
 ### P5.5 — Refonte de la table holo (retour joueur 2026-09-25)
+Conception : [`design/HOLOTABLE.md`](design/HOLOTABLE.md) (diorama 3D, viser→viser, confirmation sur la cible, étapes H1–H3).
 La holomap est jugée illisible, peu intuitive et en dessous des pièces (cale sèche, labo), beaucoup plus simples à prendre en main. **Référence : BattleGroup VR** (table tactique : lecture immédiate, sélection et ordres directs à la main, feedback fort). Feature à ré-imaginer de zéro, pas à retoucher :
 - lisibilité d'abord : une information par jeton, hiérarchie claire (étoile / planètes / vaisseaux / anomalies), labels toujours lisibles, moins de disques qui se recouvrent ;
 - gestes explicites et découvrables (saisir un vaisseau → cibles valides surlignées, pupitre qui dit ce qui va se passer), pas de modes cachés ;
