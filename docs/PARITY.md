@@ -1,6 +1,6 @@
 # PARITY — Stellar Universe VR ↔ `actionjs.php`
 
-Généré depuis `action-api.json` (154 actions), `actionjs.php` et un grep des deux clients. Référence web : `/Users/thommy/Websites/stellar-universe`. Roadmap : [`ROADMAP.md`](ROADMAP.md).
+Généré depuis `action-api.json` (158 actions), `actionjs.php` et un grep des deux clients. Référence web : `/Users/thommy/Websites/stellar-universe`. Roadmap : [`ROADMAP.md`](ROADMAP.md).
 
 **Règle** : chaque feature livrée met à jour sa ligne. Avant de coder, lire l'implémentation web (colonne *Web*) + `model/*.php`. On adapte la jouabilité au pont VR ; le contrat serveur reste strict. La VR ne renvoie **jamais** au web.
 
@@ -20,7 +20,7 @@ Généré depuis `action-api.json` (154 actions), `actionjs.php` et un grep des 
 | Caméra (vue) | 2 | 2 | 100 % |
 | Galaxie | 8 | 8 | 100 % |
 | Flotte | 16 | 23 | 70 % |
-| Vaisseau / chantier | 8 | 9 | 89 % |
+| Vaisseau / chantier | 12 | 13 | 92 % |
 | Planète / bâtiments / recherche | 11 | 17 | 65 % |
 | Combat | 9 | 14 | 64 % |
 | Jumpgate | 0 | 2 | 0 % |
@@ -29,9 +29,9 @@ Généré depuis `action-api.json` (154 actions), `actionjs.php` et un grep des 
 | Guerre | 0 | 9 | 0 % |
 | Alliance | 1 | 17 | 6 % |
 | Empire / progression / shop | 7 | 27 | 26 % |
-| **Total** | **67** | **154** | **44 %** |
+| **Total** | **71** | **158** | **45 %** |
 
-Appelées par le client web : 134/154. « Appelée » ≠ « finie » : voir la colonne *Statut*.
+Appelées par le client web : 138/158. « Appelée » ≠ « finie » : voir la colonne *Statut*.
 
 ## Auth
 
@@ -105,12 +105,16 @@ Appelées par le client web : 134/154. « Appelée » ≠ « finie » : voir la 
 |---|---|---|---|---|---|---|---|---|
 | `AddShip` | W | type, planet | `Stations/ShipyardPanel.cs` | `objects/fleet.js` | Engineering | P5 | Branché | Onglet Chantier de la cale : catalogue par famille (shipstats), prérequis `requiert`, Construire / + File ; réponse texte ou JSON `queued` |
 | `AddToFleet` | W | fleet, ship, planet? | `Stations/DryDock.cs` | `objects/fleet.js` | Engineering | P5 | Branché | `fleet=0` + ShipCore → JSON `{ok,fleet}` (systemid=planète) ; refuse notYourShip sans supprimer |
+| `ApplyShipTemplate` | W | fleet, template | `Stations/BlueprintPanel.cs` | `ui/ShipBuilderUI.js` | Engineering | P5 | Branché |  |
 | `CancelQueuedShip` | W | id, queue_id | `Stations/ShipyardPanel.cs` | `scenes/planet.js` | Engineering | P5 | Branché | Param `id` (ligne planet_ship_queue) |
 | `DelShip` | W | ship | `Stations/DryDock.cs` | `objects/fleet.js` | Engineering | P5 | Branché | Râtelier du hangar : destruction en deux temps |
 | `DelToFleet` | W | fleet, ship | — | `objects/fleet.js` | Engineering | P5 | À faire |  |
+| `DeleteShipTemplate` | W | id | `Stations/BlueprintPanel.cs` | `ui/ShipBuilderUI.js` | Engineering | P5 | Branché |  |
 | `GetShipLayout` | R | fleet | `Stations/DryDock.cs` +1 | `ui/ShipBuilderUI.js` | Engineering | P5 | Branché | Coque 1:1 dans la cale + hublots (`ShipHullBuilder`) |
+| `GetShipTemplates` | R | — | `Stations/BlueprintPanel.cs` | `ui/ShipBuilderUI.js` | Engineering | P5 | Branché |  |
 | `PlaceShipModule` | W | ship, fleet, gx, gy | `Stations/DryDock.cs` | `ui/ShipBuilderUI.js` | Engineering | P5 | Branché | Cale sèche : caisse posée à la main (ou case visée) ; serveur + VR : adjacence 4-voisins, cœur, planète, MAX_FLEET_SIZE, cache fleet_stats_ |
 | `RemoveShipModule` | W | ship | `Stations/DryDock.cs` | `ui/ShipBuilderUI.js` | Engineering | P5 | Branché | Cale sèche : en deux temps ; refusé si le retrait couperait le vaisseau du cœur |
+| `SaveShipTemplate` | W | fleet, name | `Stations/BlueprintPanel.cs` | `ui/ShipBuilderUI.js` | Engineering | P5 | Branché |  |
 | `SpeedupShipyard` | W | planet, ship? | `Stations/ShipyardPanel.cs` | `scenes/planet.js` | Engineering | P5 | Branché | Coût Nova affiché (gratuit ≤ 60 s) |
 
 ## Planète / bâtiments / recherche
@@ -275,6 +279,7 @@ Corrigés dans `stellar-universe` (`7580501`, 2026-09-25) — le client VR ne co
 | `CreateEmpire` + `GetLeaderTraits` (API) ; `GetMeEmpire` → `error:noEmpire` | Fait |
 | i18n web : onglets, EmpireHub, recherche, skills, décisions, journal colonie, relations overlay | Fait |
 | Clés `vr.*` + `crew.*` (missing-keys §2–3) dans `assets/langs/{fr,en}.json` | Fait |
+| Clés `vr.battle.*` (missing-keys P5.5 H3, combat sur la table) dans `assets/langs/{fr,en}.json` | Fait |
 
 ### Restants
 
@@ -282,7 +287,7 @@ Corrigés dans `stellar-universe` (`7580501`, 2026-09-25) — le client VR ne co
 - **Flux VR CreateEmpire** : ✅ livré côté VR (`UI/EmpireCreationWizard.cs`) — `error:noEmpire` → assistant du sas → `CreateEmpire` → `GetMeEmpire` → Bridge.
 - **Plafonds d'empire** : ✅ `GetConfigs.empire.maxPolicies` / `leaderTraitsMax` (web `faf0614`, en prod) — lus par l'assistant de création.
 - **Propriété des planètes** : ✅ cache `GetSystems` vidé à la planète de départ / `ColonizePlanet` / suppression de compte ; `GetEmpirePlanets` renvoie `systemid` + `slot` (web `c94c803`, en prod). Un nouvel empire voyait son monde natal comme non possédé jusqu'à 1 h.
-- **Formes du drapeau** : libellés en dur dans `view/create-empire.php` → clés `flagShape_<id>` (missing-keys).
+- **Formes du drapeau** : ✅ `view/create-empire.php` rend les options des trois sélecteurs via les clés `flagShape_<id>` (fr/en) ; restent les libellés de rangée « Couleur de fond » / « Forme n » en dur dans la vue.
 
 ### À corriger côté web (relevés en lisant le chantier / designer, 2026-09-25)
 
@@ -315,9 +320,9 @@ Corrigés dans `stellar-universe` (`7580501`, 2026-09-25) — le client VR ne co
 
 ### À corriger côté web (relevés en lisant le combat et le commit a93b82c, 2026-09-25)
 
-- **⚠ « Surcharge Cybernétique » (`cyber_override`, type `cyber_hack`) ne marche jamais** : `BattleResolveAction` (model/battle.php) lit `$targetBship`, une variable jamais définie. La compétence renvoie donc toujours `error:target_required`, même sur une cible valide. Il faut charger la cible comme les autres types : `$targetBship = $targetBshipId ? GetBattleShip($targetBshipId) : GetBattleShipAtHex($battleid, $tQ, $tR)`, et refuser le tir allié. La VR envoie déjà `target_bship_id` et `target_q` / `target_r`.
-- **Lignes `battle_actions` sans id de compétence** : le résultat stocké ne dit pas quelle compétence a tiré. La VR (comme le web) devine la couleur du tir d'après la forme du résultat. Ajouter `skill` (id) dans `$result` rendrait les tirs ennemis exacts.
-- **Modèles de vaisseaux (commit a93b82c)** : `GetShipTemplates`, `SaveShipTemplate` (`fleet`, `name`), `DeleteShipTemplate` (`id`) et `ApplyShipTemplate` (`fleet`, `template`) sont écrits en `if ($_GET['action'] == …)` et non en `addAction`. Ils sont absents de `action-api.json`, donc invisibles pour la matrice. À documenter dans le contrat (params, retours, erreurs). La VR les branchera dans la cale sèche.
+- **⚠ « Surcharge Cybernétique » (`cyber_override`, type `cyber_hack`) ne marchait jamais** : ✅ corrigé — `$targetBship` est résolu comme pour les autres compétences (`target_bship_id`, sinon la case visée `$tQ`/`$tR`) et le tir allié est refusé (`friendly_fire`). La VR envoie déjà `target_bship_id` et `target_q` / `target_r`.
+- **Lignes `battle_actions` sans id de compétence** : ✅ `skill` (id) est désormais ajouté à `$result` — les tirs rejoués (les nôtres comme ceux de l'adversaire) portent la compétence exacte au lieu d'être devinés par la forme du résultat. Reste à l'exploiter côté clients.
+- **Modèles de vaisseaux (commit a93b82c)** : ✅ documentés dans `action-api.json` (`GetShipTemplates`, `SaveShipTemplate`, `DeleteShipTemplate`, `ApplyShipTemplate` — params, retours, erreurs) ; `action_index` et `action_count` réalignés sur le total réel. `BlueprintPanel.cs` les branche déjà côté VR — ils apparaissent maintenant dans la matrice.
 - **Triangulation stargate (commit a93b82c)** : rien à changer côté VR. La découverte est accordée côté serveur (`ImproveResearch`, rattrapage dans `GetKnownAddresses`) ; les adresses arrivent par `GetKnownAddresses` quand Comms / Stargate sera branché.
 
 ### Spec livrée — `CreateEmpire`
