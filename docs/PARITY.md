@@ -18,7 +18,7 @@ Généré depuis `action-api.json` (154 actions), `actionjs.php` et un grep des 
 | Auth | 3 | 3 | 100 % |
 | Méta / boot | 2 | 5 | 40 % |
 | Caméra (vue) | 2 | 2 | 100 % |
-| Galaxie | 2 | 8 | 25 % |
+| Galaxie | 4 | 8 | 50 % |
 | Flotte | 16 | 23 | 70 % |
 | Vaisseau / chantier | 8 | 9 | 89 % |
 | Planète / bâtiments / recherche | 11 | 17 | 65 % |
@@ -29,7 +29,7 @@ Généré depuis `action-api.json` (154 actions), `actionjs.php` et un grep des 
 | Guerre | 0 | 9 | 0 % |
 | Alliance | 1 | 17 | 6 % |
 | Empire / progression / shop | 7 | 27 | 26 % |
-| **Total** | **60** | **154** | **39 %** |
+| **Total** | **62** | **154** | **40 %** |
 
 Appelées par le client web : 134/154. « Appelée » ≠ « finie » : voir la colonne *Statut*.
 
@@ -67,9 +67,9 @@ Appelées par le client web : 134/154. « Appelée » ≠ « finie » : voir la 
 | `GetBounties` | R | — | — | `ui/BountiesWindowUI.js` | Science | P5 | À faire |  |
 | `GetEmpirePlanets` | R | empire | `App/OwnedPlanets.cs` | `ui/WarsWindowUI.js` | Système (boot) | P5 | Branché | `OwnedPlanets` : mes planètes fraîches (id, `systemid`, slot — web `c94c803`), au boot et après une fondation ; `GetSystems` en secours seulement |
 | `GetPlanet` | R | id | — | `objects/planet.js` | Science | P5 | À faire |  |
-| `GetSystemAnomalies` | R | systemid | — | `ui/StarWindowUI.js` | Science | P5 | À faire |  |
+| `GetSystemAnomalies` | R | systemid | `App/AnomalyService.cs` | `ui/StarWindowUI.js` | `AnomalyService` : une lecture par système visité (le serveur fait apparaître une anomalie à 45 % quand il n'y en a pas) ; titres par type (`anomaly_<type>`), pas le texte FR stocké | P5 | Branché |  |
 | `GetSystems` | R | — | `App/BridgeSystemLoader.cs` +2 | `scenes/galaxy.js` | Holo table | P4 | Branché | Galaxie complète sur la table (LOD, territoires par détenteur) |
-| `ScanAnomaly` | W | anomaly, fleet | — | `ui/StarWindowUI.js` | Science | P5 | À faire |  |
+| `ScanAnomaly` | W | anomaly, fleet | `App/AnomalyService.cs` +1 | `ui/StarWindowUI.js` | Vaisseau scanneur (ScienceModule / SensorArray / DeepSpaceScanner) déposé sur le jeton, devis des gains au pupitre ; ou répéteur Science | P5 | Branché |  |
 
 ## Flotte
 
@@ -297,11 +297,13 @@ Corrigés dans `stellar-universe` (`7580501`, 2026-09-25) — le client VR ne co
 
 ### À corriger côté web (relevés en lisant la recherche, 2026-09-25)
 
-- **⚠ `ImproveResearch` en file perd un niveau** : le handler travaille sur le `$empire` global, déjà passé par `AdjustEmpireForPendingWork` (niveau de la recherche en cours −1). La branche « file » fait `UpdateEmpire($empire)` → ce −1 est **écrit en base** : la recherche en cours finit sans son niveau. Le même `$empire` ajusté donne `targetLevel = niveau ajusté + file + 1` = le niveau déjà en cours (doublon payé). Correctif : recharger l'empire brut (`GetEmpireByUser`) avant de débiter et de calculer la cible (cible = brut + file + 1, comme le web l'affiche : `level + 2` si actif). À vérifier ailleurs : toute action qui fait `UpdateEmpire($empire)` sur le global pendant une recherche (même −1 en base).
-- **File de recherche web : nom vide** : `ResearchWindowUI` / `research.js` lisent `item.research_type`, la colonne est `research` (`empire_research_queue`). La VR lit `research` (avec repli `research_type`).
-- **Clé absente `needSearchLab`** (web `onImprove`, aucun labo) : n'existe pas dans `fr.json`/`en.json` ; la clé native est `noResearchLab` (utilisée par la VR).
-- **`UNLOCKS` codé en dur en français** (`research.js`) : la VR les dérive des configs serveur (`requiert` de `shipstats` / `troopstats` / `defensestats` + bâtiments). Les effets chiffrés (+10 %/niv…) restent dans `desc<Tech>`.
-- **`GetResource.empire` brut** : le niveau de la recherche en cours y est déjà incrémenté (≠ `GetMeEmpire`, ajusté). La VR corrige (`EconomyService.ResearchLevel`) ; idéalement `GetResource` passerait aussi par `AdjustEmpireForPendingWork`.
+- **⚠ `ImproveResearch` en file perd un niveau** : ✅ recharge l'empire brut avant débit / `targetLevel` / `UpdateEmpire` ; même garde sur `RenameEmpire`, `SpeedupBuilding`, `ExplorePlanet` (ne plus persister `AdjustEmpireForPendingWork`).
+- **File de recherche web : nom vide** : ✅ clients lisent `research` (alias `research_type` / `duration_seconds` renvoyés par `GetEmpireResearchQueue`) ; hbs corrigé.
+- **Clé absente `needSearchLab`** : ✅ UI utilise `noResearchLab` ; alias `needSearchLab` ajouté FR/EN.
+- **`UNLOCKS` codé en dur en français** : ✅ dérivé des configs (`shipstats` / `troopstats` / `defensestats` + bâtiments gate) ; libellés via i18n / `vr.research.kind.*` ; effets dans `desc<Tech>`.
+- **`GetResource.empire` brut** : ✅ `AdjustEmpireForPendingWork` (aligné `GetMeEmpire`).
+
+- **Anomalies : titre / description stockés en français** dans `anomalies.title/description` : à localiser par `type` (`anomaly_<type>`, `anomalyDesc_<type>`, clés listées dans `missing-keys.md`). La VR n'affiche que les clés.
 
 ### Spec livrée — `CreateEmpire`
 

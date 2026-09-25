@@ -106,10 +106,10 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 | `vr.research.pick` | Point at a crystal to study the technology. | Visez un cristal pour étudier la technologie. | Écran d'analyse, rien de sélectionné |
 | `vr.research.requires` | Prerequisites | Prérequis | Écran d'analyse (`GetConfigs.researchs.requiert`) |
 | `vr.research.unlocks` | Unlocks | Débloque | Écran d'analyse : modules, bâtiments, défenses, troupes qui citent la techno |
-| `vr.research.kind.building` | Building | Bâtiment | Type de déblocage |
-| `vr.research.kind.module` | Module | Module | Type de déblocage |
-| `vr.research.kind.defense` | Defense | Défense | Type de déblocage |
-| `vr.research.kind.troop` | Troop | Troupe | Type de déblocage |
+| `vr.research.kind.building` | Building | Bâtiment | ✅ web fr/en |
+| `vr.research.kind.module` | Module | Module | ✅ web fr/en |
+| `vr.research.kind.defense` | Defense | Défense | ✅ web fr/en |
+| `vr.research.kind.troop` | Troop | Troupe | ✅ web fr/en |
 | `vr.research.nextLevel` | Level {0} | Niveau {0} | Coût du prochain niveau |
 | `vr.research.pts` | pts | pts | Unité des points de recherche |
 | `vr.research.launch` | Research level {0} | Rechercher le niveau {0} | `ImproveResearch` quand rien ne tourne |
@@ -118,6 +118,21 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 | `vr.research.started` | Research started: {0} | Recherche lancée : {0} | Retour `ImproveResearch` (corps vide) |
 | `vr.research.queued` | {0} level {1} added to the queue | {0} niveau {1} ajouté à la file | Retour `ImproveResearch` `{queued, targetLevel}` |
 | `vr.research.cancelled` | {0} removed from the queue, points refunded | {0} retiré de la file, points remboursés | Retour `CancelQueuedResearch` (cristal arraché du pad ou ×) |
+
+## À intégrer (P5 — anomalies)
+
+| Clé | EN | FR | Contexte |
+|---|---|---|---|
+| `anomaly_derelict_ship` | Ancient frigate wreck | Épave de frégate ancienne | Nom par type (la DB stocke le titre FR en dur) |
+| `anomaly_precursor_cache` | Sealed precursor beacon | Balise précurseur scellée | idem |
+| `anomaly_crystal_monolith` | Resonant crystal asteroid | Astéroïde cristallin résonnant | idem |
+| `anomaly_nebula_rift` | Unstable ion rift | Faille ionique instable | idem |
+| `anomalyDesc_derelict_ship` | A scout's hulk drifts in silence. Its data banks may hold precious schematics. | La carcasse d'un vaisseau éclaireur dérive en silence. Ses banques de données peuvent renfermer de précieux schémas. | Description par type |
+| `anomalyDesc_precursor_cache` | An artifact of a vanished civilisation pulsing encrypted subspace signals. | Un artefact d'une civilisation disparue émettant des impulsions sub-spatiales cryptées. | idem |
+| `anomalyDesc_crystal_monolith` | A space formation saturated with high-energy crystals. | Une formation géologique spatiale saturée de cristaux à haute densité énergétique. | idem |
+| `anomalyDesc_nebula_rift` | A temporary tear in space giving off intense radiation, usable for quantum physics. | Une déchirure temporaire du continuum spatial dégageant d'intenses radiations exploitables pour la physique quantique. | idem |
+| `vr.anomaly.preview` | +{0} research · +{1} minerals · +{2} crystals · difficulty {3} | +{0} recherche · +{1} minéraux · +{2} cristaux · difficulté {3} | Devis au pupitre / répéteur Science |
+| `vr.anomaly.rewards` | +{0} research · +{1} minerals · +{2} crystals · +{3} XP | +{0} recherche · +{1} minéraux · +{2} cristaux · +{3} XP | Retour `ScanAnomaly` |
 
 ## Restant côté web
 

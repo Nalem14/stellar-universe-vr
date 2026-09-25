@@ -299,6 +299,9 @@ namespace Core.Vfx
                 // Boarding a ship goes through the view teleporter; Helm is not even present here.
                 if (fleet == null)
                 {
+                    // Science still surveys the system's anomalies with any of our scanner ships present.
+                    if (_role == Role.Science && BuildAnomalies(focus) > 0)
+                        return;
                     AddStatus(Trans.Get("vr.crew.standby"));
                     return;
                 }
@@ -603,9 +606,58 @@ namespace Core.Vfx
 
         }
 
-        /// <summary>Science: surveys (ExplorePlanet → research points). Anomalies / research tree: P5.</summary>
+        /// <summary>
+        /// Anomalies of the system in view, each scannable by one of our scanner ships present (ScanAnomaly).
+        /// Returns how many rows it added.
+        /// </summary>
+        int BuildAnomalies(FocusContext focus)
+        {
+            var service = AnomalyService.Instance;
+            if (service == null || focus == null)
+                return 0;
+            var list = service.For(focus.SystemId);
+            if (list.Count == 0)
+                return 0;
+            var scanner = AnomalyService.ScannerIn(focus, focus.SystemId);
+            var rows = 0;
+            foreach (var a in list)
+            {
+                var anomaly = a;
+                var name = Trans.Get(anomaly.NameKey);
+                if (scanner == null)
+                {
+                    AddStatus(name + "  ·  " + Trans.Get("fleet_lacks_science_module"));
+                    rows++;
+                    continue;
+                }
+
+                var ship = scanner;
+                AddAction(ActionLabel("scanAnomaly", name + "  (" + Trans.Format("vr.anomaly.preview", anomaly.Research,
+                        anomaly.Minerals, anomaly.Crystals, anomaly.Difficulty) + ")"),
+                    async () =>
+                    {
+                        var r = await service.Scan(anomaly, ship);
+                        if (r.Ok)
+                        {
+                            CicCue.Ok(transform.position);
+                            _map?.SetReadout(name + " · " + AnomalyService.RewardText(r.Body));
+                        }
+                        else
+                        {
+                            CicCue.Fail(transform.position);
+                            _map?.SetReadout(string.IsNullOrEmpty(r.Error) ? Trans.Get("vr.common.error") : r.Error);
+                        }
+                    }, DiegeticUi.BtnStyle.Amber);
+                rows++;
+            }
+
+            return rows;
+        }
+
+        /// <summary>Science: surveys (ExplorePlanet → research points) and the system's anomalies.</summary>
         void BuildScience(FocusContext focus, FocusFleet fleet)
         {
+            BuildAnomalies(focus);
             if (FleetOrderGate.CanExplore(fleet))
             {
                 var planetLabel = PlanetLabel(focus.FindPlanet(fleet.PlanetId), fleet.PlanetId);

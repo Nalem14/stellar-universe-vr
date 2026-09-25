@@ -7,7 +7,8 @@ namespace Core.Vfx
         Fleet,
         Planet,
         Asteroid,
-        System
+        System,
+        Anomaly
     }
 
     /// <summary>

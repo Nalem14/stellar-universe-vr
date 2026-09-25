@@ -68,6 +68,9 @@ namespace Core.App
             Core.Stations.DryDock.Build(env.Art, _focus, _poller, economy);
             Core.Stations.DockDoor.Build(interior.transform, env.Art, _focus);
             Core.Stations.ResearchLab.Build(env.Art, economy);
+            var anomalies = AnomalyService.Build(interior.transform, _focus);
+            if (_zoneMap != null)
+                anomalies.Changed += _zoneMap.OnAnomaliesChanged;
             Core.Stations.LabDoor.Build(interior.transform, env.Art);
             CrewStationsBuilder.Build(env, env.Art, hex, _zoneMap, _poller, _focus, _loader);
             BridgeViewscreen.Build(env, _focus);

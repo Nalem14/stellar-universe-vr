@@ -383,6 +383,7 @@ namespace Core.Vfx
 
             foreach (var rock in focus.Asteroids)
                 PlaceAsteroid(rock.Slot, rock.Id);
+            PlaceAnomalies(focus.SystemId);
 
             var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             var viewId = focus.ViewFleetId;

@@ -413,6 +413,12 @@ namespace Core.Vfx
                     return;
                 }
 
+                if (target.Kind == HoloTokenKind.Anomaly)
+                {
+                    await ScanDrop(fleetToken, target);
+                    return;
+                }
+
                 string action;
                 var query = new Dictionary<string, string>
                 {
@@ -535,6 +541,62 @@ namespace Core.Vfx
             }
         }
 
+        /// <summary>
+        /// Ship dropped on an anomaly: survey it where it is (ScanAnomaly needs no travel — the ship must already
+        /// be in that system with a scanner module). The lectern shows the rewards before the order goes.
+        /// </summary>
+        async Task ScanDrop(HoloToken fleetToken, HoloToken target)
+        {
+            var fleet = _focus.FindFleet(fleetToken.Id);
+            var anomaly = AnomalyService.Instance?.Find(target.Id);
+            string block = null;
+            if (fleet == null || anomaly == null)
+                block = Trans.Get("anomaly_not_found");
+            else if (!AnomalyService.HasScanner(fleet))
+                block = Trans.Get("fleet_lacks_science_module");
+            else if (fleet.SystemId != anomaly.SystemId || fleet.IsMoving(FleetOrderGate.UnixNow()))
+                block = Trans.Get("fleet_not_in_system");
+
+            fleetToken.SnapHome();
+            RestoreSpin(fleetToken);
+            if (block != null)
+            {
+                CicCue.Fail(target.transform.position);
+                _map?.SetReadout(block);
+                Core.Crew.BarkDirector.Instance?.Say(CrewDialogue.Role.Science, "fail", 3);
+                return;
+            }
+
+            var name = Trans.Get(anomaly.NameKey);
+            if (_console != null)
+            {
+                var detail = Trans.Format("vr.anomaly.preview", anomaly.Research, anomaly.Minerals, anomaly.Crystals,
+                    anomaly.Difficulty);
+                var options = new List<Core.Holo.OrderConsole.Option>
+                {
+                    new(Trans.Get("scanAnomaly") + "  ·  " + detail, true, HoloZoneMap.AnomalyTint(anomaly.Type), "scan")
+                };
+                var choice = await _console.Ask(fleetToken.DisplayName.Replace('\n', ' ') + "  →  " + name, options);
+                if (choice == null)
+                {
+                    _map?.SetReadout(Trans.Get("cancel"));
+                    return;
+                }
+            }
+
+            _map?.SetReadout($"{Trans.Get("Loading")} · {name}");
+            var result = await AnomalyService.Instance.Scan(anomaly, fleet);
+            if (!result.Ok)
+            {
+                CicCue.Fail(target.transform.position);
+                _map?.SetReadout(FormatError("ScanAnomaly", result.Error));
+                return;
+            }
+
+            CicCue.Ok(target.transform.position);
+            _map?.SetReadout(name + " · " + AnomalyService.RewardText(result.Body));
+        }
+
         HoloToken FindNearestDropTarget(Vector3 worldPos)
         {
             if (_map == null)
@@ -549,7 +611,7 @@ namespace Core.Vfx
                 if (token == null)
                     continue;
                 if (token.Kind != HoloTokenKind.Planet && token.Kind != HoloTokenKind.Asteroid &&
-                    token.Kind != HoloTokenKind.System)
+                    token.Kind != HoloTokenKind.System && token.Kind != HoloTokenKind.Anomaly)
                     continue;
                 // Ignore the local star as a MoveFleetToSystem target (same-system map).
                 if (token.Kind == HoloTokenKind.System && token.Slot < 0)
