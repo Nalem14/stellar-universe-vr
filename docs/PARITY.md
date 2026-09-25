@@ -362,6 +362,14 @@ Corrigés dans `stellar-universe` (`7580501`, 2026-09-25) — le client VR ne co
 - **`DeleteMail` répondait `ok` même si l'id n'existe pas** : ✅ `error:mail_not_found` quand rien n'a été supprimé (id inconnu ou courrier d'un autre).
 - **`GetPrivateMessages` marquait tout le fil lu** : ✅ seuls les messages réellement renvoyés par l'appel passent en lu — un poll incrémental ne vide plus le badge avant affichage.
 
+### Relevé en relisant les correctifs Comms et sièges (2026-09-26)
+
+- **La langue du courrier système est celle du serveur, pas du lecteur** : `LangFormat` résout à la lecture, mais `DetectLang()` ne lit que `$_GET['lang']`, la session, le cookie ou `Accept-Language` — le client VR n'envoie aucun des quatre (`ActionJs.BuildUrl` ne passe que l'action, les params et le token, et `GetTranslations` renvoie les deux langues pour un choix local). **À corriger côté VR** : ajouter `&lang=<Trans.Lang>` aux requêtes (rien à changer serveur), sinon un joueur FR reçoit ses alertes en anglais.
+- **L'e-mail externe garde la langue de l'émetteur** : `DispatchExternalEmailNotification` reçoit le texte déjà résolu dans la requête de l'attaquant. Aucune langue par utilisateur n'existe en base — à assumer ou à traiter avec la colonne ci-dessus.
+- **`DoAnAction` ne peut pas déplacer la flotte d'un joueur humain** : `actionjs.php` n'honore `ai=` que pour un compte `isAI = 1`, depuis le serveur lui-même. Le chemin « flotte en fuite » (`RUN_AWAY`) du résolveur de siège reste donc sans effet, et la flotte est quand même retirée du combat. Pré-existant ; à trancher (déplacer la flotte sans passer par l'action, ou retirer le `unset`).
+- **Planète orpheline = flotte parquée** : si la planète visée a été supprimée (le cron quotidien supprime les planètes dont le système n'existe plus) alors qu'une flotte attend `attackEndTime`, la jointure l'ignore et la flotte reste « en attaque » indéfiniment. Aucun nettoyage ne rattrape ce cas.
+- **Marquage « lu » d'un fil** : les ids renvoyés sont bien ceux marqués, mais au-delà de 50 nouveaux messages le client ne voit jamais les plus anciens (fenêtre `DESC LIMIT 50`) — ils restent non lus, ce qui est le comportement sûr.
+
 ### À corriger côté web (relevés en lisant la Stargate, 2026-09-26)
 
 - **`GetKnownAddresses` renvoie la planète d'origine** (elle est dans `known_addresses`) alors que `OpenStargateConnection` refuse de la cibler (`cantTargetOwnPlanet`) : à exclure côté serveur (`$pid != $planet['id']` sur les deux sources).
