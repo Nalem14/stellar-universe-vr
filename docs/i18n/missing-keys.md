@@ -49,3 +49,34 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 | Source web | Restant | Notes |
 |---|---|---|
 | `GetActivity` (DB) | Entrées du journal d'activité stockées en anglais / FR brut | Migration future : stocker clé + params, localiser à la lecture |
+
+## P5 Comms — canal, messages privés, courrier
+
+Clés natives réutilisées : `inbox`, `sent`, `compose`, `reply`, `delete`, `validate`, `send`, `subject`, `recipient`, `from`, `to`, `all`, `player`, `system`, `battle`, `diplomacy`, `noMails`, `noSentMails`, `crew.comms.*`.
+
+| Clé | EN | FR | Contexte |
+|---|---|---|---|
+| `vr.comms.title` | Communications | Communications | Titre de la console Comms |
+| `vr.comms.tab.channel` | Galactic channel | Canal galactique | Onglet chat global |
+| `vr.comms.tab.private` | Private | Privé | Onglet conversations |
+| `vr.comms.tab.mail` | Mail | Courrier | Onglet courrier |
+| `vr.comms.mailUnread` | Mail: {0} unread | Courrier : {0} non lu(s) | Bandeau |
+| `vr.comms.pmUnread` | Private: {0} unread | Privé : {0} non lu(s) | Bandeau |
+| `vr.comms.say` | Message… | Message… | Champ de saisie (canal / privé) |
+| `vr.comms.searchPlayer` | Commander… | Commandant… | Champ recherche joueur |
+| `vr.comms.find` | Find | Chercher | Bouton `SearchPlayers` |
+| `vr.comms.noChat` | The channel is quiet today. | Le canal est calme aujourd'hui. | `GetChat` vide (messages du jour) |
+| `vr.comms.noConversation` | No conversation yet. Find a commander. | Aucune conversation. Cherchez un commandant. | |
+| `vr.comms.noPlayer` | No commander found. | Aucun commandant trouvé. | `SearchPlayers` vide |
+| `vr.comms.pickContact` | Pick a conversation | Choisissez une conversation | Fil vide |
+| `vr.comms.noMessage` | No message yet. | Aucun message pour l'instant. | Fil sans message |
+| `vr.comms.you` | You | Vous | Auteur de nos messages |
+| `vr.comms.back` | Back | Retour | |
+| `vr.comms.console` | [console] {0} | [console] {0} | Réponse `console:` d'AddChat |
+| `vr.comms.pmSent` | Private message sent to {0} | Message privé envoyé à {0} | Réponse `pm_sent:` (/w) |
+| `vr.comms.sent` | Message sent | Message transmis | `SendPrivateMessage` |
+| `vr.comms.content` | Your message… | Votre message… | Corps du courrier |
+| `vr.comms.fillAll` | Recipient, subject and message are required | Destinataire, objet et message sont requis | Garde client avant `SendMail` |
+| `vr.comms.mailSent` | Mail sent | Courrier envoyé | |
+| `vr.comms.mailDeleted` | Mail deleted | Courrier supprimé | |
+| `vr.comms.confirmDelete` | Press again to delete | Appuyez encore pour supprimer | Suppression en deux temps |

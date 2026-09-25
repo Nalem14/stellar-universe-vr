@@ -75,6 +75,8 @@ namespace Core.App
             Core.Stations.ArmoryConsole.Build(interior.transform, economy, _focus, _poller, hex);
             ExteriorTacticalFx.Attach(_exterior, _focus, economy);
             Core.Holo.HoloTacticalMarkers.Attach(_zoneMap, _focus);
+            CommsService.Build(interior.transform);
+            Core.Stations.CommsConsole.Build(interior.transform);
             Core.Stations.DryDock.Build(env.Art, _focus, _poller, economy);
             Core.Stations.DockDoor.Build(interior.transform, env.Art, _focus);
             Core.Stations.ResearchLab.Build(env.Art, economy, _focus);

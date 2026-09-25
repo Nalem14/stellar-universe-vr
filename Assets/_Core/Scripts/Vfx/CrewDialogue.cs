@@ -157,6 +157,15 @@ namespace Core.Vfx
                 s_Open.Close();
             Core.Stations.OpsConsole.Instance?.Close();
             Core.Stations.ArmoryConsole.Instance?.Close();
+            Core.Stations.CommsConsole.Instance?.Close();
+
+            // Comms has no ship order: the officer brings up the comms console (channel, private, mail).
+            if (_role == Role.Comms && Core.Stations.CommsConsole.Instance != null)
+            {
+                GetComponentInParent<CrewOfficer>()?.LookAt(Camera.main != null ? Camera.main.transform.position : (Vector3?)null);
+                Core.Stations.CommsConsole.Instance.Open(_anchor);
+                return;
+            }
 
             // At a virtual station Ops has no ship to order: the officer brings up planet stewardship directly.
             if (_role == Role.Ops && Focus != null && Focus.FindViewFleet() == null)

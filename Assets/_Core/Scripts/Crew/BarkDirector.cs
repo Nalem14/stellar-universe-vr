@@ -93,6 +93,9 @@ namespace Core.Crew
                 Instance = null;
         }
 
+        /// <summary>The officer manning <paramref name="role"/>'s station, if any.</summary>
+        public CrewOfficer Officer(CrewDialogue.Role role) => _officers.TryGetValue(role, out var o) ? o : null;
+
         public void Register(CrewDialogue.Role role, CrewOfficer officer, string stationTitleKey)
         {
             if (officer == null)

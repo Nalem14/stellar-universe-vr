@@ -25,11 +25,11 @@ Généré depuis `action-api.json` (158 actions), `actionjs.php` et un grep des 
 | Combat | 11 | 14 | 79 % |
 | Jumpgate | 0 | 2 | 0 % |
 | Stargate | 0 | 7 | 0 % |
-| Social (chat, mail) | 0 | 11 | 0 % |
+| Social (chat, mail) | 11 | 11 | 100 % |
 | Guerre | 0 | 9 | 0 % |
 | Alliance | 1 | 17 | 6 % |
 | Empire / progression / shop | 7 | 27 | 26 % |
-| **Total** | **78** | **158** | **49 %** |
+| **Total** | **89** | **158** | **56 %** |
 
 Appelées par le client web : 138/158. « Appelée » ≠ « finie » : voir la colonne *Statut*.
 
@@ -181,17 +181,17 @@ Appelées par le client web : 138/158. « Appelée » ≠ « finie » : voir la 
 
 | Action | R/W | Params | VR | Web | Station | Phase | Statut | Notes |
 |---|---|---|---|---|---|---|---|---|
-| `AddChat` | W | message | — | `objects/chat.js` | Comms | P5 | À faire |  |
-| `DeleteMail` | W | id | — | `ui/MailWindowUI.js` | Comms | P5 | À faire |  |
-| `GetChat` | R | lastid? | — | `objects/chat.js` | Comms | P5 | À faire | VR affiche du JSON brut |
-| `GetMail` | R | id | — | `ui/MailWindowUI.js` | Comms | P5 | À faire |  |
-| `GetMailUnreadCount` | R | — | — | `ui/MailWindowUI.js` | Comms | P5 | À faire |  |
-| `GetMails` | R | folder | — | `ui/MailWindowUI.js` | Comms | P5 | À faire | VR affiche du JSON brut |
-| `GetPrivateConversations` | R | — | — | `ui/PanelChatUI.js` | Comms | P5 | À faire |  |
-| `GetPrivateMessages` | R | contact_id, lastid | — | `ui/PanelChatUI.js` | Comms | P5 | À faire |  |
-| `SearchPlayers` | R | query | — | — | Comms | P5 | À faire |  |
-| `SendMail` | W | recipient, subject, content | — | `ui/MailWindowUI.js` | Comms | P5 | À faire |  |
-| `SendPrivateMessage` | W | contact_id, message | — | — | Comms | P5 | À faire |  |
+| `AddChat` | W | message | `Stations/CommsConsole.cs` | `objects/chat.js` | Comms | P5 | Branché | Champ du canal (clavier Quest) ; réponses `console:` (notice serveur, affichée dans le canal) et `pm_sent:` (/w) gérées |
+| `DeleteMail` | W | id | `Stations/CommsConsole.cs` | `ui/MailWindowUI.js` | Comms | P5 | Branché | En deux temps |
+| `GetChat` | R | lastid? | `Stations/CommsConsole.cs` | `objects/chat.js` | Comms | P5 | Branché | Console Comms, onglet Canal : `lastid`, relu toutes les 3 s seulement quand il est à l'écran ; messages du jour (serveur) ; `contact_name` brut (pas le `username` HTML) |
+| `GetMail` | R | id | `Stations/CommsConsole.cs` | `ui/MailWindowUI.js` | Comms | P5 | Branché | Lecture (marque lu côté serveur) → badge relu ; Répondre préremplit « Re: » |
+| `GetMailUnreadCount` | R | — | `App/CommsService.cs` | `ui/MailWindowUI.js` | Comms | P5 | Branché | `CommsService` toutes les 15 s : réplique Comms + balise « message en attente » au-dessus de l'officier Comms |
+| `GetMails` | R | folder | `Stations/CommsConsole.cs` | `ui/MailWindowUI.js` | Comms | P5 | Branché | Onglet Courrier : `folder` inbox / sent, `filter` player / system / battle / diplomacy ; expéditeur 0 → libellé `system` (le serveur écrit « SYSTÈME ») |
+| `GetPrivateConversations` | R | — | `Stations/CommsConsole.cs` | `ui/PanelChatUI.js` | Comms | P5 | Branché | Colonne gauche de l'onglet Privé (badge non lus) |
+| `GetPrivateMessages` | R | contact_id, lastid | `Stations/CommsConsole.cs` | `ui/PanelChatUI.js` | Comms | P5 | Branché | Fil ouvert, `lastid`, relu toutes les 3 s ; marque lu côté serveur |
+| `SearchPlayers` | R | query | `Stations/CommsConsole.cs` | — | Comms | P5 | Branché | Recherche de commandant pour ouvrir un fil (soi-même exclu) |
+| `SendMail` | W | recipient, subject, content | `Stations/CommsConsole.cs` | `ui/MailWindowUI.js` | Comms | P5 | Branché | `recipient` = nom ou id ; garde client champs requis |
+| `SendPrivateMessage` | W | contact_id, message | `Stations/CommsConsole.cs` | — | Comms | P5 | Branché | Champ du fil |
 
 ## Guerre
 
@@ -350,6 +350,16 @@ Corrigés dans `stellar-universe` (`7580501`, 2026-09-25) — le client VR ne co
 - **`CheckPlanetAttack` mélange `echo` et `return`** : `planetNotFound` est émis par `echo` puis `return;` (réponse `error:` OK), les autres issues par `return "ok|ko|wip"` — à uniformiser.
 - **`GetPendingBattles` exige `planetid > 0`** : une bataille en espace ouvert (`planetid = 0`, pirates) n'est jamais listée ; et le handler renvoie `systemOrPlanetNotFound` au lieu d'une liste vide.
 - **Codes bruts sans clé** : `invalid_troop_type`, `invalid_defense_type`, `invalid_troops_payload` (RecruitTroop / BuildDefenseUnit / LoadTroops).
+
+### À corriger côté web (relevés en lisant Comms — chat / MP / courrier, 2026-09-25)
+
+- **Erreurs en français brut** : `SendMail` (« Champs obligatoires manquants », « Destinataire introuvable », « Vous ne pouvez pas vous envoyer un mail à vous-même », « Erreur lors de l'envoi du message »), `SendPrivateMessage` (« Paramètres invalides », « Destinataire introuvable », « Erreur d'envoi du message privé ») et `AddChat` (`console:Joueur '…' introuvable.`, « Vous ne pouvez pas vous chuchoter à vous-même », « Erreur lors de l'envoi du message privé », `Permission denied`) → la VR affiche ce texte tel quel ; il faudrait des clés (`error:<clé>` / `console:<clé>`).
+- **Courriers système écrits en français dans la base** (`SendNotificationMail` : alerte d'attaque, guerre…) : sujet et corps non localisables à la lecture. Stocker une clé + paramètres (comme le journal d'activité).
+- **`sender_username` = « SYSTÈME » codé en dur** (`GetMails` / `GetMailById`) ; la VR remplace par `system` quand `sender_id = 0`.
+- **`GetChat.username` contient du HTML** (`<strong class='text-…'>`) : un client non-HTML doit prendre `contact_name`. Un champ `rank` suffirait.
+- **`GetChat` ne sert que les messages du jour** (`date >= today`) : le canal paraît vide après minuit.
+- **`DeleteMail` répond `ok` même si l'id n'existe pas** ou n'appartient pas au joueur.
+- **`GetPrivateMessages` marque tout le fil lu** même avec `lastid` (lecture incrémentale) — sans conséquence, mais le badge baisse avant affichage.
 
 ### Spec livrée — `CreateEmpire`
 
