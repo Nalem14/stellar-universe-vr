@@ -303,7 +303,12 @@ Corrigés dans `stellar-universe` (`7580501`, 2026-09-25) — le client VR ne co
 - **`UNLOCKS` codé en dur en français** : ✅ dérivé des configs (`shipstats` / `troopstats` / `defensestats` + bâtiments gate) ; libellés via i18n / `vr.research.kind.*` ; effets dans `desc<Tech>`.
 - **`GetResource.empire` brut** : ✅ `AdjustEmpireForPendingWork` (aligné `GetMeEmpire`).
 
-- **Anomalies : titre / description stockés en français** dans `anomalies.title/description` : à localiser par `type` (`anomaly_<type>`, `anomalyDesc_<type>`, clés listées dans `missing-keys.md`). La VR n'affiche que les clés.
+- **Anomalies : titre / description stockés en français** : ✅ clés `anomaly_<type>` / `anomalyDesc_<type>` en fr/en ; spawn stocke les clés ; web + VR affichent via `type` (lignes legacy FR ignorées).
+
+- **⚠ `CompleteBounty` ne vérifie rien** : réclamer puis valider aussitôt paie la prime sans aucune chasse. Il faut une condition serveur (flotte de l'empire présente / combat gagné dans `target_systemid`, pirate détruit…). En attendant, la VR ne propose la remise qu'avec un de nos vaisseaux dans le système cible.
+- **`reward_credits` jamais versé** (affiché par le web, ignoré par `CompleteBounty`) : à verser ou retirer. La VR ne l'affiche pas.
+- **Contrats : titres / descriptions FR en base** : localiser par `target_type` (`bounty_<type>`, clés dans `missing-keys.md`) ; la cible est une coordonnée (systèmes sans nom).
+- **Toast web** : `CompleteBounty` renvoie `message: bounty_completed_successfully`, clé absente (le web affiche `bounty_completed_success`).
 
 ### Spec livrée — `CreateEmpire`
 

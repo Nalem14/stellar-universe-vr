@@ -71,6 +71,9 @@ namespace Core.Stations
 
         CicArtKit _art;
         EconomyService _eco;
+        FocusContext _focus;
+        BountyBoard _bounties;
+        TMP_Text _boardStatus;
         Material _crystalMat;
         Material _glowMat;
         Mesh _crystalMesh;
@@ -112,13 +115,14 @@ namespace Core.Stations
         float _nextPoll;
         long _refreshAt;
 
-        public static ResearchLab Build(CicArtKit art, EconomyService eco)
+        public static ResearchLab Build(CicArtKit art, EconomyService eco, FocusContext focus)
         {
             var go = new GameObject("ScienceResearchLab");
             go.transform.position = WorldOrigin;
             var lab = go.AddComponent<ResearchLab>();
             lab._art = art;
             lab._eco = eco;
+            lab._focus = focus;
             lab._mpb = new MaterialPropertyBlock();
             lab.MakeMaterials();
             lab.BuildRoom();
@@ -954,6 +958,21 @@ namespace Core.Stations
             ScreenMount.FaceViewer(_coreScreen.transform, eye, 1f, 6f);
             _coreScreen.SetAccent(Accent, 0.5f);
             _coreBody = Body(_coreScreen);
+
+            // Contracts board, back-left beside the door: accept a bounty, hand it in on site.
+            var board = HoloScreen.Create(transform, "LabContracts", new Vector2(1.25f, 0.88f),
+                new Vector3(-1.3f, 1.45f, -1.0f), Quaternion.identity, Trans.Get("bounties"));
+            ScreenMount.FaceViewer(board.transform, eye, 1f, 6f);
+            board.SetAccent(new Color(1f, 0.45f, 0.4f, 1f), 0.5f);
+            var boardBody = Body(board);
+            _boardStatus = DiegeticUi.HoloLabel(board.Content, string.Empty, new Vector2(0f, -385f),
+                new Vector2(1180f, 40f), 20f, DiegeticUi.CyanDim);
+            _boardStatus.textWrappingMode = TextWrappingModes.Normal;
+            _bounties = new BountyBoard(boardBody, _focus, (t, e) =>
+            {
+                _boardStatus.text = t ?? string.Empty;
+                _boardStatus.color = e ? UiKit.Danger : DiegeticUi.CyanDim;
+            });
         }
 
         static RectTransform Body(HoloScreen screen)
@@ -1395,6 +1414,7 @@ namespace Core.Stations
             _empire = AuthManager.Ensure().Empire;
             await _eco.RefreshNow();
             await Refresh();
+            AsyncTap.Run(_bounties.Refresh());
             if (_selected == null && Running() is { } running)
                 _selected = running;
             RenderAll();
@@ -1467,6 +1487,7 @@ namespace Core.Stations
                     if (img != null)
                         img.rectTransform.anchorMax = new Vector2(Mathf.Clamp01(v()), 1f);
                 UpdateRing();
+                _bounties.Tick();
 
                 // The server starts the next queued research lazily: re-read when the running one ends.
                 var due = _refreshAt > 0 && FleetOrderGate.UnixNow() >= _refreshAt;

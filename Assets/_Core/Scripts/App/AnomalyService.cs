@@ -20,8 +20,9 @@ namespace Core.App
         public int Research;
         public long ExpiresAt;
 
-        /// <summary>The DB stores French title / description text; the client names anomalies by type.</summary>
+        /// <summary>Player-facing name: GetTranslations key anomaly_&lt;type&gt; (not DB title).</summary>
         public string NameKey => "anomaly_" + Type;
+        /// <summary>Player-facing description: anomalyDesc_&lt;type&gt;.</summary>
         public string DescKey => "anomalyDesc_" + Type;
     }
 

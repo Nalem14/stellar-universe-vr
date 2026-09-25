@@ -119,20 +119,24 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 | `vr.research.queued` | {0} level {1} added to the queue | {0} niveau {1} ajouté à la file | Retour `ImproveResearch` `{queued, targetLevel}` |
 | `vr.research.cancelled` | {0} removed from the queue, points refunded | {0} retiré de la file, points remboursés | Retour `CancelQueuedResearch` (cristal arraché du pad ou ×) |
 
-## À intégrer (P5 — anomalies)
+## Anomalies (intégré web)
 
 | Clé | EN | FR | Contexte |
 |---|---|---|---|
-| `anomaly_derelict_ship` | Ancient frigate wreck | Épave de frégate ancienne | Nom par type (la DB stocke le titre FR en dur) |
-| `anomaly_precursor_cache` | Sealed precursor beacon | Balise précurseur scellée | idem |
-| `anomaly_crystal_monolith` | Resonant crystal asteroid | Astéroïde cristallin résonnant | idem |
-| `anomaly_nebula_rift` | Unstable ion rift | Faille ionique instable | idem |
-| `anomalyDesc_derelict_ship` | A scout's hulk drifts in silence. Its data banks may hold precious schematics. | La carcasse d'un vaisseau éclaireur dérive en silence. Ses banques de données peuvent renfermer de précieux schémas. | Description par type |
-| `anomalyDesc_precursor_cache` | An artifact of a vanished civilisation pulsing encrypted subspace signals. | Un artefact d'une civilisation disparue émettant des impulsions sub-spatiales cryptées. | idem |
-| `anomalyDesc_crystal_monolith` | A space formation saturated with high-energy crystals. | Une formation géologique spatiale saturée de cristaux à haute densité énergétique. | idem |
-| `anomalyDesc_nebula_rift` | A temporary tear in space giving off intense radiation, usable for quantum physics. | Une déchirure temporaire du continuum spatial dégageant d'intenses radiations exploitables pour la physique quantique. | idem |
-| `vr.anomaly.preview` | +{0} research · +{1} minerals · +{2} crystals · difficulty {3} | +{0} recherche · +{1} minéraux · +{2} cristaux · difficulté {3} | Devis au pupitre / répéteur Science |
-| `vr.anomaly.rewards` | +{0} research · +{1} minerals · +{2} crystals · +{3} XP | +{0} recherche · +{1} minéraux · +{2} cristaux · +{3} XP | Retour `ScanAnomaly` |
+| `anomaly_*` / `anomalyDesc_*` | (4 types) | (4 types) | ✅ fr/en — display by `type`, spawn stores keys |
+| `vr.anomaly.preview` | +{0} research · +{1} minerals · +{2} crystals · difficulty {3} | +{0} recherche · +{1} minéraux · +{2} cristaux · difficulté {3} | ✅ fr/en |
+| `vr.anomaly.rewards` | +{0} research · +{1} minerals · +{2} crystals · +{3} XP | +{0} recherche · +{1} minéraux · +{2} cristaux · +{3} XP | ✅ fr/en |
+
+## À intégrer (P5 — contrats)
+
+| Clé | EN | FR | Contexte |
+|---|---|---|---|
+| `bounty_pirate_corvette` | Hunt: sector pirates | Traque : pirates du secteur | Nom par `target_type` (la DB stocke le titre FR en dur) |
+| `bounty_smuggler_den` | Intercept: smugglers | Interception : contrebandiers | idem |
+| `bounty_rogue_ai_node` | Purge: rogue AI node | Purge : nœud d'IA déviant | idem |
+| `vr.bounty.none` | No contract on offer. | Aucun contrat proposé. | Tableau vide |
+| `vr.bounty.goThere` | Send a ship to the target | Envoyez un vaisseau sur la cible | Contrat en cours, aucun de nos vaisseaux dans le système cible |
+| `vr.bounty.rewards` | +{0} research · +{1} minerals · +{2} XP | +{0} recherche · +{1} minéraux · +{2} XP | Retour `CompleteBounty` |
 
 ## Restant côté web
 

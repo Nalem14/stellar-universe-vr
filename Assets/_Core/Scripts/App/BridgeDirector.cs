@@ -67,7 +67,7 @@ namespace Core.App
             Core.Stations.OpsConsole.Build(interior.transform, economy);
             Core.Stations.DryDock.Build(env.Art, _focus, _poller, economy);
             Core.Stations.DockDoor.Build(interior.transform, env.Art, _focus);
-            Core.Stations.ResearchLab.Build(env.Art, economy);
+            Core.Stations.ResearchLab.Build(env.Art, economy, _focus);
             var anomalies = AnomalyService.Build(interior.transform, _focus);
             if (_zoneMap != null)
                 anomalies.Changed += _zoneMap.OnAnomaliesChanged;
