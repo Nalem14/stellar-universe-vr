@@ -120,6 +120,12 @@ namespace Core.Vfx
         public bool TryGetFleet(int fleetId, out Transform ship) =>
             _fleets.TryGetValue(fleetId, out ship) && ship != null;
 
+        public bool TryGetPlanet(int planetId, out Transform planet) =>
+            _planets.TryGetValue(planetId, out planet) && planet != null;
+
+        public bool TryGetAsteroid(int asteroidId, out Transform rock) =>
+            _asteroids.TryGetValue(asteroidId, out rock) && rock != null;
+
         public Vector3 ResolveFleetWorldPosition(FocusFleet fleet)
         {
             if (fleet == null)

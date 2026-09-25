@@ -60,3 +60,12 @@ Clés natives réutilisées (web a93b82c) : `shipTemplates`, `saveCurrentTemplat
 | `templateNotFound` | Blueprint not found | Modèle introuvable | Code serveur `ApplyShipTemplate` |
 | `templateEmpty` | This blueprint has no modules | Ce modèle ne contient aucun module | Code serveur `ApplyShipTemplate` |
 | `notFound` | Not found | Introuvable | Code serveur `DeleteShipTemplate` |
+
+## P5.5 H3b — file d'ordres en chemin 3D
+
+Clés natives réutilisées : `orderQueue`, `orderQueueLoop`, `queueLoopEnabled`, `queueLoopDisabled`, `clearQueue`, `queueCleared`, `queueStepRemoved`, `step*`.
+
+| Clé | EN | FR | Contexte |
+|---|---|---|---|
+| `vr.table.removeStep` | Remove step | Retirer l'étape | Plaque ouverte sur une balise de la file |
+| `vr.table.queueRerouted` | Step rerouted | Étape redirigée | Balise lâchée sur une autre cible (`SetFleetOrderQueue`) |

@@ -95,6 +95,8 @@ namespace Core.App
         public int TargetId;
         public float X;
         public float Y;
+        /// <summary>The step as the server stored it (extra fields kept when the queue is rewritten).</summary>
+        public JObject Raw;
     }
 
     public sealed class FocusAsteroid
@@ -567,7 +569,8 @@ namespace Core.App
                                 Type = AsString(st["type"]),
                                 TargetId = AsInt(st["targetId"]),
                                 X = AsFloat(st["targetX"] ?? st["x"]),
-                                Y = AsFloat(st["targetY"] ?? st["y"])
+                                Y = AsFloat(st["targetY"] ?? st["y"]),
+                                Raw = st as JObject
                             });
                         }
                     }

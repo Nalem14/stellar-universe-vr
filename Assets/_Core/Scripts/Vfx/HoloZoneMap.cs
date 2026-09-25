@@ -337,6 +337,8 @@ namespace Core.Vfx
             var focus = _focus ?? FocusContext.Current;
             if (focus != null && focus.HasSystem)
             {
+                if (_builtForSystem != focus.SystemId)
+                    _deployed.Clear();
                 _builtForSystem = focus.SystemId;
                 _galaxyStub = false;
                 BuildFromFocus(focus);
@@ -488,7 +490,17 @@ namespace Core.Vfx
             marker.DisplayName = displayName ?? string.Empty;
             marker.CaptureHome();
             _tokens.Add(marker);
+
+            // First sight of a body / ship in this system: it deploys (grows out of the plate, inner orbits
+            // first). Later rebuilds of the same token (a poll diff) stay put.
+            if (!_showingGalaxy && _deployed.Add(((int)kind << 24) ^ id))
+            {
+                var d = go.AddComponent<HoloDeploy>();
+                d.Delay = 0.08f + new Vector2(go.transform.localPosition.x, go.transform.localPosition.z).magnitude * 0.55f;
+            }
         }
+
+        readonly HashSet<int> _deployed = new();
 
         public static void SetTokenLabelVisible(HoloToken token, bool visible)
         {

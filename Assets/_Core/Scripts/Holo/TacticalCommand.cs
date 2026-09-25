@@ -50,6 +50,17 @@ namespace Core.Holo
         public static HoloToken EditorAim;
 #endif
 
+        public static TacticalCommand Instance { get; private set; }
+
+        /// <summary>Our ship picked on the table (0 = none).</summary>
+        public int SelectedFleetId => _selectedId;
+
+        /// <summary>Destination under the aim while a ship is selected (null = none).</summary>
+        public HoloToken AimedTarget => _selectedId > 0 && _hover != null && _hover.Kind != HoloTokenKind.Fleet ? _hover : null;
+
+        /// <summary>Selection or aimed target changed (the queue path and the exterior beacons follow).</summary>
+        public event System.Action Changed;
+
         public static TacticalCommand Build(Transform host, HoloZoneMap map, FocusContext focus, HoloFleetOrders orders,
             CicArtKit art)
         {
@@ -61,6 +72,7 @@ namespace Core.Holo
             c._orders = orders;
             c._art = art;
             c.BuildVisuals();
+            Instance = c;
             if (map != null)
                 map.TokensRebuilt += c.OnTokensRebuilt;
             return c;
@@ -68,6 +80,8 @@ namespace Core.Holo
 
         void OnDestroy()
         {
+            if (Instance == this)
+                Instance = null;
             if (_map != null)
                 _map.TokensRebuilt -= OnTokensRebuilt;
         }
@@ -163,9 +177,16 @@ namespace Core.Holo
             var best = float.MaxValue;
             HoloToken token = null;
             var blocker = float.MaxValue;
+            var nodeDist = float.MaxValue;
             for (var i = 0; i < n; i++)
             {
                 var h = _hits[i];
+                if (h.collider.GetComponentInParent<HoloQueueNode>() != null)
+                {
+                    nodeDist = Mathf.Min(nodeDist, h.distance);
+                    continue;
+                }
+
                 var t = h.collider.GetComponentInParent<HoloToken>();
                 if (t == null)
                 {
@@ -184,6 +205,13 @@ namespace Core.Holo
 
             if (token != null && blocker < best)
                 token = null;
+
+            // A queue waypoint in front of the aim: that trigger belongs to the waypoint (QueuePathView).
+            if (nodeDist < blocker && (token == null || nodeDist < best))
+            {
+                onUi = true;
+                return null;
+            }
 
             // Galaxy: the aim meets the star layer; the nearest star there is the target (not only pooled tokens).
             if (token == null && _map.ShowingGalaxy && _map.ContentRoot != null)
@@ -284,6 +312,7 @@ namespace Core.Holo
         void Select(HoloToken token)
         {
             _selectedId = token.Id;
+            Changed?.Invoke();
             CicCue.Ok(token.transform.position);
             var fleet = SelectedFleet;
             if (fleet != null && !fleet.CanIssueMove(FleetOrderGate.UnixNow()))
@@ -296,6 +325,7 @@ namespace Core.Holo
         void Deselect()
         {
             _selectedId = 0;
+            Changed?.Invoke();
             ClearCues();
             _selRing.SetActive(false);
             _arc.enabled = false;
@@ -398,6 +428,7 @@ namespace Core.Holo
             }
 
             _hover = token;
+            Changed?.Invoke();
             if (_hover == null)
                 return;
             _hover.transform.localScale = Vector3.one * 1.2f;

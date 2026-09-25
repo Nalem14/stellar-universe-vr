@@ -19,7 +19,7 @@ Généré depuis `action-api.json` (158 actions), `actionjs.php` et un grep des 
 | Méta / boot | 2 | 5 | 40 % |
 | Caméra (vue) | 2 | 2 | 100 % |
 | Galaxie | 8 | 8 | 100 % |
-| Flotte | 16 | 23 | 70 % |
+| Flotte | 17 | 23 | 74 % |
 | Vaisseau / chantier | 12 | 13 | 92 % |
 | Planète / bâtiments / recherche | 11 | 17 | 65 % |
 | Combat | 9 | 14 | 64 % |
@@ -29,7 +29,7 @@ Généré depuis `action-api.json` (158 actions), `actionjs.php` et un grep des 
 | Guerre | 0 | 9 | 0 % |
 | Alliance | 1 | 17 | 6 % |
 | Empire / progression / shop | 7 | 27 | 26 % |
-| **Total** | **71** | **158** | **45 %** |
+| **Total** | **72** | **158** | **46 %** |
 
 Appelées par le client web : 138/158. « Appelée » ≠ « finie » : voir la colonne *Statut*.
 
@@ -92,7 +92,7 @@ Appelées par le client web : 138/158. « Appelée » ≠ « finie » : voir la 
 | `ProcessFleetOrderQueue` | W | fleet | — | — | Helm | — | Hors scope | Géré par cron + `GetAllFleets` ; pas d'UI |
 | `RemoveFleetOrderStep` | W | fleet, stepIndex | `Holo/OrderQueue.cs` | `objects/fleet.js` | Helm | P4 | Branché | `stepIndex` 0-based, repeater Helm |
 | `RenameFleet` | W | id, name | `Stations/DryDock.cs` | `objects/fleet.js` | Helm | P5 | Branché | Cale sèche, clavier Quest |
-| `SetFleetOrderQueue` | W | fleet, queue, loop? | — | `objects/fleet.js` | Helm | P4 | À faire |  |
+| `SetFleetOrderQueue` | W | fleet, queue, loop? | `Holo/OrderQueue.cs` | `objects/fleet.js` | Helm | P4 | Branché |  |
 | `SpeedupFleetTravel` | W | fleet | — | `scripts/helper.js` | Helm | P5 | À faire |  |
 | `ToggleFleetQueueLoop` | W | fleet, loop? | `Holo/OrderQueue.cs` | `objects/fleet.js` | Helm | P4 | Branché | `loop` explicite 0/1 |
 | `UnloadTroops` | W | fleet, planet, troops | — | `objects/fleet.js` | Tactical | P5 | À faire |  |

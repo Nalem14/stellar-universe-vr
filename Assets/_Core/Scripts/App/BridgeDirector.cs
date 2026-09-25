@@ -57,6 +57,7 @@ namespace Core.App
             hex.Bind(_focus, mapCtrl, tableMount, env.Art);
             mapCtrl.BindHex(hex);
             ExteriorCombatFx.Attach(_exterior);
+            ExteriorRouteFx.Attach(_exterior, env.Art, _focus);
             BridgeCombatFx.Build(interior.transform, _focus);
 
             var orders = interior.AddComponent<HoloFleetOrders>();
