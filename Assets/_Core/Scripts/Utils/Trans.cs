@@ -109,16 +109,39 @@ namespace Core.Utils
             if (string.IsNullOrEmpty(key))
                 return string.Empty;
 
-            var table = Lang == "fr" ? _fr : _en;
-            if (table != null && table.TryGetValue(key, out var hit) && !string.IsNullOrEmpty(hit))
+            if (TryGet(key, out var hit))
                 return hit;
 
-            var other = Lang == "fr" ? _en : _fr;
-            if (other != null && other.TryGetValue(key, out hit) && !string.IsNullOrEmpty(hit))
+            // The web lang keys are inconsistently cased: a module type like
+            // "ScienceModule" is stored as "scienceModule", while "ShipCore" or
+            // "TroopBay" keep their PascalCase. Mirror the web's own fallback
+            // (ShipBuilderUI._t) and retry the opposite initial-letter case before
+            // treating the key as missing.
+            var lower = char.ToLowerInvariant(key[0]) + key.Substring(1);
+            if (lower != key && TryGet(lower, out hit))
+                return hit;
+
+            var upper = char.ToUpperInvariant(key[0]) + key.Substring(1);
+            if (upper != key && TryGet(upper, out hit))
                 return hit;
 
             LogMissing(key);
             return key;
+        }
+
+        /// <summary>Exact lookup in the current language, then the other one.</summary>
+        static bool TryGet(string key, out string hit)
+        {
+            var table = Lang == "fr" ? _fr : _en;
+            if (table != null && table.TryGetValue(key, out hit) && !string.IsNullOrEmpty(hit))
+                return true;
+
+            var other = Lang == "fr" ? _en : _fr;
+            if (other != null && other.TryGetValue(key, out hit) && !string.IsNullOrEmpty(hit))
+                return true;
+
+            hit = null;
+            return false;
         }
 
         public static string Format(string key, params object[] args)
