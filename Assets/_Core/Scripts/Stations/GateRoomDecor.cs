@@ -183,13 +183,13 @@ namespace Core.Stations
         // ── Pieces ────────────────────────────────────────────────────────────────
 
         /// <summary>Yaw that puts a desk's operator side (local −z) toward the stand at the room origin.</summary>
-        static float FaceStand(float x, float z) => Mathf.Atan2(x, z) * Mathf.Rad2Deg;
+        internal static float FaceStand(float x, float z) => Mathf.Atan2(x, z) * Mathf.Rad2Deg;
 
         /// <summary>
         /// Sloped operator desk (pedestal, kick plate, angled top with lit edge, key deck, side cheeks) and an arm
         /// rising behind it; returns the screen mount at the arm's head (the caller parents its screen there).
         /// </summary>
-        static Transform Desk(Transform room, string name, Vector3 pos, float yaw, float width, Material metal, Material dark,
+        internal static Transform Desk(Transform room, string name, Vector3 pos, float yaw, float width, Material metal, Material dark,
             Material cyan, Material amber)
         {
             var root = new GameObject(name).transform;
@@ -223,7 +223,7 @@ namespace Core.Stations
             return mount;
         }
 
-        static void Chair(Transform room, Vector3 pos, float yaw, Material metal, Material dark)
+        internal static void Chair(Transform room, Vector3 pos, float yaw, Material metal, Material dark)
         {
             var root = new GameObject("TechChair").transform;
             root.SetParent(room, false);
@@ -235,7 +235,7 @@ namespace Core.Stations
             Box(root, "Base", new Vector3(0f, 0.02f, 0f), new Vector3(0.5f, 0.04f, 0.5f), metal);
         }
 
-        static GameObject Box(Transform parent, string name, Vector3 pos, Vector3 size, Material mat)
+        internal static GameObject Box(Transform parent, string name, Vector3 pos, Vector3 size, Material mat)
         {
             var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
             go.name = name;
@@ -249,7 +249,7 @@ namespace Core.Stations
             return go;
         }
 
-        static GameObject Quad(Transform parent, string name, Vector3 pos, Vector3 size, Material mat)
+        internal static GameObject Quad(Transform parent, string name, Vector3 pos, Vector3 size, Material mat)
         {
             var go = GameObject.CreatePrimitive(PrimitiveType.Quad);
             go.name = name;
@@ -263,7 +263,7 @@ namespace Core.Stations
             return go;
         }
 
-        static GameObject Rounded(Transform parent, string name, Vector3 size, float radius, Vector3 pos, Material mat,
+        internal static GameObject Rounded(Transform parent, string name, Vector3 size, float radius, Vector3 pos, Material mat,
             Color accent, float mul)
         {
             var go = UiKit.MeshPiece(parent, name, UiMeshes.RoundedBox(size, radius), mat, pos);
@@ -274,6 +274,21 @@ namespace Core.Stations
             r.SetPropertyBlock(block);
             r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             return go;
+        }
+
+        const float Recline = 20f;
+
+        /// <summary>
+        /// Parent a screen to a desk arm (<see cref="Desk"/>): same heading as the desk, top leaning back
+        /// <see cref="Recline"/>°, bottom edge resting on the arm head (screen pivot is its centre).
+        /// </summary>
+        internal static void SeatOnArm(Transform screen, Transform mount, float height)
+        {
+            screen.SetParent(mount, false);
+            var half = height * 0.5f;
+            var r = Recline * Mathf.Deg2Rad;
+            screen.localRotation = Quaternion.Euler(Recline, 0f, 0f);
+            screen.localPosition = new Vector3(0f, Mathf.Cos(r) * half + 0.01f, Mathf.Sin(r) * half);
         }
 
         /// <summary>Light a pedestal lamp as its gate lock seats (off / amber / alarm red).</summary>

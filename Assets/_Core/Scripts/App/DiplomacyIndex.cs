@@ -115,6 +115,7 @@ namespace Core.App
                     return;
                 ByUser.Clear();
                 Identity.Clear();
+                EmpireById.Clear();
                 foreach (var e in arr)
                 {
                     var uid = FocusContext.AsInt(e["userid"]);
@@ -126,6 +127,9 @@ namespace Core.App
                     var score = FocusContext.AsFloat(e["relation"]);
                     ByUser[uid] = ParseKey(key, score);
                     Identity[uid] = (FocusContext.AsString(e["name"]), FocusContext.AsString(e["flag"]));
+                    var eid = FocusContext.AsInt(e["id"]);
+                    if (eid > 0)
+                        EmpireById[eid] = uid;
                 }
             }
             catch
@@ -165,6 +169,17 @@ namespace Core.App
 
         /// <summary>Empire name + flag JSON (GetEmpires.name / .flag) per users.id — galaxy territories.</summary>
         static readonly Dictionary<int, (string Name, string Flag)> Identity = new();
+
+        /// <summary>empires.id → users.id (wars and alliances speak empire ids, fleets speak user ids).</summary>
+        static readonly Dictionary<int, int> EmpireById = new();
+
+        /// <summary>Name of an empire by empires.id, or "#id" when GetEmpires has not listed it.</summary>
+        public static string EmpireName(int empireId) =>
+            EmpireById.TryGetValue(empireId, out var uid) && Identity.TryGetValue(uid, out var id) && !string.IsNullOrEmpty(id.Name)
+                ? id.Name
+                : "#" + empireId;
+
+        public static int UserOfEmpire(int empireId) => EmpireById.TryGetValue(empireId, out var uid) ? uid : 0;
 
         public static bool TryIdentity(int userId, out string name, out string flagJson)
         {
@@ -252,10 +267,11 @@ namespace Core.App
                         return EmpireStance.Owned;
                     case "ally":
                     case "alliance":
-                    case "friend":
-                    case "friendly":
-                    case "good":
                         return EmpireStance.Ally;
+                    // "good" is a warm relation, not an alliance: allies are real alliance members (web
+                    // model/alliance.php AreEmpiresAllied), the server says "ally" for them.
+                    case "good":
+                        return EmpireStance.Neutral;
                     case "enemy":
                     case "foe":
                     case "hostile":

@@ -75,6 +75,10 @@ namespace Core.Utils
                     sb.Append("&token=").Append(Uri.EscapeDataString(token));
             }
 
+            // Texts the server renders itself (system mail, decision summaries, Lang() errors) follow the
+            // player's language: DetectLang() reads $_GET['lang'] first.
+            if (query == null || !query.ContainsKey("lang"))
+                sb.Append("&lang=").Append(Trans.Lang);
             return sb.ToString();
         }
 

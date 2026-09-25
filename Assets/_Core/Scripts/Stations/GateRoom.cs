@@ -210,7 +210,7 @@ namespace Core.Stations
             _console = HoloScreen.Create(transform, "GateConsole", new Vector2(1.1f, 0.7f),
                 new Vector3(-1.05f, 1.28f, 0.85f), Quaternion.identity, Trans.Get("vr.gate.title"));
             _console.SetAccent(Accent, 0.5f);
-            SeatOnArm(_console.transform, _decor.ConsoleMount, 0.7f);
+            GateRoomDecor.SeatOnArm(_console.transform, _decor.ConsoleMount, 0.7f);
             var frame = _console.Content;
 
             DiegeticUi.HoloButton(frame, "‹", new Vector2(-505f, 245f), new Vector2(64f, 46f), () => StepPlanet(-1),
@@ -242,33 +242,18 @@ namespace Core.Stations
             _journal = HoloScreen.Create(transform, "GateJournal", new Vector2(0.8f, 0.62f), new Vector3(1.15f, 1.24f, 0.8f),
                 Quaternion.identity, Trans.Get("vr.gate.journal"));
             _journal.SetAccent(Accent, 0.4f);
-            SeatOnArm(_journal.transform, _decor.JournalMount, 0.62f);
+            GateRoomDecor.SeatOnArm(_journal.transform, _decor.JournalMount, 0.62f);
             var jb = new GameObject("Body", typeof(RectTransform));
             jb.transform.SetParent(_journal.Content, false);
             _journalBody = jb.GetComponent<RectTransform>();
             _journalBody.sizeDelta = new Vector2(760f, 520f);
         }
 
-        const float Recline = 20f;
-
-        /// <summary>
-        /// Parent a screen to its desk arm: same heading as the desk, top leaning back <see cref="Recline"/>°,
-        /// bottom edge resting on the arm head (screen pivot is its centre).
-        /// </summary>
-        static void SeatOnArm(Transform screen, Transform mount, float height)
-        {
-            screen.SetParent(mount, false);
-            var half = height * 0.5f;
-            var r = Recline * Mathf.Deg2Rad;
-            screen.localRotation = Quaternion.Euler(Recline, 0f, 0f);
-            screen.localPosition = new Vector3(0f, Mathf.Cos(r) * half + 0.01f, Mathf.Sin(r) * half);
-        }
-
         // ── Enter / leave ─────────────────────────────────────────────────────────
 
         public async Task Enter()
         {
-            if (Inside || DryDock.Inside || ResearchLab.Inside)
+            if (Inside || DryDock.Inside || ResearchLab.Inside || DiplomacyRoom.Inside)
                 return;
             var fade = ViewFade.Ensure();
             await fade.FadeOut();
@@ -993,12 +978,16 @@ namespace Core.Stations
         }
 
         /// <summary>
-        /// ResolveStargateMission's resultDetail codes (web _stargateResultLabel); failure texts come from the
-        /// server's Lang() and are shown as they are.
+        /// ResolveStargateMission's resultDetail codes (web _stargateResultLabel). Failures carry a code too
+        /// (see ResolveStargateMission) — an unknown one falls through as-is.
         /// </summary>
         static string ResultLabel(JToken m)
         {
             var d = FocusContext.AsString(m["resultDetail"]);
+            // Failure codes are translated here: the server used to send a sentence
+            // already rendered in the requesting language, not the reader's.
+            if (d.StartsWith("failed:", StringComparison.Ordinal))
+                return Trans.Get("vr.gate.result.failed." + d.Substring(7));
             if (d == "delivered")
                 return Trans.Get("vr.gate.result.delivered");
             if (d.StartsWith("delivered:", StringComparison.Ordinal))

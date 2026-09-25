@@ -197,37 +197,37 @@ Appelées par le client web : 138/158. « Appelée » ≠ « finie » : voir la 
 
 | Action | R/W | Params | VR | Web | Station | Phase | Statut | Notes |
 |---|---|---|---|---|---|---|---|---|
-| `AcceptPeaceOffer` | W | war | `Stations/DiplomacyRoom.cs` | `ui/WarsWindowUI.js` | Comms | P5 | Branché |  |
-| `AcceptWarDemands` | W | war | `Stations/DiplomacyRoom.cs` | `ui/WarsWindowUI.js` | Comms | P5 | Branché |  |
-| `CancelPeaceOffer` | W | war | `Stations/DiplomacyRoom.cs` | `ui/WarsWindowUI.js` | Comms | P5 | Branché |  |
-| `DeclareWar` | W | target | `Stations/DiplomacyRoom.cs` | `ui/WarsWindowUI.js` | Comms | P5 | Branché |  |
-| `DeclinePeaceOffer` | W | war | `Stations/DiplomacyRoom.cs` | `ui/WarsWindowUI.js` | Comms | P5 | Branché |  |
-| `GetMyWars` | R | — | `App/DiplomacyService.cs` | `ui/WarsWindowUI.js` | Comms | P5 | Démo |  |
-| `GetWarDetails` | R | war | `Stations/DiplomacyRoom.cs` | — | Comms | P5 | Branché |  |
-| `OfferPeace` | W | war | `Stations/DiplomacyRoom.cs` | `ui/WarsWindowUI.js` | Comms | P5 | Branché |  |
-| `SurrenderWar` | W | war | `Stations/DiplomacyRoom.cs` | `ui/WarsWindowUI.js` | Comms | P5 | Branché |  |
+| `AcceptPeaceOffer` | W | war | `Stations/DiplomacyRoom.cs` | `ui/WarsWindowUI.js` | Chambre diplomatique | P5 | Branché | Chancellerie, offre de l'adversaire |
+| `AcceptWarDemands` | W | war | `Stations/DiplomacyRoom.cs` | `ui/WarsWindowUI.js` | Chambre diplomatique | P5 | Branché | Défenseur seulement (capitulation), en deux temps |
+| `CancelPeaceOffer` | W | war | `Stations/DiplomacyRoom.cs` | `ui/WarsWindowUI.js` | Chambre diplomatique | P5 | Branché | Chancellerie, notre offre en attente |
+| `DeclareWar` | W | target | `Stations/DiplomacyRoom.cs` | `ui/WarsWindowUI.js` | Chambre diplomatique | P5 | Branché | Dossier de l'empire visé sur l'orrery : planètes exigées (GetEmpirePlanets), ressources, en deux temps ; `planets` csv + `mineral`/`crystal`/`biomass` |
+| `DeclinePeaceOffer` | W | war | `Stations/DiplomacyRoom.cs` | `ui/WarsWindowUI.js` | Chambre diplomatique | P5 | Branché | Chancellerie, offre de l'adversaire |
+| `GetMyWars` | R | — | `App/DiplomacyService.cs` | `ui/WarsWindowUI.js` | Chambre diplomatique | P5 | Démo | `DiplomacyService` toutes les 30 s (répliques Comms : guerre déclarée contre nous, offre de paix, fin de guerre) ; onglet Conflits de la Chancellerie |
+| `GetWarDetails` | R | war | `Stations/DiplomacyRoom.cs` | — | Chambre diplomatique | P5 | Branché | Relu à la sélection d'un conflit (Chancellerie) |
+| `OfferPeace` | W | war | `Stations/DiplomacyRoom.cs` | `ui/WarsWindowUI.js` | Chambre diplomatique | P5 | Branché | Chancellerie, conflit actif |
+| `SurrenderWar` | W | war | `Stations/DiplomacyRoom.cs` | `ui/WarsWindowUI.js` | Chambre diplomatique | P5 | Branché | Attaquant seulement, en deux temps |
 
 ## Alliance
 
 | Action | R/W | Params | VR | Web | Station | Phase | Statut | Notes |
 |---|---|---|---|---|---|---|---|---|
-| `AcceptAllianceApplication` | W | application | `Stations/DiplomacyRoom.cs` | `ui/AllianceWindowUI.js` | Comms | P5 | Branché |  |
-| `AcceptAllianceInvite` | W | invite | `Stations/DiplomacyRoom.cs` | `ui/AllianceWindowUI.js` | Comms | P5 | Branché |  |
-| `ApplyToAlliance` | W | alliance | `Stations/DiplomacyRoom.cs` | `ui/AllianceWindowUI.js` | Comms | P5 | Branché |  |
-| `CancelAllianceInvite` | W | invite | `Stations/DiplomacyRoom.cs` | — | Comms | P5 | Branché |  |
-| `CreateAlliance` | W | name, tag, description? | `Stations/DiplomacyRoom.cs` | `ui/AllianceWindowUI.js` | Comms | P5 | Branché |  |
-| `DeclineAllianceApplication` | W | application | `Stations/DiplomacyRoom.cs` | `ui/AllianceWindowUI.js` | Comms | P5 | Branché |  |
-| `DeclineAllianceInvite` | W | invite | `Stations/DiplomacyRoom.cs` | `ui/AllianceWindowUI.js` | Comms | P5 | Branché |  |
-| `DisbandAlliance` | W | — | `Stations/DiplomacyRoom.cs` | `ui/AllianceWindowUI.js` | Comms | P5 | Branché |  |
-| `GetAllianceInvites` | R | — | `App/DiplomacyService.cs` | `ui/AllianceWindowUI.js` | Comms | P5 | Branché |  |
-| `GetAlliances` | R | — | `Stations/DiplomacyRoom.cs` | `ui/AllianceWindowUI.js` | Comms | P5 | Branché |  |
-| `GetMyAlliance` | R | — | `App/DiplomacyIndex.cs` +1 | `ui/AllianceWindowUI.js` | Comms | P5 | Branché |  |
-| `InviteToAlliance` | W | target | `Stations/DiplomacyRoom.cs` | — | Comms | P5 | Branché |  |
-| `KickAllianceMember` | W | target | `Stations/DiplomacyRoom.cs` | `ui/AllianceWindowUI.js` | Comms | P5 | Branché |  |
-| `LeaveAlliance` | W | — | `Stations/DiplomacyRoom.cs` | `ui/AllianceWindowUI.js` | Comms | P5 | Branché |  |
-| `SetAllianceMemberRole` | W | target, role | `Stations/DiplomacyRoom.cs` | `ui/AllianceWindowUI.js` | Comms | P5 | Branché |  |
-| `TransferAllianceLeadership` | W | target | `Stations/DiplomacyRoom.cs` | `ui/AllianceWindowUI.js` | Comms | P5 | Branché |  |
-| `UpdateAllianceDescription` | W | description? | `Stations/DiplomacyRoom.cs` | `ui/AllianceWindowUI.js` | Comms | P5 | Branché |  |
+| `AcceptAllianceApplication` | W | application | `Stations/DiplomacyRoom.cs` | `ui/AllianceWindowUI.js` | Chambre diplomatique | P5 | Branché | Officiers, onglet Alliance (réplique à l'arrivée) |
+| `AcceptAllianceInvite` | W | invite | `Stations/DiplomacyRoom.cs` | `ui/AllianceWindowUI.js` | Chambre diplomatique | P5 | Branché | Onglet Alliance, sans alliance |
+| `ApplyToAlliance` | W | alliance | `Stations/DiplomacyRoom.cs` | `ui/AllianceWindowUI.js` | Chambre diplomatique | P5 | Branché | Registre, sans alliance |
+| `CancelAllianceInvite` | W | invite | `Stations/DiplomacyRoom.cs` | — | Chambre diplomatique | P5 | Branché | Retrait d'une invitation (dossier) ou d'une candidature (Registre), ids retenus sur le casque |
+| `CreateAlliance` | W | name, tag, description? | `Stations/DiplomacyRoom.cs` | `ui/AllianceWindowUI.js` | Chambre diplomatique | P5 | Branché | Nom + tag au clavier Quest (onglet Alliance, sans alliance) |
+| `DeclineAllianceApplication` | W | application | `Stations/DiplomacyRoom.cs` | `ui/AllianceWindowUI.js` | Chambre diplomatique | P5 | Branché | Officiers, onglet Alliance |
+| `DeclineAllianceInvite` | W | invite | `Stations/DiplomacyRoom.cs` | `ui/AllianceWindowUI.js` | Chambre diplomatique | P5 | Branché | Onglet Alliance, sans alliance |
+| `DisbandAlliance` | W | — | `Stations/DiplomacyRoom.cs` | `ui/AllianceWindowUI.js` | Chambre diplomatique | P5 | Branché | Chef, en deux temps |
+| `GetAllianceInvites` | R | — | `App/DiplomacyService.cs` | `ui/AllianceWindowUI.js` | Chambre diplomatique | P5 | Branché | `DiplomacyService` (réplique à la réception) ; onglet Alliance sans alliance |
+| `GetAlliances` | R | — | `Stations/DiplomacyRoom.cs` | `ui/AllianceWindowUI.js` | Chambre diplomatique | P5 | Branché | Onglet Registre |
+| `GetMyAlliance` | R | — | `App/DiplomacyIndex.cs` +1 | `ui/AllianceWindowUI.js` | Chambre diplomatique | P5 | Branché | `DiplomacyService` (30 s) + `DiplomacyIndex` ; onglet Alliance, bannières des membres et blason dans la chambre |
+| `InviteToAlliance` | W | target | `Stations/DiplomacyRoom.cs` | — | Chambre diplomatique | P5 | Branché | Dossier d'un empire (officiers) ; `inviteId` retenu sur le casque pour le retrait (aucune action ne liste les invitations envoyées) |
+| `KickAllianceMember` | W | target | `Stations/DiplomacyRoom.cs` | `ui/AllianceWindowUI.js` | Chambre diplomatique | P5 | Branché | Règles web : officiers → membres, chef → tous ; en deux temps |
+| `LeaveAlliance` | W | — | `Stations/DiplomacyRoom.cs` | `ui/AllianceWindowUI.js` | Chambre diplomatique | P5 | Branché | En deux temps |
+| `SetAllianceMemberRole` | W | target, role | `Stations/DiplomacyRoom.cs` | `ui/AllianceWindowUI.js` | Chambre diplomatique | P5 | Branché | Chef : promouvoir / rétrograder |
+| `TransferAllianceLeadership` | W | target | `Stations/DiplomacyRoom.cs` | `ui/AllianceWindowUI.js` | Chambre diplomatique | P5 | Branché | Chef, en deux temps |
+| `UpdateAllianceDescription` | W | description? | `Stations/DiplomacyRoom.cs` | `ui/AllianceWindowUI.js` | Chambre diplomatique | P5 | Branché | Officiers : champ de l'onglet Alliance |
 
 ## Empire / progression / shop
 
@@ -242,7 +242,7 @@ Appelées par le client web : 138/158. « Appelée » ≠ « finie » : voir la 
 | `GetAuthorities` | R | — | `UI/EmpireCreationWizard.cs` | `ui/EmpireHubUI.js` | Conseil | P6 | Branché |  |
 | `GetDailyObjectives` | R | — | — | — | Conseil | P6 | À faire | Web utilise `GetProgressionObjectives` |
 | `GetEmpire` | R | user | — | `scripts/user.js` | Comms | P5 | À faire |  |
-| `GetEmpires` | R | — | `App/DiplomacyIndex.cs` +1 | `objects/empire.js` | Comms | P5 | Branché |  |
+| `GetEmpires` | R | — | `App/DiplomacyIndex.cs` +1 | `objects/empire.js` | Chambre diplomatique | P5 | Branché | `DiplomacyIndex` (teintes des jetons et coques) ; orrery, sièges de l'hémicycle et dossiers de la chambre diplomatique |
 | `GetLeaderTraits` | R | — | `UI/EmpireCreationWizard.cs` | — | Conseil | P3 | Branché | Liste lore pour CreateEmpire |
 | `GetMeEmpire` | R | — | `App/AuthManager.cs` +1 | `objects/policy.js` | Système (boot) | P0 | Branché | `error:noEmpire` si compte sans empire (flux CreateEmpire) |
 | `GetMonthlyObjectives` | R | — | — | — | Conseil | P6 | À faire |  |
@@ -250,7 +250,7 @@ Appelées par le client web : 138/158. « Appelée » ≠ « finie » : voir la 
 | `GetNovaTopupPacks` | R | — | — | `ui/ShopWindowUI.js` | Conseil | P6 | À faire |  |
 | `GetPolitics` | R | — | — | `ui/EmpireHubUI.js` | Conseil | P6 | À faire |  |
 | `GetProgressionObjectives` | R | — | — | `ui/ProgressionWindowUI.js` | Conseil | P6 | À faire |  |
-| `GetRelation` | R | user1, user2 | `Stations/DiplomacyRoom.cs` | `objects/empire.js` | Comms | P5 | Branché |  |
+| `GetRelation` | R | user1, user2 | `Stations/DiplomacyRoom.cs` | `objects/empire.js` | Chambre diplomatique | P5 | Branché | Jauge de relation du dossier (user1 = moi, user2 = l'empire visé) |
 | `GetShopData` | R | — | — | `ui/ShopWindowUI.js` | Conseil | P6 | À faire |  |
 | `GetSpeciesTraits` | R | — | `UI/EmpireCreationWizard.cs` | `objects/specy.js` | Conseil | P6 | Branché |  |
 | `GetSpeciesTypes` | R | — | `UI/EmpireCreationWizard.cs` | `objects/specy.js` | Conseil | P6 | Branché |  |
@@ -381,8 +381,18 @@ Corrigés dans `stellar-universe` (`7580501`, 2026-09-25) — le client VR ne co
 
 ### Restant côté VR (relevé en corrigeant la Stargate, 2026-09-26)
 
-- **`ResultLabel` traduit les codes d'échec** (`failed:*`) : la modification est **dans l'arbre de travail** (`Assets/_Core/Scripts/Stations/GateRoom.cs`), mêlée au chantier de la salle de la porte — à committer avec.
-- **La langue de requête n'est toujours pas envoyée** : les textes rendus par le serveur (courriers système, résumés de décision) arrivent en anglais à un joueur FR. Ajouter `&lang=<Trans.Lang>` aux requêtes règle le problème sans changement serveur.
+- **`ResultLabel` traduit les codes d'échec** (`failed:*`) : ✅ committé avec la chambre diplomatique.
+- **La langue de requête** : ✅ `ActionJs.BuildUrl` ajoute `&lang=<Trans.Lang>` à chaque requête (`DetectLang()` lit `$_GET['lang']` en premier).
+
+### Diplomatie — relevé en construisant la chambre (2026-09-26)
+
+- **Aucune action ne liste les invitations envoyées ni nos candidatures** : `CancelAllianceInvite` demande un `invite`, que seules les réponses de `InviteToAlliance` / `ApplyToAlliance` renvoient (`inviteId`). La VR garde ces ids sur le casque (PlayerPrefs) ; une invitation envoyée depuis le web ou un autre casque ne peut pas être retirée. **Proposé** : `GetMyAlliance.alliance.invites` (direction `invite`, `pending`, officiers) et `GetAllianceInvites.applications` (nos candidatures `pending`), avec `allianceName` / `empireName`.
+- **L'alliance d'un autre empire est inconnue** : `GetAlliances` ne liste pas ses membres et `GetEmpires` n'a pas de champ alliance — le dossier ne peut pas dire « membre de [TAG] ». **Proposé** : `allianceId` + `allianceTag` dans `GetEmpires`.
+- **Web — score de guerre vide** : `wars-window.hbs` affiche `{{warScore}}`, la colonne est `warScoreAttacker`.
+- **Web — confirmations sans texte** : `confirmSurrenderWar`, `confirmAcceptWarDemands`, `confirmTransferLeadership`, `confirmKickMember`, `confirmDisbandAlliance`, `confirmLeaveAlliance` sont absentes de `assets/langs/{fr,en}.json` (le `confirm()` montre la clé brute).
+- **Web — libellés FR codés en dur** dans `wars-window.hbs` / `alliance-window.hbs` (« Choisir un Empire cible », « Vous êtes l'attaquant », « Score de guerre », « Votre empire est en paix… », « Alliances Galactiques », « Enregistrer », « Vous »…) : les clés `vr.diplo.*` (missing-keys.md) peuvent servir aux deux clients.
+- **`GetEmpirePlanets` expose les stocks d'un autre empire** (`mineral` / `crystal` / `biomass` par planète) : utile pour chiffrer des exigences, mais c'est du renseignement gratuit sur n'importe qui. À trancher (garder, arrondir, ou réserver à un scan).
+- **Planètes sans nom** : les planètes IA sortent de `GetEmpirePlanets` avec `name` vide (la VR affiche `#id`).
 
 ### Spec livrée — `CreateEmpire`
 

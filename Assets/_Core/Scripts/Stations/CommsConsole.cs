@@ -119,11 +119,19 @@ namespace Core.Stations
             _screen.SetAccent(Accent, 0.5f);
             _frame = _screen.Content;
 
-            _chips = DiegeticUi.HoloLabel(_frame, string.Empty, new Vector2(-200f, 245f), new Vector2(640f, 46f), 20f,
+            _chips = DiegeticUi.HoloLabel(_frame, string.Empty, new Vector2(-250f, 245f), new Vector2(540f, 46f), 20f,
                 UiKit.TextBright, TextAlignmentOptions.MidlineLeft);
             _chips.richText = true;
             DiegeticUi.HoloButton(_frame, Trans.Get("close"), new Vector2(465f, 245f), new Vector2(140f, 46f), Close,
                 DiegeticUi.BtnStyle.Ghost);
+            // Wars and alliances have their own room: the officer walks the captain there.
+            DiegeticUi.HoloButton(_frame, Trans.Get("vr.diplo.open"), new Vector2(290f, 245f), new Vector2(190f, 46f), () =>
+            {
+                if (DiplomacyRoom.Instance == null || DiplomacyRoom.AnyRoomInside)
+                    return;
+                Close();
+                Run(DiplomacyRoom.Instance.Enter());
+            }, DiegeticUi.BtnStyle.Amber);
 
             var tabKeys = new[] { "vr.comms.tab.channel", "vr.comms.tab.private", "vr.comms.tab.mail" };
             for (var i = 0; i < _tabs.Length; i++)

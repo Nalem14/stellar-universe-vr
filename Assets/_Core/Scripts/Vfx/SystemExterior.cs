@@ -32,6 +32,7 @@ namespace Core.Vfx
 
         public void Bind(FocusContext focus)
         {
+            SpaceBackdrop.Ensure(transform);
             _focus = focus;
             if (_focus != null)
             {

@@ -87,6 +87,9 @@ namespace Core.App
             Core.Stations.LabDoor.Build(interior.transform, env.Art);
             Core.Stations.GateRoom.Build(env.Art, economy);
             Core.Stations.GateDoor.Build(interior.transform, env.Art);
+            DiplomacyService.Build(interior.transform);
+            Core.Stations.DiplomacyRoom.Build(env.Art);
+            Core.Stations.DiplomacyDoor.Build(interior.transform, env.Art);
             CrewStationsBuilder.Build(env, env.Art, hex, _zoneMap, _poller, _focus, _loader);
             BridgeViewscreen.Build(env, _focus);
 

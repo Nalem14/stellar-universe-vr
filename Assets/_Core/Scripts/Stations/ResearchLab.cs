@@ -1396,7 +1396,7 @@ namespace Core.Stations
 
         public async Task Enter()
         {
-            if (Inside || DryDock.Inside)
+            if (Inside || DryDock.Inside || DiplomacyRoom.Inside)
                 return;
             var fade = ViewFade.Ensure();
             await fade.FadeOut();
