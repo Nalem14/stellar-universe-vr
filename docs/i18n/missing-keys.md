@@ -25,6 +25,41 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 
 ---
 
+
+## À intégrer (P3 — création d'empire)
+
+| Clé | EN | FR | Usage VR |
+|---|---|---|---|
+| `vr.create.flagBackground` | Background | Fond | Création d'empire : couleur de fond du drapeau |
+| `vr.create.flagShape` | Shape {0} | Forme {0} | Création d'empire : forme n du drapeau |
+| `vr.create.traits` | Traits | Traits | Création d'empire : étape traits d'espèce |
+| `vr.create.confirm` | Confirmation | Confirmation | Création d'empire : récapitulatif |
+| `vr.create.limitReached` | Selection limit reached | Limite de sélection atteinte | Éthiques / traits au-delà du maximum |
+| `vr.create.founded` | Empire founded. Welcome aboard, Commander. | Empire fondé. Bienvenue à bord, Commandant. | Retour `CreateEmpire` avant l'entrée sur le pont |
+| `flagShape_none` | None | Aucune | Formes du drapeau (en dur dans `view/create-empire.php`) |
+| `flagShape_circle` | Circle | Cercle | Formes du drapeau (en dur dans `view/create-empire.php`) |
+| `flagShape_triangle` | Triangle | Triangle | Formes du drapeau (en dur dans `view/create-empire.php`) |
+| `flagShape_star` | Star | Étoile | Formes du drapeau (en dur dans `view/create-empire.php`) |
+| `flagShape_diamond` | Diamond | Losange | Formes du drapeau (en dur dans `view/create-empire.php`) |
+| `flagShape_stripe` | Stripe | Bande | Formes du drapeau (en dur dans `view/create-empire.php`) |
+| `flagShape_ring` | Ring | Anneau | Formes du drapeau (en dur dans `view/create-empire.php`) |
+| `flagShape_cross` | Cross | Croix | Formes du drapeau (en dur dans `view/create-empire.php`) |
+| `traitEffect_food` | Food | Nourriture | Effet d'un trait d'espèce (`GetSpeciesTraits.key`) |
+| `traitEffect_power` | Power | Puissance | Effet d'un trait d'espèce (`GetSpeciesTraits.key`) |
+| `traitEffect_mine` | Mining | Extraction | Effet d'un trait d'espèce (`GetSpeciesTraits.key`) |
+| `traitEffect_researchTime` | Research time | Temps de recherche | Effet d'un trait d'espèce (`GetSpeciesTraits.key`) |
+| `traitEffect_buildingCost` | Building cost | Coût des bâtiments | Effet d'un trait d'espèce (`GetSpeciesTraits.key`) |
+| `traitEffect_habitability` | Habitability | Habitabilité | Effet d'un trait d'espèce (`GetSpeciesTraits.key`) |
+| `traitEffect_homeAndFarmBuildingTime` | District build time | Construction des districts | Effet d'un trait d'espèce (`GetSpeciesTraits.key`) |
+| `traitEffect_buildingTime` | Build time | Temps de construction | Effet d'un trait d'espèce (`GetSpeciesTraits.key`) |
+| `traitEffect_speed` | Speed | Vitesse | Effet d'un trait d'espèce (`GetSpeciesTraits.key`) |
+| `traitEffect_damage` | Damage | Dégâts | Effet d'un trait d'espèce (`GetSpeciesTraits.key`) |
+| `traitEffect_colonizationSpeed` | Colonization speed | Vitesse de colonisation | Effet d'un trait d'espèce (`GetSpeciesTraits.key`) |
+| `traitEffect_relation` | Relations | Relations | Effet d'un trait d'espèce (`GetSpeciesTraits.key`) |
+| `traitEffect_armor` | Armor | Armure | Effet d'un trait d'espèce (`GetSpeciesTraits.key`) |
+| `traitEffect_colonizationTime` | Colonization time | Temps de colonisation | Effet d'un trait d'espèce (`GetSpeciesTraits.key`) |
+| `traitEffect_mood` | Morale | Morale | Effet d'un trait d'espèce (`GetSpeciesTraits.key`) |
+
 ## Restant côté web
 
 | Source web | Restant | Notes |

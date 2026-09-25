@@ -121,13 +121,26 @@ namespace Core.App
             return applied;
         }
 
+        /// <summary>Last GetMeEmpire said this account has no empire yet (airlock founding flow).</summary>
+        public bool NoEmpire { get; private set; }
+
         public async Task<ApiResult> FetchMe()
         {
             if (!IsLoggedIn)
                 return ApiResult.Fail("not_logged");
             var result = await ActionJs.Get("GetMeEmpire");
+            NoEmpire = false;
             if (!result.Ok)
+            {
+                // Account without an empire: error:<Lang(noEmpire)> — a state to found one, not a failure.
+                if (!string.IsNullOrEmpty(result.Error) && (result.Error == Trans.Get("noEmpire") || result.Error == "noEmpire"))
+                {
+                    Empire = null;
+                    NoEmpire = true;
+                }
+
                 return result;
+            }
             try
             {
                 Empire = JObject.Parse(result.Body);

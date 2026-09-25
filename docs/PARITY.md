@@ -28,8 +28,8 @@ Généré depuis `action-api.json` (154 actions), `actionjs.php` et un grep des 
 | Social (chat, mail) | 0 | 11 | 0 % |
 | Guerre | 0 | 9 | 0 % |
 | Alliance | 1 | 17 | 6 % |
-| Empire / progression / shop | 2 | 27 | 7 % |
-| **Total** | **43** | **154** | **28 %** |
+| Empire / progression / shop | 7 | 27 | 26 % |
+| **Total** | **48** | **154** | **31 %** |
 
 Appelées par le client web : 134/154. « Appelée » ≠ « finie » : voir la colonne *Statut*.
 
@@ -45,7 +45,7 @@ Appelées par le client web : 134/154. « Appelée » ≠ « finie » : voir la 
 
 | Action | R/W | Params | VR | Web | Station | Phase | Statut | Notes |
 |---|---|---|---|---|---|---|---|---|
-| `GetConfigs` | R | — | `App/DiplomacyIndex.cs` +1 | `scripts/configs.js` | Système (boot) | P0 | Branché |  |
+| `GetConfigs` | R | — | `App/DiplomacyIndex.cs` +2 | `scripts/configs.js` | Système (boot) | P0 | Branché |  |
 | `GetEventData` | R | — | — | `ui/ProgressionWindowUI.js` | Conseil | P0 | À faire |  |
 | `GetGameAnnouncements` | R | — | — | `scenes/ui.js` | Sas (Menu) | P6 | À faire |  |
 | `GetLatestNews` | R | — | — | — | Sas (Menu) | P6 | À faire |  |
@@ -231,15 +231,15 @@ Appelées par le client web : 134/154. « Appelée » ≠ « finie » : voir la 
 |---|---|---|---|---|---|---|---|---|
 | `AddEmpirePolicy` | W | policy | — | `objects/policy.js` | Conseil | P6 | À faire |  |
 | `BuyShopItem` | W | item | — | `ui/ShopWindowUI.js` | Conseil | P6 | À faire |  |
-| `CreateEmpire` | W | empireName, bgColor, shape1, shape2, shape3, color1, color2, color3, authority, ethics, speciesName, speciesType, traitPos1, traitPos2, traitNeg1, traitNeg2, planetName, empireBio, leaderName, leaderSex, leaderTitle, heirTitle, leaderTraits, shipPrefix | — | — | Conseil | P3 | À faire | Compte sans empire → SAS ; miroir create-empire.php ; `GetMeEmpire` renvoie `error:noEmpire` |
+| `CreateEmpire` | W | empireName, bgColor, shape1, shape2, shape3, color1, color2, color3, authority, ethics, speciesName, speciesType, traitPos1, traitPos2, traitNeg1, traitNeg2, planetName, empireBio, leaderName, leaderSex, leaderTitle, heirTitle, leaderTraits, shipPrefix | `UI/EmpireCreationWizard.cs` | — | Conseil | P3 | Branché | Compte sans empire → SAS ; miroir create-empire.php ; `GetMeEmpire` renvoie `error:noEmpire` |
 | `EquipShopItem` | W | item | — | `ui/ShopWindowUI.js` | Conseil | P6 | À faire |  |
 | `GetAchievements` | R | — | — | `scenes/galaxy.js` | Conseil | P6 | À faire |  |
 | `GetActivity` | R | lastid | — | `objects/activity.js` | Comms | P6 | À faire |  |
-| `GetAuthorities` | R | — | — | `ui/EmpireHubUI.js` | Conseil | P6 | À faire |  |
+| `GetAuthorities` | R | — | `UI/EmpireCreationWizard.cs` | `ui/EmpireHubUI.js` | Conseil | P6 | Branché |  |
 | `GetDailyObjectives` | R | — | — | — | Conseil | P6 | À faire | Web utilise `GetProgressionObjectives` |
 | `GetEmpire` | R | user | — | `scripts/user.js` | Comms | P5 | À faire |  |
 | `GetEmpires` | R | — | `App/DiplomacyIndex.cs` | `objects/empire.js` | Comms | P5 | Branché |  |
-| `GetLeaderTraits` | R | — | — | — | Conseil | P3 | À faire | Liste lore pour CreateEmpire |
+| `GetLeaderTraits` | R | — | `UI/EmpireCreationWizard.cs` | — | Conseil | P3 | Branché | Liste lore pour CreateEmpire |
 | `GetMeEmpire` | R | — | `App/AuthManager.cs` +1 | `objects/policy.js` | Système (boot) | P0 | Branché | `error:noEmpire` si compte sans empire (flux CreateEmpire) |
 | `GetMonthlyObjectives` | R | — | — | — | Conseil | P6 | À faire |  |
 | `GetNovaTopupHistory` | R | — | — | — | Conseil | P6 | À faire |  |
@@ -248,8 +248,8 @@ Appelées par le client web : 134/154. « Appelée » ≠ « finie » : voir la 
 | `GetProgressionObjectives` | R | — | — | `ui/ProgressionWindowUI.js` | Conseil | P6 | À faire |  |
 | `GetRelation` | R | user1, user2 | — | `objects/empire.js` | Comms | P5 | À faire |  |
 | `GetShopData` | R | — | — | `ui/ShopWindowUI.js` | Conseil | P6 | À faire |  |
-| `GetSpeciesTraits` | R | — | — | `objects/specy.js` | Conseil | P6 | À faire |  |
-| `GetSpeciesTypes` | R | — | — | `objects/specy.js` | Conseil | P6 | À faire |  |
+| `GetSpeciesTraits` | R | — | `UI/EmpireCreationWizard.cs` | `objects/specy.js` | Conseil | P6 | Branché |  |
+| `GetSpeciesTypes` | R | — | `UI/EmpireCreationWizard.cs` | `objects/specy.js` | Conseil | P6 | Branché |  |
 | `GetWeeklyObjectives` | R | — | — | — | Conseil | P6 | À faire |  |
 | `RenameEmpire` | W | name | — | `ui/EmpireHubUI.js` | Conseil | P6 | À faire |  |
 | `SetAuthority` | W | authority | — | `ui/EmpireHubUI.js` | Conseil | P6 | À faire |  |
@@ -279,7 +279,9 @@ Corrigés dans `stellar-universe` (`7580501`, 2026-09-25) — le client VR ne co
 ### Restants
 
 - **`GetActivity`** : entrées toujours stockées en anglais / FR brut en DB — migration clé+params non faite.
-- **Flux VR CreateEmpire** (ROADMAP P3) : Menu détecte `error:noEmpire` → séquence diegetic sas → `CreateEmpire` → Bridge. Spec API livrée ci-dessous.
+- **Flux VR CreateEmpire** : ✅ livré côté VR (`UI/EmpireCreationWizard.cs`) — `error:noEmpire` → assistant du sas → `CreateEmpire` → `GetMeEmpire` → Bridge.
+- **`EMPIRE.RELATION_POLICY_MAX` absent de `GetConfigs`** : la VR affiche « jusqu'à {max} éthiques » avec 2 par défaut (le serveur tronque de toute façon). Exposer p. ex. `GetConfigs.empire.maxPolicies` ; la VR le lit déjà s'il existe.
+- **Formes du drapeau** : libellés en dur dans `view/create-empire.php` → clés `flagShape_<id>` (missing-keys).
 
 ### Spec livrée — `CreateEmpire`
 

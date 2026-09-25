@@ -141,8 +141,8 @@ Chaque phase livre **l'art complet** de ce qu'elle touche, sans placeholder. Une
 - Répliques : accusé d'ordre, échec, départ et arrivée, contact ou ennemi, bataille, cargo plein, file terminée, recherche terminée, idle chatter.
 - Interaction : on pointe l'officier → il se tourne et son répétiteur s'ouvre face au captain → on choisit un ordre → réplique de confirmation.
 
-### P3 — Création d'empire en VR
-Dépend de `CreateEmpire` côté serveur (spec dans PARITY).
+### P3 — Création d'empire en VR ✅ (Editor ; création réelle non testée)
+`CreateEmpire` livré côté serveur (`7580501`). Assistant en 6 étapes sur la console du sas (`UI/EmpireCreationWizard.cs`), drapeau peint comme `empireFlag.js` (`UI/FlagPainter.cs`) en aperçu et en hologramme.
 - Séquence diegetic dans le sas :
   - nom, drapeau holo 3D (fond + 3 formes / couleurs) ;
   - autorité et éthiques (max 2) ;

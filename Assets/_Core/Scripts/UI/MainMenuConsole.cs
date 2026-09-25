@@ -26,7 +26,8 @@ namespace Core.UI
         enum PanelMode
         {
             Forms,
-            Hub
+            Hub,
+            Create
         }
 
         static readonly Color Cyan = new(0.45f, 0.95f, 1f, 1f);
@@ -49,6 +50,8 @@ namespace Core.UI
         Button _submit;
         RectTransform _formsRoot;
         RectTransform _hubRoot;
+        EmpireCreationWizard _creation;
+        TMP_Text _header;
         Canvas _canvas;
         CicEnvironment _env;
         FormMode _mode = FormMode.SignIn;
@@ -75,6 +78,9 @@ namespace Core.UI
             BuildHub(_hubRoot);
 
             _status = Label(root, string.Empty, 18f, FontStyles.Normal, new Vector2(0f, -290f), Amber);
+            _creation = EmpireCreationWizard.Create(root, _status,
+                _env != null && _env.ConsoleMount != null ? _env.ConsoleMount : transform,
+                () => ShowPanel(PanelMode.Hub), OnEmpireCreated);
 
             SetMode(FormMode.SignIn);
             await TryAutoLogin();
@@ -139,6 +145,18 @@ namespace Core.UI
                 _formsRoot.gameObject.SetActive(panel == PanelMode.Forms);
             if (_hubRoot != null)
                 _hubRoot.gameObject.SetActive(panel == PanelMode.Hub);
+            if (_creation != null)
+            {
+                if (panel == PanelMode.Create)
+                    _creation.Open();
+                else
+                    _creation.Hide();
+            }
+
+            if (_header == null && _formsRoot != null)
+                _header = _formsRoot.parent.Find("Header/HeaderLabel")?.GetComponent<TMP_Text>();
+            if (_header != null)
+                _header.text = Trans.Get(panel == PanelMode.Create ? "create-empire" : "connectToUniverse");
         }
 
         void RefreshHubGreeting()
@@ -252,22 +270,34 @@ namespace Core.UI
             SetStatus(Trans.Get("Loading"), Cyan);
             var me = await auth.FetchMe();
             _busy = false;
-            if (!me.Ok)
+            if (!me.Ok && !auth.NoEmpire)
             {
                 CicCue.Fail(transform.position);
                 SetStatus(FriendlyError(me.Error), new Color(1f, 0.4f, 0.35f));
                 return;
             }
 
-            // No empire yet: stay in the airlock. Never send the player to the website.
+            // No empire yet: found it here, in the airlock (CreateEmpire). Never send the player to the website.
             if (!auth.HasEmpire)
             {
-                CicCue.Fail(transform.position);
                 SetStatus(Trans.Get("vr.menu.noEmpire"), Amber);
+                ShowPanel(PanelMode.Create);
                 return;
             }
 
             CicCue.Ok(transform.position);
+            SceneFlow.Go(SceneFlow.Bridge);
+        }
+
+        async void OnEmpireCreated()
+        {
+            var me = await AuthManager.Ensure().FetchMe();
+            if (!me.Ok || !AuthManager.Ensure().HasEmpire)
+            {
+                SetStatus(FriendlyError(me.Error), new Color(1f, 0.4f, 0.35f));
+                return;
+            }
+
             SceneFlow.Go(SceneFlow.Bridge);
         }
 
