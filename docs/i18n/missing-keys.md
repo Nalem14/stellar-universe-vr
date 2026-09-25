@@ -97,6 +97,28 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 | `vr.module.family.special` | Special | Spécial | Chantier : filtre de famille de modules |
 | `vr.module.family.life` | Life & structure | Vie et structure | Chantier : filtre de famille de modules |
 
+## À intégrer (P5 — laboratoire Science)
+
+| Clé | EN | FR | Contexte |
+|---|---|---|---|
+| `vr.lab.enter` | Research lab | Laboratoire de recherche | Porte du pont (bâbord arrière) vers le labo |
+| `vr.lab.leave` | Bridge | Passerelle | Porte du labo vers le pont |
+| `vr.research.pick` | Point at a crystal to study the technology. | Visez un cristal pour étudier la technologie. | Écran d'analyse, rien de sélectionné |
+| `vr.research.requires` | Prerequisites | Prérequis | Écran d'analyse (`GetConfigs.researchs.requiert`) |
+| `vr.research.unlocks` | Unlocks | Débloque | Écran d'analyse : modules, bâtiments, défenses, troupes qui citent la techno |
+| `vr.research.kind.building` | Building | Bâtiment | Type de déblocage |
+| `vr.research.kind.module` | Module | Module | Type de déblocage |
+| `vr.research.kind.defense` | Defense | Défense | Type de déblocage |
+| `vr.research.kind.troop` | Troop | Troupe | Type de déblocage |
+| `vr.research.nextLevel` | Level {0} | Niveau {0} | Coût du prochain niveau |
+| `vr.research.pts` | pts | pts | Unité des points de recherche |
+| `vr.research.launch` | Research level {0} | Rechercher le niveau {0} | `ImproveResearch` quand rien ne tourne |
+| `vr.research.insertHint` | …or set the sample into the synthesizer | …ou posez l'échantillon dans le synthétiseur | Geste VR : cristal du berceau → synthétiseur |
+| `vr.research.idle` | No research running. | Aucune recherche en cours. | Écran du synthétiseur |
+| `vr.research.started` | Research started: {0} | Recherche lancée : {0} | Retour `ImproveResearch` (corps vide) |
+| `vr.research.queued` | {0} level {1} added to the queue | {0} niveau {1} ajouté à la file | Retour `ImproveResearch` `{queued, targetLevel}` |
+| `vr.research.cancelled` | {0} removed from the queue, points refunded | {0} retiré de la file, points remboursés | Retour `CancelQueuedResearch` (cristal arraché du pad ou ×) |
+
 ## Restant côté web
 
 | Source web | Restant | Notes |

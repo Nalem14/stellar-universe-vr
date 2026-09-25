@@ -67,6 +67,8 @@ namespace Core.App
             Core.Stations.OpsConsole.Build(interior.transform, economy);
             Core.Stations.DryDock.Build(env.Art, _focus, _poller, economy);
             Core.Stations.DockDoor.Build(interior.transform, env.Art, _focus);
+            Core.Stations.ResearchLab.Build(env.Art, economy);
+            Core.Stations.LabDoor.Build(interior.transform, env.Art);
             CrewStationsBuilder.Build(env, env.Art, hex, _zoneMap, _poller, _focus, _loader);
             BridgeViewscreen.Build(env, _focus);
 

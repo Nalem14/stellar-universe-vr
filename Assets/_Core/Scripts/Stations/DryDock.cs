@@ -677,7 +677,7 @@ namespace Core.Stations
                 Btn(_rackList, Trans.Get(ModuleCatalog.NameKey(type)) + "  ×" + count, -115f, y, 620f, 56f,
                     () => SelectModule(t), selected ? DiegeticUi.BtnStyle.Cyan : DiegeticUi.BtnStyle.Ghost);
                 if (type != ModuleCatalog.Core || count > 0)
-                    Btn(_rackList, "✕", 380f, y, 70f, 56f, () => AsyncTap.Run(Scrap(t)), DiegeticUi.BtnStyle.Danger);
+                    Btn(_rackList, "×", 380f, y, 70f, 56f, () => AsyncTap.Run(Scrap(t)), DiegeticUi.BtnStyle.Danger);
             }
 
             if (pages > 1)

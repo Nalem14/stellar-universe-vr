@@ -58,6 +58,9 @@ namespace Core.Crew
             Say(CrewDialogue.Role.Ops, "buildDone", 2, Trans.Get(type),
                 string.IsNullOrEmpty(planet.Name) ? "#" + planet.Id : planet.Name);
 
+        void OnResearchCompleted(string tech) =>
+            Say(CrewDialogue.Role.Science, "researchDone", 2, Trans.Get(tech));
+
         public static BarkDirector Build(Transform room, FocusContext focus)
         {
             var go = new GameObject("BarkDirector");
@@ -72,6 +75,7 @@ namespace Core.Crew
             Instance = director;
             var economy = EconomyService.Ensure(room);
             economy.BuildingCompleted += director.OnBuildingCompleted;
+            economy.ResearchCompleted += director.OnResearchCompleted;
             director._economy = economy;
             return director;
         }
@@ -81,7 +85,10 @@ namespace Core.Crew
             if (_focus != null)
                 _focus.Changed -= OnViewChanged;
             if (_economy != null)
+            {
                 _economy.BuildingCompleted -= OnBuildingCompleted;
+                _economy.ResearchCompleted -= OnResearchCompleted;
+            }
             if (Instance == this)
                 Instance = null;
         }

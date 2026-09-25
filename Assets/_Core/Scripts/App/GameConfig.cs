@@ -37,6 +37,11 @@ namespace Core.App
         public static JObject ShipStats { get; private set; }
         /// <summary>GetConfigs.jumpModuleRequirement: {modulesPerJumpModule} (hyperspace / PRL jump ratio).</summary>
         public static JObject JumpModuleRequirement { get; private set; }
+        /// <summary>GetConfigs.researchs (server $RESEARCH): {tech: {requiert:{researchLab|tech: lvl}, time, cost:{researchPoints}, maxLevel?}}.</summary>
+        public static JObject Research { get; private set; }
+        /// <summary>GetConfigs.troopstats / defensestats: {type: {requiert, cost, time, …}}.</summary>
+        public static JObject TroopStats { get; private set; }
+        public static JObject DefenseStats { get; private set; }
 
         public static void Ingest(string configsBody)
         {
@@ -68,6 +73,9 @@ namespace Core.App
                 Storage = root["storage"] as JObject;
                 ShipStats = root["shipstats"] as JObject;
                 JumpModuleRequirement = root["jumpModuleRequirement"] as JObject;
+                Research = root["researchs"] as JObject;
+                TroopStats = root["troopstats"] as JObject;
+                DefenseStats = root["defensestats"] as JObject;
 
                 Loaded = TravelSecondsPerDistance > 0f;
             }

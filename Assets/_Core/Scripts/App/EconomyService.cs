@@ -60,7 +60,53 @@ namespace Core.App
         /// <summary>Empire row GetResource attaches (research levels, nova) — refreshed with the planets.</summary>
         public JObject Empire { get; private set; }
         public int Nova => FocusContext.AsInt(Empire?["nova"]);
-        public int ResearchLevel(string key) => FocusContext.AsInt(Empire?[key]);
+        /// <summary>
+        /// Effective research level. GetResource attaches the raw empire row, which already stores the level being
+        /// researched; the server checks prerequisites against the adjusted one (AdjustEmpireForPendingWork).
+        /// </summary>
+        public int ResearchLevel(string key)
+        {
+            var level = FocusContext.AsInt(Empire?[key]);
+            if (level > 0 && FocusContext.AsLong(Empire?["working"]) > Core.Vfx.FleetOrderGate.UnixNow() &&
+                FocusContext.AsString(Empire?["workingtype"]) == key)
+                level--;
+            return level;
+        }
+
+        /// <summary>Tech whose research just finished (the empire's working type ended or moved on).</summary>
+        public event Action<string> ResearchCompleted;
+
+        /// <summary>Adopt a fresher empire row (GetMeEmpire, SpeedupResearch) so every station agrees.</summary>
+        public void AdoptEmpire(JObject empire, bool adjusted)
+        {
+            if (empire == null)
+                return;
+            var copy = (JObject)empire.DeepClone();
+            copy.Remove("user");
+            // Store the raw shape (level of the running research included), as GetResource does.
+            var type = FocusContext.AsString(copy["workingtype"]);
+            if (adjusted && !string.IsNullOrEmpty(type) &&
+                FocusContext.AsLong(copy["working"]) > Core.Vfx.FleetOrderGate.UnixNow() && copy[type] != null)
+                copy[type] = FocusContext.AsInt(copy[type]) + 1;
+            SetEmpire(copy);
+            Changed?.Invoke();
+        }
+
+        string _lastResearch;
+
+        void SetEmpire(JObject empire)
+        {
+            Empire = empire;
+            // Keyed by type + end time: the same tech queued twice in a row still reports each level.
+            var end = FocusContext.AsLong(empire["working"]);
+            var running = end > Core.Vfx.FleetOrderGate.UnixNow()
+                ? FocusContext.AsString(empire["workingtype"]) + "@" + end
+                : string.Empty;
+            var before = _lastResearch;
+            _lastResearch = running;
+            if (!string.IsNullOrEmpty(before) && before != running)
+                ResearchCompleted?.Invoke(before.Substring(0, before.IndexOf('@')));
+        }
         public event Action Changed;
         /// <summary>A building finished on a planet (planet, building type) — the Ops officer reports it.</summary>
         public event Action<PlanetEconomy, string> BuildingCompleted;
@@ -206,7 +252,7 @@ namespace Core.App
             // Never keep the account row the server attaches (credentials): only planet + empire data.
             row.Remove("user");
             if (row["empire"] is JObject empire)
-                Empire = empire;
+                SetEmpire(empire);
             row.Remove("empire");
             if (!_planets.TryGetValue(id, out var p))
             {

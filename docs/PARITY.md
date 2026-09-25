@@ -21,7 +21,7 @@ Généré depuis `action-api.json` (154 actions), `actionjs.php` et un grep des 
 | Galaxie | 2 | 8 | 25 % |
 | Flotte | 16 | 23 | 70 % |
 | Vaisseau / chantier | 8 | 9 | 89 % |
-| Planète / bâtiments / recherche | 8 | 17 | 47 % |
+| Planète / bâtiments / recherche | 11 | 17 | 65 % |
 | Combat | 8 | 14 | 57 % |
 | Jumpgate | 0 | 2 | 0 % |
 | Stargate | 0 | 7 | 0 % |
@@ -29,7 +29,7 @@ Généré depuis `action-api.json` (154 actions), `actionjs.php` et un grep des 
 | Guerre | 0 | 9 | 0 % |
 | Alliance | 1 | 17 | 6 % |
 | Empire / progression / shop | 7 | 27 | 26 % |
-| **Total** | **57** | **154** | **37 %** |
+| **Total** | **60** | **154** | **39 %** |
 
 Appelées par le client web : 134/154. « Appelée » ≠ « finie » : voir la colonne *Statut*.
 
@@ -103,13 +103,13 @@ Appelées par le client web : 134/154. « Appelée » ≠ « finie » : voir la 
 
 | Action | R/W | Params | VR | Web | Station | Phase | Statut | Notes |
 |---|---|---|---|---|---|---|---|---|
-| `AddShip` | W | type, planet | `Stations/ShipyardPanel.cs` | `objects/fleet.js` | Engineering | P5 | Démo | Onglet Chantier de la cale : catalogue par famille (shipstats), prérequis `requiert`, Construire / + File ; réponse texte ou JSON `queued` |
+| `AddShip` | W | type, planet | `Stations/ShipyardPanel.cs` | `objects/fleet.js` | Engineering | P5 | Branché | Onglet Chantier de la cale : catalogue par famille (shipstats), prérequis `requiert`, Construire / + File ; réponse texte ou JSON `queued` |
 | `AddToFleet` | W | fleet, ship, planet? | `Stations/DryDock.cs` | `objects/fleet.js` | Engineering | P5 | Branché | `fleet=0` + ShipCore → JSON `{ok,fleet}` (systemid=planète) ; refuse notYourShip sans supprimer |
 | `CancelQueuedShip` | W | id, queue_id | `Stations/ShipyardPanel.cs` | `scenes/planet.js` | Engineering | P5 | Branché | Param `id` (ligne planet_ship_queue) |
 | `DelShip` | W | ship | `Stations/DryDock.cs` | `objects/fleet.js` | Engineering | P5 | Branché | Râtelier du hangar : destruction en deux temps |
 | `DelToFleet` | W | fleet, ship | — | `objects/fleet.js` | Engineering | P5 | À faire |  |
 | `GetShipLayout` | R | fleet | `Stations/DryDock.cs` +1 | `ui/ShipBuilderUI.js` | Engineering | P5 | Branché | Coque 1:1 dans la cale + hublots (`ShipHullBuilder`) |
-| `PlaceShipModule` | W | ship, fleet, gx, gy | `Stations/DryDock.cs` | `ui/ShipBuilderUI.js` | Engineering | P5 | Démo | Cale sèche : caisse posée à la main (ou case visée) ; serveur + VR : adjacence 4-voisins, cœur, planète, MAX_FLEET_SIZE, cache fleet_stats_ |
+| `PlaceShipModule` | W | ship, fleet, gx, gy | `Stations/DryDock.cs` | `ui/ShipBuilderUI.js` | Engineering | P5 | Branché | Cale sèche : caisse posée à la main (ou case visée) ; serveur + VR : adjacence 4-voisins, cœur, planète, MAX_FLEET_SIZE, cache fleet_stats_ |
 | `RemoveShipModule` | W | ship | `Stations/DryDock.cs` | `ui/ShipBuilderUI.js` | Engineering | P5 | Branché | Cale sèche : en deux temps ; refusé si le retrait couperait le vaisseau du cœur |
 | `SpeedupShipyard` | W | planet, ship? | `Stations/ShipyardPanel.cs` | `scenes/planet.js` | Engineering | P5 | Branché | Coût Nova affiché (gratuit ≤ 60 s) |
 
@@ -120,19 +120,19 @@ Appelées par le client web : 134/154. « Appelée » ≠ « finie » : voir la 
 | `AnswerPlanetDecision` | W | planet, decision, choice | `Stations/OpsConsole.cs` | `objects/planet.js` | Ops | P5 | Branché | `decision` = **`decision_key`** (chaîne), pas l'id ; `choice` yes/no ; erreurs i18n |
 | `BuildDefenseUnit` | W | planet, type, qty | — | `objects/planet.js` | Tactical | P5 | À faire | VR : MissileTurret×1 codé en dur |
 | `CancelQueuedBuilding` | W | id, queue_id | `Stations/OpsConsole.cs` | `scenes/planet.js` | Ops | P5 | Branché | Param `id` ou `queue_id` ; échecs en `error:<clé>` ; file = `buildingtype` + `duration` |
-| `CancelQueuedResearch` | W | id, queue_id | — | `scenes/research.js` | Science | P5 | À faire |  |
+| `CancelQueuedResearch` | W | id, queue_id | `Stations/ResearchLab.cs` | `scenes/research.js` | Science | P5 | Branché | Param `id` (ligne empire_research_queue, tech en `research`) ; cristal arraché de son pad ou × |
 | `CheckBuildingQueue` | R | planet | — | `view/game.php` | Ops | P5 | À faire | `percent` basé sur `workingStart` + `working` (fallback legacy) |
 | `CheckResearchQueue` | R | — | — | `view/game.php` | Science | P5 | À faire |  |
 | `CheckShipQueue` | R | planet | — | `view/game.php` | Engineering | P5 | À faire | `percent` = elapsed/SHIPSTATS.time (plus time()/endTime) |
 | `DowngradeBuilding` | W | buildingtype, planet | `Stations/OpsConsole.cs` | `objects/planet.js` | Ops | P5 | Branché | Immédiat, sans remboursement : confirmation en deux temps |
 | `GetPlanetDecisions` | R | planet | `Stations/OpsConsole.cs` | `objects/planet.js` | Ops | P5 | Branché | 10 décisions / planète / heure, `nextRefreshAt` → compte à rebours ; titres via `decision_*` / `decisionDesc_*` |
 | `GetResource` | R | planet, raw? | `App/EconomyService.cs` | `objects/planet.js` | Ops (poll global) | P0 | Branché | `EconomyService` : `raw=1` sur **toutes** les planètes (csv ≤ 50) toutes les 10 s — accumule la production et fait avancer les files. `user` = PublicUser (id/username) seulement |
-| `ImproveResearch` | W | research, planet | — | `objects/research.js` | Science | P5 | À faire | Clé réelle `combustionDrive` — démo retirée en P1c |
+| `ImproveResearch` | W | research, planet | `Crew/CrewLines.cs` +1 | `objects/research.js` | Science | P5 | Branché | Labo Science : cristal de la constellation → synthétiseur (ou bouton) ; `planet` = meilleur researchLab ; corps vide = lancé, JSON `{queued,targetLevel}` = en file ; prérequis `GetConfigs.researchs.requiert` |
 | `RecruitTroop` | W | planet, type, qty | — | `objects/planet.js` | Tactical | P5 | À faire | VR : Infantry×1 codé en dur |
 | `RefreshStats` | W | planet | — | `objects/planet.js` | Ops | P5 | À faire |  |
 | `RenamePlanet` | W | id, name | `Stations/OpsConsole.cs` | `objects/planet.js` | Ops | P5 | Branché | Serveur : 1–32 chars, lettres/chiffres/espaces/-_. ; `error:invalidPlanetName` |
 | `SpeedupBuilding` | W | planet | `Stations/OpsConsole.cs` | `scenes/planet.js` | Ops | P5 | Branché | Coût Nova affiché avant (gratuit ≤ 60 s, sinon max(10, ⌈6·min^0.82⌉)) |
-| `SpeedupResearch` | W | — | — | `scenes/research.js` | Science | P5 | À faire |  |
+| `SpeedupResearch` | W | — | `Stations/ResearchLab.cs` | `scenes/research.js` | Science | P5 | Branché | Écran du synthétiseur ; coût Nova affiché (gratuit ≤ 60 s) ; sans param |
 | `UpgradeBuilding` | W | buildingtype, planet | `Crew/CrewLines.cs` +1 | `objects/planet.js` | Ops | P5 | Branché | Console Ops : devis serveur (coût × niveau cible, temps × computer), « Ajouter à la file » si chantier actif ; réponse texte (niveau) ou JSON `queued` |
 
 ## Combat
@@ -294,6 +294,14 @@ Corrigés dans `stellar-universe` (`7580501`, 2026-09-25) — le client VR ne co
 - **`CheckShipQueue.percent`** : ✅ elapsed / `SHIPSTATS[type].time` (même pattern que bâtiments).
 - **Erreurs grille i18n** : ✅ `positionOccupied`, `invalidPosition`, `shipNotInHangar`, `cannotRemoveCore`, `shipNeedsCore`, `moduleNotAdjacent`, `shipNotFound`, `error_planet_not_yours`, `notEnoughResearchLab` (fr+en).
 - **`MAX_FLEET_SIZE` / `ALLOWED_FLEET_PER_PLANET`** : ✅ exposés dans `GetConfigs.fleet.maxFleetSize` / `allowedFleetPerPlanet` ; lus par `GameConfig` VR.
+
+### À corriger côté web (relevés en lisant la recherche, 2026-09-25)
+
+- **⚠ `ImproveResearch` en file perd un niveau** : le handler travaille sur le `$empire` global, déjà passé par `AdjustEmpireForPendingWork` (niveau de la recherche en cours −1). La branche « file » fait `UpdateEmpire($empire)` → ce −1 est **écrit en base** : la recherche en cours finit sans son niveau. Le même `$empire` ajusté donne `targetLevel = niveau ajusté + file + 1` = le niveau déjà en cours (doublon payé). Correctif : recharger l'empire brut (`GetEmpireByUser`) avant de débiter et de calculer la cible (cible = brut + file + 1, comme le web l'affiche : `level + 2` si actif). À vérifier ailleurs : toute action qui fait `UpdateEmpire($empire)` sur le global pendant une recherche (même −1 en base).
+- **File de recherche web : nom vide** : `ResearchWindowUI` / `research.js` lisent `item.research_type`, la colonne est `research` (`empire_research_queue`). La VR lit `research` (avec repli `research_type`).
+- **Clé absente `needSearchLab`** (web `onImprove`, aucun labo) : n'existe pas dans `fr.json`/`en.json` ; la clé native est `noResearchLab` (utilisée par la VR).
+- **`UNLOCKS` codé en dur en français** (`research.js`) : la VR les dérive des configs serveur (`requiert` de `shipstats` / `troopstats` / `defensestats` + bâtiments). Les effets chiffrés (+10 %/niv…) restent dans `desc<Tech>`.
+- **`GetResource.empire` brut** : le niveau de la recherche en cours y est déjà incrémenté (≠ `GetMeEmpire`, ajusté). La VR corrige (`EconomyService.ResearchLevel`) ; idéalement `GetResource` passerait aussi par `AdjustEmpireForPendingWork`.
 
 ### Spec livrée — `CreateEmpire`
 

@@ -73,6 +73,7 @@ namespace Core.Crew
             "Colonize" => "colonize",
             "MakeBattle" => "battleStart",
             "UpgradeBuilding" => "buildStart",
+            "ImproveResearch" => "researchStart",
             _ => null
         };
 
