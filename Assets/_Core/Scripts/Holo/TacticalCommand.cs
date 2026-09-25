@@ -184,6 +184,23 @@ namespace Core.Holo
 
             if (token != null && blocker < best)
                 token = null;
+
+            // Galaxy: the aim meets the star layer; the nearest star there is the target (not only pooled tokens).
+            if (token == null && _map.ShowingGalaxy && _map.ContentRoot != null)
+            {
+                var c = _map.ContentRoot;
+                var planeY = c.TransformPoint(new Vector3(0f, HoloZoneMap.DioramaLift + 0.03f, 0f)).y;
+                if (Mathf.Abs(dir.y) > 1e-3f)
+                {
+                    var t = (planeY - origin.y) / dir.y;
+                    if (t > 0f && t < RayLength && t < blocker)
+                    {
+                        var hit = origin + dir * t;
+                        token = _map.GalaxyTargetNear(hit, 0.035f);
+                        best = t;
+                    }
+                }
+            }
             if (ray.TryGetCurrentUIRaycastResult(out RaycastResult ui) && ui.isValid &&
                 (token == null || ui.distance < best))
                 onUi = true;

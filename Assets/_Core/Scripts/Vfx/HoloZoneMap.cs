@@ -389,7 +389,6 @@ namespace Core.Vfx
                 return;
             ClearTokens();
             _galaxyStub = true;
-            SetEclipticVisible(false);
             BuildGalaxyMap();
             SetReadout(Trans.Get("galaxy"));
             TokensRebuilt?.Invoke();

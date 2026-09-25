@@ -1,6 +1,8 @@
 Shader "SU/HoloStarField"
 {
-    // Galaxy overview on the holo table: every system is one flat quad of a single mesh (one draw call).
+    // Galaxy overview on the holo table: every system is one quad of a single mesh (one draw call), expanded
+    // here into a camera-facing billboard around its centre (all four vertices carry the centre; uv = corner,
+    // uv2.x = size in object metres) so the stars read as glowing points floating in the volume.
     // Glyph is procedural (hot core + soft halo + faint ring), tinted per vertex by owner stance;
     // quads fade out at the disc rim (object-space radius) so pans never spill past the table.
     Properties
@@ -33,6 +35,7 @@ Shader "SU/HoloStarField"
             {
                 float4 vertex : POSITION;
                 float2 uv : TEXCOORD0;
+                float2 uv2 : TEXCOORD1;
                 float4 color : COLOR;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
@@ -50,7 +53,10 @@ Shader "SU/HoloStarField"
                 v2f o;
                 UNITY_SETUP_INSTANCE_ID(v);
                 UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
-                o.vertex = UnityObjectToClipPos(v.vertex);
+                float scale = length(float3(unity_ObjectToWorld._m00, unity_ObjectToWorld._m10, unity_ObjectToWorld._m20));
+                float3 view = UnityObjectToViewPos(v.vertex.xyz);
+                view.xy += (v.uv * 2.0 - 1.0) * (v.uv2.x * 0.5 * scale);
+                o.vertex = mul(UNITY_MATRIX_P, float4(view, 1.0));
                 o.uv = v.uv * 2.0 - 1.0;
                 float r = length(v.vertex.xz);
                 float rim = saturate((_DiscRadius - r) / max(1e-4, _RimFade));

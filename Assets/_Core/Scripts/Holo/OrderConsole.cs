@@ -34,6 +34,12 @@ namespace Core.Holo
 
         const int MaxOptions = 4;
         const float Timeout = 20f;
+        /// <summary>
+        /// A plate that opens under the hand must not take the press that was already there: options arm
+        /// only after this delay (and after the finger has left them).
+        /// </summary>
+        const float ArmDelay = 0.6f;
+        float _armAt;
         static readonly Vector2 Size = new(0.62f, 0.42f);
 
         GameObject _screenGo;
@@ -117,7 +123,7 @@ namespace Core.Holo
                 toEye.y = 0f;
                 var near = toEye.sqrMagnitude > 1e-4f ? toEye.normalized : Vector3.back;
                 // A little toward the captain and above the target, never inside the diorama.
-                var p = worldTarget + near * 0.14f + Vector3.up * 0.2f;
+                var p = worldTarget + near * 0.1f + Vector3.up * 0.3f;
                 // Keep it within comfortable reach of the eye.
                 var d = p - eye;
                 if (d.magnitude > 1.1f)
@@ -163,6 +169,9 @@ namespace Core.Holo
 
             _pending = new TaskCompletionSource<object>();
             _deadline = Time.unscaledTime + Timeout;
+            _armAt = Time.unscaledTime + ArmDelay;
+            for (var i = 0; i < _current.Count; i++)
+                _options[i].Interactive = false;
             _screenGo.SetActive(true);
             enabled = true;
             CicCue.Hover(_screen.transform.position);
@@ -171,7 +180,7 @@ namespace Core.Holo
 
         void Choose(int index)
         {
-            if (_pending == null || index >= _current.Count || !_current[index].Enabled)
+            if (_pending == null || index >= _current.Count || !_current[index].Enabled || Time.unscaledTime < _armAt)
                 return;
             Resolve(_current[index].Payload);
         }
@@ -190,6 +199,13 @@ namespace Core.Holo
 
         void Update()
         {
+            if (_pending != null && _armAt > 0f && Time.unscaledTime >= _armAt)
+            {
+                _armAt = 0f;
+                for (var i = 0; i < _current.Count; i++)
+                    _options[i].Interactive = _current[i].Enabled;
+            }
+
             if (_pending != null && Time.unscaledTime > _deadline)
                 Resolve(null);
         }

@@ -114,6 +114,7 @@ namespace Core.App
                 if (arr == null)
                     return;
                 ByUser.Clear();
+                Identity.Clear();
                 foreach (var e in arr)
                 {
                     var uid = FocusContext.AsInt(e["userid"]);
@@ -124,6 +125,7 @@ namespace Core.App
                         key = FocusContext.AsString(e["relationship"]);
                     var score = FocusContext.AsFloat(e["relation"]);
                     ByUser[uid] = ParseKey(key, score);
+                    Identity[uid] = (FocusContext.AsString(e["name"]), FocusContext.AsString(e["flag"]));
                 }
             }
             catch
@@ -159,6 +161,23 @@ namespace Core.App
             {
                 // Keep previous.
             }
+        }
+
+        /// <summary>Empire name + flag JSON (GetEmpires.name / .flag) per users.id — galaxy territories.</summary>
+        static readonly Dictionary<int, (string Name, string Flag)> Identity = new();
+
+        public static bool TryIdentity(int userId, out string name, out string flagJson)
+        {
+            if (Identity.TryGetValue(userId, out var id))
+            {
+                name = id.Name;
+                flagJson = id.Flag;
+                return true;
+            }
+
+            name = null;
+            flagJson = null;
+            return false;
         }
 
         public static EmpireStance Resolve(int userId, bool isPirate = false)

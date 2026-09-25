@@ -83,6 +83,21 @@ namespace Core.Holo
             // The galaxy plate frames itself: the diorama's grab framing starts fresh on either side.
             Release();
             SnapIdentity();
+            Unfold();
+        }
+
+        /// <summary>Level change: the new map unfolds from its centre (system ⟷ galaxy transition).</summary>
+        void Unfold()
+        {
+            var c = Content;
+            if (c == null)
+                return;
+            c.localScale = Vector3.one * 0.12f;
+            _resetT = 0f;
+            _resetFromPos = Vector3.zero;
+            _resetFromRot = Quaternion.identity;
+            _resetFromScale = c.localScale;
+            CicCue.Hover(transform.position + Vector3.up * 0.2f);
         }
 
         /// <summary>Glide the diorama back to its place on the table.</summary>

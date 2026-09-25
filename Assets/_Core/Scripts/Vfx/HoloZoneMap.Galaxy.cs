@@ -27,7 +27,7 @@ namespace Core.Vfx
         const float GalaxyNearSpacing = 0.13f;
         const float GalaxyViewRadiusFactor = 0.97f;
         /// <summary>Ship tokens shrink on the galaxy so a star keeps its read under them.</summary>
-        const float GalaxyFleetScale = 0.4f;
+        const float GalaxyFleetScale = 0.8f;
 
         static readonly Color StarEmpty = new(0.5f, 0.6f, 0.78f, 0.55f);
         static readonly Color StarHere = new(1f, 0.78f, 0.3f, 1f);
@@ -95,6 +95,7 @@ namespace Core.Vfx
             _gHasSelection = false;
 
             EnsureGalaxyField();
+            BuildTerritories();
             EnsureGalaxyPool();
             RebuildGalaxyView(true);
             RefreshGalaxyFleets();
@@ -227,16 +228,17 @@ namespace Core.Vfx
             var limitSq = limit * limit;
             var focus = _focus ?? FocusContext.Current;
             var hereId = focus != null ? focus.SystemId : 0;
-            var lift = 0.02f;
+            var lift = DioramaLift;
 
             _gVerts.Clear();
             _gColors.Clear();
             _gUvs.Clear();
+            _gSizes.Clear();
             _gTris.Clear();
             for (var i = 0; i < stars.Count; i++)
             {
                 var s = stars[i];
-                var p = MapToLocal(s.MapX, s.MapY, lift);
+                var p = StarLocal(s, lift);
                 if (p.x * p.x + p.z * p.z > limitSq)
                     continue;
                 Color c;
@@ -244,19 +246,19 @@ namespace Core.Vfx
                 if (s.Id == hereId)
                 {
                     c = StarHere;
-                    size = 0.065f;
+                    size = 0.05f;
                 }
                 else if (s.OwnerId > 0)
                 {
-                    var stance = DiplomacyIndex.Resolve(s.OwnerId);
-                    c = DiplomacyIndex.Tint(stance);
+                    // Held systems: bright, tinted lightly by the owner (the territory carries the colour).
+                    c = Color.Lerp(Color.white, OwnerColor(s.OwnerId), 0.35f);
                     c.a = 1f;
-                    size = stance == EmpireStance.Owned ? 0.05f : 0.04f;
+                    size = 0.03f;
                 }
                 else
                 {
                     c = StarEmpty;
-                    size = 0.03f;
+                    size = 0.02f;
                 }
 
                 AddStarQuad(p, size, c);
@@ -269,9 +271,11 @@ namespace Core.Vfx
             _gMesh.SetVertices(_gVerts);
             _gMesh.SetColors(_gColors);
             _gMesh.SetUVs(0, _gUvs);
+            _gMesh.SetUVs(1, _gSizes);
             _gMesh.SetTriangles(_gTris, 0, false);
-            _gMesh.bounds = new Bounds(Vector3.zero, new Vector3(limit * 2f, 0.2f, limit * 2f));
+            _gMesh.bounds = new Bounds(new Vector3(0f, lift, 0f), new Vector3(limit * 2f + 0.2f, 0.4f, limit * 2f + 0.2f));
 
+            UpdateTerritoryView(lift);
             if (!_interactionLock && (reselect || !_gHasSelection || SelectionDrifted()))
                 SelectGalaxyTokens(stars, limitSq, lift, hereId);
             else
@@ -280,19 +284,20 @@ namespace Core.Vfx
                 LayoutGalaxyFleets(lift);
         }
 
+        readonly List<Vector2> _gSizes = new();
+
+        /// <summary>One star = four vertices at its centre; the shader turns them into a camera-facing glow.</summary>
         void AddStarQuad(Vector3 p, float size, Color c)
         {
-            var h = size * 0.5f;
             var b = _gVerts.Count;
-            _gVerts.Add(p + new Vector3(-h, 0f, -h));
-            _gVerts.Add(p + new Vector3(-h, 0f, h));
-            _gVerts.Add(p + new Vector3(h, 0f, h));
-            _gVerts.Add(p + new Vector3(h, 0f, -h));
             Color32 c32 = c;
-            _gColors.Add(c32);
-            _gColors.Add(c32);
-            _gColors.Add(c32);
-            _gColors.Add(c32);
+            for (var k = 0; k < 4; k++)
+            {
+                _gVerts.Add(p);
+                _gColors.Add(c32);
+                _gSizes.Add(new Vector2(size, 0f));
+            }
+
             _gUvs.Add(new Vector2(0f, 0f));
             _gUvs.Add(new Vector2(0f, 1f));
             _gUvs.Add(new Vector2(1f, 1f));
@@ -304,6 +309,18 @@ namespace Core.Vfx
             _gTris.Add(b + 2);
             _gTris.Add(b + 3);
         }
+
+        /// <summary>Stars float at slightly different heights (stable per system): a volume, not a print.</summary>
+        static float StarRise(int id)
+        {
+            unchecked
+            {
+                var h = (uint)id * 2246822519u;
+                return (h % 1000) / 1000f * 0.06f;
+            }
+        }
+
+        Vector3 StarLocal(in GalaxyCatalog.Star s, float lift) => MapToLocal(s.MapX, s.MapY, lift + StarRise(s.Id));
 
         bool SelectionDrifted()
         {
@@ -424,7 +441,7 @@ namespace Core.Vfx
                 return null;
             AssignGalaxyToken(victim, star, hereId);
             var token = _gPool[victim];
-            token.transform.localPosition = MapToLocal(star.MapX, star.MapY, 0.02f);
+            token.transform.localPosition = StarLocal(star, DioramaLift);
             token.CaptureHome();
             return token;
         }
@@ -437,7 +454,7 @@ namespace Core.Vfx
                     continue;
                 var token = _gPool[i];
                 var star = _gSlot[i];
-                var p = MapToLocal(star.MapX, star.MapY, lift);
+                var p = StarLocal(star, lift);
                 var inside = p.x * p.x + p.z * p.z <= limitSq;
                 if (token.gameObject.activeSelf != inside)
                     token.gameObject.SetActive(inside);
@@ -494,7 +511,7 @@ namespace Core.Vfx
                 }
             }
 
-            LayoutGalaxyFleets(0.02f);
+            LayoutGalaxyFleets(DioramaLift);
             TokensRebuilt?.Invoke();
         }
 
@@ -508,7 +525,7 @@ namespace Core.Vfx
                 // Several ships on one star fan out around it, nose outward.
                 var ang = f.Index * 1.9f + 0.6f;
                 var offset = new Vector3(Mathf.Cos(ang), 0f, Mathf.Sin(ang)) * 0.045f;
-                var p = MapToLocal(star.MapX, star.MapY, lift + WorldScale.HoloTokenLift * 0.5f) + offset;
+                var p = StarLocal(star, lift + 0.025f) + offset;
                 var inside = new Vector2(p.x, p.z).magnitude <= limit;
                 if (f.Root.activeSelf != inside)
                     f.Root.SetActive(inside);
