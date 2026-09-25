@@ -65,6 +65,7 @@ namespace Core.App
             Core.Crew.BarkDirector.Build(interior.transform, _focus);
             var economy = EconomyService.Ensure(interior.transform);
             Core.Stations.OpsConsole.Build(interior.transform, economy);
+            Core.Stations.DryDock.Build(env.Art, _focus, _poller, economy);
             CrewStationsBuilder.Build(env, env.Art, hex, _zoneMap, _poller, _focus, _loader);
             BridgeViewscreen.Build(env, _focus);
 

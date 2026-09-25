@@ -60,6 +60,36 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 | `traitEffect_colonizationTime` | Colonization time | Temps de colonisation | Effet d'un trait d'espèce (`GetSpeciesTraits.key`) |
 | `traitEffect_mood` | Morale | Morale | Effet d'un trait d'espèce (`GetSpeciesTraits.key`) |
 
+
+## À intégrer (P5 — cale sèche Engineering)
+
+| Clé | EN | FR | Usage VR |
+|---|---|---|---|
+| `vr.dock.enter` | Dry dock | Cale sèche | Répéteur Engineering : entrer dans la cale sèche |
+| `vr.dock.title` | Dry dock | Cale sèche | Écran vaisseau de la cale |
+| `vr.dock.leave` | Back to the bridge | Retour au pont | Bouton de sortie de la cale |
+| `vr.dock.newShip` | New ship | Nouveau vaisseau | `AddToFleet fleet=0` avec un ShipCore du hangar |
+| `vr.dock.needCore` | Needs a Ship Core in the hangar | Il faut un Cœur de vaisseau au hangar | Nouveau vaisseau indisponible |
+| `vr.dock.noShipDocked` | No ship docked at this world. | Aucun vaisseau amarré à ce monde. | Cale sans vaisseau à éditer |
+| `vr.dock.pickShip` | Choose a ship to work on. | Choisissez un vaisseau à modifier. | Aucun vaisseau sélectionné |
+| `vr.dock.pickModule` | Pick a module on the hangar rack. | Choisissez un module au râtelier du hangar. | Clic sur une case vide sans module choisi |
+| `vr.dock.placing` | Placing: {0} — set the crate on a green cell | Pose : {0} — déposez la caisse sur une case verte | Module sélectionné |
+| `vr.dock.mustTouch` | A module must touch the ship's structure. | Un module doit toucher la structure du vaisseau. | Case non adjacente |
+| `vr.dock.wouldSplit` | Removing it would cut the ship in two. | Le retirer couperait le vaisseau en deux. | Retrait qui isolerait des modules du cœur |
+| `vr.dock.confirmRemove` | Point again to take off {0} | Visez encore pour retirer {0} | Retrait en deux temps |
+| `vr.dock.removed` | Module back in the hangar | Module rendu au hangar | Retour `RemoveShipModule` |
+| `vr.dock.confirmScrap` | Tap again to scrap {0} (no refund) | Touchez encore pour détruire {0} (sans remboursement) | `DelShip` en deux temps |
+| `vr.dock.scrapped` | Module scrapped | Module détruit | Retour `DelShip` |
+| `vr.dock.renamed` | Ship renamed | Vaisseau renommé | Retour `RenameFleet` |
+| `vr.dock.hangarEmpty` | The hangar is empty. | Le hangar est vide. | Râtelier vide |
+| `vr.dock.troops` | Troop capacity | Capacité de troupes | Stat de conception (`troopCargo`) |
+| `vr.dock.size` | Hull size | Taille de coque | Stat de conception (`size`, plafond serveur 100) |
+| `positionOccupied` | This cell is already taken. | Cette case est déjà occupée. | Erreur brute `PlaceShipModule` |
+| `invalidPosition` | Invalid position on the grid. | Position invalide sur la grille. | Erreur brute `PlaceShipModule` |
+| `shipNotInHangar` | This module is not available in the hangar. | Ce module n'est pas disponible au hangar. | Erreur brute `PlaceShipModule` |
+| `cannotRemoveCore` | The ship core cannot be removed. | Le cœur du vaisseau ne peut pas être retiré. | Erreur brute `RemoveShipModule` |
+| `shipNotFound` | Module not found. | Module introuvable. | Erreur brute `RemoveShipModule` |
+
 ## Restant côté web
 
 | Source web | Restant | Notes |

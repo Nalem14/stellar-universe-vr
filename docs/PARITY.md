@@ -19,8 +19,8 @@ Généré depuis `action-api.json` (154 actions), `actionjs.php` et un grep des 
 | Méta / boot | 2 | 5 | 40 % |
 | Caméra (vue) | 2 | 2 | 100 % |
 | Galaxie | 2 | 8 | 25 % |
-| Flotte | 15 | 23 | 65 % |
-| Vaisseau / chantier | 1 | 9 | 11 % |
+| Flotte | 16 | 23 | 70 % |
+| Vaisseau / chantier | 5 | 9 | 56 % |
 | Planète / bâtiments / recherche | 8 | 17 | 47 % |
 | Combat | 8 | 14 | 57 % |
 | Jumpgate | 0 | 2 | 0 % |
@@ -29,7 +29,7 @@ Généré depuis `action-api.json` (154 actions), `actionjs.php` et un grep des 
 | Guerre | 0 | 9 | 0 % |
 | Alliance | 1 | 17 | 6 % |
 | Empire / progression / shop | 7 | 27 | 26 % |
-| **Total** | **49** | **154** | **32 %** |
+| **Total** | **54** | **154** | **35 %** |
 
 Appelées par le client web : 134/154. « Appelée » ≠ « finie » : voir la colonne *Statut*.
 
@@ -91,7 +91,7 @@ Appelées par le client web : 134/154. « Appelée » ≠ « finie » : voir la 
 | `PrlBondFleetToSystem` | W | fleet, system?, pos? | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Helm | P4 | Branché | Devis portée / coût / recharge au pupitre (`TravelPlanner`, distance sur `visual_x/visual_y` comme le serveur), `fleet` + `system` + `pos` ; lâcher sur une étoile de la galaxie |
 | `ProcessFleetOrderQueue` | W | fleet | — | — | Helm | — | Hors scope | Géré par cron + `GetAllFleets` ; pas d'UI |
 | `RemoveFleetOrderStep` | W | fleet, stepIndex | `Holo/OrderQueue.cs` | `objects/fleet.js` | Helm | P4 | Branché | `stepIndex` 0-based, repeater Helm |
-| `RenameFleet` | W | id, name | — | `objects/fleet.js` | Helm | P5 | À faire |  |
+| `RenameFleet` | W | id, name | `Stations/DryDock.cs` | `objects/fleet.js` | Helm | P5 | Branché | Cale sèche, clavier Quest |
 | `SetFleetOrderQueue` | W | fleet, queue, loop? | — | `objects/fleet.js` | Helm | P4 | À faire |  |
 | `SpeedupFleetTravel` | W | fleet | — | `scripts/helper.js` | Helm | P5 | À faire |  |
 | `ToggleFleetQueueLoop` | W | fleet, loop? | `Holo/OrderQueue.cs` | `objects/fleet.js` | Helm | P4 | Branché | `loop` explicite 0/1 |
@@ -104,13 +104,13 @@ Appelées par le client web : 134/154. « Appelée » ≠ « finie » : voir la 
 | Action | R/W | Params | VR | Web | Station | Phase | Statut | Notes |
 |---|---|---|---|---|---|---|---|---|
 | `AddShip` | W | type, planet | — | `objects/fleet.js` | Engineering | P5 | À faire | VR : ShipCore codé en dur |
-| `AddToFleet` | W | fleet, ship, planet? | — | `objects/fleet.js` | Engineering | P5 | À faire |  |
+| `AddToFleet` | W | fleet, ship, planet? | `Stations/DryDock.cs` | `objects/fleet.js` | Engineering | P5 | Branché | `fleet=0` + ShipCore du hangar = nouveau vaisseau (réponse vide : nouvel id relu dans `GetAllFleets`) |
 | `CancelQueuedShip` | W | id, queue_id | — | `scenes/planet.js` | Engineering | P5 | À faire |  |
-| `DelShip` | W | ship | — | `objects/fleet.js` | Engineering | P5 | À faire |  |
+| `DelShip` | W | ship | `Stations/DryDock.cs` | `objects/fleet.js` | Engineering | P5 | Branché | Râtelier du hangar : destruction en deux temps |
 | `DelToFleet` | W | fleet, ship | — | `objects/fleet.js` | Engineering | P5 | À faire |  |
-| `GetShipLayout` | R | fleet | `Vfx/FleetShipView.cs` | `ui/ShipBuilderUI.js` | Engineering | P5 | Branché |  |
-| `PlaceShipModule` | W | ship, fleet, gx, gy | — | `ui/ShipBuilderUI.js` | Engineering | P5 | À faire |  |
-| `RemoveShipModule` | W | ship | — | `ui/ShipBuilderUI.js` | Engineering | P5 | À faire |  |
+| `GetShipLayout` | R | fleet | `Stations/DryDock.cs` +1 | `ui/ShipBuilderUI.js` | Engineering | P5 | Branché | Coque 1:1 dans la cale + hublots (`ShipHullBuilder`) |
+| `PlaceShipModule` | W | ship, fleet, gx, gy | `Stations/DryDock.cs` | `ui/ShipBuilderUI.js` | Engineering | P5 | Démo | Cale sèche : caisse posée à la main (ou case visée), adjacence 4-voisins imposée côté VR (le serveur ne la vérifie pas) |
+| `RemoveShipModule` | W | ship | `Stations/DryDock.cs` | `ui/ShipBuilderUI.js` | Engineering | P5 | Branché | Cale sèche : en deux temps ; refusé si le retrait couperait le vaisseau du cœur |
 | `SpeedupShipyard` | W | planet, ship? | — | `scenes/planet.js` | Engineering | P5 | À faire |  |
 
 ## Planète / bâtiments / recherche
@@ -283,6 +283,17 @@ Corrigés dans `stellar-universe` (`7580501`, 2026-09-25) — le client VR ne co
 - **Plafonds d'empire** : ✅ `GetConfigs.empire.maxPolicies` / `leaderTraitsMax` (web `faf0614`, en prod) — lus par l'assistant de création.
 - **Propriété des planètes** : ✅ cache `GetSystems` vidé à la planète de départ / `ColonizePlanet` / suppression de compte ; `GetEmpirePlanets` renvoie `systemid` + `slot` (web `c94c803`, en prod). Un nouvel empire voyait son monde natal comme non possédé jusqu'à 1 h.
 - **Formes du drapeau** : libellés en dur dans `view/create-empire.php` → clés `flagShape_<id>` (missing-keys).
+
+### À corriger côté web (relevés en lisant le chantier / designer, 2026-09-25)
+
+- **⚠ Sécurité — `AddToFleet` supprime le module d'un autre joueur** : sur `notYourShip`, le handler **efface la ligne `ships`** passée en `ship` (actionjs.php `AddToFleet`). N'importe quel compte peut détruire les modules d'un autre par id.
+- **Colonisation cassée** : le module est stocké sous la clé `colonyShip` (shipstats), mais `Colonize` teste `type == "ColonyShip"` (et l'astuce d'habitat du web aussi) → jamais vrai. La VR teste la même casse (`CrewDialogue.ColonyModuleId`) : à aligner une fois la clé fixée côté serveur.
+- **`HackingModule` inconstructible** : `requiert.researchLab: 10` est vérifié contre la table `empires` → `error:Key researchLab not found…`.
+- **`PlaceShipModule` ne vérifie ni l'adjacence, ni la présence du cœur, ni la planète du vaisseau, ni `MAX_FLEET_SIZE`**, et ne vide pas `fleet_stats_<id>` (stats en retard). La VR impose adjacence + connexité côté client.
+- **`AddToFleet fleet=0`** crée le vaisseau avec `systemid = user.systemid` au lieu du système de la planète, et répond vide (pas d'id).
+- **`CheckShipQueue.percent`** ≈ 100 en permanence (`time()/endTime`), comme l'ancien chantier de bâtiments.
+- **Erreurs grille en clés brutes** (`positionOccupied`, `invalidPosition`, `shipNotInHangar`, `cannotRemoveCore`) sans entrée i18n ; `error_planet_not_yours` absent de fr.json.
+- **`MAX_FLEET_SIZE` / `ALLOWED_FLEET_PER_PLANET`** non exposés dans `GetConfigs` (la VR ne peut pas afficher la taille max de coque).
 
 ### Spec livrée — `CreateEmpire`
 

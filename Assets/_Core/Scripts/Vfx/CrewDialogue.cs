@@ -299,7 +299,11 @@ namespace Core.Vfx
                 // Boarding a ship goes through the view teleporter; Helm is not even present here.
                 if (fleet == null)
                 {
-                    AddStatus(Trans.Get("vr.crew.standby"));
+                    // At the station, Engineering still runs the dry dock of this world.
+                    if (_role == Role.Engineering)
+                        AddDockRow(focus, null);
+                    else
+                        AddStatus(Trans.Get("vr.crew.standby"));
                     return;
                 }
 
@@ -591,6 +595,7 @@ namespace Core.Vfx
 
         void BuildEngineering(FocusContext focus, FocusFleet fleet)
         {
+            AddDockRow(focus, fleet);
             if (FleetOrderGate.CanMine(fleet))
             {
                 AddAction(ActionLabel("harvestAsteroid", Trans.Get("asteroidField") + " #" + fleet.AsteroidId),
@@ -674,6 +679,21 @@ namespace Core.Vfx
                 Close();
             GetComponentInParent<CrewOfficer>()?.LookAt(Camera.main != null ? Camera.main.transform.position : (Vector3?)null);
             console.Open(_anchor, preferred);
+        }
+
+        /// <summary>Dry dock of the station's planet, or of the planet this ship is docked at.</summary>
+        void AddDockRow(FocusContext focus, FocusFleet fleet)
+        {
+            var dock = Core.Stations.DryDock.Instance;
+            if (dock == null)
+                return;
+            var planet = fleet != null ? fleet.PlanetId : focus.ViewPlanetId;
+            var fleetId = fleet != null ? fleet.Id : 0;
+            AddAction(Trans.Get("vr.dock.enter"), async () =>
+            {
+                Close();
+                await dock.Enter(planet, fleetId);
+            }, DiegeticUi.BtnStyle.Amber, refreshAfter: false);
         }
 
         static string ActionLabel(string verbKey, string target)

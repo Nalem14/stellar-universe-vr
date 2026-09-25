@@ -28,6 +28,11 @@ namespace Core.App
         /// <summary>GetConfigs.factory (production per level) and .storage (warehouse multipliers).</summary>
         public static JObject Factory { get; private set; }
         public static JObject Storage { get; private set; }
+        /// <summary>GetConfigs.shipstats: module type → {armor, shield, damage, speed, cargo, size, crystalUsage,
+        /// troopCargo?, requiert:{orbitShipyard|academy|research: lvl}, cost:{mineral,crystal}, time}.</summary>
+        public static JObject ShipStats { get; private set; }
+        /// <summary>GetConfigs.jumpModuleRequirement: {modulesPerJumpModule} (hyperspace / PRL jump ratio).</summary>
+        public static JObject JumpModuleRequirement { get; private set; }
 
         public static void Ingest(string configsBody)
         {
@@ -55,6 +60,8 @@ namespace Core.App
                 Upgrade = root["upgrade"] as JObject;
                 Factory = root["factory"] as JObject;
                 Storage = root["storage"] as JObject;
+                ShipStats = root["shipstats"] as JObject;
+                JumpModuleRequirement = root["jumpModuleRequirement"] as JObject;
 
                 Loaded = TravelSecondsPerDistance > 0f;
             }

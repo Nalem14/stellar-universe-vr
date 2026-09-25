@@ -787,6 +787,9 @@ namespace Core.Vfx
             return new Vector3((gx - WorldScale.ShipCoreCell) * c, 0f, (gy - WorldScale.ShipCoreCell) * c * zSign);
         }
 
+        /// <summary>+1 / −1: which way grid y runs along the hull's Z for this layout (nose forward).</summary>
+        public static float NoseSignFor(IReadOnlyList<FocusShipModule> modules) => NoseSign(ResolveLayout(modules, 0));
+
         static float NoseSign(List<FocusShipModule> laid)
         {
             var engLow = 0;

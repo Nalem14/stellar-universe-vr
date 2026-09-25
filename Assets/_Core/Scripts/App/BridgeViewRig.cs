@@ -137,6 +137,9 @@ namespace Core.App
 
             if (CaptainCommandMode.Instance != null && CaptainCommandMode.Instance.IsCommandMode)
                 return;
+            // In the dry dock the player stands in another room; view changes must not pull them back.
+            if (Core.Stations.DryDock.Inside)
+                return;
 
             _xrOrigin.transform.localPosition = WorldScale.CicCaptainStand;
             _xrOrigin.transform.localRotation = Quaternion.identity;
