@@ -115,7 +115,10 @@ namespace Core.App
             }
 
             if (action == "GetConfigs")
+            {
                 DiplomacyIndex.IngestConfigsBody(result.Body);
+                GameConfig.Ingest(result.Body);
+            }
             return true;
         }
 

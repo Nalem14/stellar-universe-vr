@@ -19,7 +19,7 @@ Généré depuis `action-api.json` (152 actions), `actionjs.php` et un grep des 
 | Méta / boot | 2 | 5 | 40 % |
 | Caméra (vue) | 2 | 2 | 100 % |
 | Galaxie | 1 | 8 | 12 % |
-| Flotte | 10 | 23 | 43 % |
+| Flotte | 11 | 23 | 48 % |
 | Vaisseau / chantier | 1 | 9 | 11 % |
 | Planète / bâtiments / recherche | 0 | 17 | 0 % |
 | Combat | 8 | 14 | 57 % |
@@ -29,7 +29,7 @@ Généré depuis `action-api.json` (152 actions), `actionjs.php` et un grep des 
 | Guerre | 0 | 9 | 0 % |
 | Alliance | 1 | 17 | 6 % |
 | Empire / progression / shop | 2 | 25 | 8 % |
-| **Total** | **30** | **152** | **20 %** |
+| **Total** | **31** | **152** | **20 %** |
 
 Appelées par le client web : 134/152. « Appelée » ≠ « finie » : voir la colonne *Statut*.
 
@@ -77,18 +77,18 @@ Appelées par le client web : 134/152. « Appelée » ≠ « finie » : voir la 
 |---|---|---|---|---|---|---|---|---|
 | `AddFleetOrderStep` | W | fleet, step | — | `objects/fleet.js` | Helm | P4 | À faire |  |
 | `ClearFleetOrderQueue` | W | fleet | — | `objects/fleet.js` | Helm | P4 | À faire |  |
-| `Colonize` | W | ship, planet | `Vfx/CrewDialogue.cs` | `objects/fleet.js` | Ops | `ship` = id du module `ColonyShip` ; planète libre, habitabilité ≥ 6 | Branché | `ship` = id du module `ColonyShip` ; planète libre, habitabilité ≥ 6 |
-| `DepositCargo` | W | fleet, planet, mineral?, crystal?, biomass? | `Vfx/CrewDialogue.cs` | `objects/fleet.js` | Ops | P5 | Branché |  |
-| `ExplorePlanet` | W | fleet, planet | `Vfx/CrewDialogue.cs` | `objects/fleet.js` | Science | P5 | Branché |  |
+| `Colonize` | W | ship, planet | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Ops | `ship` = id du module `ColonyShip` ; planète libre, habitabilité ≥ 6 | Branché | `ship` = id du module `ColonyShip` ; planète libre, habitabilité ≥ 6 |
+| `DepositCargo` | W | fleet, planet, mineral?, crystal?, biomass? | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Ops | P5 | Branché |  |
+| `ExplorePlanet` | W | fleet, planet | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Science | P5 | Branché |  |
 | `GetAllFleets` | R | — | `App/BridgeSystemLoader.cs` +3 | `scenes/galaxy.js` | Helm | P0 | Branché | Cache serveur 3 s → poll VR 3,5 s. Traite les files de flotte. |
 | `GetAllFleetsAround` | R | — | — | `scenes/galaxy.js` | Helm | — | Hors scope | Interdit en VR (règle AGENTS) — `GetAllFleets` + filtre client |
 | `GetSystemAsteroids` | R | systemid | — | `scenes/system.js` | Helm | P5 | À faire |  |
-| `HarvestAsteroid` | W | fleet, asteroid | `Vfx/CrewDialogue.cs` | `objects/fleet.js` | Engineering | P5 | Branché |  |
+| `HarvestAsteroid` | W | fleet, asteroid | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Engineering | P5 | Branché |  |
 | `LoadTroops` | W | fleet, planet, troops | — | `objects/fleet.js` | Tactical | P5 | À faire |  |
-| `MoveFleetToAsteroid` | W | fleet, asteroid, hyperspace? | `Vfx/CrewDialogue.cs` +1 | `objects/fleet.js` | Helm | P4 | Branché | idem hyperspace |
-| `MoveFleetToPlanet` | W | fleet, planet, hyperspace? | `Vfx/CrewDialogue.cs` +1 | `objects/fleet.js` | Helm | P4 | Branché | idem hyperspace |
-| `MoveFleetToSystem` | W | fleet, pos, hyperspace? | `Vfx/CrewDialogue.cs` +1 | `objects/fleet.js` | Helm | P4 | Branché | `hyperspace` = 1 par défaut ; `hyperspace=0` pour sublight. `ok:sublight_*` → `ApiResult.NoticeKey` |
-| `PrlBondFleetToSystem` | W | fleet, system?, pos? | — | `objects/fleet.js` | Helm | P4 | À faire |  |
+| `MoveFleetToAsteroid` | W | fleet, asteroid, hyperspace? | `Crew/CrewLines.cs` +2 | `objects/fleet.js` | Helm | P4 | Branché | idem hyperspace |
+| `MoveFleetToPlanet` | W | fleet, planet, hyperspace? | `Crew/CrewLines.cs` +2 | `objects/fleet.js` | Helm | P4 | Branché | idem hyperspace |
+| `MoveFleetToSystem` | W | fleet, pos, hyperspace? | `Crew/CrewLines.cs` +2 | `objects/fleet.js` | Helm | P4 | Branché | Toujours `hyperspace` explicite (0 sous-lumière / 1 hyperespace) après devis au pupitre (`TravelPlanner`, formules serveur) ; `ok:sublight_*` → `ApiResult.NoticeKey` |
+| `PrlBondFleetToSystem` | W | fleet, system?, pos? | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Helm | P4 | Branché | Devis portée / coût / recharge au pupitre (`TravelPlanner`), `fleet` + `system` + `pos` |
 | `ProcessFleetOrderQueue` | W | fleet | — | — | Helm | — | Hors scope | Géré par cron + `GetAllFleets` ; pas d'UI |
 | `RemoveFleetOrderStep` | W | fleet, stepIndex | — | `objects/fleet.js` | Helm | P4 | À faire |  |
 | `RenameFleet` | W | id, name | — | `objects/fleet.js` | Helm | P5 | À faire |  |
@@ -96,8 +96,8 @@ Appelées par le client web : 134/152. « Appelée » ≠ « finie » : voir la 
 | `SpeedupFleetTravel` | W | fleet | — | `scripts/helper.js` | Helm | P5 | À faire |  |
 | `ToggleFleetQueueLoop` | W | fleet, loop? | — | `objects/fleet.js` | Helm | P4 | À faire |  |
 | `UnloadTroops` | W | fleet, planet, troops | — | `objects/fleet.js` | Tactical | P5 | À faire |  |
-| `UpdateFleetDefendPosition` | W | id, position | `Vfx/CrewDialogue.cs` | `objects/fleet.js` | Tactical | P5 | Branché |  |
-| `WithdrawCargo` | W | fleet, planet, mineral?, crystal?, biomass? | `Vfx/CrewDialogue.cs` | `objects/fleet.js` | Ops | P5 | Branché |  |
+| `UpdateFleetDefendPosition` | W | id, position | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Tactical | P5 | Branché |  |
+| `WithdrawCargo` | W | fleet, planet, mineral?, crystal?, biomass? | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Ops | P5 | Branché |  |
 
 ## Vaisseau / chantier
 
@@ -144,12 +144,12 @@ Appelées par le client web : 134/152. « Appelée » ≠ « finie » : voir la 
 | `BattleEndFleetTurn` | W | battleid, fleetid | `Vfx/HexBattleController.cs` | `scenes/battle.js` | Tactical | P5 | Branché |  |
 | `CheckPlanetAttack` | R | planet | — | `objects/planet.js` | Tactical | P5 | À faire |  |
 | `DoTurnBattle` | W | battleid, fleetid, action, target | — | — | Tactical | — | Hors scope | Legacy, non utilisé par le web |
-| `FleetAttackPlanet` | W | fleet, planet | `Vfx/CrewDialogue.cs` | `objects/fleet.js` | Tactical | P5 | Branché |  |
+| `FleetAttackPlanet` | W | fleet, planet | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Tactical | P5 | Branché |  |
 | `GetBattle` | R | battleid | — | — | Tactical | — | Hors scope | Legacy |
 | `GetBattleState` | R | battleid, fleetid | `Vfx/HexBattleController.cs` | `scenes/battle.js` | Tactical | P5 | Branché |  |
 | `GetMyBattles` | R | — | `Vfx/HexBattleController.cs` | `scenes/galaxy.js` | Tactical | P5 | Branché |  |
 | `GetPendingBattles` | R | systemid, planetid | — | — | Tactical | P5 | À faire |  |
-| `MakeBattle` | W | systemid, fleets, planetid? | `Vfx/HexBattleController.cs` | `objects/fleet.js` | Tactical | fleets = mon vaisseau + cibles, `planetid` seulement si ≠ 0 (0 vs pirates), puis `UpdateBattle` (web startTacticalBattle) | Branché | fleets = mon vaisseau + cibles, `planetid` seulement si ≠ 0 (0 vs pirates), puis `UpdateBattle` (web startTacticalBattle) |
+| `MakeBattle` | W | systemid, fleets, planetid? | `Crew/CrewLines.cs` +2 | `objects/fleet.js` | Tactical | fleets = mon vaisseau + cibles, `planetid` seulement si ≠ 0 (0 vs pirates), puis `UpdateBattle` (web startTacticalBattle) | Branché | fleets = mon vaisseau + cibles, `planetid` seulement si ≠ 0 (0 vs pirates), puis `UpdateBattle` (web startTacticalBattle) |
 | `RemoveFleetFromBattle` | W | battleid, fleetid | — | `scenes/battle.js` | Tactical | P5 | À faire |  |
 | `SetFleetState` | W | battleid, fleetid, auto, ready | `Vfx/HexBattleController.cs` | `scenes/battle.js` | Tactical | P5 | Branché |  |
 | `UpdateBattle` | W | battleid | `Vfx/HexBattleController.cs` | `objects/fleet.js` | Tactical | P5 | Branché |  |

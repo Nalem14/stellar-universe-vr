@@ -362,10 +362,8 @@ namespace Core.Vfx
             token.Busy = false;
             token.GalaxyX = gx;
             token.GalaxyY = gy;
-            var name = GalaxyCatalog.TryGet(id, out var star) && !string.IsNullOrEmpty(star.Name)
-                ? star.Name
-                : null;
-            token.DisplayName = FormatEntityLabel(name, id);
+            // Systems are known by coordinates (no names in the game).
+            token.DisplayName = GalaxyCatalog.Coordinates(gx, gy);
             token.CaptureHome();
             AddTokenLabel(go.transform, token.DisplayName, 0.04f);
             _tokens.Add(token);

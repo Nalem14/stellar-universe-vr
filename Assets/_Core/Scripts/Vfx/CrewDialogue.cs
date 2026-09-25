@@ -357,13 +357,11 @@ namespace Core.Vfx
             if (FleetOrderGate.CanGoToStar(fleet) &&
                 GalaxyCatalog.TryGet(focus.SystemId, out var here))
             {
-                var sysName = !string.IsNullOrEmpty(focus.SystemName) ? focus.SystemName : here.Name;
-                if (string.IsNullOrEmpty(sysName))
-                    sysName = "#" + focus.SystemId;
+                var sysName = here.Label;
                 var hx = here.X;
                 var hy = here.Y;
                 AddAction(MoveLabel("moveToSystem", sysName),
-                    () => MoveToSystem(fleet.Id, hx, hy, sysName));
+                    () => MoveToSystem(fleet.Id, here.Id, hx, hy, sysName));
             }
 
             var planets = new List<FocusPlanet>();
@@ -438,13 +436,11 @@ namespace Core.Vfx
                 if (_near.Count == 1)
                 {
                     var star = _near[0];
-                    var label = string.IsNullOrEmpty(star.Name)
-                        ? string.Format(CultureInfo.InvariantCulture, "{0}.{1}", star.X, star.Y)
-                        : star.Name;
+                    var label = star.Label;
                     var sx = star.X;
                     var sy = star.Y;
                     AddAction(MoveLabel("moveToSystem", label),
-                        () => MoveToSystem(fleet.Id, sx, sy, label),
+                        () => MoveToSystem(fleet.Id, star.Id, sx, sy, label),
                         DiegeticUi.BtnStyle.Amber);
                 }
                 else if (_near.Count > 1)
@@ -456,13 +452,11 @@ namespace Core.Vfx
                         for (var i = 0; i < _near.Count; i++)
                         {
                             var star = _near[i];
-                            var label = string.IsNullOrEmpty(star.Name)
-                                ? string.Format(CultureInfo.InvariantCulture, "{0}.{1}", star.X, star.Y)
-                                : star.Name;
+                            var label = star.Label;
                             var sx = star.X;
                             var sy = star.Y;
                             AddDropOption(DestLabel(label),
-                                () => MoveToSystem(fleet.Id, sx, sy, label),
+                                () => MoveToSystem(fleet.Id, star.Id, sx, sy, label),
                                 DiegeticUi.BtnStyle.Amber);
                         }
                     }
@@ -750,14 +744,32 @@ namespace Core.Vfx
                 { "asteroid", asteroidId.ToString() }
             });
 
-        async Task MoveToSystem(int fleetId, float x, float y, string systemLabel = null) =>
-            await Issue("MoveFleetToSystem", new Dictionary<string, string>
+        /// <summary>
+        /// Interstellar jump: quoted on the captain's lectern (sub-light / hyperspace / Bond PRL, as the web
+        /// star menu) and sent only on Confirm — never the server's implicit hyperspace default.
+        /// </summary>
+        async Task MoveToSystem(int fleetId, int systemId, float x, float y, string systemLabel)
+        {
+            var fleet = Focus?.FindFleet(fleetId);
+            if (fleet == null)
+                return;
+            var (sent, result, barkAction) =
+                await Core.Holo.TravelPlanner.AskAndSend(fleet, systemId, x, y, systemLabel);
+            if (!sent)
+                return;
+            if (!result.Ok)
             {
-                { "fleet", fleetId.ToString() },
-                {
-                    "pos", string.Format(CultureInfo.InvariantCulture, "{0}.{1}", x, y)
-                }
-            }, systemLabel);
+                CicCue.Fail(transform.position);
+                _map?.SetReadout(string.IsNullOrEmpty(result.Error) ? Trans.Get("vr.common.error") : result.Error);
+            }
+            else
+            {
+                CicCue.Ok(transform.position);
+                _map?.SetReadout(Trans.Get(result.NoticeKey ?? "vr.common.ok"));
+            }
+
+            Core.Crew.BarkDirector.Instance?.OrderResult(Role.Helm, barkAction, result, systemLabel);
+        }
 
         async Task Issue(string action, Dictionary<string, string> query, string target = null)
         {

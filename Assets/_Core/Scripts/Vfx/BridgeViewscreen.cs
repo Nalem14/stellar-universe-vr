@@ -50,15 +50,8 @@ namespace Core.Vfx
             return view;
         }
 
-        /// <summary>Focused system name: GetSystems payload, else the galaxy catalogue, else #id.</summary>
-        public static string SystemLabel(FocusContext focus)
-        {
-            if (!string.IsNullOrEmpty(focus.SystemName))
-                return focus.SystemName;
-            if (GalaxyCatalog.TryGet(focus.SystemId, out var star) && !string.IsNullOrEmpty(star.Name))
-                return star.Name;
-            return "#" + focus.SystemId;
-        }
+        /// <summary>Focused system: systems have no names, only galaxy coordinates.</summary>
+        public static string SystemLabel(FocusContext focus) => GalaxyCatalog.Label(focus.SystemId);
 
         /// <summary>Planet the virtual station orbits (name, else #id).</summary>
         public static string StationPlanetName(FocusContext focus)

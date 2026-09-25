@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Core.App;
+using Core.UI;
 using Core.Utils;
 using UnityEngine;
 using UnityEngine.XR.Interaction.Toolkit;
@@ -37,6 +38,11 @@ namespace Core.Vfx
         HoloOrderPreview _orderPreview;
         HoloToken _previewTarget;
         CicArtKit _art;
+
+        Core.Holo.OrderConsole _console;
+
+        /// <summary>Drops are quoted on this lectern and only sent on Confirm (docs/ROADMAP.md P4).</summary>
+        public void BindConsole(Core.Holo.OrderConsole console) => _console = console;
 
         public void Bind(HoloZoneMap map, FocusContext focus, FleetPoller poller,
             HoloMapController mapCtrl = null)
@@ -439,9 +445,41 @@ namespace Core.Vfx
                 var dest = string.IsNullOrEmpty(target.DisplayName)
                     ? target.Kind.ToString()
                     : target.DisplayName;
+
+                // Quote on the lectern first; nothing leaves before Confirm.
+                var fleet = _focus.FindFleet(fleetToken.Id);
+                var mode = Core.Holo.TravelMode.Sublight;
+                if (_console != null && fleet != null)
+                {
+                    fleetToken.transform.localPosition = target.HomeLocalPos + Vector3.up * 0.04f;
+                    var options = BuildOptions(fleet, target, action);
+                    var choice = await _console.Ask(fleetToken.DisplayName.Replace('\n', ' ') + "  →  " + dest, options);
+                    if (choice == null)
+                    {
+                        fleetToken.SnapHome();
+                        RestoreSpin(fleetToken);
+                        _map?.SetReadout(Trans.Get("cancel"));
+                        return;
+                    }
+
+                    if (choice is Core.Holo.TravelMode chosen)
+                        mode = chosen;
+                }
+
                 _map?.SetReadout($"{Trans.Get("Loading")} · {dest}");
-                var result = await ActionJs.Get(action, query);
-                Core.Crew.BarkDirector.Instance?.OrderResult(CrewDialogue.Role.Helm, action, result, dest);
+                ApiResult result;
+                var barkAction = action;
+                if (target.Kind == HoloTokenKind.System && fleet != null)
+                {
+                    result = await Core.Holo.TravelPlanner.Send(fleet, target.Id, target.GalaxyX, target.GalaxyY, mode);
+                    barkAction = Core.Holo.TravelPlanner.BarkAction(mode);
+                }
+                else
+                {
+                    result = await ActionJs.Get(action, query);
+                }
+
+                Core.Crew.BarkDirector.Instance?.OrderResult(CrewDialogue.Role.Helm, barkAction, result, dest);
                 if (!result.Ok)
                 {
                     fleetToken.SnapHome();
@@ -569,6 +607,22 @@ namespace Core.Vfx
             var spin = token.GetComponent<HoloSpin>();
             if (spin != null)
                 spin.enabled = true;
+        }
+
+        /// <summary>
+        /// Lectern choices: interstellar drops offer every travel mode the ship can use (quoted like the web's
+        /// star menu); in-system drops are a single move with the intra-system ETA (server: 1200 / speed).
+        /// </summary>
+        static List<Core.Holo.OrderConsole.Option> BuildOptions(FocusFleet fleet, HoloToken target, string action)
+        {
+            if (target.Kind == HoloTokenKind.System)
+                return Core.Holo.TravelPlanner.SystemOptions(fleet, target.GalaxyX, target.GalaxyY);
+
+            var options = new List<Core.Holo.OrderConsole.Option>();
+            var verb = Trans.Get(action == "MoveFleetToAsteroid" ? "moveToAsteroidField" : "moveToPlanet");
+            var eta = Core.Holo.TravelPlanner.TimeText(1200f / Mathf.Max(1f, fleet.Speed));
+            options.Add(new Core.Holo.OrderConsole.Option(verb + "  ·  " + eta, true, UiKit.Cyan, "go"));
+            return options;
         }
 
         static string FormatError(string action, string error)

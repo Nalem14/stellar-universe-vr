@@ -19,7 +19,23 @@ namespace Core.Vfx
             public string Name;
             public float X;
             public float Y;
+
+            /// <summary>Systems carry no names in the game — they are known by galaxy coordinates.</summary>
+            public string Label => Coordinates(X, Y);
         }
+
+        /// <summary>"(x, y)" in galaxy units, integers when whole (same grid as MoveFleetToSystem pos).</summary>
+        public static string Coordinates(float x, float y) =>
+            "(" + Num(x) + ", " + Num(y) + ")";
+
+        /// <summary>Label of a system id: its coordinates, else #id while the catalogue loads.</summary>
+        public static string Label(int systemId) =>
+            TryGet(systemId, out var star) ? star.Label : "#" + systemId;
+
+        static string Num(float v) =>
+            Mathf.Approximately(v, Mathf.Round(v))
+                ? ((int)Mathf.Round(v)).ToString(System.Globalization.CultureInfo.InvariantCulture)
+                : v.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
 
         public struct PlanetRef
         {

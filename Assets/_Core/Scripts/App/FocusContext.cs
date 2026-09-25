@@ -44,6 +44,17 @@ namespace Core.App
         public string Pos = string.Empty;
         public readonly List<FocusShipModule> Modules = new();
 
+        // GetAllFleets[].stats (server GetFleetStats) — drives travel quotes.
+        public float Speed;
+        public bool HasHyperdrive;
+        public bool HasPrlBond;
+        /// <summary>Enough jump modules for the hull size (else the server falls back / refuses).</summary>
+        public bool EnoughHyperdrive;
+        public bool EnoughPrlBond;
+        public int CrystalCargo;
+        /// <summary>Unix seconds when Bond PRL is ready again; 0 = ready.</summary>
+        public long PrlBondReadyAt;
+
         public bool IsMoving(long unixNow) => DestTime > unixNow;
         public bool IsSieging(long unixNow) => AttackEndTime > unixNow;
         public bool IsHarvesting(long unixNow) => HarvestEndTime > unixNow;
@@ -230,6 +241,8 @@ namespace Core.App
                     h = h * 31 + f.HarvestEndTime.GetHashCode();
                     h = h * 31 + f.ExploreEndTime.GetHashCode();
                     h = h * 31 + (f.IsInBattle ? 1 : 0);
+                    h = h * 31 + f.PrlBondReadyAt.GetHashCode();
+                    h = h * 31 + f.CrystalCargo;
                     h = h * 31 + f.Modules.Count;
                     h = h * 31 + (f.Name != null ? f.Name.GetHashCode() : 0);
                     h = h * 31 + (f.Pos != null ? f.Pos.GetHashCode() : 0);
@@ -506,6 +519,17 @@ namespace Core.App
                         IsPirate = AsBool(fleet["isPirate"]),
                         Pos = AsString(fleet["pos"])
                     };
+                    if (fleet["stats"] is JObject stats)
+                    {
+                        row.Speed = AsFloat(stats["speed"]);
+                        row.HasHyperdrive = AsBool(stats["hasHyperdrive"]);
+                        row.HasPrlBond = AsBool(stats["hasPrlBond"]);
+                        row.CrystalCargo = AsInt(stats["crystalCargo"]);
+                        row.EnoughHyperdrive = AsBool(stats["hasEnoughHyperdrive"]);
+                        row.EnoughPrlBond = AsBool(stats["hasEnoughPrlBond"]);
+                    }
+
+                    row.PrlBondReadyAt = AsLong(fleet["prlBondReadyAt"]);
                     ParseShipModules(fleet, row.Modules);
                     if (!HasGrid(row.Modules) && LayoutByFleet.TryGetValue(row.Id, out var cached))
                     {

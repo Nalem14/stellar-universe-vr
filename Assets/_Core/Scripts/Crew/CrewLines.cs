@@ -63,6 +63,8 @@ namespace Core.Crew
         public static string AckEvent(string action) => action switch
         {
             "MoveFleetToSystem" or "MoveFleetToPlanet" or "MoveFleetToAsteroid" => "ack",
+            "HyperspaceJump" => "hyperspace",
+            "PrlBondFleetToSystem" => "prlBond",
             "UpdateFleetDefendPosition" => "stance",
             "FleetAttackPlanet" => "siege",
             "HarvestAsteroid" => "harvest",

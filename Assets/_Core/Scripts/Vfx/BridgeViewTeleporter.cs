@@ -222,7 +222,7 @@ namespace Core.Vfx
                 {
                     var id = row.id;
                     var sys = row.sys;
-                    var star = GalaxyCatalog.TryGet(sys, out var s) ? s.Name : string.Empty;
+                    var star = GalaxyCatalog.Label(sys);
                     AddRow(row.name, star, row.active,
                         () => Core.Utils.AsyncTap.Run(ConfirmShip(id, sys)));
                     i++;
@@ -253,7 +253,7 @@ namespace Core.Vfx
             foreach (var p in OwnedScratch)
             {
                 var name = string.IsNullOrEmpty(p.Name) ? "#" + p.Id : p.Name;
-                var star = GalaxyCatalog.TryGet(p.SystemId, out var s) ? s.Name : string.Empty;
+                var star = GalaxyCatalog.Label(p.SystemId);
                 pending.Add((p.Id, p.SystemId, name, star, viewPlanet > 0 && p.Id == viewPlanet));
             }
 
