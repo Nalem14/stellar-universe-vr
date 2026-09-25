@@ -383,6 +383,7 @@ namespace Core.Vfx
             body.transform.SetParent(root.transform, false);
             body.transform.localScale = Vector3.one * (radius * 2f);
             StripCollider(body);
+            body.GetComponent<MeshFilter>().sharedMesh = SphereMesh.Smooth;
             body.GetComponent<MeshRenderer>().sharedMaterial = SystemBodyKit.PlanetMat(kind, own);
 
             var atmo = GameObject.CreatePrimitive(PrimitiveType.Sphere);
@@ -390,6 +391,7 @@ namespace Core.Vfx
             atmo.transform.SetParent(root.transform, false);
             atmo.transform.localScale = Vector3.one * (radius * 2f * 1.055f);
             StripCollider(atmo);
+            atmo.GetComponent<MeshFilter>().sharedMesh = SphereMesh.Smooth;
             var ar = atmo.GetComponent<MeshRenderer>();
             ar.sharedMaterial = SystemBodyKit.AtmosphereMat(kind, own);
             ar.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;

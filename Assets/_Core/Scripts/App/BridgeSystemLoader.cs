@@ -143,9 +143,14 @@ namespace Core.App
                 BridgeViewAnchor.Clear();
             }
 
-            // Default: a world we own (fresh list), preferring the account's home system.
+            // Default: the account's system (a real ship there wins, else one of our worlds there)…
             await OwnedPlanets.EnsureLoaded();
-            if (OwnedPlanets.TryFirst(userSystemId, out var home) || OwnedPlanets.TryFirst(0, out home))
+            if (userSystemId > 0 && await RunSwap(userSystemId, preferredFleetId: 0, viewPlanetId: 0, fade: false) &&
+                _focus != null && _focus.HasInhabitedView)
+                return true;
+
+            // …else our first world (fresh ownership: a brand-new empire's homeworld included).
+            if (OwnedPlanets.TryFirst(0, out var home))
                 return await RunSwap(home.SystemId, preferredFleetId: 0, viewPlanetId: home.Id, fade: false);
 
             var focusId = ResolveOwnedSystem(empire, systemsBody, userSystemId);
