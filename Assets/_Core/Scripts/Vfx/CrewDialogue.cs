@@ -33,6 +33,7 @@ namespace Core.Vfx
             Planets,
             Asteroids,
             Jumps,
+            Queue,
         }
 
         static CrewDialogue s_Open;
@@ -240,7 +241,8 @@ namespace Core.Vfx
                 var hex = _hex != null && _hex.IsActive ? 1 : 0;
                 sig = fleet.Id ^ (fleet.PlanetId * 17) ^ (fleet.AsteroidId * 31) ^
                       (fleet.IsInBattle ? 1 : 0) ^ fleet.DestTime ^ fleet.AttackEndTime ^
-                      fleet.HarvestEndTime ^ fleet.ExploreEndTime ^ (hex * 997);
+                      fleet.HarvestEndTime ^ fleet.ExploreEndTime ^ (hex * 997) ^
+                      ((long)fleet.Queue.Count << 40) ^ ((long)fleet.QueueIndex << 48) ^ (fleet.QueueLoop ? 1L << 56 : 0L);
             }
 
             if (sig == _lastSig)
@@ -295,14 +297,19 @@ namespace Core.Vfx
 
                 if (!FleetOrderGate.CanMove(fleet) && _role == Role.Helm)
                 {
+                    // Under way: no new move, but the automation queue stays editable.
                     AddStatus(Trans.Get(FleetOrderGate.BusyKey(fleet)));
+                    BuildQueue(focus, fleet);
                     return;
                 }
 
                 switch (_role)
                 {
                     case Role.Helm:
-                        await BuildHelm(focus, fleet);
+                        // The open queue takes the whole repeater; otherwise moves first, queue header last.
+                        if (_dropOpen != DropGroup.Queue)
+                            await BuildHelm(focus, fleet);
+                        BuildQueue(focus, fleet);
                         break;
                     case Role.Tactical:
                         BuildTactical(focus, fleet);
@@ -348,6 +355,67 @@ namespace Core.Vfx
             }
 
             return Trans.Get("Loading");
+        }
+
+        /// <summary>
+        /// Order queue (web FleetOrdersPanel "queue" tab): steps done / active / pending, remove a pending
+        /// step, loop on / off, clear. Steps are added from the holomap lectern ("Add to queue").
+        /// </summary>
+        void BuildQueue(FocusContext focus, FocusFleet fleet)
+        {
+            // Window of steps around the active one (the repeater has room for ~5 rows under the header).
+            const int window = 2;
+            var title = Trans.Get("orderQueue");
+            if (fleet.Queue.Count > 0)
+                title += "   " + Mathf.Min(fleet.QueueIndex + 1, fleet.Queue.Count) + " / " + fleet.Queue.Count;
+            AddDropdown(title, fleet.Queue.Count, DropGroup.Queue);
+            if (_dropOpen != DropGroup.Queue)
+                return;
+
+            var first = Mathf.Clamp(fleet.QueueIndex - 1, 0, Mathf.Max(0, fleet.Queue.Count - window));
+            var last = Mathf.Min(fleet.Queue.Count, first + window);
+            var rows = Mathf.Max(1, last - first) + 2;
+            BeginDropTray(rows);
+            if (fleet.Queue.Count == 0)
+            {
+                AddStatus(Trans.Get("queueEmpty"));
+            }
+            else
+            {
+                for (var i = first; i < last; i++)
+                {
+                    var index = i;
+                    var label = (i + 1) + ".  " + Core.Holo.OrderQueue.Describe(fleet.Queue[i], focus);
+                    if (i < fleet.QueueIndex)
+                        AddDropOption(label, null, DiegeticUi.BtnStyle.Ghost);
+                    else if (i == fleet.QueueIndex)
+                        AddDropOption("»  " + label, () => QueueCall(Core.Holo.OrderQueue.Remove(fleet, index),
+                            "queueStepRemoved"), DiegeticUi.BtnStyle.Cyan);
+                    else
+                        AddDropOption(label + "   ×", () => QueueCall(Core.Holo.OrderQueue.Remove(fleet, index),
+                            "queueStepRemoved"), DiegeticUi.BtnStyle.Amber);
+                }
+
+            }
+
+            var loop = !fleet.QueueLoop;
+            AddDropOption(Trans.Get("orderQueueLoop") + "  ·  " + Trans.Get(fleet.QueueLoop ? "queueLoopEnabled" : "queueLoopDisabled"),
+                () => QueueCall(Core.Holo.OrderQueue.SetLoop(fleet, loop), loop ? "queueLoopEnabled" : "queueLoopDisabled"),
+                DiegeticUi.BtnStyle.Ghost);
+            if (fleet.Queue.Count > 0)
+                AddDropOption(Trans.Get("clearQueue"), () => QueueCall(Core.Holo.OrderQueue.Clear(fleet), "queueCleared"),
+                    DiegeticUi.BtnStyle.Danger);
+        }
+
+        async Task QueueCall(Task<ApiResult> call, string okKey)
+        {
+            var result = await call;
+            if (result.Ok)
+                CicCue.Ok(transform.position);
+            else
+                CicCue.Fail(transform.position);
+            _map?.SetReadout(result.Ok ? Trans.Get(okKey)
+                : string.IsNullOrEmpty(result.Error) ? Trans.Get("vr.common.error") : result.Error);
         }
 
         async Task BuildHelm(FocusContext focus, FocusFleet fleet)

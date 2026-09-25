@@ -462,6 +462,22 @@ namespace Core.Vfx
                         return;
                     }
 
+                    if (choice is QueueChoice queued)
+                    {
+                        // Queued, not flown now: the token goes home; the queue path shows the plan.
+                        fleetToken.SnapHome();
+                        RestoreSpin(fleetToken);
+                        var added = await AddQueueStep(fleet, target, queued.Type);
+                        if (added.Ok)
+                            CicCue.Ok(target.transform.position);
+                        else
+                            CicCue.Fail(fleetToken.transform.position);
+                        _map?.SetReadout(added.Ok ? Trans.Get("stepAdded") : FormatError("AddFleetOrderStep", added.Error));
+                        if (added.Ok && _poller != null)
+                            await _poller.PollNow();
+                        return;
+                    }
+
                     if (choice is Core.Holo.TravelMode chosen)
                         mode = chosen;
                 }
@@ -615,15 +631,52 @@ namespace Core.Vfx
         /// </summary>
         static List<Core.Holo.OrderConsole.Option> BuildOptions(FocusFleet fleet, HoloToken target, string action)
         {
+            var queue = Trans.Get("addToQueue") + "  :  ";
             if (target.Kind == HoloTokenKind.System)
-                return Core.Holo.TravelPlanner.SystemOptions(fleet, target.GalaxyX, target.GalaxyY);
+            {
+                var jump = Core.Holo.TravelPlanner.SystemOptions(fleet, target.GalaxyX, target.GalaxyY);
+                if (jump.Count < 4)
+                    jump.Add(new Core.Holo.OrderConsole.Option(queue + Trans.Get("stepMoveToSystem"), true,
+                        UiKit.Amber, new QueueChoice("moveToSystem")));
+                return jump;
+            }
 
             var options = new List<Core.Holo.OrderConsole.Option>();
             var verb = Trans.Get(action == "MoveFleetToAsteroid" ? "moveToAsteroidField" : "moveToPlanet");
             var eta = Core.Holo.TravelPlanner.TimeText(1200f / Mathf.Max(1f, fleet.Speed));
             options.Add(new Core.Holo.OrderConsole.Option(verb + "  ·  " + eta, true, UiKit.Cyan, "go"));
+            // Automation, as the web right-click "Add to queue" entries (server runs them in order).
+            if (action == "MoveFleetToAsteroid")
+            {
+                options.Add(new Core.Holo.OrderConsole.Option(queue + Trans.Get("stepMoveToAsteroid"), true,
+                    UiKit.Amber, new QueueChoice("moveToAsteroid")));
+                options.Add(new Core.Holo.OrderConsole.Option(queue + Trans.Get("stepHarvestAsteroid"), true,
+                    UiKit.Amber, new QueueChoice("harvestAsteroid")));
+            }
+            else
+            {
+                options.Add(new Core.Holo.OrderConsole.Option(queue + Trans.Get("stepMoveToPlanet"), true,
+                    UiKit.Amber, new QueueChoice("moveToPlanet")));
+                if (fleet.HasScienceModule)
+                    options.Add(new Core.Holo.OrderConsole.Option(queue + Trans.Get("stepExplorePlanet"), true,
+                        UiKit.Amber, new QueueChoice("explorePlanet")));
+            }
+
             return options;
         }
+
+        sealed class QueueChoice
+        {
+            public readonly string Type;
+            public QueueChoice(string type) => Type = type;
+        }
+
+        static Task<ApiResult> AddQueueStep(FocusFleet fleet, HoloToken target, string type) => target.Kind switch
+        {
+            HoloTokenKind.System => Core.Holo.OrderQueue.AddSystemStep(fleet, target.GalaxyX, target.GalaxyY),
+            HoloTokenKind.Asteroid => Core.Holo.OrderQueue.AddAsteroidStep(fleet, type, target.Id),
+            _ => Core.Holo.OrderQueue.AddPlanetStep(fleet, type, target.Id)
+        };
 
         static string FormatError(string action, string error)
         {

@@ -32,9 +32,9 @@ namespace Core.Holo
             }
         }
 
-        const int MaxOptions = 3;
+        const int MaxOptions = 4;
         const float Timeout = 20f;
-        static readonly Vector2 Size = new(0.62f, 0.36f);
+        static readonly Vector2 Size = new(0.62f, 0.42f);
 
         GameObject _screenGo;
         HoloScreen _screen;
@@ -69,19 +69,19 @@ namespace Core.Holo
 
             var px = console._screen.PixelSize;
             console._dest = DiegeticUi.HoloLabel(console._screen.Content, string.Empty,
-                new Vector2(0f, px.y * 0.3f), new Vector2(px.x * 0.9f, 36f), 28f, UiKit.TextBright);
+                new Vector2(0f, px.y * 0.32f), new Vector2(px.x * 0.9f, 36f), 28f, UiKit.TextBright);
 
             var t = console._screen.transform;
             for (var i = 0; i < MaxOptions; i++)
             {
                 var index = i;
                 console._options[i] = PokeButton.Create(t, "Option" + i, string.Empty,
-                    new Vector3(0f, 0.06f - i * 0.066f, -0.014f), Quaternion.identity, new Vector2(0.54f, 0.052f),
+                    new Vector3(0f, 0.09f - i * 0.062f, -0.014f), Quaternion.identity, new Vector2(0.54f, 0.05f),
                     UiKit.Cyan, () => console.Choose(index));
             }
 
             console._cancel = PokeButton.Create(t, "Cancel", Trans.Get("cancel"),
-                new Vector3(0.17f, -0.145f, -0.014f), Quaternion.identity, new Vector2(0.2f, 0.042f),
+                new Vector3(0.17f, -0.172f, -0.014f), Quaternion.identity, new Vector2(0.2f, 0.04f),
                 UiKit.Danger, () => console.Resolve(null));
 
             console._screenGo.SetActive(false);

@@ -54,6 +54,12 @@ namespace Core.App
         public int CrystalCargo;
         /// <summary>Unix seconds when Bond PRL is ready again; 0 = ready.</summary>
         public long PrlBondReadyAt;
+        public bool HasScienceModule;
+
+        // Server order queue (GetAllFleets orderQueueList / orderQueueIndex / orderQueueLoop).
+        public readonly List<FocusQueueStep> Queue = new();
+        public int QueueIndex;
+        public bool QueueLoop;
 
         public bool IsMoving(long unixNow) => DestTime > unixNow;
         public bool IsSieging(long unixNow) => AttackEndTime > unixNow;
@@ -79,6 +85,16 @@ namespace Core.App
 
         public bool VisibleIn(int systemId, long unixNow) =>
             IsPresentIn(systemId) || IsArrivingTo(systemId, unixNow);
+    }
+
+    /// <summary>One step of a fleet's server order queue (model/fleet_queue.php).</summary>
+    public sealed class FocusQueueStep
+    {
+        /// <summary>moveToPlanet | moveToAsteroid | moveToSystem | harvestAsteroid | depositCargo | withdrawCargo | explorePlanet</summary>
+        public string Type = string.Empty;
+        public int TargetId;
+        public float X;
+        public float Y;
     }
 
     public sealed class FocusAsteroid
@@ -243,6 +259,10 @@ namespace Core.App
                     h = h * 31 + (f.IsInBattle ? 1 : 0);
                     h = h * 31 + f.PrlBondReadyAt.GetHashCode();
                     h = h * 31 + f.CrystalCargo;
+                    h = h * 31 + f.QueueIndex;
+                    h = h * 31 + (f.QueueLoop ? 7 : 3);
+                    for (var q = 0; q < f.Queue.Count; q++)
+                        h = h * 31 + f.Queue[q].Type.GetHashCode() + f.Queue[q].TargetId;
                     h = h * 31 + f.Modules.Count;
                     h = h * 31 + (f.Name != null ? f.Name.GetHashCode() : 0);
                     h = h * 31 + (f.Pos != null ? f.Pos.GetHashCode() : 0);
@@ -527,9 +547,25 @@ namespace Core.App
                         row.CrystalCargo = AsInt(stats["crystalCargo"]);
                         row.EnoughHyperdrive = AsBool(stats["hasEnoughHyperdrive"]);
                         row.EnoughPrlBond = AsBool(stats["hasEnoughPrlBond"]);
+                        row.HasScienceModule = AsBool(stats["hasScienceModule"]);
                     }
 
                     row.PrlBondReadyAt = AsLong(fleet["prlBondReadyAt"]);
+                    row.QueueIndex = AsInt(fleet["orderQueueIndex"]);
+                    row.QueueLoop = AsInt(fleet["orderQueueLoop"]) == 1;
+                    if (fleet["orderQueueList"] is JArray steps)
+                    {
+                        foreach (var st in steps)
+                        {
+                            row.Queue.Add(new FocusQueueStep
+                            {
+                                Type = AsString(st["type"]),
+                                TargetId = AsInt(st["targetId"]),
+                                X = AsFloat(st["targetX"] ?? st["x"]),
+                                Y = AsFloat(st["targetY"] ?? st["y"])
+                            });
+                        }
+                    }
                     ParseShipModules(fleet, row.Modules);
                     if (!HasGrid(row.Modules) && LayoutByFleet.TryGetValue(row.Id, out var cached))
                     {

@@ -19,7 +19,7 @@ Généré depuis `action-api.json` (152 actions), `actionjs.php` et un grep des 
 | Méta / boot | 2 | 5 | 40 % |
 | Caméra (vue) | 2 | 2 | 100 % |
 | Galaxie | 1 | 8 | 12 % |
-| Flotte | 11 | 23 | 48 % |
+| Flotte | 15 | 23 | 65 % |
 | Vaisseau / chantier | 1 | 9 | 11 % |
 | Planète / bâtiments / recherche | 0 | 17 | 0 % |
 | Combat | 8 | 14 | 57 % |
@@ -29,7 +29,7 @@ Généré depuis `action-api.json` (152 actions), `actionjs.php` et un grep des 
 | Guerre | 0 | 9 | 0 % |
 | Alliance | 1 | 17 | 6 % |
 | Empire / progression / shop | 2 | 25 | 8 % |
-| **Total** | **31** | **152** | **20 %** |
+| **Total** | **35** | **152** | **23 %** |
 
 Appelées par le client web : 134/152. « Appelée » ≠ « finie » : voir la colonne *Statut*.
 
@@ -75,8 +75,8 @@ Appelées par le client web : 134/152. « Appelée » ≠ « finie » : voir la 
 
 | Action | R/W | Params | VR | Web | Station | Phase | Statut | Notes |
 |---|---|---|---|---|---|---|---|---|
-| `AddFleetOrderStep` | W | fleet, step | — | `objects/fleet.js` | Helm | P4 | À faire |  |
-| `ClearFleetOrderQueue` | W | fleet | — | `objects/fleet.js` | Helm | P4 | À faire |  |
+| `AddFleetOrderStep` | W | fleet, step | `Holo/OrderQueue.cs` +1 | `objects/fleet.js` | Helm | P4 | Branché | Étape JSON : `targetId` (planète / astéroïde) ; `moveToSystem` avec **`x`,`y`** (le serveur ignore `targetX/targetY`) |
+| `ClearFleetOrderQueue` | W | fleet | `Holo/OrderQueue.cs` | `objects/fleet.js` | Helm | P4 | Branché |  |
 | `Colonize` | W | ship, planet | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Ops | `ship` = id du module `ColonyShip` ; planète libre, habitabilité ≥ 6 | Branché | `ship` = id du module `ColonyShip` ; planète libre, habitabilité ≥ 6 |
 | `DepositCargo` | W | fleet, planet, mineral?, crystal?, biomass? | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Ops | P5 | Branché |  |
 | `ExplorePlanet` | W | fleet, planet | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Science | P5 | Branché |  |
@@ -90,11 +90,11 @@ Appelées par le client web : 134/152. « Appelée » ≠ « finie » : voir la 
 | `MoveFleetToSystem` | W | fleet, pos, hyperspace? | `Crew/CrewLines.cs` +2 | `objects/fleet.js` | Helm | P4 | Branché | Toujours `hyperspace` explicite (0 sous-lumière / 1 hyperespace) après devis au pupitre (`TravelPlanner`, formules serveur) ; `ok:sublight_*` → `ApiResult.NoticeKey` |
 | `PrlBondFleetToSystem` | W | fleet, system?, pos? | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Helm | P4 | Branché | Devis portée / coût / recharge au pupitre (`TravelPlanner`), `fleet` + `system` + `pos` |
 | `ProcessFleetOrderQueue` | W | fleet | — | — | Helm | — | Hors scope | Géré par cron + `GetAllFleets` ; pas d'UI |
-| `RemoveFleetOrderStep` | W | fleet, stepIndex | — | `objects/fleet.js` | Helm | P4 | À faire |  |
+| `RemoveFleetOrderStep` | W | fleet, stepIndex | `Holo/OrderQueue.cs` | `objects/fleet.js` | Helm | P4 | Branché | `stepIndex` 0-based, repeater Helm |
 | `RenameFleet` | W | id, name | — | `objects/fleet.js` | Helm | P5 | À faire |  |
 | `SetFleetOrderQueue` | W | fleet, queue, loop? | — | `objects/fleet.js` | Helm | P4 | À faire |  |
 | `SpeedupFleetTravel` | W | fleet | — | `scripts/helper.js` | Helm | P5 | À faire |  |
-| `ToggleFleetQueueLoop` | W | fleet, loop? | — | `objects/fleet.js` | Helm | P4 | À faire |  |
+| `ToggleFleetQueueLoop` | W | fleet, loop? | `Holo/OrderQueue.cs` | `objects/fleet.js` | Helm | P4 | Branché | `loop` explicite 0/1 |
 | `UnloadTroops` | W | fleet, planet, troops | — | `objects/fleet.js` | Tactical | P5 | À faire |  |
 | `UpdateFleetDefendPosition` | W | id, position | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Tactical | P5 | Branché |  |
 | `WithdrawCargo` | W | fleet, planet, mineral?, crystal?, biomass? | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Ops | P5 | Branché |  |
@@ -260,6 +260,7 @@ Appelées par le client web : 134/152. « Appelée » ≠ « finie » : voir la 
 Le client VR ne contourne jamais un manque serveur par le site. Ces points sont à implémenter / documenter côté `stellar-universe`.
 
 - **`BattleDoAction` refuse un `skill_id` vide** (`addAction` exige des params non vides), alors qu'un move n'a pas de skill : le web envoie `skill_id=''` et risque la même erreur. La VR envoie `0` en attendant un param optionnel côté serveur.
+- **File d'ordres web cassée pour `moveToSystem`** : `star.js` ajoute l'étape avec `targetX`/`targetY`, mais `ProcessFleetQueue` lit `x`/`y` → l'étape est lue en (0,0) et sautée. La VR envoie `x`/`y`.
 - **`ok:sublight_not_enough_modules`** : renvoyé par `MoveFleet*` mais absent de `response.success_forms`.
 - **Libellés codés en dur côté web** (onglets PlanetScene / EmpireHub, catégories de recherche `research.js`, noms de skills `BATTLE_SKILL_DEFS`, `DECISION_DEFS` FR-only, journal de colonisation, entrées `GetActivity` en anglais brut) : besoin de clés i18n — voir [`i18n/missing-keys.md`](i18n/missing-keys.md).
 - **Création d'empire : aucune action API** (le web passe par le POST `controller/create-empire.php`). Bloquant pour tout compte créé en VR. Spec ci-dessous.
