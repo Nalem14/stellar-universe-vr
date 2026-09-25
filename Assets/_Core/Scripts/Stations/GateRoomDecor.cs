@@ -47,8 +47,11 @@ namespace Core.Stations
             var half = hallWidth * 0.5f;
 
             // ── Command gallery ───────────────────────────────────────────────────
-            refs.ConsoleMount = Desk(room, "CommandDesk", new Vector3(-1.05f, 0f, 0.95f), 24f, 1.25f, metal, dark, cyan, amber);
-            refs.JournalMount = Desk(room, "LogDesk", new Vector3(1.15f, 0f, 0.9f), -24f, 1.0f, metal, dark, cyan, amber);
+            // Both command desks are turned to the captain's stand (room origin): desk, arm and screen share it.
+            refs.ConsoleMount = Desk(room, "CommandDesk", new Vector3(-1.05f, 0f, 0.95f), FaceStand(-1.05f, 0.95f), 1.25f,
+                metal, dark, cyan, amber);
+            refs.JournalMount = Desk(room, "LogDesk", new Vector3(1.15f, 0f, 0.9f), FaceStand(1.15f, 0.9f), 1.0f,
+                metal, dark, cyan, amber);
 
             // Dial pedestal between the desks: six lamps around a glyph plate, mirrors the gate's locks.
             var ped = new GameObject("DialPedestal").transform;
@@ -73,7 +76,11 @@ namespace Core.Stations
                 var x = side * 3.6f;
                 var desk = Desk(room, side < 0 ? "TechDeskL" : "TechDeskR", new Vector3(x, 0f, 0.8f), side * -8f, 0.7f, metal, dark,
                     cyan, amber);
-                Quad(desk, "Monitor", Vector3.zero, new Vector3(0.62f, 0.36f, 1f), screenIdle);
+                // Seated on the arm like the command screens: bottom on the arm head, top leaning back 15°.
+                var mon = Quad(desk, "Monitor", new Vector3(0f, 0.185f, 0.05f), new Vector3(0.62f, 0.36f, 1f), screenIdle);
+                mon.transform.localRotation = Quaternion.Euler(15f, 0f, 0f);
+                var back = Box(desk, "MonitorBack", new Vector3(0f, 0.18f, 0.075f), new Vector3(0.66f, 0.4f, 0.03f), dark);
+                back.transform.localRotation = Quaternion.Euler(15f, 0f, 0f);
                 Chair(room, new Vector3(x, 0f, 0.15f), side * -8f, metal, dark);
                 var officer = CrewOfficer.Build(room, new Vector3(x, 0.5f, 0.2f), side < 0 ? accent : CicArtKit.Cyan);
                 officer.localRotation = Quaternion.Euler(0f, side * -8f, 0f);
@@ -175,6 +182,9 @@ namespace Core.Stations
 
         // ── Pieces ────────────────────────────────────────────────────────────────
 
+        /// <summary>Yaw that puts a desk's operator side (local −z) toward the stand at the room origin.</summary>
+        static float FaceStand(float x, float z) => Mathf.Atan2(x, z) * Mathf.Rad2Deg;
+
         /// <summary>
         /// Sloped operator desk (pedestal, kick plate, angled top with lit edge, key deck, side cheeks) and an arm
         /// rising behind it; returns the screen mount at the arm's head (the caller parents its screen there).
@@ -204,9 +214,11 @@ namespace Core.Stations
             for (var side = -1; side <= 1; side += 2)
                 Box(root, "Cheek", new Vector3(side * width * 0.5f, 0.55f, 0f), new Vector3(0.05f, 1.05f, 0.66f), metal);
             Box(root, "Arm", new Vector3(0f, 1.05f, 0.24f), new Vector3(0.08f, 0.4f, 0.08f), metal);
+            Box(root, "ArmHead", new Vector3(0f, 1.25f, 0.24f), new Vector3(0.22f, 0.04f, 0.1f), metal);
+            // Mount = top of the arm, oriented like the desk; a screen parented here sits on it.
             var mount = new GameObject("ScreenMount").transform;
             mount.SetParent(root, false);
-            mount.localPosition = new Vector3(0f, 1.3f, 0.2f);
+            mount.localPosition = new Vector3(0f, 1.27f, 0.24f);
             return mount;
         }
 
