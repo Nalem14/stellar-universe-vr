@@ -1,6 +1,6 @@
 # Table tactique v2 — conception
 
-> Statut : **validé** (2026-09-25) — flottant, viser→viser principal, la table vient au capitaine assis. **H1 livré** (Editor). Remplace la holomap actuelle (P5.5 de la [ROADMAP](../ROADMAP.md)).
+> Statut : **validé** (2026-09-25) — flottant, viser→viser principal, la table vient au capitaine assis. **H1 livré** (Editor). **H2a livré** : saisir / tourner / mettre à l'échelle, boutons Recentrer et Galaxie ⟷ Système. Remplace la holomap actuelle (P5.5 de la [ROADMAP](../ROADMAP.md)).
 > Référence : **BattleGroup VR**. Une vraie scène 3D en miniature sous les yeux. On vise un vaisseau, puis on vise où il doit aller : l'ordre est donné. On attrape la scène pour la tourner ou la grossir, et l'état se lit sur les modèles eux-mêmes.
 
 ## 1. Pourquoi on refait

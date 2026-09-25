@@ -40,6 +40,8 @@ namespace Core.Vfx
         bool _movesLocked;
 
         public HoloMapMode Mode => _mode;
+        /// <summary>System map gestures belong to <see cref="Core.Holo.MapManipulator"/> (grab / turn / scale).</summary>
+        public bool SystemGesturesExternal { get; set; }
         public IReadOnlyCollection<int> SelectedFleetIds => _selected;
         public event System.Action<HoloMapMode> ModeChanged;
 
@@ -186,6 +188,12 @@ namespace Core.Vfx
             {
                 ResolveHands();
                 _handsResolved = true;
+            }
+
+            if (SystemGesturesExternal && _mode == HoloMapMode.System)
+            {
+                EndGesture();
+                return false;
             }
 
             if (_leftGrip == null || _rightGrip == null || _leftPos == null || _rightPos == null ||

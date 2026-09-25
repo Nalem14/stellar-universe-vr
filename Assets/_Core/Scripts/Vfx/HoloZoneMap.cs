@@ -34,6 +34,8 @@ namespace Core.Vfx
         readonly List<int> _staleFleets = new();
 
         public Transform VolumeRoot => _volume;
+        /// <summary>The diorama content (tokens, orbits, ecliptic): what the captain grabs, turns and scales.</summary>
+        public Transform ContentRoot => _root;
         public TMP_Text Readout => _readout;
         public IReadOnlyList<HoloToken> Tokens => _tokens;
         public event Action TokensRebuilt;
@@ -272,7 +274,7 @@ namespace Core.Vfx
             BuildProjection();
 
             // Compact readout on the near rim of the disc — not a floating mid-air billboard.
-            var canvas = DiegeticUi.WorldCanvas(_root, "HoloReadoutCanvas", new Vector2(520f, 56f),
+            var canvas = DiegeticUi.WorldCanvas(transform, "HoloReadoutCanvas", new Vector2(520f, 56f),
                 new Vector3(0f, 0.07f, -WorldScale.HoloDiscRadius * 0.72f),
                 Quaternion.Euler(28f, 0f, 0f), 0.0007f);
             var frame = DiegeticUi.HoloFrame(canvas.transform, new Vector2(500f, 48f));

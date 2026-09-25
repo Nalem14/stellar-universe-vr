@@ -35,8 +35,9 @@ namespace Core.Vfx
         void BuildProjection()
         {
             // Light cone from the projector lens to the ecliptic: HoloSurface scanlines read as a beam.
+            // The beam belongs to the table (projector), not to the grabbable content.
             var cone = new GameObject("ProjectionCone");
-            cone.transform.SetParent(_root, false);
+            cone.transform.SetParent(transform, false);
             cone.AddComponent<MeshFilter>().sharedMesh = _coneMesh ??= Cone(0.1f, WorldScale.HoloDiscRadius * 0.98f,
                 DioramaLift, 40);
             var cr = cone.AddComponent<MeshRenderer>();
