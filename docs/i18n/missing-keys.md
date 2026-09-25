@@ -86,6 +86,52 @@ Ces clés n'ont pas d'équivalent natif dans le dump.
 | `vr.crew.standby` | Standing by, Commander. | En attente de vos ordres, Commandant. | Station sans ordre possible / écran de station au repos |
 | `vr.view.stationHeader` | Orbital station | Station orbitale | Vue habitée = fausse station (pas de vaisseau, aucun mouvement) |
 | `vr.view.orbiting` | Orbiting {0} | En orbite de {0} | Viewscreen / écrans de station en vue station (`{0}` = planète) |
+| `vr.ops.manage` | Planet stewardship | Intendance planétaire | Répéteur Ops à bord : ouvre la console Ops |
+| `vr.ops.tab.queue` | Construction | Chantier | Console Ops : onglet chantier en cours + file |
+| `vr.ops.tab.decisions` | Decisions | Décisions | Console Ops : onglet décisions planétaires |
+| `vr.ops.upgrade` | Upgrade | Améliorer | Console Ops : bouton d'un bâtiment |
+| `vr.ops.queued` | Added to the construction queue | Ajouté à la file de construction | Retour `UpgradeBuilding` quand la planète construit déjà (`queued:true`) |
+| `vr.ops.downgraded` | Level reduced | Niveau réduit | Retour `DowngradeBuilding` |
+| `vr.ops.confirmDowngrade` | Tap again to reduce {0} (no refund) | Touchez encore pour réduire {0} (sans remboursement) | Confirmation en deux temps de `DowngradeBuilding` |
+| `vr.ops.cancelled` | Removed from the queue | Retiré de la file | Retour `CancelQueuedBuilding` |
+| `vr.ops.finish` | Finish · {0} | Terminer · {0} | `SpeedupBuilding` (`{0}` = coût Nova ou « Gratuit ») |
+| `vr.ops.queueSlots` | Queue {0}/{1} | File {0}/{1} | Occupation de la file (actif + en attente / `maxQueue`) |
+| `vr.ops.queueIdle` | No construction in progress. | Aucune construction en cours. | Onglet chantier vide |
+| `vr.ops.fields` | {0} free fields | {0} cases libres | Pied de l'onglet bâtiments (`freeField`) |
+| `vr.ops.freeFields` | Free fields | Cases libres | Rapport planétaire |
+| `vr.ops.jobs` | Jobs {0}/{1} | Emplois {0}/{1} | Population : `employed` / `jobs` |
+| `vr.ops.habitability` | Habitability | Habitabilité | Rapport planétaire (`_habitability`) |
+| `vr.ops.explorePool` | Exploration data | Données d'exploration | Rapport planétaire (`planets.researchPoints`) |
+| `vr.ops.requires` | Requires {0} {1} | Requiert {0} {1} | Bâtiment verrouillé par la recherche (`{0}` = recherche, `{1}` = niveau) |
+| `vr.ops.nextBatch` | New decisions in {0} | Nouvelles décisions dans {0} | Décisions : compte à rebours `nextRefreshAt` |
+| `vr.ops.noDecision` | No decision this hour. | Aucune décision cette heure-ci. | Décisions : lot vide |
+| `vr.ops.yes` | Yes | Oui | Décision : `choice=yes` |
+| `vr.ops.no` | No | Non | Décision : `choice=no` |
+| `vr.ops.answered` | Answered: {0} | Répondu : {0} | Décision déjà tranchée |
+| `vr.ops.noPlanet` | No planet under your command | Aucune planète sous votre commandement | Console Ops sans planète possédée |
+| `vr.ops.renamed` | Planet renamed | Planète renommée | Retour `RenamePlanet` |
+| `vr.res.mineral` | Mineral | Minerai | Nom court de ressource (la clé native `mineral` désigne le district minier) |
+| `vr.res.crystal` | Crystal | Cristal | Nom court de ressource |
+| `vr.res.biomass` | Biomass | Biomasse | Nom court de ressource |
+| `vr.res.researchPoints` | Research points | Points de recherche | Effet de décision (`give.res = researchPoints`) |
+| `academy` | Military Base | Base militaire | Nom de bâtiment natif absent (clé = type, comme `mineralMine`) |
+| `defenseFactory` | Defense Factory | Usine de défense | Nom de bâtiment natif absent |
+| `stargate` | Stargate | Porte des étoiles | Nom de bâtiment natif absent |
+| `vr.building.home.desc` | Houses your citizens. Sets your maximum population. | Loge vos citoyens. Détermine votre population maximale. | Console Ops : rôle du bâtiment (texte de `BUILDINGS_META` web, idéalement une clé native partagée) |
+| `vr.building.farm.desc` | Produces biomass for your planet. | Produit de la biomasse pour votre planète. | Console Ops : rôle du bâtiment (texte de `BUILDINGS_META` web, idéalement une clé native partagée) |
+| `vr.building.mineralMine.desc` | Extracts mineral, the most used building resource for all your buildings and ships. | Extrait du minerai, la ressource de construction la plus utilisée pour tous vos bâtiments et vaisseaux. | Console Ops : rôle du bâtiment (texte de `BUILDINGS_META` web, idéalement une clé native partagée) |
+| `vr.building.crystalMine.desc` | Extracts crystal, a rarer resource used for advanced construction and technology. | Extrait du cristal, une ressource plus rare utilisée pour les constructions et technologies avancées. | Console Ops : rôle du bâtiment (texte de `BUILDINGS_META` web, idéalement une clé native partagée) |
+| `vr.building.mineralWarehouse.desc` | Raises mineral storage — any surplus beyond it is lost. | Augmente la capacité maximale de stockage de minerai — au-delà, le surplus produit est perdu. | Console Ops : rôle du bâtiment (texte de `BUILDINGS_META` web, idéalement une clé native partagée) |
+| `vr.building.crystalWarehouse.desc` | Raises crystal storage — any surplus beyond it is lost. | Augmente la capacité maximale de stockage de cristal — au-delà, le surplus produit est perdu. | Console Ops : rôle du bâtiment (texte de `BUILDINGS_META` web, idéalement une clé native partagée) |
+| `vr.building.biomassWarehouse.desc` | Raises biomass storage — any surplus beyond it is lost. | Augmente la capacité maximale de stockage de biomasse — au-delà, le surplus produit est perdu. | Console Ops : rôle du bâtiment (texte de `BUILDINGS_META` web, idéalement une clé native partagée) |
+| `vr.building.solarPlant.desc` | Generates energy. If buildings use more than you produce, resource output drops sharply. | Génère de l'énergie. Si vos bâtiments consomment plus d'énergie que vous n'en produisez, votre production de ressources chute fortement. | Console Ops : rôle du bâtiment (texte de `BUILDINGS_META` web, idéalement une clé native partagée) |
+| `vr.building.nuclearPlant.desc` | Generates far more energy than a Solar Plant, at a higher build cost. | Génère bien plus d'énergie qu'une Centrale Solaire, pour un coût de construction plus élevé. | Console Ops : rôle du bâtiment (texte de `BUILDINGS_META` web, idéalement une clé native partagée) |
+| `vr.building.researchLab.desc` | Its level caps the research level you can start. | Son niveau plafonne le niveau de recherche que vous pouvez lancer — les technologies avancées exigent un Labo plus développé. | Console Ops : rôle du bâtiment (texte de `BUILDINGS_META` web, idéalement une clé native partagée) |
+| `vr.building.orbitShipyard.desc` | Its level caps the ship modules you can build. | Son niveau plafonne les modules de vaisseau que vous pouvez construire — les modules avancés exigent un Chantier plus développé. | Console Ops : rôle du bâtiment (texte de `BUILDINGS_META` web, idéalement une clé native partagée) |
+| `vr.building.academy.desc` | Trains ground troops. Its level sets which units you can recruit. | Forme des troupes au sol. Son niveau détermine les types d'unités que vous pouvez recruter. | Console Ops : rôle du bâtiment (texte de `BUILDINGS_META` web, idéalement une clé native partagée) |
+| `vr.building.defenseFactory.desc` | Its level sets which static planetary defenses you can build. | Son niveau détermine les types de défense planétaire statique (tourelles, canons, batteries) que vous pouvez construire. | Console Ops : rôle du bâtiment (texte de `BUILDINGS_META` web, idéalement une clé native partagée) |
+| `vr.building.stargate.desc` | Sends troops on missions to any planet whose address you know. | Permet d'envoyer des troupes en mission vers toute planète dont vous connaissez l'adresse. | Console Ops : rôle du bâtiment (texte de `BUILDINGS_META` web, idéalement une clé native partagée) |
+| `vr.building.jumpgate.desc` | Teleports one of your fleets in orbit to another of your planets with a Jump Gate. | Technologie de pointe : téléporte une de vos flottes en orbite vers une autre de vos planètes équipée d'un Portail de Saut. | Console Ops : rôle du bâtiment (texte de `BUILDINGS_META` web, idéalement une clé native partagée) |
 
 ---
 
@@ -213,4 +259,5 @@ Ces textes sont en dur dans le code web, sans clé i18n. Ils sont à convertir *
 | `model/battle.php` (`BATTLE_SKILL_DEFS`) | Noms et descriptions des skills de combat (FR) | `battleSkill_<id>`, `battleSkillDesc_<id>` |
 | `model/decision.php` (`DECISION_DEFS`) | Titres et descriptions des décisions planétaires (FR uniquement) | `decision_<id>`, `decisionDesc_<id>`, `decisionChoice_<id>_<choice>` |
 | `assets/js/src/scenes/system.js` | Libellés de relation de l'overlay tactique | réutiliser `relation_key` → `relation_<key>` |
+| `assets/js/src/scenes/planet.js` (`BUILDINGS_META`) | Libellés et descriptions de bâtiments en dur (différents de fr.json : « Maisons » vs « District Urbain ») | `vr.building.<type>.desc` ci-dessus, ou `buildingDesc_<type>` partagé |
 | `GetActivity` (DB) | Entrées du journal d'activité stockées en anglais brut | clé + paramètres en DB |

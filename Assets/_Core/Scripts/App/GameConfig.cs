@@ -23,6 +23,12 @@ namespace Core.App
         public static float PrlCrystalPerDistance { get; private set; }
         public static float PrlTransitSeconds { get; private set; }
 
+        /// <summary>GetConfigs.upgrade: {time:{type:{time}}, energy:{type:n}, cost:{type:{res:n}}} — per level.</summary>
+        public static JObject Upgrade { get; private set; }
+        /// <summary>GetConfigs.factory (production per level) and .storage (warehouse multipliers).</summary>
+        public static JObject Factory { get; private set; }
+        public static JObject Storage { get; private set; }
+
         public static void Ingest(string configsBody)
         {
             if (string.IsNullOrEmpty(configsBody))
@@ -45,6 +51,10 @@ namespace Core.App
                     PrlCrystalPerDistance = FocusContext.AsFloat(prl["crystalCostPerDistance"]);
                     PrlTransitSeconds = FocusContext.AsFloat(prl["transitTime"]);
                 }
+
+                Upgrade = root["upgrade"] as JObject;
+                Factory = root["factory"] as JObject;
+                Storage = root["storage"] as JObject;
 
                 Loaded = TravelSecondsPerDistance > 0f;
             }

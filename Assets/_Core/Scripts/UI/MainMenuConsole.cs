@@ -395,63 +395,8 @@ namespace Core.UI
         }
 
         static TMP_InputField Field(Transform parent, string name, string placeholder, Vector2 pos,
-            TouchScreenKeyboardType keyboard, bool hidden = false)
-        {
-            var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(TMP_InputField));
-            go.transform.SetParent(parent, false);
-            var rt = go.GetComponent<RectTransform>();
-            rt.sizeDelta = new Vector2(700f, 58f);
-            rt.anchoredPosition = pos;
-            var bg = go.GetComponent<Image>();
-            bg.sprite = DiegeticUi.SprField;
-            bg.type = Image.Type.Sliced;
-            bg.color = Color.white;
-
-            var accent = new GameObject("Accent", typeof(RectTransform), typeof(Image));
-            accent.transform.SetParent(go.transform, false);
-            var art = accent.GetComponent<RectTransform>();
-            art.anchorMin = new Vector2(0f, 0f);
-            art.anchorMax = new Vector2(0f, 1f);
-            art.pivot = new Vector2(0f, 0.5f);
-            art.sizeDelta = new Vector2(4f, 0f);
-            art.anchoredPosition = Vector2.zero;
-            accent.GetComponent<Image>().color = Cyan;
-            accent.GetComponent<Image>().raycastTarget = false;
-            // Field sprite already has left accent — hide duplicate when sprite present.
-            if (DiegeticUi.SprField != null)
-                accent.SetActive(false);
-
-            var textGo = new GameObject("Text", typeof(RectTransform), typeof(TextMeshProUGUI));
-            textGo.transform.SetParent(go.transform, false);
-            Stretch(textGo.GetComponent<RectTransform>(), 20f);
-            var text = textGo.GetComponent<TextMeshProUGUI>();
-            text.fontSize = 24f;
-            text.color = Color.white;
-            text.alignment = TextAlignmentOptions.MidlineLeft;
-
-            var phGo = new GameObject("Placeholder", typeof(RectTransform), typeof(TextMeshProUGUI));
-            phGo.transform.SetParent(go.transform, false);
-            Stretch(phGo.GetComponent<RectTransform>(), 20f);
-            var ph = phGo.GetComponent<TextMeshProUGUI>();
-            ph.text = placeholder;
-            ph.fontSize = 24f;
-            ph.fontStyle = FontStyles.Italic;
-            ph.color = new Color(0.45f, 0.7f, 0.78f, 0.65f);
-            ph.alignment = TextAlignmentOptions.MidlineLeft;
-
-            var field = go.GetComponent<TMP_InputField>();
-            field.textViewport = rt;
-            field.textComponent = text;
-            field.placeholder = ph;
-            field.keyboardType = keyboard;
-            field.contentType = hidden
-                ? TMP_InputField.ContentType.Password
-                : TMP_InputField.ContentType.Standard;
-            field.shouldHideMobileInput = false;
-            field.caretColor = Cyan;
-            field.selectionColor = new Color(0.2f, 0.7f, 0.85f, 0.35f);
-            return field;
-        }
+            TouchScreenKeyboardType keyboard, bool hidden = false) =>
+            DiegeticUi.HoloField(parent, name, placeholder, pos, new Vector2(700f, 58f), keyboard, hidden);
 
         static Button Button(Transform parent, string label, Vector2 pos,
             UnityEngine.Events.UnityAction click, DiegeticUi.BtnStyle style)

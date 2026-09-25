@@ -168,7 +168,7 @@ Dépend de `CreateEmpire` côté serveur (spec dans PARITY).
 | **Engineering** | Designer 9×9 en holo (`PlaceShipModule` / `RemoveShipModule`) ; chantier : `AddShip` avec choix du type, `AddToFleet` / `DelToFleet`, `SpeedupShipyard`, file + `CancelQueuedShip` |
 | **Science** | `GetSystemAnomalies` / `ScanAnomaly`, `GetPlanet`, bounties ; arbre de recherche en holo (layout à relire dans `research.js`), file + `CancelQueuedResearch` |
 | **Comms** | Chat, MP, mail (clavier Quest) ; relations ; guerres (déclaration avec exigences, paix, reddition) ; alliances complètes (création, invitations, candidatures, rôles, exclusion, transfert, dissolution) ; stargate (composition d'adresse, missions) |
-| **Ops** | `GetResource` sur toutes les planètes ; bâtiments (choix, file + `CancelQueuedBuilding`, speedup) ; `AnswerPlanetDecision` ; troupes et défenses avec quantités ; `RenamePlanet` |
+| **Ops** | ✅ Console Intendance (Editor) : `GetResource` raw sur toutes les planètes (`EconomyService`, 10 s) ; bâtiments avec devis serveur (améliorer / ajouter à la file / réduire), chantier actif + Nova, annulation de file (`id`) ; décisions horaires ; rapport ; `RenamePlanet` ; réplique « construction terminée ». Reste : troupes et défenses avec quantités (→ Tactical) |
 
 ### P6 — Méta
 - **Salle du conseil / bureau du captain**, accessible par TP : administration d'empire **complète** (identité, drapeau, espèce, autorité, éthiques, politiques, jetons).

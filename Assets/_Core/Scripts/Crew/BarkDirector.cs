@@ -52,6 +52,11 @@ namespace Core.Crew
         bool _wasInBattle;
         bool _wasExploring;
         int _exploringPlanet;
+        EconomyService _economy;
+
+        void OnBuildingCompleted(PlanetEconomy planet, string type) =>
+            Say(CrewDialogue.Role.Ops, "buildDone", 2, Trans.Get(type),
+                string.IsNullOrEmpty(planet.Name) ? "#" + planet.Id : planet.Name);
 
         public static BarkDirector Build(Transform room, FocusContext focus)
         {
@@ -65,6 +70,9 @@ namespace Core.Crew
             if (focus != null)
                 focus.Changed += director.OnViewChanged;
             Instance = director;
+            var economy = EconomyService.Ensure(room);
+            economy.BuildingCompleted += director.OnBuildingCompleted;
+            director._economy = economy;
             return director;
         }
 
@@ -72,6 +80,8 @@ namespace Core.Crew
         {
             if (_focus != null)
                 _focus.Changed -= OnViewChanged;
+            if (_economy != null)
+                _economy.BuildingCompleted -= OnBuildingCompleted;
             if (Instance == this)
                 Instance = null;
         }

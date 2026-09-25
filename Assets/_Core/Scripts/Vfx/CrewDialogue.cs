@@ -155,6 +155,14 @@ namespace Core.Vfx
         {
             if (s_Open != null && s_Open != this)
                 s_Open.Close();
+            Core.Stations.OpsConsole.Instance?.Close();
+
+            // At a virtual station Ops has no ship to order: the officer brings up planet stewardship directly.
+            if (_role == Role.Ops && Focus != null && Focus.FindViewFleet() == null)
+            {
+                OpenStewardship();
+                return;
+            }
 
             s_Open = this;
             _open = true;
@@ -611,9 +619,15 @@ namespace Core.Vfx
 
         }
 
-        /// <summary>Ops: cargo logistics with the planet in orbit. Colonies / buildings: P5.</summary>
+        /// <summary>Ops: planet stewardship console first, then cargo / colony orders with the planet in orbit.</summary>
         void BuildOps(FocusContext focus, FocusFleet fleet)
         {
+            AddAction(Trans.Get("vr.ops.manage"), () =>
+            {
+                OpenStewardship();
+                return Task.CompletedTask;
+            }, DiegeticUi.BtnStyle.Amber, refreshAfter: false);
+
             // Colonize the planet in orbit with a ColonyShip module (server: unowned, habitability >= 6,
             // fleet idle). Same module lookup as the web (objects/fleet.js colonizePlanet).
             var orbit = focus.FindPlanet(fleet.PlanetId);
@@ -645,6 +659,21 @@ namespace Core.Vfx
                         { "planet", fleet.PlanetId.ToString() }
                     }));
             }
+        }
+
+        /// <summary>Planet stewardship (Ops console) on the station's planet, else the one in orbit, else the first owned.</summary>
+        void OpenStewardship()
+        {
+            var console = Core.Stations.OpsConsole.Instance;
+            if (console == null)
+                return;
+            var focus = Focus;
+            var fleet = focus?.FindViewFleet();
+            var preferred = fleet != null ? fleet.PlanetId : focus?.ViewPlanetId ?? 0;
+            if (_open)
+                Close();
+            GetComponentInParent<CrewOfficer>()?.LookAt(Camera.main != null ? Camera.main.transform.position : (Vector3?)null);
+            console.Open(_anchor, preferred);
         }
 
         static string ActionLabel(string verbKey, string target)

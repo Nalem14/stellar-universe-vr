@@ -21,7 +21,7 @@ Généré depuis `action-api.json` (152 actions), `actionjs.php` et un grep des 
 | Galaxie | 1 | 8 | 12 % |
 | Flotte | 15 | 23 | 65 % |
 | Vaisseau / chantier | 1 | 9 | 11 % |
-| Planète / bâtiments / recherche | 0 | 17 | 0 % |
+| Planète / bâtiments / recherche | 8 | 17 | 47 % |
 | Combat | 8 | 14 | 57 % |
 | Jumpgate | 0 | 2 | 0 % |
 | Stargate | 0 | 7 | 0 % |
@@ -29,7 +29,7 @@ Généré depuis `action-api.json` (152 actions), `actionjs.php` et un grep des 
 | Guerre | 0 | 9 | 0 % |
 | Alliance | 1 | 17 | 6 % |
 | Empire / progression / shop | 2 | 25 | 8 % |
-| **Total** | **35** | **152** | **23 %** |
+| **Total** | **43** | **152** | **28 %** |
 
 Appelées par le client web : 134/152. « Appelée » ≠ « finie » : voir la colonne *Statut*.
 
@@ -117,23 +117,23 @@ Appelées par le client web : 134/152. « Appelée » ≠ « finie » : voir la 
 
 | Action | R/W | Params | VR | Web | Station | Phase | Statut | Notes |
 |---|---|---|---|---|---|---|---|---|
-| `AnswerPlanetDecision` | W | planet, decision, choice | — | `objects/planet.js` | Ops | P5 | À faire |  |
+| `AnswerPlanetDecision` | W | planet, decision, choice | `Stations/OpsConsole.cs` | `objects/planet.js` | Ops | P5 | Branché | `decision` = **`decision_key`** (chaîne), pas l'id ; `choice` yes/no |
 | `BuildDefenseUnit` | W | planet, type, qty | — | `objects/planet.js` | Tactical | P5 | À faire | VR : MissileTurret×1 codé en dur |
-| `CancelQueuedBuilding` | W | id | — | `scenes/planet.js` | Ops | P5 | À faire |  |
+| `CancelQueuedBuilding` | W | id | `Stations/OpsConsole.cs` | `scenes/planet.js` | Ops | P5 | Branché | Param **`id`** (le web envoie `queue_id` → échec) ; réponse JSON `{ok:false,error:clé}` sans préfixe `error:` |
 | `CancelQueuedResearch` | W | id | — | `scenes/research.js` | Science | P5 | À faire |  |
 | `CheckBuildingQueue` | R | planet | — | `view/game.php` | Ops | P5 | À faire |  |
 | `CheckResearchQueue` | R | — | — | `view/game.php` | Science | P5 | À faire |  |
 | `CheckShipQueue` | R | planet | — | `view/game.php` | Engineering | P5 | À faire |  |
-| `DowngradeBuilding` | W | buildingtype, planet | — | `objects/planet.js` | Ops | P5 | À faire |  |
-| `GetPlanetDecisions` | R | planet | — | `objects/planet.js` | Ops | P5 | À faire |  |
-| `GetResource` | R | planet, raw? | — | `objects/planet.js` | Ops (poll global) | P0 | À faire | Accumule la production : poll `raw=1` sur **toutes** les planètes (csv ≤ 50) |
+| `DowngradeBuilding` | W | buildingtype, planet | `Stations/OpsConsole.cs` | `objects/planet.js` | Ops | P5 | Branché | Immédiat, sans remboursement : confirmation en deux temps |
+| `GetPlanetDecisions` | R | planet | `Stations/OpsConsole.cs` | `objects/planet.js` | Ops | P5 | Branché | 10 décisions / planète / heure, `nextRefreshAt` → compte à rebours |
+| `GetResource` | R | planet, raw? | `App/EconomyService.cs` | `objects/planet.js` | Ops (poll global) | P0 | Branché | `EconomyService` : `raw=1` sur **toutes** les planètes (csv ≤ 50) toutes les 10 s — accumule la production et fait avancer les files. La ligne `user` (identifiants) est jetée à la lecture |
 | `ImproveResearch` | W | research, planet | — | `objects/research.js` | Science | P5 | À faire | Clé réelle `combustionDrive` — démo retirée en P1c |
 | `RecruitTroop` | W | planet, type, qty | — | `objects/planet.js` | Tactical | P5 | À faire | VR : Infantry×1 codé en dur |
 | `RefreshStats` | W | planet | — | `objects/planet.js` | Ops | P5 | À faire |  |
-| `RenamePlanet` | W | id, name | — | `objects/planet.js` | Ops | P5 | À faire |  |
-| `SpeedupBuilding` | W | planet | — | `scenes/planet.js` | Ops | P5 | À faire |  |
+| `RenamePlanet` | W | id, name | `Stations/OpsConsole.cs` | `objects/planet.js` | Ops | P5 | Branché | Aucune validation serveur : VR limite à 32 caractères |
+| `SpeedupBuilding` | W | planet | `Stations/OpsConsole.cs` | `scenes/planet.js` | Ops | P5 | Branché | Coût Nova affiché avant (gratuit ≤ 60 s, sinon max(10, ⌈6·min^0.82⌉)) |
 | `SpeedupResearch` | W | — | — | `scenes/research.js` | Science | P5 | À faire |  |
-| `UpgradeBuilding` | W | buildingtype, planet | — | `objects/planet.js` | Ops | P5 | À faire | Clé bâtiment réelle `mineralMine` (pas `metalMine`) — démo retirée en P1c |
+| `UpgradeBuilding` | W | buildingtype, planet | `Crew/CrewLines.cs` +1 | `objects/planet.js` | Ops | P5 | Branché | Console Ops : devis serveur (coût × niveau cible, temps × computer), « Ajouter à la file » si chantier actif ; réponse texte (niveau) ou JSON `queued` |
 
 ## Combat
 
@@ -263,6 +263,13 @@ Le client VR ne contourne jamais un manque serveur par le site. Ces points sont 
 - **File d'ordres web cassée pour `moveToSystem`** : `star.js` ajoute l'étape avec `targetX`/`targetY`, mais `ProcessFleetQueue` lit `x`/`y` → l'étape est lue en (0,0) et sautée. La VR envoie `x`/`y`.
 - **`ok:sublight_not_enough_modules`** : renvoyé par `MoveFleet*` mais absent de `response.success_forms`.
 - **Libellés codés en dur côté web** (onglets PlanetScene / EmpireHub, catégories de recherche `research.js`, noms de skills `BATTLE_SKILL_DEFS`, `DECISION_DEFS` FR-only, journal de colonisation, entrées `GetActivity` en anglais brut) : besoin de clés i18n — voir [`i18n/missing-keys.md`](i18n/missing-keys.md).
+- **⚠ Sécurité — `GetResource` renvoie la ligne `users` complète** (dont `email` et le hash bcrypt `password`) dans `user` pour chaque planète possédée (`actionjs.php` GetResource). À retirer côté serveur (ne renvoyer que `id`/`username` si besoin). La VR jette ce champ dès la lecture et ne log jamais les corps de réponse.
+- **`CancelQueuedBuilding` cassé côté web** : `scenes/planet.js` et `ui/PlanetWindowUI.js` envoient `queue_id`, le serveur exige `id`. La file web affiche aussi `building_type` / `duration_seconds`, qui n'existent pas (vrais champs : `buildingtype`, `duration`).
+- **`CancelQueuedBuilding` répond `{ok:false,error:"clé"}`** (HTTP 200, sans `error:`) au lieu du format d'erreur du contrat.
+- **`AnswerPlanetDecision.decision`** est la `decision_key` (chaîne) ; `action-api.json` la documente en `int`. Les erreurs sont des exceptions FR en dur.
+- **`CheckBuildingQueue.percent`** vaut toujours ~100 (`time()/working`) : inutilisable ; la VR calcule la progression elle-même.
+- **`RenamePlanet`** : aucune validation (longueur, caractères) côté serveur.
+- **Noms natifs absents** : `academy`, `defenseFactory`, `stargate` (bâtiments) — voir `missing-keys.md`.
 - **Création d'empire : aucune action API** (le web passe par le POST `controller/create-empire.php`). Bloquant pour tout compte créé en VR. Spec ci-dessous.
 
 ### Spec proposée — `CreateEmpire`

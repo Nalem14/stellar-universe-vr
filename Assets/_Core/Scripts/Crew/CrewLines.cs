@@ -72,6 +72,7 @@ namespace Core.Crew
             "DepositCargo" or "WithdrawCargo" => "cargoDeposited",
             "Colonize" => "colonize",
             "MakeBattle" => "battleStart",
+            "UpgradeBuilding" => "buildStart",
             _ => null
         };
 

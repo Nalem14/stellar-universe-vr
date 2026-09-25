@@ -86,7 +86,7 @@ Le serveur simule **paresseusement** : `GetAllFleets` traite les files d'ordres 
 
 Le web évolue : avant chaque feature, `git log` / `git diff` sur le repo web pour repérer les changements d'API (params renommés, nouvelles actions, nouvelles erreurs). Le repo web est en **lecture seule** depuis ici : aucune modification sans demande explicite. Les clés i18n manquantes vont dans [`docs/i18n/missing-keys.md`](docs/i18n/missing-keys.md) (clé + FR + EN) pour intégration côté serveur.
 
-Mettre à jour `docs/PARITY.md` à chaque feature livrée.
+Mettre à jour `docs/PARITY.md` à chaque feature livrée : `python3 docs/tools/parity.py` régénère la matrice (croise `ActionJs.Get("…")` du C#, `action-api.json` et le web) ; notes et statuts dans le script, écarts serveur à la main en fin de fichier.
 
 ---
 

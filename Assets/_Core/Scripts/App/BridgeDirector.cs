@@ -63,6 +63,8 @@ namespace Core.App
             Core.Holo.QueuePathView.Attach(_zoneMap, _focus, env.Art);
 
             Core.Crew.BarkDirector.Build(interior.transform, _focus);
+            var economy = EconomyService.Ensure(interior.transform);
+            Core.Stations.OpsConsole.Build(interior.transform, economy);
             CrewStationsBuilder.Build(env, env.Art, hex, _zoneMap, _poller, _focus, _loader);
             BridgeViewscreen.Build(env, _focus);
 
