@@ -22,14 +22,14 @@ Généré depuis `action-api.json` (154 actions), `actionjs.php` et un grep des 
 | Flotte | 16 | 23 | 70 % |
 | Vaisseau / chantier | 8 | 9 | 89 % |
 | Planète / bâtiments / recherche | 11 | 17 | 65 % |
-| Combat | 8 | 14 | 57 % |
+| Combat | 9 | 14 | 64 % |
 | Jumpgate | 0 | 2 | 0 % |
 | Stargate | 0 | 7 | 0 % |
 | Social (chat, mail) | 0 | 11 | 0 % |
 | Guerre | 0 | 9 | 0 % |
 | Alliance | 1 | 17 | 6 % |
 | Empire / progression / shop | 7 | 27 | 26 % |
-| **Total** | **66** | **154** | **43 %** |
+| **Total** | **67** | **154** | **44 %** |
 
 Appelées par le client web : 134/154. « Appelée » ≠ « finie » : voir la colonne *Statut*.
 
@@ -140,19 +140,19 @@ Appelées par le client web : 134/154. « Appelée » ≠ « finie » : voir la 
 | Action | R/W | Params | VR | Web | Station | Phase | Statut | Notes |
 |---|---|---|---|---|---|---|---|---|
 | `AddFleetToBattle` | W | battleid, fleetid | — | `objects/fleet.js` | Tactical | P5 | À faire |  |
-| `BattleDoAction` | W | battleid, fleetid, bship_id, action, subaction, skill_id, target_bship_id, target_q, target_r | `Vfx/HexBattleController.cs` | `scenes/battle.js` | Tactical | P0 | Branché | Envoyer `subaction` + `battle_subaction` (jamais `action`) ; `skill_id` optionnel (omit / vide / `0` pour un move) |
-| `BattleEndFleetTurn` | W | battleid, fleetid | `Vfx/HexBattleController.cs` | `scenes/battle.js` | Tactical | P5 | Branché |  |
+| `BattleDoAction` | W | battleid, fleetid, bship_id, action, subaction, skill_id, target_bship_id, target_q, target_r | `Vfx/HexBattleController.cs` | `scenes/battle.js` | Tactical | P0 | Branché | Plateau de combat sur la table : viser→viser (case = move, compétence armée puis cible) ; `subaction` + `battle_subaction` ; `skill_id` seulement pour une compétence ; erreurs brutes → `vr.battle.err.*` |
+| `BattleEndFleetTurn` | W | battleid, fleetid | `Vfx/HexBattleController.cs` | `scenes/battle.js` | Tactical | P5 | Branché | Bouton Fin du tour du pupitre (et réplique Tactique) |
 | `CheckPlanetAttack` | R | planet | — | `objects/planet.js` | Tactical | P5 | À faire |  |
 | `DoTurnBattle` | W | battleid, fleetid, action, target | — | — | Tactical | — | Hors scope | Legacy, non utilisé par le web |
 | `FleetAttackPlanet` | W | fleet, planet | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Tactical | P5 | Branché |  |
 | `GetBattle` | R | battleid | — | — | Tactical | — | Hors scope | Legacy |
-| `GetBattleState` | R | battleid, fleetid | `Vfx/HexBattleController.cs` | `scenes/battle.js` | Tactical | P5 | Branché |  |
-| `GetMyBattles` | R | — | `Vfx/HexBattleController.cs` | `scenes/galaxy.js` | Tactical | P5 | Branché |  |
+| `GetBattleState` | R | battleid, fleetid | `Vfx/HexBattleController.cs` | `scenes/battle.js` | Tactical | P5 | Branché | Plateau diffé toutes les 2,5 s (web) ; tirs rejoués depuis les nouvelles lignes `log` sur la table, dehors et à bord |
+| `GetMyBattles` | R | — | `Vfx/HexBattleController.cs` | `scenes/galaxy.js` | Tactical | P5 | Branché | Seulement si un de nos vaisseaux a `isInBattle` : prend la table (vaisseau habité / système en vue) ou bouton Rejoindre sur le rebord |
 | `GetPendingBattles` | R | systemid, planetid | — | — | Tactical | P5 | À faire |  |
 | `MakeBattle` | W | systemid, fleets, planetid? | `Crew/CrewLines.cs` +2 | `objects/fleet.js` | Tactical | fleets = mon vaisseau + cibles, `planetid` seulement si ≠ 0 (0 vs pirates), puis `UpdateBattle` (web startTacticalBattle) | Branché | fleets = mon vaisseau + cibles, `planetid` seulement si ≠ 0 (0 vs pirates), puis `UpdateBattle` (web startTacticalBattle) |
-| `RemoveFleetFromBattle` | W | battleid, fleetid | — | `scenes/battle.js` | Tactical | P5 | À faire |  |
-| `SetFleetState` | W | battleid, fleetid, auto, ready | `Vfx/HexBattleController.cs` | `scenes/battle.js` | Tactical | P5 | Branché |  |
-| `UpdateBattle` | W | battleid | `Vfx/HexBattleController.cs` | `objects/fleet.js` | Tactical | P5 | Branché |  |
+| `RemoveFleetFromBattle` | W | battleid, fleetid | `Vfx/HexBattleController.cs` | `scenes/battle.js` | Tactical | P5 | Branché | Bouton Retirer le vaisseau, bataille en attente seulement |
+| `SetFleetState` | W | battleid, fleetid, auto, ready | `Vfx/HexBattleController.cs` | `scenes/battle.js` | Tactical | P5 | Branché | Bouton Prêt pendant la préparation (`auto=0`, `ready=1`) ; plus envoyé après MakeBattle (le serveur marque déjà notre camp prêt) |
+| `UpdateBattle` | W | battleid | `Vfx/HexBattleController.cs` | `objects/fleet.js` | Tactical | P5 | Branché | Relancé comme le web si en attente ou délai de tour dépassé |
 
 ## Jumpgate
 
@@ -312,6 +312,13 @@ Corrigés dans `stellar-universe` (`7580501`, 2026-09-25) — le client VR ne co
 - **`action-api.json` invalide** : ✅ clé `GetBounties` restaurée (casse après edit ScanAnomaly).
 
 - **`GetPlanet` public par conception** (question de design, pas un bug) : toute planète est lisible par tous (ressources, hangar, chantier, troupes, défenses, adresse de porte), comme le panneau web des planètes étrangères. À trancher si l'on veut du renseignement (exploration / espionnage) ; la VR affiche au relevé des agrégats (défense, garnison, orbite, bâtiments clés).
+
+### À corriger côté web (relevés en lisant le combat et le commit a93b82c, 2026-09-25)
+
+- **⚠ « Surcharge Cybernétique » (`cyber_override`, type `cyber_hack`) ne marche jamais** : `BattleResolveAction` (model/battle.php) lit `$targetBship`, une variable jamais définie. La compétence renvoie donc toujours `error:target_required`, même sur une cible valide. Il faut charger la cible comme les autres types : `$targetBship = $targetBshipId ? GetBattleShip($targetBshipId) : GetBattleShipAtHex($battleid, $tQ, $tR)`, et refuser le tir allié. La VR envoie déjà `target_bship_id` et `target_q` / `target_r`.
+- **Lignes `battle_actions` sans id de compétence** : le résultat stocké ne dit pas quelle compétence a tiré. La VR (comme le web) devine la couleur du tir d'après la forme du résultat. Ajouter `skill` (id) dans `$result` rendrait les tirs ennemis exacts.
+- **Modèles de vaisseaux (commit a93b82c)** : `GetShipTemplates`, `SaveShipTemplate` (`fleet`, `name`), `DeleteShipTemplate` (`id`) et `ApplyShipTemplate` (`fleet`, `template`) sont écrits en `if ($_GET['action'] == …)` et non en `addAction`. Ils sont absents de `action-api.json`, donc invisibles pour la matrice. À documenter dans le contrat (params, retours, erreurs). La VR les branchera dans la cale sèche.
+- **Triangulation stargate (commit a93b82c)** : rien à changer côté VR. La découverte est accordée côté serveur (`ImproveResearch`, rattrapage dans `GetKnownAddresses`) ; les adresses arrivent par `GetKnownAddresses` quand Comms / Stargate sera branché.
 
 ### Spec livrée — `CreateEmpire`
 

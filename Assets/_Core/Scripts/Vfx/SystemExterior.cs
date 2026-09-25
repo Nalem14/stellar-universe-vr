@@ -116,6 +116,10 @@ namespace Core.Vfx
             _content = go.transform;
         }
 
+        /// <summary>The exterior ship of <paramref name="fleetId"/> (our own hull is there too, hidden).</summary>
+        public bool TryGetFleet(int fleetId, out Transform ship) =>
+            _fleets.TryGetValue(fleetId, out ship) && ship != null;
+
         public Vector3 ResolveFleetWorldPosition(FocusFleet fleet)
         {
             if (fleet == null)

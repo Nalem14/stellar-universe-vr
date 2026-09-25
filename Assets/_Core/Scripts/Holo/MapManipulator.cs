@@ -35,6 +35,7 @@ namespace Core.Holo
         Quaternion _resetFromRot;
         Vector3 _resetFromScale;
         PokeButton _levelButton;
+        PokeButton _recentreButton;
 
         Transform Content => _map != null ? _map.ContentRoot : null;
 
@@ -64,7 +65,7 @@ namespace Core.Holo
             // Beside the status strip on the near rim (captain side), tilted up to the eye.
             var z = -WorldScale.HoloDiscRadius * 0.72f;
             var tilt = Quaternion.Euler(50f, 0f, 0f);
-            PokeButton.Create(transform, "RecentreMap", Trans.Get("vr.table.recentre"), new Vector3(-0.44f, 0.06f, z),
+            _recentreButton = PokeButton.Create(transform, "RecentreMap", Trans.Get("vr.table.recentre"), new Vector3(-0.44f, 0.06f, z),
                 tilt, new Vector2(0.17f, 0.05f), UiKit.Cyan, Recentre);
             _levelButton = PokeButton.Create(transform, "MapLevel", Trans.Get("galaxy"), new Vector3(0.44f, 0.06f, z),
                 tilt, new Vector2(0.17f, 0.05f), new Color(0.7f, 0.5f, 1f, 1f), ToggleLevel);
@@ -80,6 +81,18 @@ namespace Core.Holo
         void OnModeChanged(HoloMapMode mode)
         {
             _levelButton?.SetLabel(Trans.Get(mode == HoloMapMode.Galaxy ? "system" : "galaxy"));
+            // The battle board brings its own rim console.
+            var battle = mode == HoloMapMode.HexBattle;
+            if (_levelButton != null)
+                _levelButton.gameObject.SetActive(!battle);
+            if (_recentreButton != null)
+                _recentreButton.gameObject.SetActive(!battle);
+            if (battle)
+            {
+                Release();
+                return;
+            }
+
             // The galaxy plate frames itself: the diorama's grab framing starts fresh on either side.
             Release();
             SnapIdentity();

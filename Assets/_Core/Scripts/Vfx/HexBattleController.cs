@@ -1,147 +1,260 @@
 using System.Collections.Generic;
+using System.Globalization;
 using System.Threading.Tasks;
 using Core.App;
+using Core.UI;
 using Core.Utils;
 using Newtonsoft.Json.Linq;
-using TMPro;
 using UnityEngine;
-using UnityEngine.XR.Interaction.Toolkit;
-using UnityEngine.XR.Interaction.Toolkit.Interactables;
 
 namespace Core.Vfx
 {
     /// <summary>
-    /// Hex TBT combat on the holo table. Schema fields from GetBattleState are mapped defensively
-    /// after live dump — do not invent required fields beyond API purpose (ships, hexes, log, active_bship_id, skills).
+    /// Tactical combat on the holo table (docs/design/HOLOTABLE.md §2.8, web scenes/battle.js).
+    /// When one of our ships is in a battle (GetAllFleets isInBattle → GetMyBattles), the fight takes the
+    /// table: the system diorama folds away and the hex board unfolds in its place. The fight gives the
+    /// table back when it ends (victory / defeat banner, then fold) or when the captain leaves it — leaving
+    /// never surrenders (web ✕); a pulsing rim button rejoins it.
+    /// Server contract as the web: GetBattleState every 2.5 s, UpdateBattle poked while pending or past a
+    /// turn deadline, BattleDoAction (subaction move / skill), BattleEndFleetTurn, SetFleetState ready,
+    /// RemoveFleetFromBattle (withdraw while pending). Rendering is diffed per poll: one grid mesh, one
+    /// holo hull per ship, beams replayed from the new battle_actions rows.
     /// </summary>
-    public class HexBattleController : MonoBehaviour
+    public partial class HexBattleController : MonoBehaviour
     {
+        const float PollSeconds = 2.5f;
+        const float DetectSeconds = 5f;
+        const float CloseDelay = 6f;
+
         FocusContext _focus;
         HoloMapController _mapCtrl;
-        Transform _root;
-        TMP_Text _log;
-        readonly List<GameObject> _cells = new();
-        readonly List<GameObject> _pieces = new();
+        Transform _mount;
+        CicArtKit _art;
+
         int _battleId;
         int _fleetId;
-        int _activeBship;
+        BattleSnapshot _state;
         bool _visible;
         float _pollAt;
-        CicArtKit _art;
+        float _detectAt;
+        bool _polling;
         bool _detecting;
+        int _lastLogId = -1;
+        bool _outcomeShown;
+        float _closeAt = -1f;
+
+        /// <summary>A battle of ours the table could show (rejoin button when the board is closed).</summary>
+        int _ongoingBattle;
+        int _ongoingFleet;
+        readonly HashSet<int> _dismissed = new();
+        readonly HashSet<int> _finished = new();
 
         public bool IsActive => _visible && _battleId > 0;
+        public int BattleId => _battleId;
+        public BattleSnapshot State => _state;
 
         public void Bind(FocusContext focus, HoloMapController mapCtrl, Transform tableMount, CicArtKit art)
         {
             _focus = focus;
             _mapCtrl = mapCtrl;
             _art = art;
-            EnsureRoot(tableMount);
+            _mount = tableMount;
+            BuildBoard();
         }
 
-        void EnsureRoot(Transform tableMount)
-        {
-            if (_root != null || tableMount == null)
-                return;
-            _root = new GameObject("HexBattleBoard").transform;
-            _root.SetParent(tableMount, false);
-            _root.localPosition = new Vector3(0f, 0.12f, 0f);
-            _root.gameObject.SetActive(false);
-
-            var logGo = new GameObject("BattleLog");
-            logGo.transform.SetParent(_root, false);
-            logGo.transform.localPosition = new Vector3(0f, 0.02f, -0.42f);
-            logGo.transform.localRotation = Quaternion.Euler(70f, 0f, 0f);
-            logGo.transform.localScale = Vector3.one * 0.008f;
-            _log = logGo.AddComponent<TextMeshPro>();
-            _log.alignment = TextAlignmentOptions.Center;
-            _log.fontSize = 7f;
-            _log.color = new Color(1f, 0.75f, 0.35f, 0.95f);
-            _log.text = string.Empty;
-        }
+        // ── Map mode hooks (HoloMapController.SetMode) ───────────────────────────
 
         public void Show()
         {
-            if (_root != null)
-                _root.gameObject.SetActive(true);
             _visible = true;
+            if (_boardRoot != null)
+                _boardRoot.gameObject.SetActive(true);
+            StartReveal(true);
+            SetRejoinVisible(false);
         }
 
         public void Hide()
         {
+            if (_battleId > 0 && !_finished.Contains(_battleId))
+                _dismissed.Add(_battleId);
             _visible = false;
-            if (_root != null)
-                _root.gameObject.SetActive(false);
-            ClearBoard();
+            _closeAt = -1f;
+            if (_boardRoot != null)
+                _boardRoot.gameObject.SetActive(false);
+            ClearShips();
+            ClearFx();
+            _state = null;
             _battleId = 0;
+            _fleetId = 0;
+            _lastLogId = -1;
+            _outcomeShown = false;
+            ResetAim();
+            _detectAt = 0f;
+            CombatEvents.SetEngaged(false);
+#if UNITY_EDITOR
+            EditorOffline = false;
+#endif
+        }
+
+        /// <summary>Put <paramref name="battleId"/> on the table, playing as <paramref name="fleetId"/>.</summary>
+        public void Open(int battleId, int fleetId)
+        {
+            if (battleId <= 0 || fleetId <= 0)
+                return;
+            if (_visible && _battleId == battleId)
+                return;
+            _dismissed.Remove(battleId);
+            ClearShips();
+            ClearFx();
+            _battleId = battleId;
+            _fleetId = fleetId;
+            _state = null;
+            _lastLogId = -1;
+            _outcomeShown = false;
+            _closeAt = -1f;
+            _pollAt = 0f;
+            SetHeader(Trans.Get("Loading"), string.Empty);
+            if (_mapCtrl != null && _mapCtrl.Mode != HoloMapMode.HexBattle)
+                _mapCtrl.SetMode(HoloMapMode.HexBattle);
+            else
+                Show();
+        }
+
+        /// <summary>Give the table back to the system map (never surrenders).</summary>
+        public void Leave()
+        {
+            if (!_visible)
+                return;
+            BeginFold();
         }
 
         void Update()
         {
             if (_focus == null)
                 return;
-
-            // Detect server-started battles even while the hex board is hidden.
+            AnimateBoard();
             if (!_visible)
             {
-                if (_battleId <= 0 && !_detecting && Time.time >= _pollAt)
+                if (Time.unscaledTime >= _detectAt && !_detecting)
                 {
-                    _pollAt = Time.time + 2f;
-                    Core.Utils.AsyncTap.Run(TryDetectBattle());
+                    _detectAt = Time.unscaledTime + DetectSeconds;
+                    AsyncTap.Run(Detect());
                 }
 
+                PulseRejoin();
                 return;
             }
 
-            if (_battleId <= 0 && !_detecting)
-                Core.Utils.AsyncTap.Run(TryDetectBattle());
+            if (_folding)
+                return;
 
-            if (_battleId > 0 && Time.time >= _pollAt)
+            UpdateInput();
+            if (_closeAt > 0f && Time.unscaledTime >= _closeAt)
             {
-                _pollAt = Time.time + 1.5f;
-                Core.Utils.AsyncTap.Run(PollState());
+                _closeAt = -1f;
+                BeginFold();
+                return;
             }
+
+#if UNITY_EDITOR
+            if (EditorOffline)
+            {
+                TickHeader();
+                return;
+            }
+#endif
+            if (_battleId > 0 && !_polling && !_outcomeShown && Time.unscaledTime >= _pollAt)
+            {
+                _pollAt = Time.unscaledTime + PollSeconds;
+                AsyncTap.Run(PollState());
+            }
+
+            TickHeader();
         }
 
-        async Task TryDetectBattle()
+#if UNITY_EDITOR
+        /// <summary>Editor checks: a GetBattleState body applied without the server (no poll, no orders).</summary>
+        public static bool EditorOffline;
+
+        public void EditorApply(string body, int fleetId)
         {
-            if (_detecting)
+            EditorOffline = true;
+            if (!_visible)
+                Open(424242, fleetId);
+            var snap = Parse(body);
+            if (snap != null)
+                Apply(snap);
+        }
+#endif
+
+        // ── Detection: our ships' battles (isInBattle → GetMyBattles, web loadMyBattles) ─────────────
+
+        bool AnyMineInBattle()
+        {
+            foreach (var f in _focus.Fleets)
+                if (f.IsInBattle && _focus.IsMine(f))
+                    return true;
+            return false;
+        }
+
+        async Task Detect()
+        {
+            if (!AnyMineInBattle())
+            {
+                _ongoingBattle = 0;
+                SetRejoinVisible(false);
                 return;
+            }
+
             _detecting = true;
             try
             {
-                var view = _focus.FindViewFleet();
-                if (view == null || !view.IsInBattle)
+                var res = await ActionJs.Get("GetMyBattles");
+                if (!res.Ok || string.IsNullOrEmpty(res.Body) || _visible)
                     return;
-
-                var mine = await ActionJs.Get("GetMyBattles");
-                if (!mine.Ok || string.IsNullOrEmpty(mine.Body))
-                    return;
-
+                JArray arr;
                 try
                 {
-                    var root = JToken.Parse(mine.Body);
-                    var arr = root as JArray ?? root["battles"] as JArray ?? root["data"] as JArray;
-                    if (arr == null)
-                        return;
-                    foreach (var b in arr)
-                    {
-                        var id = FocusContext.AsInt(b["id"] ?? b["battleid"]);
-                        if (id <= 0)
-                            continue;
-                        _battleId = id;
-                        _fleetId = view.Id;
-                        _mapCtrl?.SetMode(HoloMapMode.HexBattle);
-                        if (_log != null)
-                            _log.text = Trans.Get("Loading");
-                        return;
-                    }
+                    arr = JToken.Parse(res.Body) as JArray;
                 }
                 catch
                 {
-                    // Shape varies — dump live before hardening renderer.
+                    return;
                 }
+
+                if (arr == null)
+                    return;
+                // Prefer the ship we are aboard, then a fight in the system in view, then any.
+                int pickBattle = 0, pickFleet = 0, rank = -1;
+                foreach (var b in arr)
+                {
+                    var id = FocusContext.AsInt(b["id"]);
+                    var fleet = FocusContext.AsInt(b["myFleetId"]);
+                    if (id <= 0 || fleet <= 0 || _finished.Contains(id))
+                        continue;
+                    var r = fleet == _focus.ViewFleetId ? 2
+                        : FocusContext.AsInt(b["systemid"]) == _focus.SystemId ? 1
+                        : 0;
+                    if (r <= rank)
+                        continue;
+                    rank = r;
+                    pickBattle = id;
+                    pickFleet = fleet;
+                }
+
+                _ongoingBattle = pickBattle;
+                _ongoingFleet = pickFleet;
+                if (pickBattle <= 0)
+                {
+                    SetRejoinVisible(false);
+                    return;
+                }
+
+                // A fight here takes the table by itself (once); elsewhere, or once left, it waits on the rim.
+                if (rank >= 1 && !_dismissed.Contains(pickBattle))
+                    Open(pickBattle, pickFleet);
+                else
+                    SetRejoinVisible(true);
             }
             finally
             {
@@ -149,198 +262,265 @@ namespace Core.Vfx
             }
         }
 
+        void Rejoin()
+        {
+            if (_ongoingBattle > 0)
+                Open(_ongoingBattle, _ongoingFleet);
+        }
+
+        // ── State ─────────────────────────────────────────────────────────────────
+
         async Task PollState()
         {
             if (_battleId <= 0 || _fleetId <= 0)
                 return;
-            var state = await ActionJs.Get("GetBattleState", new Dictionary<string, string>
+            _polling = true;
+            var battle = _battleId;
+            try
             {
-                { "battleid", _battleId.ToString() },
-                { "fleetid", _fleetId.ToString() }
-            });
-            if (!state.Ok)
-            {
-                if (_log != null)
-                    _log.text = state.Error;
-                return;
-            }
+                var res = await ActionJs.Get("GetBattleState", new Dictionary<string, string>
+                {
+                    { "battleid", battle.ToString(CultureInfo.InvariantCulture) },
+                    { "fleetid", _fleetId.ToString(CultureInfo.InvariantCulture) }
+                });
+                if (battle != _battleId || !_visible)
+                    return;
+                if (!res.Ok)
+                {
+                    if (res.Error != null && res.Error.Contains("battleNotFound"))
+                        Finish(null);
+                    else
+                        SetHeader(ErrorText(res.Error), string.Empty);
+                    return;
+                }
 
-            ApplyState(state.Body);
+                var snap = Parse(res.Body);
+                if (snap == null)
+                    return;
+                Apply(snap);
+
+                // Like the web: nudge the lazy server while it waits to start or sits past a turn deadline.
+                var now = FleetOrderGate.UnixNow();
+                if (snap.State == BattleSnapshot.Pending ||
+                    (snap.State == BattleSnapshot.Active && snap.TurnDeadline > 0 && now > snap.TurnDeadline))
+                {
+                    await ActionJs.Get("UpdateBattle", new Dictionary<string, string>
+                    {
+                        { "battleid", battle.ToString(CultureInfo.InvariantCulture) }
+                    });
+                    _pollAt = Mathf.Min(_pollAt, Time.unscaledTime + 0.8f);
+                }
+            }
+            finally
+            {
+                _polling = false;
+            }
         }
 
-        void ApplyState(string body)
+        BattleSnapshot Parse(string body)
         {
             if (string.IsNullOrEmpty(body))
-                return;
+                return null;
             try
             {
                 var root = JToken.Parse(body);
-                _activeBship = FocusContext.AsInt(root["active_bship_id"]);
-                ClearBoard();
-                BuildHexGrid(root["hexes"] as JArray ?? root["hex"] as JArray);
-                BuildShips(root["ships"] as JArray ?? root["battle_ships"] as JArray);
-                var log = root["log"] as JArray;
-                if (_log != null)
-                {
-                    if (log != null && log.Count > 0)
-                        _log.text = FocusContext.AsString(log[log.Count - 1]?["msg"] ?? log[log.Count - 1]);
-                    else
-                        _log.text = Trans.Get("fleets") + " #" + _activeBship;
-                }
+                // BattleDoAction wraps the state with the action result.
+                if (root["state"] is JObject inner)
+                    root = inner;
+                return BattleSnapshot.Parse(root, _fleetId);
             }
             catch
             {
-                if (_log != null)
-                    _log.text = Trans.Get("vr.common.error");
+                return null;
             }
         }
 
-        void BuildHexGrid(JArray hexes)
+        void Apply(BattleSnapshot snap)
         {
-            const int fallbackRings = 3;
-            if (hexes != null && hexes.Count > 0)
+            var prev = _state;
+            _state = snap;
+            OrientBoard(snap.MyTeam);
+            SyncShips(prev, snap);
+            ReplayLog(snap, prev == null);
+
+            var turnStarted = snap.MyTurn && (prev == null || !prev.MyTurn || prev.ActiveId != snap.ActiveId);
+            if (turnStarted)
             {
-                foreach (var h in hexes)
+                _pendingSkill = null;
+                CicCue.Chime(_boardRoot.position + Vector3.up * 0.2f);
+            }
+            else if (!snap.MyTurn)
+                _pendingSkill = null;
+
+            if (snap.State == BattleSnapshot.Done)
+                Finish(snap);
+
+            // Red alert aboard while the ship we stand on is fighting.
+            var aboard = false;
+            if (snap.State == BattleSnapshot.Active)
+                foreach (var sh in snap.Ships)
+                    aboard |= sh.Alive && sh.FleetId == _focus.ViewFleetId;
+            CombatEvents.SetEngaged(aboard);
+
+            RefreshConsole();
+            RefreshGrid();
+            TickHeader(force: true);
+        }
+
+        void Finish(BattleSnapshot snap)
+        {
+            if (_outcomeShown)
+                return;
+            _outcomeShown = true;
+            _finished.Add(_battleId);
+            _dismissed.Remove(_battleId);
+            var mineAlive = false;
+            var anyMine = false;
+            if (snap != null)
+                foreach (var s in snap.Ships)
                 {
-                    var q = FocusContext.AsInt(h["q"]);
-                    var r = FocusContext.AsInt(h["r"]);
-                    SpawnCell(q, r);
+                    if (!s.IsMine)
+                        continue;
+                    anyMine = true;
+                    mineAlive |= s.Alive;
                 }
 
-                return;
-            }
-
-            for (var q = -fallbackRings; q <= fallbackRings; q++)
-            for (var r = -fallbackRings; r <= fallbackRings; r++)
-            {
-                if (Mathf.Abs(q + r) > fallbackRings)
-                    continue;
-                SpawnCell(q, r);
-            }
+            var key = snap == null || !anyMine ? "vr.battle.over" : mineAlive ? "vr.battle.victory" : "vr.battle.defeat";
+            ShowOutcome(Trans.Get(key), key == "vr.battle.victory" ? UiKit.Ok : key == "vr.battle.defeat" ? UiKit.Danger : UiKit.Amber);
+            var at = _boardRoot.position + Vector3.up * 0.25f;
+            if (key == "vr.battle.victory")
+                CicCue.Victory(at);
+            else if (key == "vr.battle.defeat")
+                CicCue.Defeat(at);
+            else
+                CicCue.Ok(at);
+            _closeAt = Time.unscaledTime + CloseDelay;
+            RefreshConsole();
         }
 
-        void SpawnCell(int q, int r)
+        // ── Orders ────────────────────────────────────────────────────────────────
+
+        bool _acting;
+
+        async Task Act(string subaction, BattleSkill skill, int targetShip, int q, int r)
         {
-            var go = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            go.name = $"Hex_{q}_{r}";
-            go.transform.SetParent(_root, false);
-            var pos = HexToLocal(q, r);
-            go.transform.localPosition = pos;
-            go.transform.localScale = new Vector3(0.055f, 0.004f, 0.055f);
-            if (_art != null)
-                go.GetComponent<MeshRenderer>().sharedMaterial =
-                    _art.Holo(_art.HexGrid != null ? _art.HexGrid : Texture2D.whiteTexture,
-                        new Color(1f, 0.55f, 0.2f, 0.45f));
-            _cells.Add(go);
-
-            var col = go.GetComponent<Collider>();
-            if (col == null)
-                col = go.AddComponent<MeshCollider>();
-            col.enabled = true;
-
-            var baseScale = go.transform.localScale;
-            var interact = go.AddComponent<XRSimpleInteractable>();
-            var qq = q;
-            var rr = r;
-            interact.hoverEntered.AddListener(_ =>
-            {
-                go.transform.localScale = baseScale * 1.25f;
-                CicCue.Hover(go.transform.position);
-            });
-            interact.hoverExited.AddListener(_ => { go.transform.localScale = baseScale; });
-            interact.selectEntered.AddListener(_ =>
-            {
-                CicCue.Ok(go.transform.position);
-                Core.Utils.AsyncTap.Run(TryMove(qq, rr));
-            });
-        }
-
-        void BuildShips(JArray ships)
-        {
-            if (ships == null)
+            var src = _state?.ActiveShip;
+            if (_acting || src == null || !src.IsMine || !_state.MyTurn)
                 return;
-            foreach (var s in ships)
+            _acting = true;
+            try
             {
-                var id = FocusContext.AsInt(s["id"] ?? s["bship_id"]);
-                var q = FocusContext.AsInt(s["q"]);
-                var r = FocusContext.AsInt(s["r"]);
-                var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                go.name = "BShip_" + id;
-                go.transform.SetParent(_root, false);
-                go.transform.localPosition = HexToLocal(q, r) + Vector3.up * 0.03f;
-                var baseScale = Vector3.one * (id == _activeBship ? 0.055f : 0.042f);
-                go.transform.localScale = baseScale;
-                var mine = FocusContext.AsInt(s["fleetid"] ?? s["userid"]) == _fleetId;
-                var tint = id == _activeBship
-                    ? new Color(1f, 0.95f, 0.4f, 0.95f)
-                    : mine
-                        ? new Color(0.2f, 0.95f, 1f, 0.9f)
-                        : new Color(1f, 0.35f, 0.2f, 0.9f);
-                if (_art != null)
-                    go.GetComponent<MeshRenderer>().sharedMaterial = _art.Holo(Texture2D.whiteTexture, tint);
-
-                var shipId = id;
-                var interact = go.AddComponent<XRSimpleInteractable>();
-                interact.hoverEntered.AddListener(_ =>
+                var query = new Dictionary<string, string>
                 {
-                    go.transform.localScale = baseScale * 1.2f;
-                    CicCue.Hover(go.transform.position);
-                });
-                interact.hoverExited.AddListener(_ => { go.transform.localScale = baseScale; });
-                interact.selectEntered.AddListener(_ =>
+                    { "battleid", _battleId.ToString(CultureInfo.InvariantCulture) },
+                    { "fleetid", _fleetId.ToString(CultureInfo.InvariantCulture) },
+                    { "bship_id", src.Id.ToString(CultureInfo.InvariantCulture) },
+                    { "subaction", subaction },
+                    { "battle_subaction", subaction },
+                    { "target_bship_id", targetShip.ToString(CultureInfo.InvariantCulture) },
+                    { "target_q", q.ToString(CultureInfo.InvariantCulture) },
+                    { "target_r", r.ToString(CultureInfo.InvariantCulture) }
+                };
+                if (skill != null)
+                    query["skill_id"] = skill.Id;
+                var res = await ActionJs.Get("BattleDoAction", query);
+                _pendingSkill = null;
+                if (!res.Ok)
                 {
-                    CicCue.Ok(go.transform.position);
-                    _activeBship = shipId;
-                    if (_log != null)
-                        _log.text = Trans.Get("fleets") + " #" + shipId;
-                });
-                _pieces.Add(go);
-            }
-        }
+                    CicCue.Fail(_boardRoot.position);
+                    Toast(ErrorText(res.Error));
+                    RefreshGrid();
+                    RefreshConsole();
+                    return;
+                }
 
-        async Task TryMove(int q, int r)
-        {
-            if (_activeBship <= 0 || _battleId <= 0)
-                return;
-            var result = await ActionJs.Get("BattleDoAction", new Dictionary<string, string>
+                var snap = Parse(res.Body);
+                if (snap != null)
+                    Apply(snap);
+                _pollAt = Time.unscaledTime + PollSeconds;
+            }
+            finally
             {
-                { "battleid", _battleId.ToString() },
-                { "fleetid", _fleetId.ToString() },
-                { "bship_id", _activeBship.ToString() },
-                // "action" is the endpoint's own key: the server reads the battle verb from subaction.
-                { "subaction", "move" },
-                { "battle_subaction", "move" },
-                // skill_id is required non-empty; "0" is PHP-empty so the server ignores it for moves.
-                { "skill_id", "0" },
-                { "target_bship_id", "0" },
-                { "target_q", q.ToString() },
-                { "target_r", r.ToString() }
-            });
-            if (_log != null)
-                _log.text = result.Ok ? Trans.Get("vr.common.ok") : result.Error;
-            if (result.Ok)
-                await PollState();
+                _acting = false;
+            }
         }
 
         public async Task EndTurn()
         {
-            if (_battleId <= 0 || _fleetId <= 0)
+            if (_battleId <= 0 || _fleetId <= 0 || _acting)
                 return;
-            var result = await ActionJs.Get("BattleEndFleetTurn", new Dictionary<string, string>
+            _acting = true;
+            try
             {
-                { "battleid", _battleId.ToString() },
-                { "fleetid", _fleetId.ToString() }
+                var res = await ActionJs.Get("BattleEndFleetTurn", new Dictionary<string, string>
+                {
+                    { "battleid", _battleId.ToString(CultureInfo.InvariantCulture) },
+                    { "fleetid", _fleetId.ToString(CultureInfo.InvariantCulture) }
+                });
+                _pendingSkill = null;
+                if (!res.Ok)
+                {
+                    CicCue.Fail(_boardRoot.position);
+                    Toast(ErrorText(res.Error));
+                    return;
+                }
+
+                CicCue.Ok(_boardRoot.position);
+                var snap = Parse(res.Body);
+                if (snap != null)
+                    Apply(snap);
+            }
+            finally
+            {
+                _acting = false;
+            }
+        }
+
+        async Task ReadyUp()
+        {
+            var res = await ActionJs.Get("SetFleetState", new Dictionary<string, string>
+            {
+                { "battleid", _battleId.ToString(CultureInfo.InvariantCulture) },
+                { "fleetid", _fleetId.ToString(CultureInfo.InvariantCulture) },
+                { "auto", "0" },
+                { "ready", "1" }
             });
-            if (_log != null)
-                _log.text = result.Ok ? Trans.Get("vr.tactical.endTurn") : result.Error;
-            if (result.Ok)
-                await PollState();
+            if (res.Ok)
+                CicCue.Ok(_boardRoot.position);
+            else
+            {
+                CicCue.Fail(_boardRoot.position);
+                Toast(ErrorText(res.Error));
+            }
+
+            _pollAt = 0f;
+        }
+
+        async Task Withdraw()
+        {
+            var battle = _battleId;
+            var res = await ActionJs.Get("RemoveFleetFromBattle", new Dictionary<string, string>
+            {
+                { "battleid", battle.ToString(CultureInfo.InvariantCulture) },
+                { "fleetid", _fleetId.ToString(CultureInfo.InvariantCulture) }
+            });
+            if (!res.Ok)
+            {
+                CicCue.Fail(_boardRoot.position);
+                Toast(ErrorText(res.Error));
+                return;
+            }
+
+            CicCue.Ok(_boardRoot.position);
+            _finished.Add(battle);
+            BeginFold();
         }
 
         /// <summary>
         /// Engage like the web (objects/fleet.js startTacticalBattle): <paramref name="fleetIds"/> = my ship
         /// first, then the targets; <paramref name="planetId"/> = the orbit fought over, 0 in open space
-        /// (pirates) — only sent when non-zero. Then UpdateBattle starts it and the table turns hex.
+        /// (pirates) — only sent when non-zero. MakeBattle already marks our side ready; UpdateBattle starts
+        /// it, then the table turns into the board.
         /// </summary>
         public async Task<ApiResult> MakeBattle(IList<int> fleetIds, int planetId = 0)
         {
@@ -348,67 +528,48 @@ namespace Core.Vfx
                 return ApiResult.Fail(Trans.Get("vr.common.error"));
             var query = new Dictionary<string, string>
             {
-                { "systemid", _focus.SystemId.ToString() },
+                { "systemid", _focus.SystemId.ToString(CultureInfo.InvariantCulture) },
                 { "fleets", string.Join(",", fleetIds) }
             };
             if (planetId > 0)
-                query["planetid"] = planetId.ToString();
+                query["planetid"] = planetId.ToString(CultureInfo.InvariantCulture);
             var result = await ActionJs.Get("MakeBattle", query);
             if (!result.Ok)
-            {
-                if (_log != null)
-                    _log.text = result.Error;
                 return result;
-            }
 
+            var battleId = 0;
             try
             {
-                var root = JToken.Parse(result.Body);
-                _battleId = FocusContext.AsInt(root["id"] ?? root["battleid"] ?? root);
+                battleId = FocusContext.AsInt(JToken.Parse(result.Body)["id"]);
             }
             catch
             {
-                int.TryParse(result.Body, out _battleId);
+                int.TryParse(result.Body, out battleId);
             }
 
-            _fleetId = fleetIds[0];
-            if (_battleId > 0)
+            if (battleId > 0)
             {
-                await ActionJs.Get("SetFleetState", new Dictionary<string, string>
-                {
-                    { "battleid", _battleId.ToString() },
-                    { "fleetid", _fleetId.ToString() },
-                    { "auto", "0" },
-                    { "ready", "1" }
-                });
                 await ActionJs.Get("UpdateBattle", new Dictionary<string, string>
                 {
-                    { "battleid", _battleId.ToString() }
+                    { "battleid", battleId.ToString(CultureInfo.InvariantCulture) }
                 });
-                _mapCtrl?.SetMode(HoloMapMode.HexBattle);
+                Open(battleId, fleetIds[0]);
             }
 
             return result;
         }
 
-        static Vector3 HexToLocal(int q, int r)
+        /// <summary>Raw battle codes (no_pm, out_of_range…) read as native keys; other errors are already text.</summary>
+        static string ErrorText(string error)
         {
-            const float size = 0.06f;
-            var x = size * (Mathf.Sqrt(3f) * q + Mathf.Sqrt(3f) / 2f * r);
-            var z = size * (1.5f * r);
-            return new Vector3(x, 0f, z);
-        }
-
-        void ClearBoard()
-        {
-            for (var i = 0; i < _cells.Count; i++)
-                if (_cells[i] != null)
-                    Object.Destroy(_cells[i]);
-            for (var i = 0; i < _pieces.Count; i++)
-                if (_pieces[i] != null)
-                    Object.Destroy(_pieces[i]);
-            _cells.Clear();
-            _pieces.Clear();
+            if (string.IsNullOrEmpty(error))
+                return Trans.Get("vr.common.error");
+            var code = error.Trim();
+            if (code.IndexOf(' ') >= 0)
+                return code;
+            if (code is "notYourTurn" or "notYourFleet" or "battleNotFound" or "fleetNotInBattle" or "battleAlreadyStarted")
+                return Trans.Get(code);
+            return Trans.Get("vr.battle.err." + code);
         }
     }
 }

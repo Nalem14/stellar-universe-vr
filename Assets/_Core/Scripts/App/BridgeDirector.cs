@@ -56,6 +56,8 @@ namespace Core.App
             var tableMount = _zoneMap != null ? _zoneMap.transform : interior.transform;
             hex.Bind(_focus, mapCtrl, tableMount, env.Art);
             mapCtrl.BindHex(hex);
+            ExteriorCombatFx.Attach(_exterior);
+            BridgeCombatFx.Build(interior.transform, _focus);
 
             var orders = interior.AddComponent<HoloFleetOrders>();
             orders.Bind(_zoneMap, _focus, _poller, mapCtrl);

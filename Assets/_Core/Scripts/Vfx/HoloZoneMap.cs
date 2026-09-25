@@ -308,6 +308,19 @@ namespace Core.Vfx
             _tokenRoots.Add(ring);
         }
 
+        /// <summary>Combat takes the table: the system diorama and its rim readout step aside for the board.</summary>
+        public void SetBattleMode(bool on)
+        {
+            if (_root != null)
+                _root.gameObject.SetActive(!on);
+            if (_readout != null)
+            {
+                var canvas = _readout.GetComponentInParent<Canvas>(true);
+                if (canvas != null)
+                    canvas.gameObject.SetActive(!on);
+            }
+        }
+
         public void SetReadout(string text)
         {
             if (_readout != null)

@@ -346,8 +346,7 @@ namespace Core.Vfx
                 return;
             var prev = _mode;
             _mode = mode;
-            if (_map != null && _map.VolumeRoot != null)
-                _map.VolumeRoot.gameObject.SetActive(mode != HoloMapMode.HexBattle);
+            _map?.SetBattleMode(mode == HoloMapMode.HexBattle);
             if (_map != null)
                 _map.transform.localScale = Vector3.one * (mode == HoloMapMode.System ? _zoom : 1f);
             if (mode == HoloMapMode.Galaxy && prev != HoloMapMode.Galaxy)
