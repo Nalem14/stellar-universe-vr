@@ -18,6 +18,29 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 
 ---
 
+## À intégrer — écran principal : réalisation et « À l'écran »
+
+| Clé | EN | FR | Contexte |
+|---|---|---|---|
+| `vr.screen.onScreen` | On screen | À l'écran | Bouton du répéteur d'officier + légende |
+| `vr.screen.salvo` | {0} fires on {1} | {0} fait feu sur {1} | Légende : salve cadrée tireur → cible |
+| `vr.screen.destroyed` | {0} destroyed | {0} détruit | Légende |
+| `vr.screen.bombard` | Bombardment · {0} | Bombardement · {0} | Légende : planète bombardée |
+| `vr.screen.contact` | Contact · {0} | Contact · {0} | Légende : vaisseau étranger entré dans le système |
+| `vr.screen.departure` | Departure · {0} | Départ · {0} | Légende : notre vaisseau part vers {0} |
+| `vr.screen.arrival` | Arrival · {0} | Arrivée · {0} | Légende : notre vaisseau arrive dans {0} |
+| `crew.helm.onScreen.1` | On screen, Commander. | À l'écran, Commandant. | |
+| `crew.tactical.onScreen.1` | Putting the contact on screen. | Contact à l'écran. | |
+| `crew.tactical.noScreen.1` | No contact to show, Commander. | Aucun contact à afficher, Commandant. | |
+| `crew.engineering.onScreen.1` | On screen, Commander. | À l'écran, Commandant. | |
+| `crew.engineering.noScreen.1` | Nothing of ours out there to show. | Rien des nôtres à montrer dehors. | |
+| `crew.science.onScreen.1` | Bringing it up on the main screen. | Je l'affiche sur l'écran principal. | |
+| `crew.science.noScreen.1` | Nothing worth a look on sensors. | Rien d'intéressant sur les capteurs. | |
+| `crew.ops.onScreen.1` | Our world, on screen. | Notre monde, à l'écran. | |
+| `crew.ops.noScreen.1` | We hold nothing in this system. | Nous ne tenons rien dans ce système. | |
+
+---
+
 ## Intégré côté web
 
 - Clés `vr.*`, `crew.*`, `buildingDesc_*`, `colonyLog_*`, `relation_*` dans `assets/langs/{fr,en}.json`.

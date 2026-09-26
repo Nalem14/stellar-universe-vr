@@ -137,8 +137,11 @@ namespace Core.Vfx
             _listRoot.sizeDelta = new Vector2(580f, 340f);
             _listRoot.anchoredPosition = new Vector2(0f, -10f);
 
-            DiegeticUi.HoloButton(frame, Trans.Get("close"), new Vector2(0f, -230f), new Vector2(220f, 48f),
+            DiegeticUi.HoloButton(frame, Trans.Get("close"), new Vector2(-140f, -230f), new Vector2(220f, 48f),
                 Close, DiegeticUi.BtnStyle.Ghost);
+            // "On screen": the officer puts his subject on the main viewscreen (threat, destination, anomaly…).
+            DiegeticUi.HoloButton(frame, Trans.Get("vr.screen.onScreen"), new Vector2(140f, -230f), new Vector2(220f, 48f),
+                () => BridgeViewscreen.Instance?.OnScreen(_role), DiegeticUi.BtnStyle.Cyan);
         }
 
         void OnSelected(SelectEnterEventArgs _)

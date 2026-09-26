@@ -22,6 +22,8 @@ namespace Core.Vfx
         const float HullStandoff = 9f;
         /// <summary>Vertical field of view straight ahead (matches the screen's angular size from the chair, ×1.6).</summary>
         public const float ForwardFov = 22f;
+        /// <summary>Field of view a drone shot frames its subject in.</summary>
+        const float DroneFov = 24f;
 
         Camera _cam;
         RenderTexture _rt;
@@ -102,36 +104,50 @@ namespace Core.Vfx
         void Place()
         {
             var origin = _bridge.TransformPoint(new Vector3(0f, 1.6f, 0f));
-            Vector3 dir;
-            float fov;
-            var start = HullStandoff;
             var subject = _subject != null && _subject.gameObject.activeInHierarchy ? _subject : null;
+            Vector3 pos;
+            Vector3 look;
+            float fov;
             if (subject == null)
             {
-                dir = _bridge.forward;
+                // Straight ahead, from the hull just outside the room.
+                look = _bridge.forward;
+                pos = origin + look * HullStandoff;
                 fov = ForwardFov;
             }
             else
             {
+                // A drone shot: from our side of the subject, a quarter turn off the line of sight (lit, with
+                // depth), close enough that the world we orbit never hides it. Never nearer to us than the hull.
                 var to = subject.position - origin;
                 var dist = Mathf.Max(1f, to.magnitude);
-                dir = to / dist;
-                start = Mathf.Clamp(Mathf.Min(HullStandoff, dist - _radius * 2.5f), 0f, HullStandoff);
-                fov = Mathf.Clamp(2f * Mathf.Atan(_radius * 1.8f / (dist - start)) * Mathf.Rad2Deg, 1.2f, ForwardFov * 2f);
+                var dir = to / dist;
+                var approach = Quaternion.AngleAxis(20f, _bridge.up) * dir;
+                var drone = _radius * 1.8f / Mathf.Tan(DroneFov * 0.5f * Mathf.Deg2Rad);
+                pos = subject.position - approach * drone;
+                if (Vector3.Dot(pos - origin, dir) < HullStandoff)
+                    pos = origin + dir * Mathf.Clamp(Mathf.Min(HullStandoff, dist - _radius * 2.5f), 0f, HullStandoff);
+                look = (subject.position - pos).normalized;
+                fov = Mathf.Clamp(2f * Mathf.Atan(_radius * 1.8f / Mathf.Max(1f, Vector3.Distance(pos, subject.position))) * Mathf.Rad2Deg,
+                    1.2f, ForwardFov * 2f);
             }
 
-            // Zoom and slew settle over ~1 s; a slow drift keeps the feed alive (optics on a moving hull).
+            // Moves, slews and zooms settle over ~1 s; a slow drift keeps the feed alive.
             var k = 1f - Mathf.Exp(-Interval * 3.2f);
             _fov = Mathf.Lerp(_fov, fov, k);
-            var look = Vector3.Slerp(transform.forward, dir, k * 1.4f);
-            if (look.sqrMagnitude < 1e-4f)
-                look = dir;
+            _pos = _placed ? Vector3.Lerp(_pos, pos, k) : pos;
+            _placed = true;
+            var aim = Vector3.Slerp(transform.forward, look, k * 1.4f);
+            if (aim.sqrMagnitude < 1e-4f)
+                aim = look;
             var t = Time.unscaledTime;
             var drift = Quaternion.Euler(Mathf.Sin(t * 0.21f) * _fov * 0.02f, Mathf.Sin(t * 0.17f + 1.3f) * _fov * 0.025f, 0f);
-            var rot = Quaternion.LookRotation(look, _bridge.up);
-            transform.SetPositionAndRotation(origin + look * start, rot * drift);
+            transform.SetPositionAndRotation(_pos, Quaternion.LookRotation(aim, _bridge.up) * drift);
             _cam.fieldOfView = _fov;
         }
+
+        Vector3 _pos;
+        bool _placed;
 
         void OnDestroy()
         {

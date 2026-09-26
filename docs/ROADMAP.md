@@ -202,7 +202,23 @@ Avancement : H1, H2a, H2b ✅ (Editor). **H3a combat ✅** (Editor, sur un état
   5. au repos, la vue avant (vaisseau) ou la planète sous la station.
 - **Mode vaisseau ou station** : cyan ou ambre, lumière du plafond plus chaude en station, planète sous la station à l'écran.
 - **Couloir** (`CorridorRoom`) : le pont n'a plus qu'une sortie, à l'arrière. Toutes les pièces donnent sur la coursive (labo, cale sèche, diplomatie, quartiers, base Stargate au fond), avec hublots sur l'extérieur partagé. En sortant d'une pièce, on se retrouve devant sa porte dans le couloir.
-- Reste : combat plan par plan, siège, arrivée / départ, demandes « À l'écran » à l'équipage, gestes (zoom, orbite), incrustation.
+**Lot 2 ✅** (Editor ; « À l'écran » et bombardement testés, salves et contacts non testés faute de combat ou de visiteur sur le compte) :
+- **Plans drone** : pour une cible, la caméra se place près du sujet, décalée de trois quarts. La planète qu'on orbite ne masque plus rien.
+- **Réalisation en direct**, avec une légende en bas de l'écran :
+  - salve (cadrée entre tireur et cible) ;
+  - destruction ;
+  - bombardement ;
+  - nouveau contact dans le système ;
+  - départ et arrivée de notre vaisseau.
+  L'intention du captain (table, demande à un officier) garde l'image ; seules une destruction et un contact hostile passent devant.
+- **« À l'écran »** dans le répéteur de chaque officier :
+  - Helm : destination, sinon vue avant ;
+  - Tactique : menace, sinon contact ;
+  - Science : anomalie, sinon la planète libre la plus habitable ;
+  - Ingénierie : nos autres vaisseaux, sinon un champ d'astéroïdes ;
+  - Ops : notre monde ici.
+  L'officier répond, et l'écran garde la cible 20 s.
+- Reste : gestes (zoom, orbite), incrustation, Comms (correspondant à l'écran).
 
 Remplacer les hublots avant par **un très grand écran incurvé** (viewscreen à la Star Trek Bridge Crew) qui rend une caméra dans le `SystemExterior` partagé. Par défaut : la vue **devant le vaisseau**. L'écran « réalise » ensuite la scène selon le contexte, comme un régisseur.
 - **Rendu** : une caméra dédiée (RenderTexture ≈ 2048×768, 30–45 Hz sur Quest, sans post-processing propre, culling limité à l'extérieur) projetée sur une surface cylindrique courbée vers le captain ; cadre physique, bord lumineux, scanlines et léger fresnel ; hublots latéraux conservés (profondeur et parallaxe réelles), l'écran avant devient la « fenêtre intelligente ».

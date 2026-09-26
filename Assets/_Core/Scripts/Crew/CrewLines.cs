@@ -14,7 +14,7 @@ namespace Core.Crew
         {
             { "helm.greet", 2 }, { "helm.ack", 3 }, { "helm.hyperspace", 2 }, { "helm.sublightFallback", 1 },
             { "helm.sublightModules", 1 }, { "helm.prlBond", 1 }, { "helm.prlRecharge", 1 }, { "helm.arrive", 2 },
-            { "helm.busy", 1 }, { "helm.fail", 1 }, { "helm.idle", 2 }, { "helm.jumpgate", 2 }, { "helm.speedup", 1 },
+            { "helm.busy", 1 }, { "helm.fail", 1 }, { "helm.idle", 2 }, { "helm.jumpgate", 2 }, { "helm.speedup", 1 }, { "helm.onScreen", 1 },
 
             { "tactical.greet", 1 }, { "tactical.contact", 1 }, { "tactical.hostile", 2 }, { "tactical.pirate", 1 },
             { "tactical.battleStart", 1 }, { "tactical.yourTurn", 2 }, { "tactical.hit", 1 }, { "tactical.damaged", 1 },
@@ -22,16 +22,16 @@ namespace Core.Crew
             { "tactical.underAttack", 1 }, { "tactical.fail", 1 }, { "tactical.idle", 1 },
             { "tactical.recruit", 1 }, { "tactical.defenseBuilt", 1 }, { "tactical.troopsLoaded", 1 },
             { "tactical.troopsUnloaded", 1 }, { "tactical.reinforce", 1 }, { "tactical.siegeWon", 1 },
-            { "tactical.siegeFailed", 1 }, { "tactical.planetHeld", 1 }, { "tactical.planetLost", 1 },
+            { "tactical.siegeFailed", 1 }, { "tactical.planetHeld", 1 }, { "tactical.planetLost", 1 }, { "tactical.onScreen", 1 }, { "tactical.noScreen", 1 },
 
             { "engineering.greet", 1 }, { "engineering.ack", 1 }, { "engineering.harvest", 1 },
             { "engineering.cargoFull", 1 }, { "engineering.moduleBuilt", 1 }, { "engineering.modulePlaced", 1 },
             { "engineering.queueDone", 1 }, { "engineering.queueFull", 1 }, { "engineering.fail", 1 },
-            { "engineering.idle", 2 },
+            { "engineering.idle", 2 }, { "engineering.onScreen", 1 }, { "engineering.noScreen", 1 },
 
             { "science.greet", 1 }, { "science.explore", 1 }, { "science.exploreDone", 1 }, { "science.anomaly", 1 },
             { "science.scan", 1 }, { "science.researchDone", 1 }, { "science.researchStart", 1 },
-            { "science.queueFull", 1 }, { "science.fail", 1 }, { "science.idle", 1 },
+            { "science.queueFull", 1 }, { "science.fail", 1 }, { "science.idle", 1 }, { "science.onScreen", 1 }, { "science.noScreen", 1 },
 
             { "comms.greet", 1 }, { "comms.newMail", 1 }, { "comms.chat", 1 }, { "comms.warDeclared", 1 },
             { "comms.peaceOffer", 1 }, { "comms.allianceInvite", 1 }, { "comms.sent", 1 },
@@ -42,7 +42,7 @@ namespace Core.Crew
 
             { "ops.greet", 1 }, { "ops.buildStart", 1 }, { "ops.buildDone", 1 }, { "ops.queueFull", 1 },
             { "ops.decision", 1 }, { "ops.colonize", 1 }, { "ops.lowResources", 1 }, { "ops.cargoDeposited", 1 },
-            { "ops.fail", 1 }, { "ops.idle", 1 }
+            { "ops.fail", 1 }, { "ops.idle", 1 }, { "ops.onScreen", 1 }, { "ops.noScreen", 1 }
         };
 
         public static string RoleKey(CrewDialogue.Role role) => role switch

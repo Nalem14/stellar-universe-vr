@@ -25,7 +25,7 @@ namespace Core.Vfx
     /// Ship bridge = cyan, orbital station = amber. Driven by focus events and a 0.5 s evaluation; the markers move
     /// only on the frames the hull camera renders.
     /// </summary>
-    public sealed class BridgeViewscreen : MonoBehaviour
+    public sealed partial class BridgeViewscreen : MonoBehaviour
     {
         enum Mode
         {
@@ -142,6 +142,8 @@ namespace Core.Vfx
                 AnomalyService.Instance.Changed += view.OnAnomalies;
             if (CommsService.Instance != null)
                 CommsService.Instance.Changed += view.OnSelection;
+            view.BindDirection();
+            Instance = view;
             return view;
         }
 
@@ -171,12 +173,16 @@ namespace Core.Vfx
                 AnomalyService.Instance.Changed -= OnAnomalies;
             if (CommsService.Instance != null)
                 CommsService.Instance.Changed -= OnSelection;
+            UnbindDirection();
+            if (Instance == this)
+                Instance = null;
         }
 
         void OnFocus()
         {
             _targetsDirty = true;
             _nextEval = 0f;
+            WatchVoyage();
         }
 
         /// <summary>The table changed (pointer on a token, a ship picked): latch it now, the pointer may leave next frame.</summary>
@@ -610,6 +616,7 @@ namespace Core.Vfx
             }
 
             Gaze(main);
+            TickDirection();
             _switch = Mathf.MoveTowards(_switch, 0f, Time.unscaledDeltaTime * 2.2f);
             var pulse = _current == Mode.RedAlert ? 0.75f + 0.25f * Mathf.Sin(Time.unscaledTime * 4f) : 1f;
             _screenMat.SetFloat("_Switch", _switch);
@@ -769,6 +776,7 @@ namespace Core.Vfx
             string title;
             var body = new System.Text.StringBuilder();
             float? bar = null;
+            var intent = false;
 
             if (AlertHere(out var foe, out var hostiles, out var battleLine, out var hull))
             {
@@ -786,6 +794,7 @@ namespace Core.Vfx
             }
             else if (TrackedKey(out var key, out var preview) && (subject = FindTarget(key)) != null)
             {
+                intent = true;
                 // What the captain touches on the holo table (or looked at on the screen): framed, with its card
                 // and, with a ship selected, the order it would get.
                 mode = Mode.Tracking;
@@ -830,6 +839,12 @@ namespace Core.Vfx
                 else
                     Survey(body, now);
             }
+
+            // Live direction: a salvo, a kill, a bombardment, a contact or our jump takes the picture for a few
+            // seconds — never over what the captain is pointing at (the card stays on his target).
+            if (DirectedShot(intent, out var shot))
+                subject = shot;
+            ShowCaption();
 
             if (mode != _current)
                 CicCue.Hover(transform.parent.TransformPoint(_screenCentre));
