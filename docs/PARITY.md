@@ -366,6 +366,7 @@ Corrigés dans `stellar-universe` (`7580501`, 2026-09-25) — le client VR ne co
 
 - **Langue des textes rendus par le serveur** : ✅ la VR envoie `&lang=<Trans.Lang>` à chaque requête (`DetectLang()` lit `$_GET['lang']` en premier).
 - **L'e-mail externe gardait la langue de l'émetteur** : ✅ `users.lang` (migration `v8`) retient la langue de la dernière requête authentifiée du joueur (`RememberUserLang`, un `UPDATE` seulement quand elle change) ; `DispatchExternalEmailNotification` résout l'objet et le contenu à clé ainsi que le gabarit (`email_*`) dans la langue du **destinataire** (`LangIn` / `LangFormatIn`). Le texte d'un joueur reste tel qu'il l'a écrit ; un compte qui n'a jamais rejoué depuis garde l'ancienne langue de repli (celle de la requête).
+- **Note** : dix libellés `email_*` (gabarit du courrier externe) ont été reconstruits à l'identique côté EN après un écrasement accidentel du fichier — à relire d'un œil si le ton du gabarit anglais compte.
 - **`RUN_AWAY` sans effet sur un joueur humain** : ✅ `FleetRetreatToStar()` fait le retrait dans le processus (orbite quittée vers l'étoile du système, durée minimale de trajet, comme `MoveFleetToSystem` vers son propre système) au lieu de `DoAnAction`, refusé pour un compte humain. Les deux chemins (siège `CheckPlanetAttack`, `ResolvePlanetAttack`) l'utilisent.
 - **Siège sur une planète supprimée** : ✅ `ReleaseOrphanSieges()` (appelée par `GetExpiredSiegePlanets`) remet à zéro `attackEndTime` et l'orbite des flottes dont la planète n'existe plus, et de leurs modules.
 
@@ -389,7 +390,7 @@ Corrigés dans `stellar-universe` (`7580501`, 2026-09-25) — le client VR ne co
 - **Alliance des autres empires** : ✅ `GetEmpires` porte `allianceId` / `allianceTag` (une requête pour tous) ; le dossier affiche le tag.
 - **Stocks d'un autre empire exposés** : ✅ `GetEmpirePlanets` ne renvoie `mineral` / `crystal` / `biomass` que pour notre propre empire (le web ne les lisait pas ; la VR a retiré sa ligne « réserves connues »).
 - **Web** : ✅ score de guerre (`warScoreAttacker`), confirmations `confirm*` ajoutées aux langues, libellés FR de `wars-window.hbs` / `alliance-window.hbs` passés en clés (`vr.diplo.*` partagées, `warPickTarget`, `warSelectTarget`, `confirmDeclareWar`).
-- **Reste côté web** : aucune UI web ne retire une invitation ni une candidature (`CancelAllianceInvite` n'est appelée que par la VR) — les listes sont maintenant servies.
+- **Web** : ✅ la fenêtre Alliance affiche les invitations envoyées (officiers) et nos candidatures en attente, chacune avec un bouton de retrait qui appelle `CancelAllianceInvite` — l'action n'est plus réservée à la VR.
 
 ### Spec livrée — `CreateEmpire`
 
