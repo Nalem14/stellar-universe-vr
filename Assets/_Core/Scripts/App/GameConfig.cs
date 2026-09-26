@@ -27,6 +27,12 @@ namespace Core.App
         public static float PrlCrystalPerDistance { get; private set; }
         public static float PrlTransitSeconds { get; private set; }
 
+        // GetConfigs.jumpgate (server $JUMPGATE) — absent until the server exposes it: quotes then omit the cost.
+        /// <summary>Flat cost per jump, drawn from the origin planet's stock: {mineral: n, crystal: n}.</summary>
+        public static JObject JumpgateCost { get; private set; }
+        public static float JumpgateCooldown { get; private set; }
+        public static float JumpgateTransitSeconds { get; private set; }
+
         /// <summary>GetConfigs.upgrade: {time:{type:{time}}, energy:{type:n}, cost:{type:{res:n}}} — per level.</summary>
         public static JObject Upgrade { get; private set; }
         /// <summary>GetConfigs.factory (production per level) and .storage (warehouse multipliers).</summary>
@@ -66,6 +72,13 @@ namespace Core.App
                     PrlRangePerLevel = FocusContext.AsFloat(prl["rangePerResearchLevel"]);
                     PrlCrystalPerDistance = FocusContext.AsFloat(prl["crystalCostPerDistance"]);
                     PrlTransitSeconds = FocusContext.AsFloat(prl["transitTime"]);
+                }
+
+                if (root["jumpgate"] is JObject gate)
+                {
+                    JumpgateCost = gate["jumpCost"] as JObject;
+                    JumpgateCooldown = FocusContext.AsFloat(gate["cooldown"]);
+                    JumpgateTransitSeconds = FocusContext.AsFloat(gate["transitTime"]);
                 }
 
                 Upgrade = root["upgrade"] as JObject;

@@ -34,6 +34,7 @@ namespace Core.Vfx
             Asteroids,
             Jumps,
             Queue,
+            Gates,
         }
 
         static CrewDialogue s_Open;
@@ -328,8 +329,11 @@ namespace Core.Vfx
 
                 if (!FleetOrderGate.CanMove(fleet) && _role == Role.Helm)
                 {
-                    // Under way: no new move, but the automation queue stays editable.
+                    // Under way: no new move, but the travel can be finished for Nova and the queue stays editable.
                     AddStatus(Trans.Get(FleetOrderGate.BusyKey(fleet)));
+                    if (Core.Holo.TravelSpeedup.Offered(fleet))
+                        AddAction(Core.Holo.TravelSpeedup.Label(fleet), () => SpeedupTravel(fleet),
+                            DiegeticUi.BtnStyle.Amber);
                     BuildQueue(focus, fleet);
                     return;
                 }
@@ -501,7 +505,7 @@ namespace Core.Vfx
             var seenRock = new HashSet<int>();
             foreach (var rock in focus.Asteroids)
             {
-                if (!FleetOrderGate.CanMoveToAsteroid(fleet, rock.Id))
+                if (rock.Gone || !FleetOrderGate.CanMoveToAsteroid(fleet, rock.Id))
                     continue;
                 if (!seenRock.Add(rock.Id))
                     continue;
@@ -511,7 +515,7 @@ namespace Core.Vfx
             if (rocks.Count == 1)
             {
                 var aid = rocks[0].Id;
-                AddAction(MoveLabel("moveToAsteroidField", Trans.Get("asteroidField") + " #" + aid),
+                AddAction(MoveLabel("moveToAsteroidField", RockLabel(rocks[0])),
                     () => MoveToAsteroid(fleet.Id, aid));
             }
             else if (rocks.Count > 1)
@@ -523,11 +527,13 @@ namespace Core.Vfx
                     for (var i = 0; i < rocks.Count; i++)
                     {
                         var aid = rocks[i].Id;
-                        AddDropOption(DestLabel(Trans.Get("asteroidField") + " #" + aid),
+                        AddDropOption(DestLabel(RockLabel(rocks[i])),
                             () => MoveToAsteroid(fleet.Id, aid));
                     }
                 }
             }
+
+            await AddGates(fleet);
 
             if (FleetOrderGate.CanJumpSystem(fleet))
             {
@@ -794,6 +800,14 @@ namespace Core.Vfx
         static string MoveLabel(string moveActionKey, string target) =>
             ActionLabel(moveActionKey, target);
 
+        /// <summary>"asteroid field #12 · 12 400 Mineral · 3 100 Crystal" once the live reserves are read.</summary>
+        static string RockLabel(FocusAsteroid rock)
+        {
+            var reserves = AsteroidService.Reserves(rock);
+            var name = Trans.Get("asteroidField") + " #" + rock.Id;
+            return reserves.Length > 0 ? name + "  ·  " + reserves : name;
+        }
+
         static string DestLabel(string target) =>
             string.IsNullOrEmpty(target) ? "→" : "→  " + target;
 
@@ -947,6 +961,71 @@ namespace Core.Vfx
                 { "asteroid", asteroidId.ToString() }
             });
 
+        /// <summary>Docked at one of our gate worlds: the other gate worlds, each quoted on the lectern before folding.</summary>
+        async Task AddGates(FocusFleet fleet)
+        {
+            var origin = Core.Holo.JumpgateNetwork.Origin(fleet);
+            if (origin == null)
+                return;
+            var gates = await Core.Holo.JumpgateNetwork.Destinations(origin.Id);
+            if (gates.Count == 0)
+                return;
+            var left = Core.Holo.JumpgateNetwork.RechargeLeft(origin);
+            var title = Trans.Get("jumpgate") + (left > 0 ? "  ·  " + Core.Holo.TravelPlanner.TimeText(left) : string.Empty);
+            AddDropdown(title, gates.Count, DropGroup.Gates);
+            if (_dropOpen != DropGroup.Gates)
+                return;
+            BeginDropTray(gates.Count);
+            foreach (var g in gates)
+            {
+                var dest = g;
+                AddDropOption(DestLabel(string.IsNullOrEmpty(dest.Name) ? "#" + dest.Id : dest.Name),
+                    () => JumpThroughGate(fleet, dest), left > 0 ? DiegeticUi.BtnStyle.Ghost : DiegeticUi.BtnStyle.Cyan);
+            }
+        }
+
+        async Task JumpThroughGate(FocusFleet fleet, Core.Holo.JumpgateDest dest)
+        {
+            var origin = Core.Holo.JumpgateNetwork.Origin(fleet);
+            var console = Core.Holo.OrderConsole.Instance;
+            if (origin == null)
+                return;
+            var name = string.IsNullOrEmpty(fleet.Name) ? "#" + fleet.Id : fleet.Name;
+            var label = string.IsNullOrEmpty(dest.Name) ? "#" + dest.Id : dest.Name;
+            if (console != null)
+            {
+                var choice = await console.Ask(name + "  →  " + label,
+                    new List<Core.Holo.OrderConsole.Option> { Core.Holo.JumpgateNetwork.Option(fleet, origin, dest) });
+                if (!(choice is Core.Holo.JumpChoice))
+                    return;
+            }
+
+            _map?.SetReadout(Trans.Get("Loading"));
+            var result = await Core.Holo.JumpgateNetwork.Send(fleet, dest);
+            if (result.Ok)
+                CicCue.Ok(transform.position);
+            else
+                CicCue.Fail(transform.position);
+            _map?.SetReadout(result.Ok ? Trans.Get("jumpgateFleetSent")
+                : string.IsNullOrEmpty(result.Error) ? Trans.Get("vr.common.error") : result.Error);
+            Core.Crew.BarkDirector.Instance?.OrderResult(Role.Helm, "SendFleetToJumpgate", result, label);
+        }
+
+        async Task SpeedupTravel(FocusFleet fleet)
+        {
+            var (sent, result) = await Core.Holo.TravelSpeedup.AskAndSend(fleet, null);
+            if (!sent)
+                return;
+            if (result.Ok)
+                CicCue.Ok(transform.position);
+            else
+                CicCue.Fail(transform.position);
+            _map?.SetReadout(result.Ok ? Trans.Get("speedupFleetSuccess")
+                : string.IsNullOrEmpty(result.Error) ? Trans.Get("vr.common.error") : result.Error);
+            Core.Crew.BarkDirector.Instance?.OrderResult(Role.Helm, "SpeedupFleetTravel", result,
+                string.IsNullOrEmpty(fleet.Name) ? "#" + fleet.Id : fleet.Name);
+        }
+
         /// <summary>
         /// Interstellar jump: quoted on the captain's lectern (sub-light / hyperspace / Bond PRL, as the web
         /// star menu) and sent only on Confirm — never the server's implicit hyperspace default.
@@ -988,6 +1067,8 @@ namespace Core.Vfx
             }
 
             CicCue.Ok(transform.position);
+            if (action == "HarvestAsteroid" && AsteroidService.Instance != null)
+                AsyncTap.Run(AsteroidService.Instance.Refresh());
             var notice = result.NoticeKey;
             _map?.SetReadout(Trans.Get(notice ?? "vr.common.ok"));
             Core.Crew.BarkDirector.Instance?.OrderResult(_role, action, result, target ?? DescribeTarget(query));

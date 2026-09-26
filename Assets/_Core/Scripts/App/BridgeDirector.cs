@@ -87,6 +87,11 @@ namespace Core.App
             var anomalies = AnomalyService.Build(interior.transform, _focus);
             if (_zoneMap != null)
                 anomalies.Changed += _zoneMap.OnAnomaliesChanged;
+            var asteroids = AsteroidService.Build(interior.transform, _focus);
+            if (_zoneMap != null)
+                asteroids.Updated += _zoneMap.RefreshAsteroidIntel;
+            asteroids.Updated += _exterior.ApplyAsteroidReserves;
+            ExteriorJumpgateFx.Attach(_exterior, _focus, economy);
             Core.Stations.LabDoor.Build(interior.transform, env.Art);
             Core.Stations.GateRoom.Build(env.Art, economy);
             Core.Stations.GateDoor.Build(interior.transform, env.Art);

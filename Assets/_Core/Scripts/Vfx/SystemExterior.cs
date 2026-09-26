@@ -444,8 +444,7 @@ namespace Core.Vfx
             var go = new GameObject("Asteroid_" + rock.Id);
             go.transform.SetParent(_content, false);
             go.transform.localPosition = pos;
-            var scale = WorldScale.AsteroidRadius * (0.85f + (Mathf.Abs(rock.Id) % 5) * 0.06f);
-            go.transform.localScale = Vector3.one * (scale * 2f);
+            go.transform.localScale = Vector3.one * AsteroidScale(rock);
             go.transform.localRotation = Quaternion.Euler((rock.Id * 17) % 360, (rock.Id * 29) % 360, (rock.Id * 11) % 360);
 
             var mf = go.AddComponent<MeshFilter>();
@@ -456,6 +455,25 @@ namespace Core.Vfx
             var spin = go.AddComponent<BodySpin>();
             spin.Configure(rock.Id, 12f + (rock.Id % 7), 25f + (rock.Id % 40));
             _asteroids[rock.Id] = go.transform;
+            go.SetActive(!rock.Gone);
+        }
+
+        /// <summary>A mined field shrinks toward half its size (live reserves, AsteroidService).</summary>
+        static float AsteroidScale(FocusAsteroid rock) =>
+            WorldScale.AsteroidRadius * (0.85f + (Mathf.Abs(rock.Id) % 5) * 0.06f) * 2f * Mathf.Lerp(0.5f, 1f, rock.Fill);
+
+        /// <summary>Reserves were read: resize the fields, drop the mined-out ones.</summary>
+        public void ApplyAsteroidReserves()
+        {
+            if (_focus == null)
+                return;
+            foreach (var rock in _focus.Asteroids)
+            {
+                if (!_asteroids.TryGetValue(rock.Id, out var tr) || tr == null)
+                    continue;
+                tr.localScale = Vector3.one * AsteroidScale(rock);
+                tr.gameObject.SetActive(!rock.Gone);
+            }
         }
 
         public static Vector3 OrbitPosition(int slot, int salt)

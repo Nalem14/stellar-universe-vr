@@ -82,7 +82,7 @@ Appelées par le client web : 139/158. « Appelée » ≠ « finie » : voir la 
 | `ExplorePlanet` | W | fleet, planet | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Science | P5 | Branché |  |
 | `GetAllFleets` | R | — | `App/BridgeSystemLoader.cs` +3 | `scenes/galaxy.js` | Helm | P0 | Branché | Cache serveur 3 s → poll VR 3,5 s. Traite les files de flotte. `user` = PublicUser (id/username) ; cache fleets purgé au hit |
 | `GetAllFleetsAround` | R | — | — | `scenes/galaxy.js` | Helm | — | Hors scope | Interdit en VR (règle AGENTS) — `GetAllFleets` + filtre client |
-| `GetSystemAsteroids` | R | systemid | `App/AsteroidService.cs` | `scenes/system.js` | Helm | P5 | Branché |  |
+| `GetSystemAsteroids` | R | systemid | `App/AsteroidService.cs` | `scenes/system.js` | Helm | P5 | Branché | `AsteroidService` : lecture fraîche à chaque système visité (la liste de `GetSystems` peut dater d'une heure), puis toutes les 30 s pendant qu'un de nos vaisseaux y mine (2 min sinon) et après `HarvestAsteroid` ; réserves minerai / cristal sur le jeton, l'arc et le pupitre, amas qui rétrécit sur la table et dehors, champ épuisé retiré |
 | `HarvestAsteroid` | W | fleet, asteroid | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Engineering | P5 | Branché |  |
 | `LoadTroops` | W | fleet, planet, troops | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Tactical | P5 | Branché | Soute à troupes de l'Armurerie : `{type: qty}` ; réponse = unités déplacées → navettes dehors + étincelle sur la table |
 | `MoveFleetToAsteroid` | W | fleet, asteroid, hyperspace? | `Crew/CrewLines.cs` +2 | `objects/fleet.js` | Helm | P4 | Branché | idem hyperspace |
@@ -93,7 +93,7 @@ Appelées par le client web : 139/158. « Appelée » ≠ « finie » : voir la 
 | `RemoveFleetOrderStep` | W | fleet, stepIndex | `Holo/OrderQueue.cs` | `objects/fleet.js` | Helm | P4 | Branché | `stepIndex` 0-based : répéteur Helm, ou plaque ouverte sur une balise de la file (table) |
 | `RenameFleet` | W | id, name | `Stations/DryDock.cs` | `objects/fleet.js` | Helm | P5 | Branché | Cale sèche, clavier Quest |
 | `SetFleetOrderQueue` | W | fleet, queue, loop? | `Holo/OrderQueue.cs` | `objects/fleet.js` | Helm | P4 | Branché | Balise de la file lâchée sur une autre planète / un autre champ : on renvoie les étapes restantes (le serveur remet l’index à 0), champs du serveur conservés |
-| `SpeedupFleetTravel` | W | fleet | `Crew/CrewLines.cs` +3 | `scripts/helper.js` | Helm | P5 | Branché |  |
+| `SpeedupFleetTravel` | W | fleet | `Crew/CrewLines.cs` +3 | `scripts/helper.js` | Helm | P5 | Branché | Vaisseau en route sélectionné sur la table (ou répéteur Helm) : pupitre « Terminer le voyage · N Nova » (gratuit < 1 min, même courbe que les autres accélérations), refus si Nova insuffisant ; **aucun handler serveur** (voir écarts) |
 | `ToggleFleetQueueLoop` | W | fleet, loop? | `Holo/OrderQueue.cs` | `objects/fleet.js` | Helm | P4 | Branché | `loop` explicite 0/1 |
 | `UnloadTroops` | W | fleet, planet, troops | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Tactical | P5 | Branché | Idem, vers la garnison de nos planètes seulement |
 | `UpdateFleetDefendPosition` | W | id, position | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Tactical | P5 | Branché |  |
@@ -162,8 +162,8 @@ Appelées par le client web : 139/158. « Appelée » ≠ « finie » : voir la 
 
 | Action | R/W | Params | VR | Web | Station | Phase | Statut | Notes |
 |---|---|---|---|---|---|---|---|---|
-| `GetJumpgateDestinations` | R | planet | `Holo/JumpgateNetwork.cs` | `objects/planet.js` | Helm | P5 | Démo |  |
-| `SendFleetToJumpgate` | W | fleet, targetPlanet | `Crew/CrewLines.cs` +3 | `objects/planet.js` | Helm | P5 | Branché |  |
+| `GetJumpgateDestinations` | R | planet | `Holo/JumpgateNetwork.cs` | `objects/planet.js` | Helm | P5 | Branché | Lu à la sélection d'un vaisseau à quai sur un de nos mondes à Portail (cache 20 s) : mondes-portails cerclés de violet sur la table ; menu « Portail de Saut » du répéteur Helm |
+| `SendFleetToJumpgate` | W | fleet, targetPlanet | `Crew/CrewLines.cs` +3 | `objects/planet.js` | Helm | P5 | Branché | Lâcher / viser un monde-portail (planète, ou étoile en galaxie) : option « Portail de Saut » en tête du pupitre, refus miroir du serveur (recharge `jumpgateReadyAt`, ressources de la planète d'origine) ; dehors : portail en orbite de nos mondes équipés (voyants violets / ambre en recharge), champ de pliage qui s'ouvre, traînée et éclair au départ, ouverture à l'arrivée |
 
 ## Stargate
 
@@ -401,6 +401,11 @@ Corrigés dans `stellar-universe` (`7580501`, 2026-09-25) — le client VR ne co
 - **Clés manquantes côté web** : ✅ `authorityUpdated`, `policyAdded` et `traitEffect_defense` / `trade` / `diplomacy` ajoutées en fr/en (avec tout `vr.quarters.*`).
 - **`GetEmpire` sans garde** : ✅ `error:noEmpire` pour un compte sans empire (ou un id inconnu).
 - **Web — récompense de niveau affichée fausse** : ✅ la fenêtre Progression annonce `25 × nouveau niveau`, la formule du serveur (`AddEmpireXP`).
+
+### Helm (à traiter, 2026-09-26)
+
+- **`SpeedupFleetTravel` n'a pas de handler** : l'action est documentée dans `action-api.json` (retour `{ok, cost, nova, fleet}`) et appelée par le web (`Helper.promptSpeedupFleetTravel` depuis `FleetWindowUI`, `FleetsWindowUI`, `FleetOrdersPanelUI`, et `view/game.php`), mais aucun `addAction("SpeedupFleetTravel", …)` n'existe dans `actionjs.php`. Le serveur répond un corps vide (action inconnue) : le bouton du web ne fait rien (corps vide = réponse ignorée, aucun message), et la VR le refuse faute de `{ok: true}`. À écrire : même garde que `SpeedupBuilding` (vaisseau à nous, `desttime > time()`, pas en combat), coût `CalculateNovaFleetSpeedupCost(desttime − time())` (déjà dans `Helper.php`), débit Nova, `desttime = time()` sur la flotte, `ForgetCache("fleets")`.
+- **`GetConfigs` n'expose pas `$JUMPGATE`** (`cooldown`, `jumpCost`, `transitTime`) : impossible d'afficher le coût d'un saut par portail avant de l'envoyer sans recopier la config en dur. Proposition : `"jumpgate" => $JUMPGATE` dans `GetConfigs` — la VR lit déjà `GetConfigs.jumpgate` et affiche le coût dès qu'il est présent (en attendant, le pupitre n'indique que la recharge, le serveur refuse si les ressources manquent).
 
 ### Spec livrée — `CreateEmpire`
 

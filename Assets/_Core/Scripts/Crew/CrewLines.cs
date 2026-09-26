@@ -14,7 +14,7 @@ namespace Core.Crew
         {
             { "helm.greet", 2 }, { "helm.ack", 3 }, { "helm.hyperspace", 2 }, { "helm.sublightFallback", 1 },
             { "helm.sublightModules", 1 }, { "helm.prlBond", 1 }, { "helm.prlRecharge", 1 }, { "helm.arrive", 2 },
-            { "helm.busy", 1 }, { "helm.fail", 1 }, { "helm.idle", 2 },
+            { "helm.busy", 1 }, { "helm.fail", 1 }, { "helm.idle", 2 }, { "helm.jumpgate", 2 }, { "helm.speedup", 1 },
 
             { "tactical.greet", 1 }, { "tactical.contact", 1 }, { "tactical.hostile", 2 }, { "tactical.pirate", 1 },
             { "tactical.battleStart", 1 }, { "tactical.yourTurn", 2 }, { "tactical.hit", 1 }, { "tactical.damaged", 1 },
@@ -71,6 +71,8 @@ namespace Core.Crew
             "MoveFleetToSystem" or "MoveFleetToPlanet" or "MoveFleetToAsteroid" => "ack",
             "HyperspaceJump" => "hyperspace",
             "PrlBondFleetToSystem" => "prlBond",
+            "SendFleetToJumpgate" => "jumpgate",
+            "SpeedupFleetTravel" => "speedup",
             "UpdateFleetDefendPosition" => "stance",
             "FleetAttackPlanet" => "siege",
             "HarvestAsteroid" => "harvest",

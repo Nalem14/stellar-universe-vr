@@ -327,7 +327,7 @@ namespace Core.Stations
             m.RecalculateBounds();
         }
 
-        static Mesh DiscMesh(int rings, int segments)
+        internal static Mesh DiscMesh(int rings, int segments)
         {
             var v = new List<Vector3>();
             var uv = new List<Vector2>();

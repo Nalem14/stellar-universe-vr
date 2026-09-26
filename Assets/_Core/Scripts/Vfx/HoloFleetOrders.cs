@@ -414,6 +414,9 @@ namespace Core.Vfx
         /// <summary>A ship selected on the table (point → point, or dropped by hand) is ordered to a target.</summary>
         public bool Busy => _ordering;
 
+        /// <summary>Follow-up read after an order sent from elsewhere on the table (speedup…).</summary>
+        public Task PollNow() => _poller != null ? _poller.PollNow() : Task.CompletedTask;
+
         public async Task Command(HoloToken fleetToken, HoloToken target, bool dragged)
         {
             var nested = _ordering && dragged;
@@ -470,6 +473,10 @@ namespace Core.Vfx
                 var dest = string.IsNullOrEmpty(target.DisplayName)
                     ? target.Kind.ToString()
                     : target.DisplayName;
+                var destHeader = dest;
+                if (target.Kind == HoloTokenKind.Asteroid &&
+                    AsteroidService.Reserves(_focus?.FindAsteroid(target.Id)) is { Length: > 0 } reserves)
+                    destHeader += "  ·  " + reserves;
 
                 // Quote on the lectern first; nothing leaves before Confirm.
                 var fleet = _focus.FindFleet(fleetToken.Id);
@@ -483,13 +490,15 @@ namespace Core.Vfx
                 }
 
                 var mode = Core.Holo.TravelMode.Sublight;
+                Core.Holo.JumpChoice jump = null;
                 if (_console != null && fleet != null)
                 {
                     if (dragged)
                         fleetToken.transform.localPosition = target.HomeLocalPos + Vector3.up * 0.04f;
                     var options = BuildOptions(fleet, target, action);
+                    await PrependGateOptions(fleet, target, options);
                     var choice = await _console.AskAt(target.transform.position,
-                        fleetToken.DisplayName.Replace('\n', ' ') + "  →  " + dest, options);
+                        fleetToken.DisplayName.Replace('\n', ' ') + "  →  " + destHeader, options);
                     if (choice == null)
                     {
                         fleetToken.SnapHome();
@@ -516,12 +525,20 @@ namespace Core.Vfx
 
                     if (choice is Core.Holo.TravelMode chosen)
                         mode = chosen;
+                    jump = choice as Core.Holo.JumpChoice;
                 }
 
                 _map?.SetReadout($"{Trans.Get("Loading")} · {dest}");
                 ApiResult result;
                 var barkAction = action;
-                if (target.Kind == HoloTokenKind.System && fleet != null)
+                if (jump != null)
+                {
+                    action = barkAction = "SendFleetToJumpgate";
+                    if (!string.IsNullOrEmpty(jump.Dest.Name))
+                        dest = jump.Dest.Name;
+                    result = await Core.Holo.JumpgateNetwork.Send(fleet, jump.Dest);
+                }
+                else if (target.Kind == HoloTokenKind.System && fleet != null)
                 {
                     result = await Core.Holo.TravelPlanner.Send(fleet, target.Id, target.GalaxyX, target.GalaxyY, mode);
                     barkAction = Core.Holo.TravelPlanner.BarkAction(mode);
@@ -551,7 +568,7 @@ namespace Core.Vfx
                 RestoreSpin(fleetToken);
                 CicCue.Ok(target.transform.position);
 
-                var notice = Trans.Get(result.NoticeKey ?? "vr.common.ok");
+                var notice = Trans.Get(result.NoticeKey ?? (jump != null ? "jumpgateFleetSent" : "vr.common.ok"));
                 _map?.SetReadout($"{fleetToken.DisplayName} → {dest} · {notice}");
 
                 if (_poller != null)
@@ -764,6 +781,24 @@ namespace Core.Vfx
             }
 
             return options;
+        }
+
+        /// <summary>
+        /// Docked at one of our Jumpgate worlds: every gate world matching the target (that planet, or ours
+        /// in that system) goes first on the lectern; travel options fill what is left of its four slots.
+        /// </summary>
+        static async Task PrependGateOptions(FocusFleet fleet, HoloToken target, List<Core.Holo.OrderConsole.Option> options)
+        {
+            var origin = Core.Holo.JumpgateNetwork.Origin(fleet);
+            if (origin == null || (target.Kind != HoloTokenKind.Planet && target.Kind != HoloTokenKind.System))
+                return;
+            var all = await Core.Holo.JumpgateNetwork.Destinations(origin.Id);
+            var matches = new List<Core.Holo.JumpgateDest>();
+            Core.Holo.JumpgateNetwork.Matching(all, target, matches);
+            for (var i = matches.Count - 1; i >= 0; i--)
+                options.Insert(0, Core.Holo.JumpgateNetwork.Option(fleet, origin, matches[i]));
+            if (options.Count > 4)
+                options.RemoveRange(4, options.Count - 4);
         }
 
         sealed class QueueChoice

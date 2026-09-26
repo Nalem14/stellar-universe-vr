@@ -326,7 +326,45 @@ namespace Core.Vfx
             col.isTrigger = true;
             var label = Trans.Get("asteroidField");
             AddTokenLabel(go.transform, label, 0.045f, new Color(0.9f, 0.86f, 0.75f, 1f), startVisible: false);
+            var token = go.AddComponent<HoloToken>();
             Tag(go, HoloTokenKind.Asteroid, id, slot, owned: false, busy: false, label);
+            ApplyAsteroidIntel(token);
+        }
+
+        /// <summary>Live reserves (AsteroidService) on every field token: label, rock cluster size, mined-out fields hidden.</summary>
+        public void RefreshAsteroidIntel()
+        {
+            foreach (var t in _tokens)
+                if (t != null && t.Kind == HoloTokenKind.Asteroid)
+                    ApplyAsteroidIntel(t);
+        }
+
+        void ApplyAsteroidIntel(HoloToken token)
+        {
+            var a = (_focus ?? FocusContext.Current)?.FindAsteroid(token.Id);
+            if (a == null)
+                return;
+            if (a.Gone)
+            {
+                token.gameObject.SetActive(false);
+                return;
+            }
+
+            var reserves = AsteroidService.Reserves(a);
+            var tmp = token.transform.Find("Label")?.GetComponentInChildren<TMP_Text>(true);
+            if (tmp != null && reserves.Length > 0)
+            {
+                // Two lines growing upward from the label anchor (the rocks stay clear below).
+                tmp.enableAutoSizing = false;
+                tmp.fontSize = tmp.fontSizeMax;
+                tmp.overflowMode = TextOverflowModes.Overflow;
+                tmp.alignment = TextAlignmentOptions.Bottom;
+                tmp.richText = true;
+                tmp.text = Trans.Get("asteroidField") + "\n<size=72%><color=#d8c6a3>" + reserves + "</color></size>";
+            }
+            var rocks = token.transform.Find("Rocks");
+            if (rocks != null)
+                rocks.localScale = Vector3.one * Mathf.Lerp(0.45f, 1f, a.Fill);
         }
 
         readonly List<Mesh> _ownedMeshes = new();

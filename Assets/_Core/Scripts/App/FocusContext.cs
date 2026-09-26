@@ -119,6 +119,25 @@ namespace Core.App
     {
         public int Id;
         public int Slot;
+
+        // Live reserves (GetSystemAsteroids; the GetSystems snapshot may be an hour old). Live = read at least once.
+        public bool Live;
+        public float Mineral;
+        public float MineralMax;
+        public float Crystal;
+        public float CrystalMax;
+        /// <summary>Mined out since the snapshot (no longer returned by the server): hidden, not a target.</summary>
+        public bool Gone;
+
+        /// <summary>Remaining share of the field's original reserves (1 until read).</summary>
+        public float Fill
+        {
+            get
+            {
+                var max = MineralMax + CrystalMax;
+                return !Live || max <= 0f ? 1f : UnityEngine.Mathf.Clamp01((Mineral + Crystal) / max);
+            }
+        }
     }
 
     /// <summary>

@@ -31,6 +31,17 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 
 ---
 
+## Helm — portail de saut, accélération, astéroïdes (P5 — à intégrer)
+
+| Clé | EN | FR | Contexte |
+|---|---|---|---|
+| `vr.jumpgate.ready` | Jumpgate ready · {0} destination(s) | Portail de Saut prêt · {0} destination(s) | Table : vaisseau à quai sur un monde à portail |
+| `vr.jumpgate.recharging` | Jumpgate recharging · {0} | Portail de Saut en recharge · {0} | {0} = temps restant (~12:30) |
+| `vr.jumpgate.none` | No other Jumpgate in the empire | Aucun autre Portail de Saut dans l'empire | Réseau vide |
+| `crew.helm.jumpgate.1` | Gate open, folding space. Destination: {0}. | Portail ouvert, on plie l'espace. Destination : {0}. | Saut par portail envoyé |
+| `crew.helm.jumpgate.2` | Jumpgate engaged. We come out at {0}. | Portail engagé. Sortie sur {0}. | Idem |
+| `crew.helm.speedup.1` | Full burn, Commander. {0} is there. | Poussée maximale, Commandant. {0} est arrivé. | Voyage terminé pour Nova |
+
 ## Anomalies (intégré web)
 
 | Clé | EN | FR | Contexte |

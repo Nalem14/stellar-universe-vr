@@ -133,7 +133,7 @@ namespace Core.Vfx
             return b.ToMesh("SU_DefensePlatformGlow");
         }
 
-        sealed class Builder
+        public sealed class Builder
         {
             readonly List<Vector3> _v = new();
             readonly List<Vector3> _n = new();

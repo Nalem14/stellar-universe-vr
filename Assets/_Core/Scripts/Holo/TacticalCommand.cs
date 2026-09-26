@@ -114,6 +114,11 @@ namespace Core.Holo
             _arcLabelRoot.gameObject.AddComponent<BillboardFace>();
             _arcLabel = UiKit.Label(_arcLabelRoot, "Text", string.Empty, Vector3.zero, 0.6f, 0.022f, UiKit.TextBright);
             _arcLabel.richText = true;
+            // A second line (asteroid reserves) grows upward instead of being truncated.
+            _arcLabel.enableAutoSizing = false;
+            _arcLabel.fontSize = _arcLabel.fontSizeMax;
+            _arcLabel.overflowMode = TextOverflowModes.Overflow;
+            _arcLabel.alignment = TextAlignmentOptions.Bottom;
             _arcLabel.outlineWidth = 0.2f;
             _arcLabel.outlineColor = new Color32(2, 10, 16, 230);
             _arcLabelRoot.gameObject.SetActive(false);
@@ -320,6 +325,44 @@ namespace Core.Holo
             else
                 Readout(Trans.Format("vr.table.selected", token.DisplayName));
             ShowCues();
+            if (TravelSpeedup.Offered(fleet))
+                AsyncTap.Run(OfferSpeedup(token, fleet));
+            else if (JumpgateNetwork.Origin(fleet) is { } origin)
+                AsyncTap.Run(LoadGates(token.Id, origin));
+        }
+
+        /// <summary>Under way: the lectern opens beside the ship with the Nova finish (Cancel = keep flying).</summary>
+        async Task OfferSpeedup(HoloToken token, FocusFleet fleet)
+        {
+            var (sent, result) = await TravelSpeedup.AskAndSend(fleet, token != null ? token.transform.position : null);
+            if (!sent)
+                return;
+            var name = string.IsNullOrEmpty(fleet.Name) ? "#" + fleet.Id : fleet.Name;
+            Core.Crew.BarkDirector.Instance?.OrderResult(CrewDialogue.Role.Helm, "SpeedupFleetTravel", result, name);
+            if (result.Ok)
+                CicCue.Ok(transform.position);
+            else
+                CicCue.Fail(transform.position);
+            Readout(result.Ok ? name + "  ·  " + Trans.Get("speedupFleetSuccess")
+                : string.IsNullOrEmpty(result.Error) ? Trans.Get("vr.common.error") : result.Error);
+            if (result.Ok && _orders != null)
+                await _orders.PollNow();
+        }
+
+        /// <summary>Docked at a gate world: read the network, then light the gate worlds in violet.</summary>
+        async Task LoadGates(int fleetId, Core.App.PlanetEconomy origin)
+        {
+            var list = await JumpgateNetwork.Destinations(origin.Id);
+            if (_selectedId != fleetId)
+                return;
+            var fleet = SelectedFleet;
+            var left = JumpgateNetwork.RechargeLeft(origin);
+            var gate = list.Count == 0 ? Trans.Get("vr.jumpgate.none")
+                : left > 0 ? Trans.Format("vr.jumpgate.recharging", TravelPlanner.TimeText(left))
+                : Trans.Format("vr.jumpgate.ready", list.Count);
+            if (fleet != null && fleet.CanIssueMove(FleetOrderGate.UnixNow()))
+                Readout(Trans.Format("vr.table.selected", fleet.Name.Length > 0 ? fleet.Name : "#" + fleet.Id) + "  ·  " + gate);
+            ShowCues();
         }
 
         void Deselect()
@@ -367,6 +410,8 @@ namespace Core.Holo
                         return Trans.Get("vr.table.alreadyThere");
                     if (target.Kind == HoloTokenKind.Asteroid && fleet.AsteroidId == target.Id)
                         return Trans.Get("vr.table.alreadyThere");
+                    if (target.Kind == HoloTokenKind.Asteroid && _focus?.FindAsteroid(target.Id) is { Gone: true })
+                        return Trans.Get("asteroidDepleted");
                     return null;
                 case HoloTokenKind.System:
                     if (target.Slot < 0 || target.Id == fleet.SystemId)
@@ -402,6 +447,41 @@ namespace Core.Holo
                 cue.GetComponent<MeshRenderer>().sharedMaterial = mat;
                 var spin = cue.AddComponent<HoloSpin>();
                 spin.DegreesPerSecond = -35f;
+                spin.BobMeters = 0f;
+                _cues.Add(cue);
+            }
+
+            ShowGateCues(fleet, tex);
+        }
+
+        readonly List<JumpgateDest> _gateMatch = new();
+        Material _gateCueMat;
+
+        /// <summary>Our other gate worlds (known once the network is read): a wider violet ring, turning the other way.</summary>
+        void ShowGateCues(FocusFleet fleet, Texture tex)
+        {
+            var origin = JumpgateNetwork.Origin(fleet);
+            if (origin == null || !JumpgateNetwork.TryCached(origin.Id, out var all) || all.Count == 0)
+                return;
+            if (_gateCueMat == null)
+                _gateCueMat = _art.RadarIcon(tex, JumpgateNetwork.JumpTint);
+            foreach (var t in _map.Tokens)
+            {
+                if (t == null || (t.Kind != HoloTokenKind.Planet && t.Kind != HoloTokenKind.System))
+                    continue;
+                JumpgateNetwork.Matching(all, t, _gateMatch);
+                if (_gateMatch.Count == 0)
+                    continue;
+                var cue = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                cue.name = "GateCue";
+                Destroy(cue.GetComponent<Collider>());
+                cue.transform.SetParent(t.transform, false);
+                cue.transform.localPosition = Vector3.up * 0.002f;
+                cue.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+                cue.transform.localScale = Vector3.one * (t.Kind == HoloTokenKind.System ? 0.075f : 0.16f);
+                cue.GetComponent<MeshRenderer>().sharedMaterial = _gateCueMat;
+                var spin = cue.AddComponent<HoloSpin>();
+                spin.DegreesPerSecond = 50f;
                 spin.BobMeters = 0f;
                 _cues.Add(cue);
             }
@@ -492,8 +572,12 @@ namespace Core.Holo
                 case HoloTokenKind.Planet:
                 case HoloTokenKind.Asteroid:
                     // Server intra-system travel: 1200 / speed.
-                    return name + "  <color=#7dffa0>" + TravelPlanner.TimeText(1200f / Mathf.Max(1f, fleet.Speed)) +
-                           "</color>";
+                    var eta = name + "  <color=#7dffa0>" + TravelPlanner.TimeText(1200f / Mathf.Max(1f, fleet.Speed)) +
+                              "</color>";
+                    var reserves = target.Kind == HoloTokenKind.Asteroid
+                        ? AsteroidService.Reserves(FocusContext.Current?.FindAsteroid(target.Id))
+                        : string.Empty;
+                    return reserves.Length > 0 ? eta + "\n<size=75%><color=#d8c6a3>" + reserves + "</color></size>" : eta;
                 default:
                     return name;
             }
