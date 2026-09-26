@@ -19,17 +19,17 @@ Généré depuis `action-api.json` (158 actions), `actionjs.php` et un grep des 
 | Méta / boot | 3 | 5 | 60 % |
 | Caméra (vue) | 2 | 2 | 100 % |
 | Galaxie | 8 | 8 | 100 % |
-| Flotte | 19 | 23 | 83 % |
+| Flotte | 21 | 23 | 91 % |
 | Vaisseau / chantier | 12 | 13 | 92 % |
 | Planète / bâtiments / recherche | 13 | 17 | 76 % |
 | Combat | 11 | 14 | 79 % |
-| Jumpgate | 0 | 2 | 0 % |
+| Jumpgate | 2 | 2 | 100 % |
 | Stargate | 7 | 7 | 100 % |
 | Social (chat, mail) | 11 | 11 | 100 % |
 | Guerre | 9 | 9 | 100 % |
 | Alliance | 17 | 17 | 100 % |
 | Empire / progression / shop | 24 | 27 | 89 % |
-| **Total** | **139** | **158** | **88 %** |
+| **Total** | **143** | **158** | **91 %** |
 
 Appelées par le client web : 139/158. « Appelée » ≠ « finie » : voir la colonne *Statut*.
 
@@ -82,7 +82,7 @@ Appelées par le client web : 139/158. « Appelée » ≠ « finie » : voir la 
 | `ExplorePlanet` | W | fleet, planet | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Science | P5 | Branché |  |
 | `GetAllFleets` | R | — | `App/BridgeSystemLoader.cs` +3 | `scenes/galaxy.js` | Helm | P0 | Branché | Cache serveur 3 s → poll VR 3,5 s. Traite les files de flotte. `user` = PublicUser (id/username) ; cache fleets purgé au hit |
 | `GetAllFleetsAround` | R | — | — | `scenes/galaxy.js` | Helm | — | Hors scope | Interdit en VR (règle AGENTS) — `GetAllFleets` + filtre client |
-| `GetSystemAsteroids` | R | systemid | — | `scenes/system.js` | Helm | P5 | À faire |  |
+| `GetSystemAsteroids` | R | systemid | `App/AsteroidService.cs` | `scenes/system.js` | Helm | P5 | Branché |  |
 | `HarvestAsteroid` | W | fleet, asteroid | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Engineering | P5 | Branché |  |
 | `LoadTroops` | W | fleet, planet, troops | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Tactical | P5 | Branché | Soute à troupes de l'Armurerie : `{type: qty}` ; réponse = unités déplacées → navettes dehors + étincelle sur la table |
 | `MoveFleetToAsteroid` | W | fleet, asteroid, hyperspace? | `Crew/CrewLines.cs` +2 | `objects/fleet.js` | Helm | P4 | Branché | idem hyperspace |
@@ -93,7 +93,7 @@ Appelées par le client web : 139/158. « Appelée » ≠ « finie » : voir la 
 | `RemoveFleetOrderStep` | W | fleet, stepIndex | `Holo/OrderQueue.cs` | `objects/fleet.js` | Helm | P4 | Branché | `stepIndex` 0-based : répéteur Helm, ou plaque ouverte sur une balise de la file (table) |
 | `RenameFleet` | W | id, name | `Stations/DryDock.cs` | `objects/fleet.js` | Helm | P5 | Branché | Cale sèche, clavier Quest |
 | `SetFleetOrderQueue` | W | fleet, queue, loop? | `Holo/OrderQueue.cs` | `objects/fleet.js` | Helm | P4 | Branché | Balise de la file lâchée sur une autre planète / un autre champ : on renvoie les étapes restantes (le serveur remet l’index à 0), champs du serveur conservés |
-| `SpeedupFleetTravel` | W | fleet | — | `scripts/helper.js` | Helm | P5 | À faire |  |
+| `SpeedupFleetTravel` | W | fleet | `Crew/CrewLines.cs` +3 | `scripts/helper.js` | Helm | P5 | Branché |  |
 | `ToggleFleetQueueLoop` | W | fleet, loop? | `Holo/OrderQueue.cs` | `objects/fleet.js` | Helm | P4 | Branché | `loop` explicite 0/1 |
 | `UnloadTroops` | W | fleet, planet, troops | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Tactical | P5 | Branché | Idem, vers la garnison de nos planètes seulement |
 | `UpdateFleetDefendPosition` | W | id, position | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Tactical | P5 | Branché |  |
@@ -162,8 +162,8 @@ Appelées par le client web : 139/158. « Appelée » ≠ « finie » : voir la 
 
 | Action | R/W | Params | VR | Web | Station | Phase | Statut | Notes |
 |---|---|---|---|---|---|---|---|---|
-| `GetJumpgateDestinations` | R | planet | — | `objects/planet.js` | Helm | P5 | À faire |  |
-| `SendFleetToJumpgate` | W | fleet, targetPlanet | — | `objects/planet.js` | Helm | P5 | À faire |  |
+| `GetJumpgateDestinations` | R | planet | `Holo/JumpgateNetwork.cs` | `objects/planet.js` | Helm | P5 | Démo |  |
+| `SendFleetToJumpgate` | W | fleet, targetPlanet | `Crew/CrewLines.cs` +3 | `objects/planet.js` | Helm | P5 | Branché |  |
 
 ## Stargate
 
@@ -392,15 +392,15 @@ Corrigés dans `stellar-universe` (`7580501`, 2026-09-25) — le client VR ne co
 - **Web** : ✅ score de guerre (`warScoreAttacker`), confirmations `confirm*` ajoutées aux langues, libellés FR de `wars-window.hbs` / `alliance-window.hbs` passés en clés (`vr.diplo.*` partagées, `warPickTarget`, `warSelectTarget`, `confirmDeclareWar`).
 - **Web** : ✅ la fenêtre Alliance affiche les invitations envoyées (officiers) et nos candidatures en attente, chacune avec un bouton de retrait qui appelle `CancelAllianceInvite` — l'action n'est plus réservée à la VR.
 
-### Quartiers du commandant — relevé (2026-09-26)
+### Quartiers du commandant (corrigés, 2026-09-26)
 
-- **`UpdateSpecy` sans `traits` corrompt les traits** : le handler passe alors les lignes chargées (tableaux) à `UpdateSpecy()`, qui efface `species_traits` et réinsère un `trait_id` tableau. **Le web déclenche le cas** : `EmpireHubUI` envoie un seul champ à la fois (`onSaveName`, `onChangeType`, `onChangeTrait`). La VR envoie toujours `name` + `type_id` + `traits` complets. Le handler répond aussi un corps vide (la doc annonce du JSON).
-- **`AddEmpirePolicy` ne détecte pas les doublons** : la garde compare l'`id` de ligne `empire_policies` à l'id de politique au lieu de `policy_id`. Et `EmpireHubUI.onAddPolicy` appelle une action inexistante `AddPolicy` (seul `objects/policy.js` utilise la bonne).
-- **`stripe_checkout.php` lit `$_SESSION['user_id']`**, jamais posé (actionjs utilise `$_SESSION['id']`) : la recharge Nova du web semble toujours répondre 401. Aucun chemin de paiement n'existe pour le casque (pas de token accepté, pas d'action) — à spécifier (achat intégré Quest ou session de paiement par token).
-- **Textes serveur sans traduction** : noms / descriptions des politiques (`$POLITICS`) et titres des objectifs d'événement (`title` seul, pas de `title_en`) ne sont qu'en français ; les noms d'objectifs ont `name_en`, les événements `title_en`.
-- **Clés manquantes côté web** : `authorityUpdated`, `policyAdded` (toasts du Hub), `traitEffect_defense` / `trade` / `diplomacy` (effets de politique ; proposées dans missing-keys).
-- **`GetEmpire` sans garde** : pour un `user` sans empire, la fonction lit des champs d'un `null`.
-- **Web — récompense de niveau affichée fausse** : la fenêtre Progression annonce `(niveau+1)×15` Nova, le serveur donne `25 × nouveau niveau` (`AddEmpireXP`).
+- **`UpdateSpecy` sans `traits` corrompait les traits** : ✅ le modèle accepte un id **ou** une ligne chargée (il reçoit maintenant les lignes et insérait un tableau comme `trait_id`) et ne réécrit que les champs fournis ; le handler normalise les traits et répond (corps vide avant). Le cas était déclenché par le web, qui envoie un champ à la fois.
+- **`AddEmpirePolicy` ne détectait pas les doublons** : ✅ la garde compare `policy_id` (elle comparait l'id de ligne `empire_policies`). `EmpireHubUI.onAddPolicy` appelait en plus une action inexistante (`AddPolicy`).
+- **`stripe_checkout.php` lisait `$_SESSION['user_id']`** : ✅ corrigé en `$_SESSION['id']` — la recharge Nova du web ne répond plus 401. **Reste à spécifier** : aucun chemin de paiement pour le casque (achat intégré Quest ou session de paiement par token).
+- **Textes serveur sans traduction** : ✅ les politiques portent `name_en` / `description_en` (comme les événements), résolus par `LocalizePolitics()` selon la langue de la requête — ids et effets inchangés ; les titres d'objectifs d'événement gagnent `title_en` avec repli sur le français pour les objectifs antérieurs (à remplir côté admin).
+- **Clés manquantes côté web** : ✅ `authorityUpdated`, `policyAdded` et `traitEffect_defense` / `trade` / `diplomacy` ajoutées en fr/en (avec tout `vr.quarters.*`).
+- **`GetEmpire` sans garde** : ✅ `error:noEmpire` pour un compte sans empire (ou un id inconnu).
+- **Web — récompense de niveau affichée fausse** : ✅ la fenêtre Progression annonce `25 × nouveau niveau`, la formule du serveur (`AddEmpireXP`).
 
 ### Spec livrée — `CreateEmpire`
 
