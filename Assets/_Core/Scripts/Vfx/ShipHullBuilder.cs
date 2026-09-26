@@ -113,10 +113,29 @@ namespace Core.Vfx
             return mesh;
         }
 
+        static Color _ownAccent = Cyan;
+        static string _ownHex = string.Empty;
+
+        /// <summary>
+        /// Our hulls' accent (trim glow, weapon and panel tint) from the equipped fleet colour
+        /// (GetMeEmpire.fleetColor, hex without '#'); none = the default cyan. True when it changed: hulls built
+        /// afterwards take it, so the caller rebuilds the exterior.
+        /// </summary>
+        public static bool SetOwnAccent(string hex)
+        {
+            hex = (hex ?? string.Empty).Trim().TrimStart('#');
+            if (hex == _ownHex)
+                return false;
+            _ownHex = hex;
+            _ownAccent = hex.Length == 6 && ColorUtility.TryParseHtmlString("#" + hex, out var c) ? c : Cyan;
+            _ownPal = null;
+            return true;
+        }
+
         static Palette CachePalette(bool owned)
         {
             if (owned)
-                return _ownPal ??= new Palette(true, Cyan);
+                return _ownPal ??= new Palette(true, _ownAccent);
             return _foePal ??= new Palette(false, new Color(1f, 0.32f, 0.28f, 1f));
         }
 

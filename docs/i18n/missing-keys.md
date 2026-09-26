@@ -18,6 +18,47 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 
 ---
 
+## Quartiers du commandant (P6 — à intégrer)
+
+| Clé | EN | FR | Contexte |
+|---|---|---|---|
+| `vr.quarters.enter` | Captain's quarters | Quartiers du commandant | Panneau de la porte (tribord arrière du pont) |
+| `vr.quarters.leave` | Back to the bridge | Retour au pont | Porte de la cabine |
+| `vr.quarters.empire` | Empire | Empire | Console du bureau |
+| `vr.quarters.species` | Species | Espèce | Onglet (la clé native `specy` n'a pas de texte EN) |
+| `vr.quarters.log` | Captain's log | Journal de bord | Onglet GetActivity |
+| `vr.quarters.objectives` | Objectives | Objectifs | Onglet |
+| `vr.quarters.event` | Event | Événement | Onglet GetEventData |
+| `vr.quarters.tokens` | Tokens: {0} rename · {1} reconfiguration | Jetons : {0} renommage · {1} reconfiguration | renameTokens / reconfigTokens |
+| `vr.quarters.renameHint` | Renaming the empire uses a rename token. | Renommer l'empire consomme un jeton de renommage. |  |
+| `vr.quarters.saveFlag` | Save the flag | Enregistrer le drapeau | UpdateEmpireFlag |
+| `vr.quarters.flagSaved` | Flag saved. | Drapeau enregistré. |  |
+| `vr.quarters.applyAuthority` | Adopt this authority | Adopter cette autorité | SetAuthority, en deux temps |
+| `vr.quarters.oneToken` | 1 reconfiguration token | 1 jeton de reconfiguration | Coût affiché |
+| `vr.quarters.authoritySet` | Authority updated. | Autorité mise à jour. |  |
+| `vr.quarters.policyAdded` | Ethic adopted. | Éthique adoptée. | AddEmpirePolicy |
+| `vr.quarters.politicsSet` | Policy updated. | Politique mise à jour. | SetPolitics |
+| `vr.quarters.applySpecies` | Apply the new species | Appliquer la nouvelle espèce | UpdateSpecy type / traits |
+| `vr.quarters.traitsNeeded` | Pick 2 positive and 2 negative traits. | Choisissez 2 traits positifs et 2 négatifs. |  |
+| `vr.quarters.specySaved` | Species updated. | Espèce mise à jour. |  |
+| `vr.quarters.noLog` | The log is empty. | Le journal est vide. |  |
+| `vr.quarters.resetsIn` | Resets in {0} | Réinitialisation dans {0} | Objectifs |
+| `vr.quarters.noEvent` | No event under way. | Aucun événement en cours. |  |
+| `vr.quarters.endsIn` | Ends in {0} | Se termine dans {0} | Événement |
+| `vr.quarters.myDamage` | Your damage: {0} ({1} %) | Vos dégâts : {0} ({1} %) | Boss mondial |
+| `vr.quarters.noDamage` | You have not engaged it yet. | Vous ne l'avez pas encore engagé. |  |
+| `vr.quarters.bossPool` | Reward pool: {0} Nova · {1} XP | Butin à partager : {0} Nova · {1} XP |  |
+| `vr.quarters.buyFor` | Buy · {0} | Acheter · {0} | BuyShopItem, en deux temps |
+| `vr.quarters.equipped` | Equipped. | Équipé. | EquipShopItem |
+| `vr.quarters.topupUnavailable` | Top-up is not available from the headset yet. | La recharge n'est pas encore disponible depuis le casque. | Onglet Nova (aucun chemin de paiement VR) |
+| `vr.quarters.topupHistory` | Top-up history | Historique des recharges | GetNovaTopupHistory |
+| `vr.quarters.noTopup` | No top-up yet. | Aucune recharge pour l'instant. |  |
+| `traitEffect_defense` | defense | défense | Effets de politique (GetPolitics) |
+| `traitEffect_trade` | trade | commerce | Effets de politique |
+| `traitEffect_diplomacy` | diplomacy | diplomatie | Effets de politique |
+
+---
+
 ## Intégré côté web
 
 - Clés `vr.*`, `crew.*`, `buildingDesc_*`, `colonyLog_*`, `relation_*` dans `assets/langs/{fr,en}.json`.

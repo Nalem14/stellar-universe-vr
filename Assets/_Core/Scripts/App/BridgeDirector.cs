@@ -28,6 +28,9 @@ namespace Core.App
             var world = new GameObject("SystemWorld");
             world.transform.position = Vector3.zero;
 
+            // Our hulls wear the equipped fleet colour (shop cosmetic) from the first build.
+            ShipHullBuilder.SetOwnAccent(FocusContext.AsString(AuthManager.Ensure().Empire?["fleetColor"]));
+
             var exteriorGo = new GameObject("Exterior");
             exteriorGo.transform.SetParent(world.transform, false);
             _exterior = exteriorGo.AddComponent<SystemExterior>();
@@ -90,6 +93,8 @@ namespace Core.App
             DiplomacyService.Build(interior.transform);
             Core.Stations.DiplomacyRoom.Build(env.Art);
             Core.Stations.DiplomacyDoor.Build(interior.transform, env.Art);
+            Core.Stations.QuartersRoom.Build(env.Art);
+            Core.Stations.QuartersDoor.Build(interior.transform, env.Art);
             CrewStationsBuilder.Build(env, env.Art, hex, _zoneMap, _poller, _focus, _loader);
             BridgeViewscreen.Build(env, _focus);
 

@@ -16,7 +16,7 @@ Généré depuis `action-api.json` (158 actions), `actionjs.php` et un grep des 
 | Domaine | Appelées en VR | Total | % |
 |---|---|---|---|
 | Auth | 3 | 3 | 100 % |
-| Méta / boot | 2 | 5 | 40 % |
+| Méta / boot | 3 | 5 | 60 % |
 | Caméra (vue) | 2 | 2 | 100 % |
 | Galaxie | 8 | 8 | 100 % |
 | Flotte | 19 | 23 | 83 % |
@@ -28,10 +28,10 @@ Généré depuis `action-api.json` (158 actions), `actionjs.php` et un grep des 
 | Social (chat, mail) | 11 | 11 | 100 % |
 | Guerre | 9 | 9 | 100 % |
 | Alliance | 17 | 17 | 100 % |
-| Empire / progression / shop | 8 | 27 | 30 % |
-| **Total** | **122** | **158** | **77 %** |
+| Empire / progression / shop | 24 | 27 | 89 % |
+| **Total** | **139** | **158** | **88 %** |
 
-Appelées par le client web : 138/158. « Appelée » ≠ « finie » : voir la colonne *Statut*.
+Appelées par le client web : 139/158. « Appelée » ≠ « finie » : voir la colonne *Statut*.
 
 ## Auth
 
@@ -45,8 +45,8 @@ Appelées par le client web : 138/158. « Appelée » ≠ « finie » : voir la 
 
 | Action | R/W | Params | VR | Web | Station | Phase | Statut | Notes |
 |---|---|---|---|---|---|---|---|---|
-| `GetConfigs` | R | — | `App/DiplomacyIndex.cs` +2 | `scripts/configs.js` | Système (boot) | P0 | Branché |  |
-| `GetEventData` | R | — | — | `ui/ProgressionWindowUI.js` | Conseil | P0 | À faire |  |
+| `GetConfigs` | R | — | `App/DiplomacyIndex.cs` +4 | `scripts/configs.js` | Système (boot) | P0 | Branché |  |
+| `GetEventData` | R | — | `Stations/QuartersRoom.cs` | `ui/ProgressionWindowUI.js` | Quartiers du commandant | P0 | Branché | Onglet Événement : objectifs, boss mondial (PV, nos dégâts, tête du classement) |
 | `GetGameAnnouncements` | R | — | — | `scenes/ui.js` | Sas (Menu) | P6 | À faire |  |
 | `GetLatestNews` | R | — | — | — | Sas (Menu) | P6 | À faire |  |
 | `GetTranslations` | R | — | `Utils/Trans.cs` | — | Système (boot) | P0 | Branché |  |
@@ -214,7 +214,7 @@ Appelées par le client web : 138/158. « Appelée » ≠ « finie » : voir la 
 | `AcceptAllianceApplication` | W | application | `Stations/DiplomacyRoom.cs` | `ui/AllianceWindowUI.js` | Chambre diplomatique | P5 | Branché | Officiers, onglet Alliance (réplique à l'arrivée) |
 | `AcceptAllianceInvite` | W | invite | `Stations/DiplomacyRoom.cs` | `ui/AllianceWindowUI.js` | Chambre diplomatique | P5 | Branché | Onglet Alliance, sans alliance |
 | `ApplyToAlliance` | W | alliance | `Stations/DiplomacyRoom.cs` | `ui/AllianceWindowUI.js` | Chambre diplomatique | P5 | Branché | Registre, sans alliance |
-| `CancelAllianceInvite` | W | invite | `Stations/DiplomacyRoom.cs` | — | Chambre diplomatique | P5 | Branché | Retrait d'une invitation (dossier) ou d'une candidature (Registre), ids retenus sur le casque |
+| `CancelAllianceInvite` | W | invite | `Stations/DiplomacyRoom.cs` | `ui/AllianceWindowUI.js` | Chambre diplomatique | P5 | Branché | Retrait d'une invitation (dossier) ou d'une candidature (Registre), ids retenus sur le casque |
 | `CreateAlliance` | W | name, tag, description? | `Stations/DiplomacyRoom.cs` | `ui/AllianceWindowUI.js` | Chambre diplomatique | P5 | Branché | Nom + tag au clavier Quest (onglet Alliance, sans alliance) |
 | `DeclineAllianceApplication` | W | application | `Stations/DiplomacyRoom.cs` | `ui/AllianceWindowUI.js` | Chambre diplomatique | P5 | Branché | Officiers, onglet Alliance |
 | `DeclineAllianceInvite` | W | invite | `Stations/DiplomacyRoom.cs` | `ui/AllianceWindowUI.js` | Chambre diplomatique | P5 | Branché | Onglet Alliance, sans alliance |
@@ -233,33 +233,33 @@ Appelées par le client web : 138/158. « Appelée » ≠ « finie » : voir la 
 
 | Action | R/W | Params | VR | Web | Station | Phase | Statut | Notes |
 |---|---|---|---|---|---|---|---|---|
-| `AddEmpirePolicy` | W | policy | — | `objects/policy.js` | Conseil | P6 | À faire |  |
-| `BuyShopItem` | W | item | — | `ui/ShopWindowUI.js` | Conseil | P6 | À faire |  |
-| `CreateEmpire` | W | empireName, bgColor, shape1, shape2, shape3, color1, color2, color3, authority, ethics, speciesName, speciesType, traitPos1, traitPos2, traitNeg1, traitNeg2, planetName, empireBio, leaderName, leaderSex, leaderTitle, heirTitle, leaderTraits, shipPrefix | `UI/EmpireCreationWizard.cs` | — | Conseil | P3 | Branché | Compte sans empire → SAS ; miroir create-empire.php ; `GetMeEmpire` renvoie `error:noEmpire` |
-| `EquipShopItem` | W | item | — | `ui/ShopWindowUI.js` | Conseil | P6 | À faire |  |
-| `GetAchievements` | R | — | — | `scenes/galaxy.js` | Conseil | P6 | À faire |  |
-| `GetActivity` | R | lastid | — | `objects/activity.js` | Comms | P6 | À faire |  |
-| `GetAuthorities` | R | — | `UI/EmpireCreationWizard.cs` | `ui/EmpireHubUI.js` | Conseil | P6 | Branché |  |
-| `GetDailyObjectives` | R | — | — | — | Conseil | P6 | À faire | Web utilise `GetProgressionObjectives` |
-| `GetEmpire` | R | user | — | `scripts/user.js` | Comms | P5 | À faire |  |
+| `AddEmpirePolicy` | W | policy | `Stations/QuartersRoom.cs` | `objects/policy.js` | Quartiers du commandant | P6 | Branché | Éthiques du bureau, jusqu'à `maxPolicies` (+1 au niveau 10), en deux temps (pas de retrait serveur) ; doublons filtrés par `policy_id` |
+| `BuyShopItem` | W | item | `Stations/QuartersRoom.cs` | `ui/ShopWindowUI.js` | Quartiers du commandant | P6 | Branché | Deux temps ; montée de niveau annoncée |
+| `CreateEmpire` | W | empireName, bgColor, shape1, shape2, shape3, color1, color2, color3, authority, ethics, speciesName, speciesType, traitPos1, traitPos2, traitNeg1, traitNeg2, planetName, empireBio, leaderName, leaderSex, leaderTitle, heirTitle, leaderTraits, shipPrefix | `UI/EmpireCreationWizard.cs` | — | Quartiers du commandant | P3 | Branché | Compte sans empire → SAS ; miroir create-empire.php ; `GetMeEmpire` renvoie `error:noEmpire` |
+| `EquipShopItem` | W | item | `Stations/QuartersRoom.cs` | `ui/ShopWindowUI.js` | Quartiers du commandant | P6 | Branché | Titre → plaque du bureau + vitrine ; couleur de flotte → anneau de la vitrine et **nos coques dehors** (`ShipHullBuilder.SetOwnAccent`) |
+| `GetAchievements` | R | — | `Stations/QuartersRoom.cs` | `scenes/galaxy.js` | Quartiers du commandant | P6 | Branché | Console Progression (filtres par catégorie) + mur des trophées de la cabine (18 plaques, débloqués en premier) |
+| `GetActivity` | R | lastid | `Stations/QuartersRoom.cs` | `objects/activity.js` | Quartiers du commandant | P6 | Branché | Journal de bord du bureau : `lastid`, relu toutes les 10 s à l'écran |
+| `GetAuthorities` | R | — | `Stations/QuartersRoom.cs` +1 | `ui/EmpireHubUI.js` | Quartiers du commandant | P6 | Branché |  |
+| `GetDailyObjectives` | R | — | — | — | Quartiers du commandant | — | Hors scope | Web utilise `GetProgressionObjectives` |
+| `GetEmpire` | R | user | `Stations/DiplomacyRoom.cs` | `scripts/user.js` | Chambre diplomatique | P5 | Branché | Dossier diplomatique : autorité, espèce et éthiques de l'empire visé (`user` = users.id) |
 | `GetEmpires` | R | — | `App/DiplomacyIndex.cs` +1 | `objects/empire.js` | Chambre diplomatique | P5 | Branché | `DiplomacyIndex` (teintes des jetons et coques) ; orrery, sièges de l'hémicycle et dossiers de la chambre diplomatique |
-| `GetLeaderTraits` | R | — | `UI/EmpireCreationWizard.cs` | — | Conseil | P3 | Branché | Liste lore pour CreateEmpire |
+| `GetLeaderTraits` | R | — | `UI/EmpireCreationWizard.cs` | — | Quartiers du commandant | P3 | Branché | Liste lore pour CreateEmpire |
 | `GetMeEmpire` | R | — | `App/AuthManager.cs` +1 | `objects/policy.js` | Système (boot) | P0 | Branché | `error:noEmpire` si compte sans empire (flux CreateEmpire) |
-| `GetMonthlyObjectives` | R | — | — | — | Conseil | P6 | À faire |  |
-| `GetNovaTopupHistory` | R | — | — | — | Conseil | P6 | À faire |  |
-| `GetNovaTopupPacks` | R | — | — | `ui/ShopWindowUI.js` | Conseil | P6 | À faire |  |
-| `GetPolitics` | R | — | — | `ui/EmpireHubUI.js` | Conseil | P6 | À faire |  |
-| `GetProgressionObjectives` | R | — | — | `ui/ProgressionWindowUI.js` | Conseil | P6 | À faire |  |
+| `GetMonthlyObjectives` | R | — | — | — | Quartiers du commandant | — | Hors scope | Idem |
+| `GetNovaTopupHistory` | R | — | `Stations/QuartersRoom.cs` | — | Quartiers du commandant | P6 | Branché | Historique des recharges |
+| `GetNovaTopupPacks` | R | — | `Stations/QuartersRoom.cs` | `ui/ShopWindowUI.js` | Quartiers du commandant | P6 | Branché | Packs affichés (prix serveur) ; aucun chemin de paiement depuis le casque (voir écarts) |
+| `GetPolitics` | R | — | `Stations/QuartersRoom.cs` | `ui/EmpireHubUI.js` | Quartiers du commandant | P6 | Branché | Onglet Politique : 8 catégories, effets en % |
+| `GetProgressionObjectives` | R | — | `Stations/QuartersRoom.cs` | `ui/ProgressionWindowUI.js` | Quartiers du commandant | P6 | Branché | Objectifs du jour / de la semaine / du mois avec comptes à rebours ; relu toutes les 30 s dans la cabine |
 | `GetRelation` | R | user1, user2 | `Stations/DiplomacyRoom.cs` | `objects/empire.js` | Chambre diplomatique | P5 | Branché | Jauge de relation du dossier (user1 = moi, user2 = l'empire visé) |
-| `GetShopData` | R | — | — | `ui/ShopWindowUI.js` | Conseil | P6 | À faire |  |
-| `GetSpeciesTraits` | R | — | `UI/EmpireCreationWizard.cs` | `objects/specy.js` | Conseil | P6 | Branché |  |
-| `GetSpeciesTypes` | R | — | `UI/EmpireCreationWizard.cs` | `objects/specy.js` | Conseil | P6 | Branché |  |
-| `GetWeeklyObjectives` | R | — | — | — | Conseil | P6 | À faire |  |
-| `RenameEmpire` | W | name | — | `ui/EmpireHubUI.js` | Conseil | P6 | À faire |  |
-| `SetAuthority` | W | authority | — | `ui/EmpireHubUI.js` | Conseil | P6 | À faire |  |
-| `SetPolitics` | W | category, option | — | `ui/EmpireHubUI.js` | Conseil | P6 | À faire |  |
-| `UpdateEmpireFlag` | W | flag | — | `ui/EmpireHubUI.js` | Conseil | P6 | À faire |  |
-| `UpdateSpecy` | W | empire, name?, type_id?, traits? | — | `objects/specy.js` | Conseil | P6 | À faire |  |
+| `GetShopData` | R | — | `Stations/QuartersRoom.cs` | `ui/ShopWindowUI.js` | Quartiers du commandant | P6 | Démo | Console Boutique : boosters (durée restante), consommables, cosmétiques, titres ; solde Nova et jetons |
+| `GetSpeciesTraits` | R | — | `Stations/QuartersRoom.cs` +1 | `objects/specy.js` | Quartiers du commandant | P6 | Branché |  |
+| `GetSpeciesTypes` | R | — | `Stations/QuartersRoom.cs` +1 | `objects/specy.js` | Quartiers du commandant | P6 | Branché |  |
+| `GetWeeklyObjectives` | R | — | — | — | Quartiers du commandant | — | Hors scope | Idem |
+| `RenameEmpire` | W | name | `Stations/QuartersRoom.cs` | `ui/EmpireHubUI.js` | Quartiers du commandant | P6 | Branché | Console du bureau (Quartiers) : clavier Quest, un jeton de renommage |
+| `SetAuthority` | W | authority | `Stations/QuartersRoom.cs` | `ui/EmpireHubUI.js` | Quartiers du commandant | P6 | Branché | Changer une autorité déjà choisie coûte un jeton de reconfiguration (deux temps) |
+| `SetPolitics` | W | category, option | `Stations/QuartersRoom.cs` | `ui/EmpireHubUI.js` | Quartiers du commandant | P6 | Branché | Option choisie = appliquée (gratuit) ; testé aller-retour sur le compte propriétaire |
+| `UpdateEmpireFlag` | W | flag | `Stations/QuartersRoom.cs` | `ui/EmpireHubUI.js` | Quartiers du commandant | P6 | Branché | Éditeur de drapeau du bureau (fond + 3 calques), JSON web empireFlag.js |
+| `UpdateSpecy` | W | empire, name?, type_id?, traits? | `Stations/QuartersRoom.cs` | `objects/specy.js` | Quartiers du commandant | P6 | Branché | Nom seul gratuit ; type ou traits = un jeton ; **toujours** `name` + `type_id` + `traits` complets (le serveur réécrit les traits omis) |
 
 ## Écarts serveur à traiter côté web
 
@@ -391,6 +391,16 @@ Corrigés dans `stellar-universe` (`7580501`, 2026-09-25) — le client VR ne co
 - **Stocks d'un autre empire exposés** : ✅ `GetEmpirePlanets` ne renvoie `mineral` / `crystal` / `biomass` que pour notre propre empire (le web ne les lisait pas ; la VR a retiré sa ligne « réserves connues »).
 - **Web** : ✅ score de guerre (`warScoreAttacker`), confirmations `confirm*` ajoutées aux langues, libellés FR de `wars-window.hbs` / `alliance-window.hbs` passés en clés (`vr.diplo.*` partagées, `warPickTarget`, `warSelectTarget`, `confirmDeclareWar`).
 - **Web** : ✅ la fenêtre Alliance affiche les invitations envoyées (officiers) et nos candidatures en attente, chacune avec un bouton de retrait qui appelle `CancelAllianceInvite` — l'action n'est plus réservée à la VR.
+
+### Quartiers du commandant — relevé (2026-09-26)
+
+- **`UpdateSpecy` sans `traits` corrompt les traits** : le handler passe alors les lignes chargées (tableaux) à `UpdateSpecy()`, qui efface `species_traits` et réinsère un `trait_id` tableau. **Le web déclenche le cas** : `EmpireHubUI` envoie un seul champ à la fois (`onSaveName`, `onChangeType`, `onChangeTrait`). La VR envoie toujours `name` + `type_id` + `traits` complets. Le handler répond aussi un corps vide (la doc annonce du JSON).
+- **`AddEmpirePolicy` ne détecte pas les doublons** : la garde compare l'`id` de ligne `empire_policies` à l'id de politique au lieu de `policy_id`. Et `EmpireHubUI.onAddPolicy` appelle une action inexistante `AddPolicy` (seul `objects/policy.js` utilise la bonne).
+- **`stripe_checkout.php` lit `$_SESSION['user_id']`**, jamais posé (actionjs utilise `$_SESSION['id']`) : la recharge Nova du web semble toujours répondre 401. Aucun chemin de paiement n'existe pour le casque (pas de token accepté, pas d'action) — à spécifier (achat intégré Quest ou session de paiement par token).
+- **Textes serveur sans traduction** : noms / descriptions des politiques (`$POLITICS`) et titres des objectifs d'événement (`title` seul, pas de `title_en`) ne sont qu'en français ; les noms d'objectifs ont `name_en`, les événements `title_en`.
+- **Clés manquantes côté web** : `authorityUpdated`, `policyAdded` (toasts du Hub), `traitEffect_defense` / `trade` / `diplomacy` (effets de politique ; proposées dans missing-keys).
+- **`GetEmpire` sans garde** : pour un `user` sans empire, la fonction lit des champs d'un `null`.
+- **Web — récompense de niveau affichée fausse** : la fenêtre Progression annonce `(niveau+1)×15` Nova, le serveur donne `25 × nouveau niveau` (`AddEmpireXP`).
 
 ### Spec livrée — `CreateEmpire`
 

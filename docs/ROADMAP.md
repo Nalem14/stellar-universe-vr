@@ -197,9 +197,8 @@ Remplacer les hublots avant par **un très grand écran incurvé** (viewscreen �
 - Dépend de : `SystemExterior`, `CombatEvents` (tirs, sièges, transferts), `TacticalCommand.AimedTarget`, `BarkDirector` (répliques « à l'écran »).
 
 ### P6 — Méta
-- **Quartiers du capitaine** (idée joueur 2026-09-25) : une pièce à lui — bureau, lit, étagères — où l'on voit ses achievements (trophées / plaques physiques), titres, progression, objectifs du jour ; accessible par une porte comme la cale et le labo.
-- **Salle du conseil / bureau du captain**, accessible par TP : administration d'empire **complète** (identité, drapeau, espèce, autorité, éthiques, politiques, jetons).
-- Progression, achievements, objectifs ; activity log lu par l'officier Comms ; shop Nova (`BuyShopItem` / `EquipShopItem`) ; annonces et événements saisonniers.
+- ✅ **Quartiers du commandant** (Editor ; lectures réelles, `SetPolitics` testé aller-retour, aucun achat) : cabine au-dessus du vaisseau par la porte tribord de la cloison arrière, grande baie sur le vrai système. Bureau en bois sombre avec l'écran **Empire** incliné bas : identité (renommer, drapeau), autorité et éthiques (jetons, deux temps), politiques (8 catégories), espèce (type, traits, un jeton), journal de bord (`GetActivity`). Console **Progression** (niveau, objectifs du jour / semaine / mois, succès filtrés, événement et boss mondial) et **mur des trophées** (18 plaques). Console **Boutique** (boosters, consommables, cosmétiques, titres, packs et historique Nova). Plaque du bureau et vitrine = titre équipé, drapeau, couleur de flotte ; la couleur équipée teinte aussi **nos coques dehors**. Terminal **Comms** mural (la console Comms s'y ancre). Reste : recharge Nova depuis le casque (aucun chemin de paiement VR), lit / étagères perso.
+- **Sas — accueil au login** (décidé 2026-09-26) : annonces (`GetGameAnnouncements`) et actualités (`GetLatestNews`) sur l'écran d'accueil du sas, avant d'entrer sur le pont.
 - Tutoriel diegetic guidé par le crew, calé sur les 16 étapes du web.
 - Mode quart en passthrough.
 

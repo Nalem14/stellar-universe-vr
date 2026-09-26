@@ -39,8 +39,6 @@ namespace Core.Stations
         static readonly Vector3 Stand = Vector3.zero;
         static readonly Vector3 Centre = new(0f, 0f, 3.4f);
         const float Radius = 6.6f;
-        /// <summary>Height of the chamber over the bridge (clear of our hull and of the world we orbit).</summary>
-        const float AboveShip = 24f;
         const float Height = 6f;
         public static readonly Color Accent = new(1f, 0.78f, 0.42f, 1f);
         static readonly Color WarRed = new(1f, 0.3f, 0.26f, 1f);
@@ -79,6 +77,9 @@ namespace Core.Stations
         TMP_InputField _allianceTag;
 
         JArray _empires = new();
+        /// <summary>GetEmpire of the empire in the dossier (authority, ethics).</summary>
+        JObject _dossierDetail;
+        readonly Dictionary<int, string> _policyNames = new();
         JArray _alliances = new();
         int _selected;
         float _relation = -1f;
@@ -219,15 +220,17 @@ namespace Core.Stations
 
         // ── Enter / leave ─────────────────────────────────────────────────────────
 
-        public static bool AnyRoomInside => Inside || GateRoom.Inside || ResearchLab.Inside || DryDock.Inside;
+        public static bool AnyRoomInside =>
+            Inside || GateRoom.Inside || ResearchLab.Inside || DryDock.Inside || QuartersRoom.Inside;
 
         public async Task Enter()
         {
-            if (Inside || GateRoom.Inside || DryDock.Inside || ResearchLab.Inside)
+            if (AnyRoomInside)
                 return;
             var fade = ViewFade.Ensure();
             await fade.FadeOut();
-            PlaceOverShip();
+            // Over our ship, the star in the middle of the right-hand windows seen from the stand.
+            RoomPlacement.OverShip(transform, DiplomacyDecor.RightWindowCentre(Centre, Radius) - Stand);
             gameObject.SetActive(true);
             var rig = FindFirstObjectByType<XROrigin>();
             if (rig != null)
@@ -250,29 +253,6 @@ namespace Core.Stations
             await Load();
             await fade.FadeIn();
             CicCue.Ok(transform.position + Vector3.up);
-        }
-
-        /// <summary>
-        /// The chamber is a wing above the ship (or station) we stand on: its windows look on the same, shared
-        /// system exterior as the bridge — our world or the star beyond, fleets passing — with no second copy of
-        /// it. Flank windows face the star.
-        /// </summary>
-        void PlaceOverShip()
-        {
-            var bridge = FindFirstObjectByType<BridgeViewRig>();
-            if (bridge == null || bridge.BridgeMount == null)
-                return;
-            var pos = bridge.BridgeMount.position + Vector3.up * AboveShip;
-            var ext = FindFirstObjectByType<SystemExterior>();
-            var toStar = (ext != null ? ext.transform.position : Vector3.zero) - pos;
-            toStar.y = 0f;
-            if (toStar.sqrMagnitude < 1f)
-                toStar = Vector3.right;
-            // Turn the hall so that, from the stand, the star sits in the middle of the right-hand windows.
-            var look = DiplomacyDecor.RightWindowCentre(Centre, Radius) - Stand;
-            look.y = 0f;
-            transform.SetPositionAndRotation(pos,
-                Quaternion.LookRotation(toStar.normalized, Vector3.up) * Quaternion.Inverse(Quaternion.LookRotation(look.normalized, Vector3.up)));
         }
 
         async Task Leave()
@@ -312,8 +292,22 @@ namespace Core.Stations
         {
             var empires = ActionJs.Get("GetEmpires");
             var alliances = ActionJs.Get("GetAlliances");
+            var configs = _policyNames.Count == 0 ? ActionJs.Get("GetConfigs") : null;
             var service = DiplomacyService.Instance != null ? DiplomacyService.Instance.Refresh() : Task.CompletedTask;
-            await Task.WhenAll(empires, alliances, service);
+            await Task.WhenAll(empires, alliances, service, configs ?? Task.CompletedTask);
+            if (configs != null && configs.Result.Ok)
+            {
+                try
+                {
+                    if (JObject.Parse(configs.Result.Body)["policies"] is JArray policies)
+                        foreach (var p in policies)
+                            _policyNames[FocusContext.AsInt(p["id"])] = FocusContext.AsString(p["name"]);
+                }
+                catch
+                {
+                    // Ethics shown without names.
+                }
+            }
             if (empires.Result.Ok)
             {
                 _empires = ParseArray(empires.Result.Body);
@@ -373,17 +367,34 @@ namespace Core.Stations
         async Task LoadRelation()
         {
             _relation = -1f;
+            _dossierDetail = null;
             var e = Empire(_selected);
             var me = AuthManager.Ensure().User?.id ?? 0;
             if (e == null || me <= 0)
                 return;
             var id = _selected;
+            var detail = ActionJs.Get("GetEmpire", new Dictionary<string, string> { { "user", FocusContext.AsString(e["userid"]) } });
             var res = await ActionJs.Get("GetRelation", new Dictionary<string, string>
             {
                 { "user1", me.ToString() },
                 { "user2", FocusContext.AsString(e["userid"]) }
             });
-            if (id != _selected || !res.Ok)
+            await detail;
+            if (id != _selected)
+                return;
+            if (detail.Result.Ok)
+            {
+                try
+                {
+                    _dossierDetail = JObject.Parse(detail.Result.Body);
+                }
+                catch
+                {
+                    _dossierDetail = null;
+                }
+            }
+
+            if (!res.Ok)
                 return;
             try
             {
@@ -815,6 +826,25 @@ namespace Core.Stations
                 : rel >= DiplomacyIndex.GoodThreshold ? UiKit.Ok : new Color(0.55f, 0.75f, 0.9f);
             relColor.a = 0.85f;
             Gauge(_dossierBody, -130f, 72f, 580f, rel / 100f, relColor, Trans.Format("vr.diplo.relation", Num(rel, 0)));
+            // GetEmpire: its government, as its envoys would present it.
+            if (_dossierDetail != null)
+            {
+                var ethics = new List<string>();
+                if (_dossierDetail["policies"] is JArray pols)
+                    foreach (var p in pols)
+                        if (_policyNames.TryGetValue(FocusContext.AsInt(p["policy_id"]), out var n))
+                            ethics.Add(Trans.Get(n));
+                var authority = FocusContext.AsString(_dossierDetail["authority"]?["name"]);
+                var species = FocusContext.AsString(_dossierDetail["specy"]?["type"]?["name"]);
+                var parts = new List<string>();
+                if (authority.Length > 0)
+                    parts.Add(Trans.Get(authority));
+                if (species.Length > 0)
+                    parts.Add(Trans.Get(species));
+                if (ethics.Count > 0)
+                    parts.Add(string.Join(", ", ethics));
+                Line(_dossierBody, string.Join("   ·   ", parts), 70f, 36f, 15f, UiKit.TextDim, 820f);
+            }
 
             if (atWar != null)
             {

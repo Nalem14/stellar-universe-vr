@@ -18,6 +18,6 @@ namespace Core.Stations
                 CanPass, () => AsyncTap.Run(GateRoom.Instance.Enter()));
 
         static bool CanPass() => GateRoom.Instance != null && !GateRoom.Inside && !ResearchLab.Inside &&
-                                 !DryDock.Inside && !DiplomacyRoom.Inside && AuthManager.Ensure().Empire != null;
+                                 !DryDock.Inside && !DiplomacyRoom.AnyRoomInside && AuthManager.Ensure().Empire != null;
     }
 }

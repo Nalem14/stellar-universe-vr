@@ -282,12 +282,12 @@ namespace Core.Stations
         /// Parent a screen to a desk arm (<see cref="Desk"/>): same heading as the desk, top leaning back
         /// <see cref="Recline"/>°, bottom edge resting on the arm head (screen pivot is its centre).
         /// </summary>
-        internal static void SeatOnArm(Transform screen, Transform mount, float height)
+        internal static void SeatOnArm(Transform screen, Transform mount, float height, float recline = Recline)
         {
             screen.SetParent(mount, false);
             var half = height * 0.5f;
-            var r = Recline * Mathf.Deg2Rad;
-            screen.localRotation = Quaternion.Euler(Recline, 0f, 0f);
+            var r = recline * Mathf.Deg2Rad;
+            screen.localRotation = Quaternion.Euler(recline, 0f, 0f);
             screen.localPosition = new Vector3(0f, Mathf.Cos(r) * half + 0.01f, Mathf.Sin(r) * half);
         }
 

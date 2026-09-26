@@ -17,7 +17,7 @@ namespace Core.Stations
             RoomDoor.Build(bridge, "LabDoor", Position, 0f, Trans.Get("vr.lab.enter"), ResearchLab.Accent, art,
                 CanPass, () => AsyncTap.Run(ResearchLab.Instance.Enter()));
 
-        static bool CanPass() => ResearchLab.Instance != null && !ResearchLab.Inside && !DryDock.Inside && !DiplomacyRoom.Inside &&
+        static bool CanPass() => ResearchLab.Instance != null && !ResearchLab.Inside && !DryDock.Inside && !DiplomacyRoom.AnyRoomInside &&
                                  AuthManager.Ensure().Empire != null;
     }
 }

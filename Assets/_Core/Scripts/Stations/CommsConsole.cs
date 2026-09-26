@@ -68,6 +68,7 @@ namespace Core.Stations
         TMP_InputField _content;
 
         Transform _anchor;
+        Transform _home;
         bool _open;
         Tab _tab;
         MailView _mailView;
@@ -197,10 +198,44 @@ namespace Core.Stations
 
         public void Open(Transform officerAnchor)
         {
+            if (_home != null)
+                Undock();
             _anchor = officerAnchor;
             _open = true;
             gameObject.SetActive(true);
             Place();
+            Refresh();
+        }
+
+        /// <summary>
+        /// Seat the console on a fixed wall mount in another room (the captain's quarters): parented there,
+        /// front on the mount's −Z, until <see cref="Undock"/> brings it back to the bridge.
+        /// </summary>
+        public void Dock(Transform mount)
+        {
+            _home ??= transform.parent;
+            _anchor = null;
+            _open = true;
+            gameObject.SetActive(true);
+            transform.SetParent(mount, false);
+            transform.localPosition = Vector3.zero;
+            transform.localRotation = Quaternion.identity;
+            Refresh();
+        }
+
+        public void Undock()
+        {
+            if (_home == null)
+                return;
+            transform.SetParent(_home, false);
+            _home = null;
+            Close();
+        }
+
+        public bool Docked => _home != null;
+
+        void Refresh()
+        {
             if (CommsService.Instance != null)
             {
                 CommsService.Instance.Changed -= RenderChips;
