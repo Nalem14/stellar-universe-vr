@@ -19,14 +19,51 @@ namespace Core.Utils
         const string LangPref = "su.vr.lang";
         const string MissingLogFile = "su-missing-trans-keys.txt";
 
-        static Dictionary<string, string> _en = new();
-        static Dictionary<string, string> _fr = new();
+        /// <summary>Table every lookup ends on — the server always sends it
+        /// (GetTranslations serves the request's language plus this one).</summary>
+        const string FallbackLang = "en";
+
+        /// <summary>Languages the client can offer before GetConfigs answers.
+        /// The authoritative list, with native names, is GetConfigs.languages.</summary>
+        static readonly string[] BuiltInLanguages =
+            { "fr", "en", "de", "es", "it", "pt", "ru", "ko", "ja", "zh" };
+
+        static readonly Dictionary<string, Dictionary<string, string>> _tables = new(StringComparer.Ordinal);
         static readonly HashSet<string> _missingLogged = new(StringComparer.Ordinal);
         static bool _loaded;
         static string _missingLogPath;
 
         static string _lang;
         static Task _loading;
+
+        /// <summary>Codes to offer, server registry first. Empty registry (boot
+        /// read not done yet) falls back to the codes compiled in.</summary>
+        public static IReadOnlyList<string> SupportedLanguages
+        {
+            get
+            {
+                var fromServer = Core.App.GameConfig.LanguageCodes;
+                return fromServer != null && fromServer.Count > 0 ? fromServer : BuiltInLanguages;
+            }
+        }
+
+        /// <summary>Native name of a language ("Deutsch", "한국어") — what a
+        /// selector shows.</summary>
+        public static string NativeName(string code) => Core.App.GameConfig.LanguageNativeName(code);
+
+        /// <summary>Font-stack hint: "latin" rides the shipped face, "cjk" needs
+        /// a fallback font asset (see Core.Vfx.TmpFonts).</summary>
+        public static string FontHint => Core.App.GameConfig.LanguageFontHint(Lang);
+
+        static bool IsSupported(string code)
+        {
+            if (string.IsNullOrEmpty(code))
+                return false;
+            foreach (var supported in SupportedLanguages)
+                if (supported == code)
+                    return true;
+            return false;
+        }
 
         public static string Lang
         {
@@ -35,16 +72,24 @@ namespace Core.Utils
                 if (_lang != null)
                     return _lang;
                 var saved = PlayerPrefs.GetString(LangPref, string.Empty);
-                if (!string.IsNullOrEmpty(saved))
+                if (!string.IsNullOrEmpty(saved) && IsSupported(saved))
                     return _lang = saved;
                 var sys = CultureInfo.CurrentCulture.TwoLetterISOLanguageName;
-                return _lang = sys == "fr" ? "fr" : "en";
+                return _lang = IsSupported(sys) ? sys : FallbackLang;
             }
             set
             {
-                _lang = value == "fr" ? "fr" : "en";
+                var next = IsSupported(value) ? value : FallbackLang;
+                if (next == _lang)
+                    return;
+                _lang = next;
                 PlayerPrefs.SetString(LangPref, _lang);
                 PlayerPrefs.Save();
+                // The dump is served in the request's language (ActionJs appends
+                // &lang): drop it so the next EnsureLoaded fetches the new table.
+                // Screens already rendered keep their strings until rebuilt.
+                _loaded = false;
+                _tables.Clear();
             }
         }
 
@@ -91,11 +136,16 @@ namespace Core.Utils
             try
             {
                 var root = JObject.Parse(result.Body);
-                _en = ToMap(root["en"] as JObject);
-                _fr = ToMap(root["fr"] as JObject);
-                _loaded = _en.Count > 0 || _fr.Count > 0;
+                _tables.Clear();
+                foreach (var property in root.Properties())
+                    if (property.Value is JObject table)
+                        _tables[property.Name] = ToMap(table);
+                _loaded = _tables.Count > 0;
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-                Debug.Log($"[SU] GetTranslations ok ({_fr.Count} fr / {_en.Count} en)");
+                var counts = new List<string>();
+                foreach (var entry in _tables)
+                    counts.Add($"{entry.Key}:{entry.Value.Count}");
+                Debug.Log($"[SU] GetTranslations ok ({string.Join(" ", counts)})");
 #endif
             }
             catch (Exception e)
@@ -129,15 +179,17 @@ namespace Core.Utils
             return key;
         }
 
-        /// <summary>Exact lookup in the current language, then the other one.</summary>
+        /// <summary>Exact lookup in the current language, then the fallback
+        /// language — a key a translation has not covered yet still reads.</summary>
         static bool TryGet(string key, out string hit)
         {
-            var table = Lang == "fr" ? _fr : _en;
-            if (table != null && table.TryGetValue(key, out hit) && !string.IsNullOrEmpty(hit))
+            if (_tables.TryGetValue(Lang, out var table)
+                && table.TryGetValue(key, out hit) && !string.IsNullOrEmpty(hit))
                 return true;
 
-            var other = Lang == "fr" ? _en : _fr;
-            if (other != null && other.TryGetValue(key, out hit) && !string.IsNullOrEmpty(hit))
+            if (Lang != FallbackLang
+                && _tables.TryGetValue(FallbackLang, out var fallback)
+                && fallback.TryGetValue(key, out hit) && !string.IsNullOrEmpty(hit))
                 return true;
 
             hit = null;

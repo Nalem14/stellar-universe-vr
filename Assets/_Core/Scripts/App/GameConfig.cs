@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Newtonsoft.Json.Linq;
 
 namespace Core.App
@@ -49,6 +50,45 @@ namespace Core.App
         public static JObject TroopStats { get; private set; }
         public static JObject DefenseStats { get; private set; }
 
+        /// <summary>GetConfigs.languages: [{code, native, label, html, font}] —
+        /// every language the game ships (server registry, include/languages.php).
+        /// Empty until the boot read succeeds: the UI then falls back to the
+        /// codes Trans knows about.</summary>
+        public static JArray Languages { get; private set; }
+        /// <summary>Language codes in display order (empty until loaded).</summary>
+        public static List<string> LanguageCodes
+        {
+            get
+            {
+                var codes = new List<string>();
+                if (Languages != null)
+                    foreach (var entry in Languages)
+                        if (entry["code"]?.ToString() is string code && !string.IsNullOrEmpty(code))
+                            codes.Add(code);
+                return codes;
+            }
+        }
+        /// <summary>Native name of a language ("Deutsch", "한국어"), or the code
+        /// itself when the registry has not arrived yet.</summary>
+        public static string LanguageNativeName(string code)
+        {
+            if (Languages != null)
+                foreach (var entry in Languages)
+                    if (entry["code"]?.ToString() == code)
+                        return entry["native"]?.ToString() ?? code;
+            return code;
+        }
+        /// <summary>Font-stack hint for a language: "latin" (shipped face) or
+        /// "cjk" (needs a fallback font asset).</summary>
+        public static string LanguageFontHint(string code)
+        {
+            if (Languages != null)
+                foreach (var entry in Languages)
+                    if (entry["code"]?.ToString() == code)
+                        return entry["font"]?.ToString() ?? "latin";
+            return "latin";
+        }
+
         public static void Ingest(string configsBody)
         {
             if (string.IsNullOrEmpty(configsBody))
@@ -56,6 +96,7 @@ namespace Core.App
             try
             {
                 var root = JObject.Parse(configsBody);
+                Languages = root["languages"] as JArray;
                 if (root["fleet"] is JObject fleet)
                 {
                     SublightSpeedCap = FocusContext.AsFloat(fleet["sublightSpeedCap"]);

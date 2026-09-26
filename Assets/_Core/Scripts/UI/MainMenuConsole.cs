@@ -59,6 +59,7 @@ namespace Core.UI
         FormMode _mode = FormMode.SignIn;
         PanelMode _panel = PanelMode.Forms;
         bool _busy;
+        Button _continueBtn, _quitBtn, _logoutBtn, _languageBtn;
 
         public void Bind(CicEnvironment env)
         {
@@ -68,6 +69,7 @@ namespace Core.UI
         public async void Build()
         {
             await Trans.EnsureLoaded();
+            Core.Vfx.TmpFonts.EnsureForLanguage(Trans.Lang);
             EnsureEventSystem();
             _canvas = CreateCanvas();
             var root = Panel(_canvas.transform, new Vector2(1100f, 640f));
@@ -124,9 +126,67 @@ namespace Core.UI
 
             _latest = Label(root, string.Empty, 17f, FontStyles.Normal, new Vector2(0f, 78f), Amber);
             _latest.richText = true;
-            Button(root, Trans.Get("vr.menu.continue"), new Vector2(0f, 30f), EnterBridge, DiegeticUi.BtnStyle.Cyan);
-            Button(root, Trans.Get("quit"), new Vector2(0f, -55f), QuitApp, DiegeticUi.BtnStyle.Ghost);
-            Button(root, Trans.Get("logout"), new Vector2(0f, -140f), DoLogout, DiegeticUi.BtnStyle.Danger);
+            _continueBtn = Button(root, Trans.Get("vr.menu.continue"), new Vector2(0f, 30f), EnterBridge,
+                DiegeticUi.BtnStyle.Cyan);
+            _quitBtn = Button(root, Trans.Get("quit"), new Vector2(0f, -55f), QuitApp, DiegeticUi.BtnStyle.Ghost);
+            _logoutBtn = Button(root, Trans.Get("logout"), new Vector2(0f, -140f), DoLogout, DiegeticUi.BtnStyle.Danger);
+
+            // Language: one diegetic button cycling the registry, labelled with
+            // each language's own name (GetConfigs.languages). Everything built
+            // from here on — the Bridge, the stations — reads the new language;
+            // this panel's own labels are refreshed on the spot.
+            _languageBtn = Button(root, LanguageLabel(), new Vector2(0f, -215f), CycleLanguage,
+                DiegeticUi.BtnStyle.Ghost);
+        }
+
+        /// <summary>Native name of the current language ("Deutsch", "한국어"),
+        /// or its code when the registry has not arrived yet.</summary>
+        static string LanguageLabel()
+        {
+            var native = Trans.NativeName(Trans.Lang);
+            return native == Trans.Lang ? Trans.Lang.ToUpperInvariant() : native;
+        }
+
+        void CycleLanguage()
+        {
+            if (_busy)
+                return;
+
+            var codes = Trans.SupportedLanguages;
+            if (codes.Count == 0)
+                return;
+
+            var index = 0;
+            for (var i = 0; i < codes.Count; i++)
+                if (codes[i] == Trans.Lang)
+                    index = i;
+
+            Trans.Lang = codes[(index + 1) % codes.Count];
+            _ = RefreshLanguage();
+        }
+
+        /// <summary>Switching language drops the translation dump: pull the new
+        /// one, then relabel what this panel already shows.</summary>
+        async Task RefreshLanguage()
+        {
+            await Trans.EnsureLoaded();
+            Core.Vfx.TmpFonts.EnsureForLanguage(Trans.Lang);
+
+            SetLabel(_languageBtn, LanguageLabel());
+            SetLabel(_continueBtn, Trans.Get("vr.menu.continue"));
+            SetLabel(_quitBtn, Trans.Get("quit"));
+            SetLabel(_logoutBtn, Trans.Get("logout"));
+            if (_hubGreeting != null)
+                _hubGreeting.text = Trans.Get("welcome");
+        }
+
+        static void SetLabel(Button button, string label)
+        {
+            if (button == null)
+                return;
+            var text = button.GetComponentInChildren<TMPro.TextMeshProUGUI>();
+            if (text != null)
+                text.text = label;
         }
 
         async Task TryAutoLogin()

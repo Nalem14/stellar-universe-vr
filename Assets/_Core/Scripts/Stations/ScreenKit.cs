@@ -165,7 +165,10 @@ namespace Core.Stations
                 return string.Empty;
             var en = Core.App.FocusContext.AsString(o[field + "_en"]);
             var fr = Core.App.FocusContext.AsString(o[field]);
-            return Trans.Lang == "en" && en.Length > 0 ? en : fr;
+            // Server texts only carry a French and an English variant: French
+            // reads the stored one, every other language the English one (and
+            // falls back to the stored text when there is none).
+            return Trans.Lang != "fr" && en.Length > 0 ? en : fr;
         }
 
         /// <summary>Time left as the rest of the bridge shows it (<see cref="Core.Holo.TravelPlanner.TimeText"/>).</summary>

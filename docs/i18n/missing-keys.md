@@ -52,3 +52,4 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 | Source web | Restant | Notes |
 |---|---|---|
 | `GetActivity` (DB) | Entrées du journal d'activité stockées en anglais / FR brut | Migration future : stocker clé + params, localiser à la lecture |
+| `assets/langs/{de,es,it,pt,ru,ko,ja,zh}.json` | Valeurs **anglaises** (fichiers créés, prêts à traduire) | L'outil admin Translate les liste ; serveur et clients retombent sur l'anglais pour toute clé non traduite |
