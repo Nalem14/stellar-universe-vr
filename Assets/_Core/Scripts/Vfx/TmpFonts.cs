@@ -12,48 +12,40 @@ namespace Core.Vfx
     /// as-is. Korean, Japanese and Chinese need a font that actually has the
     /// glyphs — without one every CJK string shows as missing-glyph boxes.
     ///
-    /// Drop a generated TMP font asset at <c>Resources/Fonts/CJK SDF</c> (dynamic
-    /// atlas, built from a CJK face such as Noto Sans CJK / Source Han Sans — see
-    /// docs/PARITY.md, section « Langues ») and this wires it into the fallback
-    /// list of the font asset the UI already uses: no per-text change, no
-    /// pre-baked glyph atlas. Until the asset exists we log once and keep the
-    /// shipped face.
+    /// The three faces ship as Resources/Fonts/NotoSans{JP,KR,SC}-Regular.otf
+    /// (Noto Sans subset OTF, SIL OFL 1.1 — licence next to them). One face per
+    /// language on purpose: a Japanese face renders Chinese with Japanese glyph
+    /// forms, so the subset is what keeps the Han variants right.
+    ///
+    /// The TMP asset is built at runtime (dynamic atlas, glyphs rasterized on
+    /// demand), so the build carries the .otf (~4-8 MB) instead of a pre-baked
+    /// atlas, and there is no asset to regenerate when a face is updated.
     /// </summary>
     public static class TmpFonts
     {
-        const string CjkResourcePath = "Fonts/CJK SDF";
+        static readonly Dictionary<string, string> CjkFaceByLanguage = new()
+        {
+            { "ja", "Fonts/NotoSansJP-Regular" },
+            { "ko", "Fonts/NotoSansKR-Regular" },
+            { "zh", "Fonts/NotoSansSC-Regular" },
+        };
 
+        static readonly Dictionary<string, TMP_FontAsset> _built = new();
         static bool _warned;
-        static bool _wired;
 
-        /// <summary>Call with the language code after it changes (and at boot):
-        /// a no-op for the Latin/Cyrillic languages.</summary>
+        /// <summary>Hooks the face a CJK language needs into the fallback list of
+        /// the font asset the UI uses. No-op for every other language; call it at
+        /// boot and whenever the language changes.</summary>
         public static void EnsureForLanguage(string code)
         {
-            if (_wired || Core.App.GameConfig.LanguageFontHint(code) != "cjk")
+            if (code == null || !CjkFaceByLanguage.TryGetValue(code, out var resourcePath))
                 return;
 
-            var cjk = Resources.Load<TMP_FontAsset>(CjkResourcePath);
+            var cjk = Build(resourcePath);
             if (cjk == null)
-            {
-                if (!_warned)
-                {
-                    _warned = true;
-                    Debug.LogWarning($"[SU] no CJK font asset at Resources/{CjkResourcePath}: "
-                        + "Korean / Japanese / Chinese will render as missing glyphs. "
-                        + "See docs/PARITY.md (Langues).");
-                }
                 return;
-            }
 
-            var targets = new List<TMP_FontAsset>();
-            if (TMP_Settings.defaultFontAsset != null)
-                targets.Add(TMP_Settings.defaultFontAsset);
-            foreach (var font in Resources.FindObjectsOfTypeAll<TMP_FontAsset>())
-                if (font != null && !targets.Contains(font))
-                    targets.Add(font);
-
-            foreach (var font in targets)
+            foreach (var font in TargetFonts())
             {
                 if (font == cjk)
                     continue;
@@ -61,8 +53,43 @@ namespace Core.Vfx
                 if (!font.fallbackFontAssetTable.Contains(cjk))
                     font.fallbackFontAssetTable.Add(cjk);
             }
+        }
 
-            _wired = true;
+        /// <summary>Dynamic TMP asset for a shipped face, built once and kept.</summary>
+        static TMP_FontAsset Build(string resourcePath)
+        {
+            if (_built.TryGetValue(resourcePath, out var cached))
+                return cached;
+
+            var source = Resources.Load<Font>(resourcePath);
+            if (source == null)
+            {
+                if (!_warned)
+                {
+                    _warned = true;
+                    Debug.LogWarning($"[SU] no font at Resources/{resourcePath}: "
+                        + "Korean / Japanese / Chinese will render as missing glyphs.");
+                }
+                return null;
+            }
+
+            var asset = TMP_FontAsset.CreateFontAsset(source);
+            if (asset == null)
+                return null;
+
+            asset.name = source.name + " SDF";
+            _built[resourcePath] = asset;
+            return asset;
+        }
+
+        static IEnumerable<TMP_FontAsset> TargetFonts()
+        {
+            if (TMP_Settings.defaultFontAsset != null)
+                yield return TMP_Settings.defaultFontAsset;
+
+            foreach (var font in Resources.FindObjectsOfTypeAll<TMP_FontAsset>())
+                if (font != null)
+                    yield return font;
         }
     }
 }
