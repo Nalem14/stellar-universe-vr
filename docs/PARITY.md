@@ -284,6 +284,7 @@ Corrigés dans `stellar-universe` (`7580501`, 2026-09-25) — le client VR ne co
 | Clés Comms et porte (`vr.comms.*`, `vr.gate.*`, `crew.comms.*`) en fr/en ; erreurs Comms et courriers système localisés | Fait |
 | Clés Sas (`vr.sas.*`, accueil au login) en fr/en | Fait |
 | Clés de l'écran principal du pont (`vr.screen.*` 21 clés, `vr.corridor.enter`, `vr.armory.nearby`) en fr/en | Fait |
+| Clés « À l'écran » (`vr.screen.onScreen` / `salvo` / `destroyed` / `bombard` / `contact` / `departure` / `arrival` + répliques `crew.*.onScreen` / `noScreen`) en fr/en | Fait |
 
 ### Restants
 
