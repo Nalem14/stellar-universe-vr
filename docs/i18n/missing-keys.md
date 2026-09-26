@@ -29,18 +29,9 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 - Contenu lu dynamiquement par le VR (noms = type du serveur) : troupes `Infantry`, `HeavyTrooper`, `ExoArmorTrooper`, `CyberneticVanguard`, `CombatDroneSquad`, `SynthWarrior` et défenses `MissileTurret`, `FlakCannon`, `PlasmaBattery`, `IonDefenseGrid`, `RailgunBastion`, `QuantumShieldArray` (affichés par `ResearchCatalog.Unlocks`) ; descriptions `descBondPRLModule` et `descTroopBay` (en). Le VR retombe sur la casse native (`Trans.Get`) pour `ScienceModule` / `TroopBay`, absents en PascalCase côté web.
 - Remaps client (§1) : le code VR utilise les clés natives (`fleets`, `asteroidField`, `moveToSystem`, `defendPosition*`, `explorePlanet`, `depositCargo`, `withdrawCargo`, `harvestAsteroid`, `attackOrbit`, `cancel`, `sublight` / `hyperdrive`, `buildingDesc_<type>`, plaques `vr.station.*`, etc.).
 
+- Helm (P5 — portail de saut, accélération, astéroïdes) : `vr.jumpgate.ready` / `recharging` / `none` et répliques `crew.helm.jumpgate.1` / `jumpgate.2` / `speedup.1` dans `assets/langs/{fr,en}.json`.
+
 ---
-
-## Helm — portail de saut, accélération, astéroïdes (P5 — à intégrer)
-
-| Clé | EN | FR | Contexte |
-|---|---|---|---|
-| `vr.jumpgate.ready` | Jumpgate ready · {0} destination(s) | Portail de Saut prêt · {0} destination(s) | Table : vaisseau à quai sur un monde à portail |
-| `vr.jumpgate.recharging` | Jumpgate recharging · {0} | Portail de Saut en recharge · {0} | {0} = temps restant (~12:30) |
-| `vr.jumpgate.none` | No other Jumpgate in the empire | Aucun autre Portail de Saut dans l'empire | Réseau vide |
-| `crew.helm.jumpgate.1` | Gate open, folding space. Destination: {0}. | Portail ouvert, on plie l'espace. Destination : {0}. | Saut par portail envoyé |
-| `crew.helm.jumpgate.2` | Jumpgate engaged. We come out at {0}. | Portail engagé. Sortie sur {0}. | Idem |
-| `crew.helm.speedup.1` | Full burn, Commander. {0} is there. | Poussée maximale, Commandant. {0} est arrivé. | Voyage terminé pour Nova |
 
 ## Anomalies (intégré web)
 

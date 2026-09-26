@@ -16,7 +16,7 @@ Généré depuis `action-api.json` (158 actions), `actionjs.php` et un grep des 
 | Domaine | Appelées en VR | Total | % |
 |---|---|---|---|
 | Auth | 3 | 3 | 100 % |
-| Méta / boot | 3 | 5 | 60 % |
+| Méta / boot | 5 | 5 | 100 % |
 | Caméra (vue) | 2 | 2 | 100 % |
 | Galaxie | 8 | 8 | 100 % |
 | Flotte | 21 | 23 | 91 % |
@@ -29,7 +29,7 @@ Généré depuis `action-api.json` (158 actions), `actionjs.php` et un grep des 
 | Guerre | 9 | 9 | 100 % |
 | Alliance | 17 | 17 | 100 % |
 | Empire / progression / shop | 24 | 27 | 89 % |
-| **Total** | **143** | **158** | **91 %** |
+| **Total** | **145** | **158** | **92 %** |
 
 Appelées par le client web : 139/158. « Appelée » ≠ « finie » : voir la colonne *Statut*.
 
@@ -47,8 +47,8 @@ Appelées par le client web : 139/158. « Appelée » ≠ « finie » : voir la 
 |---|---|---|---|---|---|---|---|---|
 | `GetConfigs` | R | — | `App/DiplomacyIndex.cs` +4 | `scripts/configs.js` | Système (boot) | P0 | Branché |  |
 | `GetEventData` | R | — | `Stations/QuartersRoom.cs` | `ui/ProgressionWindowUI.js` | Quartiers du commandant | P0 | Branché | Onglet Événement : objectifs, boss mondial (PV, nos dégâts, tête du classement) |
-| `GetGameAnnouncements` | R | — | — | `scenes/ui.js` | Sas (Menu) | P6 | À faire |  |
-| `GetLatestNews` | R | — | — | — | Sas (Menu) | P6 | À faire |  |
+| `GetGameAnnouncements` | R | — | `UI/SasTransmissions.cs` | `scenes/ui.js` | Sas (Menu) | P6 | Branché |  |
+| `GetLatestNews` | R | — | `UI/MainMenuConsole.cs` | — | Sas (Menu) | P6 | Branché |  |
 | `GetTranslations` | R | — | `Utils/Trans.cs` | — | Système (boot) | P0 | Branché |  |
 
 ## Caméra (vue)
@@ -402,10 +402,11 @@ Corrigés dans `stellar-universe` (`7580501`, 2026-09-25) — le client VR ne co
 - **`GetEmpire` sans garde** : ✅ `error:noEmpire` pour un compte sans empire (ou un id inconnu).
 - **Web — récompense de niveau affichée fausse** : ✅ la fenêtre Progression annonce `25 × nouveau niveau`, la formule du serveur (`AddEmpireXP`).
 
-### Helm (à traiter, 2026-09-26)
+### Helm (corrigés, 2026-09-26)
 
-- **`SpeedupFleetTravel` n'a pas de handler** : l'action est documentée dans `action-api.json` (retour `{ok, cost, nova, fleet}`) et appelée par le web (`Helper.promptSpeedupFleetTravel` depuis `FleetWindowUI`, `FleetsWindowUI`, `FleetOrdersPanelUI`, et `view/game.php`), mais aucun `addAction("SpeedupFleetTravel", …)` n'existe dans `actionjs.php`. Le serveur répond un corps vide (action inconnue) : le bouton du web ne fait rien (corps vide = réponse ignorée, aucun message), et la VR le refuse faute de `{ok: true}`. À écrire : même garde que `SpeedupBuilding` (vaisseau à nous, `desttime > time()`, pas en combat), coût `CalculateNovaFleetSpeedupCost(desttime − time())` (déjà dans `Helper.php`), débit Nova, `desttime = time()` sur la flotte, `ForgetCache("fleets")`.
-- **`GetConfigs` n'expose pas `$JUMPGATE`** (`cooldown`, `jumpCost`, `transitTime`) : impossible d'afficher le coût d'un saut par portail avant de l'envoyer sans recopier la config en dur. Proposition : `"jumpgate" => $JUMPGATE` dans `GetConfigs` — la VR lit déjà `GetConfigs.jumpgate` et affiche le coût dès qu'il est présent (en attendant, le pupitre n'indique que la recharge, le serveur refuse si les ressources manquent).
+- **`SpeedupFleetTravel` n'avait pas de handler** : ✅ `addAction("SpeedupFleetTravel", ['fleet'], …)` écrit dans `actionjs.php`. Garde miroir de `SpeedupBuilding` (vaisseau à nous, `desttime > time()`, pas en combat), coût `CalculateNovaFleetSpeedupCost(desttime − time())`, débit Nova sur l'empire, `desttime = time()` sur la flotte, `ForgetCache("fleets")` + `fleet-<id>-data`, `AddActivity`. Retour conforme au contrat : `{ok, cost, nova, fleet}`. Flux vérifié par exécution (6 cas : flotte absente / pas à nous / à l'arrêt / en combat / Nova insuffisant / succès).
+- **`GetConfigs` n'exposait pas `$JUMPGATE`** : ✅ `"jumpgate" => $JUMPGATE` ajouté au payload (et `$JUMPGATE` au `use(...)` du closure) — `cooldown`, `jumpCost`, `transitTime` sont donc lisibles avant d'envoyer un saut, sans recopier la config. `jumpModuleRequirement` et `prlBond`, présents dans le payload mais absents du contrat, sont documentés au passage dans `action-api.json`.
+- **Clés i18n inexistantes** : `error_fleet_not_found` / `error_fleet_not_yours` (utilisées par `RenameFleet` et `UpdateFleetDefendPosition`) n'existent pas dans `assets/langs/{fr,en}.json` → le joueur lisait `translation.error_fleet_not_found`. ✅ Remplacées par les clés natives existantes `fleetNotFound` / `notYourFleet`.
 
 ### Spec livrée — `CreateEmpire`
 
