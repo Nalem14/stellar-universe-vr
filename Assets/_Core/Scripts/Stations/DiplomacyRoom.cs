@@ -18,7 +18,7 @@ namespace Core.Stations
     /// The diplomacy chamber — web WarsWindowUI + AllianceWindowUI as a place. A round hall: the empire orrery
     /// ahead (our flag at the heart, every other empire around it, tethers in stance colour), a hemicycle with
     /// a seat per empire, our alliance's banners and crest on the far wall. Two desks at the stand:
-    /// the Dossier (left) — the empire picked on the orrery: relation (GetRelation), standing, and what we can do
+    /// the Dossier (left) — the empire picked on the orrery: relation (GetRelation), alliance tag, standing, and what we can do
     /// to it: DeclareWar with demands (GetEmpirePlanets → planets, resource quantities), InviteToAlliance /
     /// CancelAllianceInvite; the Chancellery (right) — Conflicts (GetMyWars, GetWarDetails: peace offers,
     /// surrender / capitulation), Alliance (GetMyAlliance: description, roles, kick, transfer, applications,
@@ -50,7 +50,6 @@ namespace Core.Stations
         const int MembersPerPage = 4;
         const int AlliancesPerPage = 5;
         const int PlanetsPerPage = 8;
-        const string SentKey = "su.diplo.sent.v1";
         static readonly string[] Res = { "mineral", "crystal", "biomass" };
         static readonly int[] ResSteps = { -10000, -1000, 1000, 10000 };
 
@@ -97,8 +96,6 @@ namespace Core.Stations
         string _confirm;
         float _confirmUntil;
         bool _busy;
-        readonly Dictionary<int, int> _sentInvites = new();
-        readonly Dictionary<int, int> _sentApplications = new();
 
         // ── Build ─────────────────────────────────────────────────────────────────
 
@@ -110,7 +107,6 @@ namespace Core.Stations
             room._art = art;
             room.BuildHall();
             room.BuildScreens();
-            room.LoadSent();
             go.SetActive(false);
             return room;
         }
@@ -623,24 +619,14 @@ namespace Core.Stations
                 Trans.Format("vr.diplo.invited", EmpireName(target)));
             if (ok == null)
                 return;
-            _sentInvites[target] = FocusContext.AsInt(ok["inviteId"]);
-            SaveSent();
             Core.Crew.BarkDirector.Instance?.Say(CrewDialogue.Role.Comms, "sent", 1);
             RenderDossier();
         }
 
-        async Task CancelInvite(int empireId)
+        async Task CancelInvite(int invite)
         {
-            if (!_sentInvites.TryGetValue(empireId, out var invite))
-                return;
-            var ok = await Order(_dossierStatus, "CancelAllianceInvite", Args("invite", invite.ToString()),
+            await Order(_dossierStatus, "CancelAllianceInvite", Args("invite", invite.ToString()),
                 Trans.Get("vr.diplo.inviteCancelled"));
-            // Gone either way (cancelled now, or already answered / expired server-side).
-            _sentInvites.Remove(empireId);
-            SaveSent();
-            if (ok == null)
-                return;
-            RenderDossier();
         }
 
         async Task Apply(int allianceId, string name)
@@ -649,21 +635,13 @@ namespace Core.Stations
                 Trans.Format("vr.diplo.applied", name));
             if (ok == null)
                 return;
-            _sentApplications[allianceId] = FocusContext.AsInt(ok["inviteId"]);
-            SaveSent();
             Core.Crew.BarkDirector.Instance?.Say(CrewDialogue.Role.Comms, "sent", 1);
-            RenderChancellery();
         }
 
-        async Task CancelApplication(int allianceId)
+        async Task CancelApplication(int invite)
         {
-            if (!_sentApplications.TryGetValue(allianceId, out var invite))
-                return;
             await Order(_chancelleryStatus, "CancelAllianceInvite", Args("invite", invite.ToString()),
                 Trans.Get("vr.diplo.applicationCancelled"));
-            _sentApplications.Remove(allianceId);
-            SaveSent();
-            RenderChancellery();
         }
 
         async Task WarOrder(string action, int war, string okKey)
@@ -821,8 +799,10 @@ namespace Core.Stations
             var atWar = svc?.ActiveWarWith(id);
             var member = svc != null && svc.IsMember(id);
             var stanceColor = atWar != null ? WarRed : member ? UiKit.Ok : DiplomacyIndex.Tint(DiplomacyIndex.Resolve(FocusContext.AsInt(e["userid"])));
-            Line(_dossierBody, "<b>" + Verbatim(name) + "</b>  <size=75%><color=#9fdcff>" +
-                               Verbatim(FocusContext.AsString(e["username"])) + "</color></size>", 70f, 180f, 24f,
+            var tag = FocusContext.AsString(e["allianceTag"]);
+            Line(_dossierBody, "<b>" + Verbatim(name) + "</b>" +
+                               (tag.Length > 0 ? "  <color=#ffd27a>[" + Verbatim(tag) + "]</color>" : string.Empty) +
+                               "  <size=75%><color=#9fdcff>" + Verbatim(FocusContext.AsString(e["username"])) + "</color></size>", 70f, 180f, 24f,
                 UiKit.TextBright, 820f);
             var leader = (FocusContext.AsString(e["leaderTitle"]) + " " + FocusContext.AsString(e["leaderName"])).Trim();
             Line(_dossierBody, (leader.Length > 0 ? Verbatim(leader) + "   ·   " : string.Empty) + "<color=#" +
@@ -867,9 +847,10 @@ namespace Core.Stations
 
             if (svc != null && svc.CanManage)
             {
-                if (_sentInvites.ContainsKey(id))
+                var pending = svc.InviteTo(id);
+                if (pending > 0)
                     Small(DiegeticUi.HoloButton(_dossierBody, Trans.Get("vr.diplo.cancelInvite"), new Vector2(200f, -20f),
-                        new Vector2(400f, 58f), () => Run(CancelInvite(id)), DiegeticUi.BtnStyle.Ghost), 14f, 22f);
+                        new Vector2(400f, 58f), () => Run(CancelInvite(pending)), DiegeticUi.BtnStyle.Ghost), 14f, 22f);
                 else
                     Small(DiegeticUi.HoloButton(_dossierBody, Trans.Get("inviteToAlliance"), new Vector2(200f, -20f),
                         new Vector2(400f, 58f), () => Run(Invite()), DiegeticUi.BtnStyle.Cyan), 14f, 22f);
@@ -910,13 +891,6 @@ namespace Core.Stations
                 Line(_dossierBody, Trans.Get("noPlanetsFound"), 230f, 22f, 16f, DiegeticUi.CyanDim, 560f);
             else
             {
-                var stock = new float[3];
-                foreach (var p in _targetPlanets)
-                    for (var r = 0; r < 3; r++)
-                        stock[r] += FocusContext.AsFloat(p[Res[r]]);
-                Line(_dossierBody, Trans.Format("vr.diplo.stock", Num(stock[0], 0), Num(stock[1], 0), Num(stock[2], 0)), 230f, 22f,
-                    15f, DiegeticUi.CyanDim, 560f, TextAlignmentOptions.MidlineRight);
-
                 var pages = Mathf.Max(1, Mathf.CeilToInt(_targetPlanets.Count / (float)PlanetsPerPage));
                 _planetPage = Mathf.Clamp(_planetPage, 0, pages - 1);
                 var first = _planetPage * PlanetsPerPage;
@@ -1338,9 +1312,9 @@ namespace Core.Stations
                 Line(_chancelleryBody, Verbatim(FocusContext.AsString(a["description"])), -170f, y - 14f, 14f, UiKit.TextDim, 700f);
                 if (id == mine)
                     Line(_chancelleryBody, Trans.Get("myAlliance"), 380f, y, 17f, UiKit.Ok, 280f, TextAlignmentOptions.Center);
-                else if (_sentApplications.ContainsKey(id))
+                else if (svc.ApplicationTo(id) is var application && application > 0)
                     Small(DiegeticUi.HoloButton(_chancelleryBody, Trans.Get("vr.diplo.cancelApply"), new Vector2(380f, y),
-                        new Vector2(280f, 46f), () => Run(CancelApplication(id)), DiegeticUi.BtnStyle.Ghost));
+                        new Vector2(280f, 46f), () => Run(CancelApplication(application)), DiegeticUi.BtnStyle.Ghost));
                 else if (mine == 0)
                     Small(DiegeticUi.HoloButton(_chancelleryBody, Trans.Get("applyToAlliance"), new Vector2(380f, y),
                         new Vector2(280f, 46f), () => Run(Apply(id, name)), DiegeticUi.BtnStyle.Cyan));
@@ -1393,40 +1367,6 @@ namespace Core.Stations
             {
                 return new JArray();
             }
-        }
-
-        /// <summary>
-        /// Invitations and applications we sent (their ids come back only in the order's answer: the server lists
-        /// neither — docs/PARITY.md), kept on the headset so they can be withdrawn later.
-        /// </summary>
-        void LoadSent()
-        {
-            try
-            {
-                var o = JObject.Parse(PlayerPrefs.GetString(SentKey, "{}"));
-                if (o["inv"] is JObject inv)
-                    foreach (var p in inv.Properties())
-                        _sentInvites[int.Parse(p.Name)] = (int)p.Value;
-                if (o["app"] is JObject app)
-                    foreach (var p in app.Properties())
-                        _sentApplications[int.Parse(p.Name)] = (int)p.Value;
-            }
-            catch
-            {
-                // Nothing remembered.
-            }
-        }
-
-        void SaveSent()
-        {
-            var inv = new JObject();
-            foreach (var kv in _sentInvites)
-                inv[kv.Key.ToString()] = kv.Value;
-            var app = new JObject();
-            foreach (var kv in _sentApplications)
-                app[kv.Key.ToString()] = kv.Value;
-            PlayerPrefs.SetString(SentKey, new JObject { ["inv"] = inv, ["app"] = app }.ToString(Newtonsoft.Json.Formatting.None));
-            PlayerPrefs.Save();
         }
 
         void Update()

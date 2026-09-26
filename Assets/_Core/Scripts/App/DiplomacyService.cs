@@ -27,6 +27,8 @@ namespace Core.App
         public JArray Invites { get; private set; } = new();
         /// <summary>GetMyAlliance.alliance — null when the empire belongs to none.</summary>
         public JObject Alliance { get; private set; }
+        /// <summary>GetMyAlliance.myApplications — our pending applications while unaligned.</summary>
+        public JArray MyApplications { get; private set; } = new();
         public bool Loaded { get; private set; }
         public event Action Changed;
 
@@ -67,6 +69,25 @@ namespace Core.App
                 if (IsActive(w) && Opponent(w) == empireId)
                     return w;
             return null;
+        }
+
+        /// <summary>Id of our alliance's pending invitation to <paramref name="empireId"/> (officers), or 0.</summary>
+        public int InviteTo(int empireId)
+        {
+            if (Alliance?["invites"] is JArray invites)
+                foreach (var i in invites)
+                    if (FocusContext.AsInt(i["empireId"]) == empireId)
+                        return FocusContext.AsInt(i["id"]);
+            return 0;
+        }
+
+        /// <summary>Id of our pending application to <paramref name="allianceId"/>, or 0.</summary>
+        public int ApplicationTo(int allianceId)
+        {
+            foreach (var a in MyApplications)
+                if (FocusContext.AsInt(a["allianceId"]) == allianceId)
+                    return FocusContext.AsInt(a["id"]);
+            return 0;
         }
 
         public bool IsMember(int empireId)
@@ -141,7 +162,9 @@ namespace Core.App
                 {
                     try
                     {
-                        newAlliance = JObject.Parse(alliance.Result.Body)["alliance"] as JObject;
+                        var root = JObject.Parse(alliance.Result.Body);
+                        newAlliance = root["alliance"] as JObject;
+                        MyApplications = root["myApplications"] as JArray ?? new JArray();
                     }
                     catch
                     {

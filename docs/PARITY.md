@@ -362,13 +362,12 @@ Corrigés dans `stellar-universe` (`7580501`, 2026-09-25) — le client VR ne co
 - **`DeleteMail` répondait `ok` même si l'id n'existe pas** : ✅ `error:mail_not_found` quand rien n'a été supprimé (id inconnu ou courrier d'un autre).
 - **`GetPrivateMessages` marquait tout le fil lu** : ✅ seuls les messages réellement renvoyés par l'appel passent en lu — un poll incrémental ne vide plus le badge avant affichage.
 
-### Relevé en relisant les correctifs Comms et sièges (2026-09-26)
+### Comms et sièges (corrigés, 2026-09-26)
 
-- **La langue du courrier système est celle du serveur, pas du lecteur** : `LangFormat` résout à la lecture, mais `DetectLang()` ne lit que `$_GET['lang']`, la session, le cookie ou `Accept-Language` — le client VR n'envoie aucun des quatre (`ActionJs.BuildUrl` ne passe que l'action, les params et le token, et `GetTranslations` renvoie les deux langues pour un choix local). **À corriger côté VR** : ajouter `&lang=<Trans.Lang>` aux requêtes (rien à changer serveur), sinon un joueur FR reçoit ses alertes en anglais.
-- **L'e-mail externe garde la langue de l'émetteur** : `DispatchExternalEmailNotification` reçoit le texte déjà résolu dans la requête de l'attaquant. Aucune langue par utilisateur n'existe en base — à assumer ou à traiter avec la colonne ci-dessus.
-- **`DoAnAction` ne peut pas déplacer la flotte d'un joueur humain** : `actionjs.php` n'honore `ai=` que pour un compte `isAI = 1`, depuis le serveur lui-même. Le chemin « flotte en fuite » (`RUN_AWAY`) du résolveur de siège reste donc sans effet, et la flotte est quand même retirée du combat. Pré-existant ; à trancher (déplacer la flotte sans passer par l'action, ou retirer le `unset`).
-- **Planète orpheline = flotte parquée** : si la planète visée a été supprimée (le cron quotidien supprime les planètes dont le système n'existe plus) alors qu'une flotte attend `attackEndTime`, la jointure l'ignore et la flotte reste « en attaque » indéfiniment. Aucun nettoyage ne rattrape ce cas.
-- **Marquage « lu » d'un fil** : les ids renvoyés sont bien ceux marqués, mais au-delà de 50 nouveaux messages le client ne voit jamais les plus anciens (fenêtre `DESC LIMIT 50`) — ils restent non lus, ce qui est le comportement sûr.
+- **Langue des textes rendus par le serveur** : ✅ la VR envoie `&lang=<Trans.Lang>` à chaque requête (`DetectLang()` lit `$_GET['lang']` en premier).
+- **L'e-mail externe gardait la langue de l'émetteur** : ✅ `users.lang` (migration `v8`) retient la langue de la dernière requête authentifiée du joueur (`RememberUserLang`, un `UPDATE` seulement quand elle change) ; `DispatchExternalEmailNotification` résout l'objet et le contenu à clé ainsi que le gabarit (`email_*`) dans la langue du **destinataire** (`LangIn` / `LangFormatIn`). Le texte d'un joueur reste tel qu'il l'a écrit ; un compte qui n'a jamais rejoué depuis garde l'ancienne langue de repli (celle de la requête).
+- **`RUN_AWAY` sans effet sur un joueur humain** : ✅ `FleetRetreatToStar()` fait le retrait dans le processus (orbite quittée vers l'étoile du système, durée minimale de trajet, comme `MoveFleetToSystem` vers son propre système) au lieu de `DoAnAction`, refusé pour un compte humain. Les deux chemins (siège `CheckPlanetAttack`, `ResolvePlanetAttack`) l'utilisent.
+- **Siège sur une planète supprimée** : ✅ `ReleaseOrphanSieges()` (appelée par `GetExpiredSiegePlanets`) remet à zéro `attackEndTime` et l'orbite des flottes dont la planète n'existe plus, et de leurs modules.
 
 ### Stargate (corrigés, 2026-09-26)
 
@@ -384,15 +383,13 @@ Corrigés dans `stellar-universe` (`7580501`, 2026-09-25) — le client VR ne co
 - **`ResultLabel` traduit les codes d'échec** (`failed:*`) : ✅ committé avec la chambre diplomatique.
 - **La langue de requête** : ✅ `ActionJs.BuildUrl` ajoute `&lang=<Trans.Lang>` à chaque requête (`DetectLang()` lit `$_GET['lang']` en premier).
 
-### Diplomatie — relevé en construisant la chambre (2026-09-26)
+### Diplomatie (corrigés, 2026-09-26)
 
-- **Aucune action ne liste les invitations envoyées ni nos candidatures** : `CancelAllianceInvite` demande un `invite`, que seules les réponses de `InviteToAlliance` / `ApplyToAlliance` renvoient (`inviteId`). La VR garde ces ids sur le casque (PlayerPrefs) ; une invitation envoyée depuis le web ou un autre casque ne peut pas être retirée. **Proposé** : `GetMyAlliance.alliance.invites` (direction `invite`, `pending`, officiers) et `GetAllianceInvites.applications` (nos candidatures `pending`), avec `allianceName` / `empireName`.
-- **L'alliance d'un autre empire est inconnue** : `GetAlliances` ne liste pas ses membres et `GetEmpires` n'a pas de champ alliance — le dossier ne peut pas dire « membre de [TAG] ». **Proposé** : `allianceId` + `allianceTag` dans `GetEmpires`.
-- **Web — score de guerre vide** : `wars-window.hbs` affiche `{{warScore}}`, la colonne est `warScoreAttacker`.
-- **Web — confirmations sans texte** : `confirmSurrenderWar`, `confirmAcceptWarDemands`, `confirmTransferLeadership`, `confirmKickMember`, `confirmDisbandAlliance`, `confirmLeaveAlliance` sont absentes de `assets/langs/{fr,en}.json` (le `confirm()` montre la clé brute).
-- **Web — libellés FR codés en dur** dans `wars-window.hbs` / `alliance-window.hbs` (« Choisir un Empire cible », « Vous êtes l'attaquant », « Score de guerre », « Votre empire est en paix… », « Alliances Galactiques », « Enregistrer », « Vous »…) : les clés `vr.diplo.*` (missing-keys.md) peuvent servir aux deux clients.
-- **`GetEmpirePlanets` expose les stocks d'un autre empire** (`mineral` / `crystal` / `biomass` par planète) : utile pour chiffrer des exigences, mais c'est du renseignement gratuit sur n'importe qui. À trancher (garder, arrondir, ou réserver à un scan).
-- **Planètes sans nom** : les planètes IA sortent de `GetEmpirePlanets` avec `name` vide (la VR affiche `#id`).
+- **Invitations envoyées et candidatures introuvables** : ✅ `GetMyAlliance.alliance.invites` (officiers : invitations en attente, avec `empireName`) et `GetMyAlliance.myApplications` (sans alliance : nos candidatures, avec `allianceName` / `allianceTag`). La VR retire invitations et candidatures depuis ces listes (plus d'ids gardés sur le casque).
+- **Alliance des autres empires** : ✅ `GetEmpires` porte `allianceId` / `allianceTag` (une requête pour tous) ; le dossier affiche le tag.
+- **Stocks d'un autre empire exposés** : ✅ `GetEmpirePlanets` ne renvoie `mineral` / `crystal` / `biomass` que pour notre propre empire (le web ne les lisait pas ; la VR a retiré sa ligne « réserves connues »).
+- **Web** : ✅ score de guerre (`warScoreAttacker`), confirmations `confirm*` ajoutées aux langues, libellés FR de `wars-window.hbs` / `alliance-window.hbs` passés en clés (`vr.diplo.*` partagées, `warPickTarget`, `warSelectTarget`, `confirmDeclareWar`).
+- **Reste côté web** : aucune UI web ne retire une invitation ni une candidature (`CancelAllianceInvite` n'est appelée que par la VR) — les listes sont maintenant servies.
 
 ### Spec livrée — `CreateEmpire`
 
