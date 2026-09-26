@@ -33,16 +33,6 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 
 ---
 
-## Sas — accueil au login (P6 — à intégrer)
-
-| Clé | EN | FR | Contexte |
-|---|---|---|---|
-| `vr.sas.transmissions` | Transmissions | Transmissions | Titre du panneau d'accueil |
-| `vr.sas.newTransmission` | New transmission | Nouvelle transmission | Titre quand une actualité n'a pas été lue |
-| `vr.sas.events` | Events | Événements | Onglet (le natif `news` sert pour l'autre) |
-| `vr.sas.latest` | Latest transmission: {0} | Dernière transmission : {0} | Sous le nom du commandant, terminal du sas |
-| `vr.sas.toBridge` | To the bridge | Vers le pont | Porte d'embarquement du sas |
-
 ## Anomalies (intégré web)
 
 | Clé | EN | FR | Contexte |
