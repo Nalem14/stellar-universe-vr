@@ -91,6 +91,7 @@ namespace Core.App
                 asteroids.Updated += _zoneMap.RefreshAsteroidIntel;
             asteroids.Updated += _exterior.ApplyAsteroidReserves;
             ExteriorJumpgateFx.Attach(_exterior, _focus, economy);
+            ShipVoyage.Build(world.transform, _focus, _exterior, _viewRig, _loader, _poller);
             Core.Stations.GateRoom.Build(env.Art, economy);
             DiplomacyService.Build(interior.transform);
             Core.Stations.DiplomacyRoom.Build(env.Art);

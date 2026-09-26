@@ -811,7 +811,16 @@ namespace Core.Vfx
                 title = subject != null ? subject.Name : Trans.Get("vr.screen.transit");
                 if (!_transitSeen.TryGetValue(fleet.Id, out var seen) || seen <= 0 || seen >= fleet.DestTime)
                     _transitSeen[fleet.Id] = seen = now;
-                if (fleet.DestSystemId > 0 && fleet.DestSystemId != _focus.SystemId)
+                var voyage = ShipVoyage.Instance;
+                if (voyage != null && voyage.Active && voyage.DestinationSystem > 0)
+                {
+                    // Between systems: the drive and where it takes us (the server already files us there).
+                    body.AppendLine(Trans.Format("vr.screen.destination", GalaxyCatalog.Label(voyage.DestinationSystem)));
+                    body.AppendLine("<color=#7fd8ff>" + Trans.Get(VoyageLog.ModeKey(voyage.Mode)) + "</color>");
+                    if (voyage.BetweenSystems)
+                        subject = null;
+                }
+                else if (fleet.DestSystemId > 0 && fleet.DestSystemId != _focus.SystemId)
                     body.AppendLine(Trans.Format("vr.screen.destination", GalaxyCatalog.Label(fleet.DestSystemId)));
                 body.AppendLine(Trans.Format("vr.travel.eta", TravelPlanner.TimeText(fleet.DestTime - now)));
                 if (subject != null)
@@ -857,7 +866,9 @@ namespace Core.Vfx
             }
 
             _subject = subject;
-            _cam.Track(subject?.T, subject?.Radius ?? 1f);
+            // Between systems there is nothing out there to frame: the hull camera looks ahead into the transit.
+            var between = ShipVoyage.Instance != null && ShipVoyage.Instance.BetweenSystems;
+            _cam.Track(between ? null : subject?.T, subject?.Radius ?? 1f);
 
             var tint = mode == Mode.RedAlert ? Red : _accent;
             Set(_mode, mode switch

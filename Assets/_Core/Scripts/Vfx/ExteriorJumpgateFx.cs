@@ -68,9 +68,12 @@ namespace Core.Vfx
         readonly List<Gate> _gates = new();
         readonly List<Streak> _streaks = new();
 
+        public static ExteriorJumpgateFx Instance { get; private set; }
+
         public static ExteriorJumpgateFx Attach(SystemExterior exterior, FocusContext focus, EconomyService eco)
         {
             var fx = exterior.gameObject.AddComponent<ExteriorJumpgateFx>();
+            Instance = fx;
             fx._exterior = exterior;
             fx._focus = focus;
             fx._eco = eco;
@@ -98,6 +101,8 @@ namespace Core.Vfx
             if (_eco != null)
                 _eco.Changed -= Refresh;
             JumpgateNetwork.Jumped -= OnJumped;
+            if (Instance == this)
+                Instance = null;
             foreach (var g in _gates)
                 if (g.FieldMat != null)
                     Destroy(g.FieldMat);
@@ -327,6 +332,23 @@ namespace Core.Vfx
         }
 
         // ── Departures and arrivals ───────────────────────────────────────────────
+
+        /// <summary>World pose of the gate standing off <paramref name="planetId"/> (forward = its travel axis).</summary>
+        public bool TryGatePose(int planetId, out Vector3 pos, out Quaternion rot)
+        {
+            pos = default;
+            rot = Quaternion.identity;
+            var g = GateAt(planetId);
+            return g != null && Pose(g, out pos, out rot);
+        }
+
+        /// <summary>Open the fold field of the gate at <paramref name="planetId"/> (the inhabited ship comes through).</summary>
+        public void OpenGate(int planetId)
+        {
+            var g = GateAt(planetId);
+            if (g != null)
+                Open(g);
+        }
 
         Gate GateAt(int planetId)
         {

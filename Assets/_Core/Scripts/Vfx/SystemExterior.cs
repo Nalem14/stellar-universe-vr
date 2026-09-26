@@ -117,6 +117,22 @@ namespace Core.Vfx
             _content = go.transform;
         }
 
+        /// <summary>
+        /// Put the system away (the inhabited ship is between systems) or bring it back. Everything under the
+        /// exterior goes but the star sky, which follows the eye and stays.
+        /// </summary>
+        public void SetContentVisible(bool visible)
+        {
+            for (var i = 0; i < transform.childCount; i++)
+            {
+                var child = transform.GetChild(i);
+                if (child.GetComponent<SpaceBackdrop>() != null)
+                    continue;
+                if (child.gameObject.activeSelf != visible)
+                    child.gameObject.SetActive(visible);
+            }
+        }
+
         /// <summary>The exterior ship of <paramref name="fleetId"/> (our own hull is there too, hidden).</summary>
         public bool TryGetFleet(int fleetId, out Transform ship) =>
             _fleets.TryGetValue(fleetId, out ship) && ship != null;

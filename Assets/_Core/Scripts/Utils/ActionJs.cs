@@ -14,6 +14,9 @@ namespace Core.Utils
 
         public static Func<string> TokenProvider { get; set; }
 
+        /// <summary>Every accepted call (action, query, result) — lets views react to orders whoever issued them.</summary>
+        public static event Action<string, IDictionary<string, string>, ApiResult> Succeeded;
+
         public static async Task<ApiResult> Get(
             string action,
             IDictionary<string, string> query = null,
@@ -46,7 +49,17 @@ namespace Core.Utils
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             Debug.Log($"[SU] {action} ok ({DescribeBody(body)})");
 #endif
-            return ApiResult.Success(body);
+            var ok = ApiResult.Success(body);
+            try
+            {
+                Succeeded?.Invoke(action, query, ok);
+            }
+            catch (Exception e)
+            {
+                Debug.LogException(e);
+            }
+
+            return ok;
         }
 
         static string BuildUrl(string action, IDictionary<string, string> query, bool withToken)

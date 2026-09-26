@@ -56,9 +56,21 @@ namespace Core.App
             RestorePlayerParent();
         }
 
+        int _viewFleet = -1;
+        int _viewPlanet = -1;
+
         void OnFocusChanged()
         {
-            SnapToViewTarget(force: true);
+            // Boarding another ship / station puts the captain back on deck; the same ship entering a new
+            // system (a trip) leaves the player where they stand.
+            var boarded = _focus == null || _focus.ViewFleetId != _viewFleet || _focus.ViewPlanetId != _viewPlanet;
+            if (_focus != null)
+            {
+                _viewFleet = _focus.ViewFleetId;
+                _viewPlanet = _focus.ViewPlanetId;
+            }
+
+            SnapToViewTarget(force: true, onDeck: boarded);
         }
 
         void LateUpdate()
@@ -167,7 +179,7 @@ namespace Core.App
             _playerParented = false;
         }
 
-        void SnapToViewTarget(bool force)
+        void SnapToViewTarget(bool force, bool onDeck = true)
         {
             if (_viewShip == null || _exterior == null || _focus == null)
                 return;
@@ -199,6 +211,20 @@ namespace Core.App
 
             target.y = WorldScale.EclipticHeight;
 
+            // Between systems the voyage flies the ship (departure, transit, approach ending on this target).
+            var voyage = ShipVoyage.Instance;
+            if (voyage != null && voyage.TryPose(target, out var vPos, out var vRot))
+            {
+                _viewShip.SetPositionAndRotation(vPos, vRot);
+                _posVel = Vector3.zero;
+                _bank = 0f;
+                _bankVel = 0f;
+                if (force && onDeck)
+                    PutPlayerOnDeck();
+                SetHullVisible(false);
+                return;
+            }
+
             Vector3 lookDir;
             var fleetMot = _focus.FindViewFleet();
             if (fleetMot != null && fleetMot.IsMoving(UnixNow()) &&
@@ -229,7 +255,8 @@ namespace Core.App
                 _viewShip.rotation = targetYaw;
                 _bank = 0f;
                 _bankVel = 0f;
-                PutPlayerOnDeck();
+                if (onDeck)
+                    PutPlayerOnDeck();
             }
             else
             {

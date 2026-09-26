@@ -56,6 +56,9 @@ namespace Core.App
             var ship = _focus.FindViewFleet();
             if (ship == null || ship.SystemId <= 0 || ship.SystemId == _focus.SystemId)
                 return;
+            // A trip flown from the bridge swaps systems behind its transit effect, not behind a fade.
+            if (ShipVoyage.Instance != null && ShipVoyage.Instance.Claim(ship))
+                return;
             AsyncTap.Run(LoadShipView(ship.Id, ship.SystemId));
         }
 

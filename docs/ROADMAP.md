@@ -229,6 +229,27 @@ Remplacer les hublots avant par **un très grand écran incurvé** (viewscreen �
 - **Perfs** : une seule caméra supplémentaire, résolution et fréquence adaptatives, désactivée quand l'écran sort du champ de vision ; aucune géométrie dupliquée (même extérieur que les hublots).
 - Dépend de : `SystemExterior`, `CombatEvents` (tirs, sièges, transferts), `TacticalCommand.AimedTarget`, `BarkDirector` (répliques « à l'écran »).
 
+### P5.7 — Voyages vécus depuis le pont (idée joueur 2026-09-26)
+Changer de système doit se **voir** : le vaisseau part, quitte le système, le nouveau se charge sans écran noir, puis on approche la destination. Le rendu dépend de la propulsion choisie.
+
+**Lot 1 ✅** (Editor ; sous-lumière testée en réel aller-retour (5, 1) ⇄ (5, 3) ; hyperespace, bond PRL et portail vérifiés en simulation faute de modules sur le compte ; pas testé en casque) :
+- **`ShipVoyage`** : machine d'états du vaisseau habité. Le serveur range le vaisseau dans le système cible dès l'ordre (`systemid` = destination, `from`, `desttime`), donc le pont ne suit plus en fondu noir. Trois phases :
+  1. **Départ** (système d'origine) : mise en cap, puis selon le mode : accélération hors du système, charge du réacteur, cage PRL, plongée dans le portail ;
+  2. **Transit** : l'extérieur est rangé et la destination chargée derrière l'effet (plus de fondu) ; la table holo montre déjà la destination ;
+  3. **Arrivée** : calée pile sur `desttime`, le système apparaît et le vaisseau freine jusqu'à son poste (orbite, champ, bord du système).
+  Une accélération Nova avance l'arrivée en direct ; monter à bord d'un vaisseau déjà en route reprend le voyage à la bonne phase.
+- **Mode de trajet** (`VoyageLog`) : enregistré quand l'ordre part du casque (`ActionJs.Succeeded`, réponse `ok:sublight_*` comprise), sinon déduit des durées (transit PRL et portail courts et fixes, hyperespace plus rapide que le plafond sous-lumière).
+- **Rendu par mode** (`VoyageFx`, un seul jeu d'objets sur le vaisseau, éteint au repos) :
+  - sous-lumière : lignes de poussière, voile ionique discret, étoile de départ qui rapetisse à l'arrière, étoile visée qui grossit devant ;
+  - hyperespace : les étoiles s'étirent, éclair, vortex bleu (`SU/WarpTunnel`), sortie en éclair et onde de choc ;
+  - bond PRL : une cage-treillis dorée se referme sur la coque, repli doré en losanges, sortie en onde de choc ;
+  - portail : le vaisseau plonge dans l'anneau, anneaux violets qui défilent, sortie par le portail de destination qui s'ouvre.
+  Lumière de l'espace dans les pièces (`_SU_VoyageTint` dans `SU/HullInterior`), sons procéduraux (charge, saut, sortie, bourdonnement). Ni secousse ni roulis : la pièce reste immobile (confort Quest).
+- **Écran principal** : carte de transit avec destination et mode, vue avant pendant le transit, légendes de départ et d'arrivée pilotées par le voyage (avant, la bascule serveur faisait afficher « Arrivée » au départ). La caméra de coque se lisse désormais dans le repère du pont : elle ne traîne plus dans la pièce quand le vaisseau file.
+- **Barre** : répliques au passage en transit et à la sortie (clés dans `missing-keys.md`).
+- Le joueur reste où il est pendant un voyage (plus de retour forcé au fauteuil quand seul le système change).
+- Reste : effets de départ et d'arrivée pour les **autres** vaisseaux vus par les hublots (flash de saut, sortie d'hyperespace), sillage moteur sur les trajets intra-système, pièces annexes (couloir, labo…) qui ne suivent pas encore le vaisseau pendant un départ.
+
 ### P6 — Méta
 - ✅ **Quartiers du commandant** (Editor ; lectures réelles, `SetPolitics` testé aller-retour, aucun achat) : cabine au-dessus du vaisseau par la porte tribord de la cloison arrière, grande baie sur le vrai système. Bureau en bois sombre avec l'écran **Empire** incliné bas : identité (renommer, drapeau), autorité et éthiques (jetons, deux temps), politiques (8 catégories), espèce (type, traits, un jeton), journal de bord (`GetActivity`). Console **Progression** (niveau, objectifs du jour / semaine / mois, succès filtrés, événement et boss mondial) et **mur des trophées** (18 plaques). Console **Boutique** (boosters, consommables, cosmétiques, titres, packs et historique Nova). Plaque du bureau et vitrine = titre équipé, drapeau, couleur de flotte ; la couleur équipée teinte aussi **nos coques dehors**. Terminal **Comms** mural (la console Comms s'y ancre). Reste : recharge Nova depuis le casque (aucun chemin de paiement VR), lit / étagères perso.
 - ✅ **Sas — accueil au login** (Editor ; vraies données) : le sas est refait en rotonde (mur courbe tourné, corniche et coupole à oculus ouvert sur les étoiles, nervures qui suivent le profil, grande baie panoramique sur une planète) ; terminal sur pied tourné. Panneau **Transmissions** sur un lutrin à gauche du terminal : événements (fin, faction, boss mondial) et actualités (image serveur, corps HTML converti, pages) — `GetGameAnnouncements` ; dernière actualité sous le nom du commandant — `GetLatestNews`. **Porte d'embarquement** à tribord : la franchir (ou son bouton) = Continuer.

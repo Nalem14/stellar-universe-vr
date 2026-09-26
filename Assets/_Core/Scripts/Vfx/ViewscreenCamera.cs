@@ -132,21 +132,27 @@ namespace Core.Vfx
                     1.2f, ForwardFov * 2f);
             }
 
-            // Moves, slews and zooms settle over ~1 s; a slow drift keeps the feed alive.
+            // Moves, slews and zooms settle over ~1 s; a slow drift keeps the feed alive. Smoothed in the
+            // bridge's frame: the ship flying at speed (departure, approach) carries the camera rigidly instead
+            // of leaving it trailing back into the room.
             var k = 1f - Mathf.Exp(-Interval * 3.2f);
             _fov = Mathf.Lerp(_fov, fov, k);
-            _pos = _placed ? Vector3.Lerp(_pos, pos, k) : pos;
+            var local = _bridge.InverseTransformPoint(pos);
+            var localLook = _bridge.InverseTransformDirection(look);
+            _local = _placed ? Vector3.Lerp(_local, local, k) : local;
+            _aim = _placed ? Vector3.Slerp(_aim, localLook, k * 1.4f) : localLook;
             _placed = true;
-            var aim = Vector3.Slerp(transform.forward, look, k * 1.4f);
-            if (aim.sqrMagnitude < 1e-4f)
-                aim = look;
+            if (_aim.sqrMagnitude < 1e-4f)
+                _aim = localLook;
             var t = Time.unscaledTime;
             var drift = Quaternion.Euler(Mathf.Sin(t * 0.21f) * _fov * 0.02f, Mathf.Sin(t * 0.17f + 1.3f) * _fov * 0.025f, 0f);
-            transform.SetPositionAndRotation(_pos, Quaternion.LookRotation(aim, _bridge.up) * drift);
+            transform.SetPositionAndRotation(_bridge.TransformPoint(_local),
+                Quaternion.LookRotation(_bridge.TransformDirection(_aim), _bridge.up) * drift);
             _cam.fieldOfView = _fov;
         }
 
-        Vector3 _pos;
+        Vector3 _local;
+        Vector3 _aim;
         bool _placed;
 
         void OnDestroy()

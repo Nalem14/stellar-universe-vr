@@ -61,6 +61,19 @@ namespace Core.Crew
         void OnResearchCompleted(string tech) =>
             Say(CrewDialogue.Role.Science, "researchDone", 2, Trans.Get(tech));
 
+        /// <summary>The helm calls the transit as it happens (jump, fold, bond, or the system falling astern).</summary>
+        void OnTransit(VoyageMode mode, int system) =>
+            Say(CrewDialogue.Role.Helm, mode switch
+            {
+                VoyageMode.Hyperspace => "transitHyperspace",
+                VoyageMode.PrlBond => "transitBond",
+                VoyageMode.Jumpgate => "transitGate",
+                _ => "transitSublight"
+            }, 2, Core.Vfx.GalaxyCatalog.Label(system));
+
+        void OnArriving(VoyageMode mode, int system) =>
+            Say(CrewDialogue.Role.Helm, mode == VoyageMode.Sublight ? "approach" : "dropOut", 2, SystemName());
+
         public static BarkDirector Build(Transform room, FocusContext focus)
         {
             var go = new GameObject("BarkDirector");
@@ -77,11 +90,15 @@ namespace Core.Crew
             economy.BuildingCompleted += director.OnBuildingCompleted;
             economy.ResearchCompleted += director.OnResearchCompleted;
             director._economy = economy;
+            ShipVoyage.Transit += director.OnTransit;
+            ShipVoyage.Arriving += director.OnArriving;
             return director;
         }
 
         void OnDestroy()
         {
+            ShipVoyage.Transit -= OnTransit;
+            ShipVoyage.Arriving -= OnArriving;
             if (_focus != null)
                 _focus.Changed -= OnViewChanged;
             if (_economy != null)

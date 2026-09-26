@@ -43,6 +43,8 @@ Shader "SU/HullInterior"
             // xyz = world position, w = 1 / range²; rgb = colour × intensity.
             float4 _SU_RoomLightPos[4];
             float4 _SU_RoomLightCol[4];
+            // Light of the space outside washing in (hyperspace blue, PRL gold, gate violet, jump flashes).
+            float4 _SU_VoyageTint;
 
             struct appdata
             {
@@ -101,6 +103,7 @@ Shader "SU/HullInterior"
                     light += _SU_RoomLightCol[k].rgb * (att * ndl * _LightGain);
                 }
 
+                light += _SU_VoyageTint.rgb * (0.55 + 0.45 * saturate(n.y * -0.5 + 0.75));
                 float3 col = albedo * light * i.ao + albedo * _Lift;
                 return float4(col, 1);
             }

@@ -43,8 +43,6 @@ namespace Core.Vfx
         readonly HashSet<int> _contacts = new();
         readonly Dictionary<string, float> _lastEvent = new();
         int _contactsSystem = -1;
-        int _voyageSystem = -1;
-        bool _voyageMoving;
 
         void BindDirection()
         {
@@ -68,13 +66,31 @@ namespace Core.Vfx
             CombatEvents.Shot += OnShot;
             CombatEvents.Destroyed += OnDestroyed;
             CombatEvents.Bombard += OnBombard;
+            ShipVoyage.Departed += OnDeparted;
+            ShipVoyage.Arriving += OnArriving;
         }
+
+        void OnDeparted(VoyageMode mode, int system) =>
+            Play(new Shot
+            {
+                Forward = true, Tint = _accent, Until = Time.unscaledTime + 6f,
+                Caption = Trans.Format("vr.screen.departure", system > 0 ? GalaxyCatalog.Label(system) : Trans.Get(VoyageLog.ModeKey(mode)))
+            }, null);
+
+        void OnArriving(VoyageMode mode, int system) =>
+            Play(new Shot
+            {
+                Forward = true, Tint = _accent, Until = Time.unscaledTime + 6f,
+                Caption = Trans.Format("vr.screen.arrival", SystemLabel(_focus))
+            }, null);
 
         void UnbindDirection()
         {
             CombatEvents.Shot -= OnShot;
             CombatEvents.Destroyed -= OnDestroyed;
             CombatEvents.Bombard -= OnBombard;
+            ShipVoyage.Departed -= OnDeparted;
+            ShipVoyage.Arriving -= OnArriving;
         }
 
         static Image NewBar(Transform parent, string name, Vector2 pos, Vector2 size, Color color)
@@ -161,22 +177,10 @@ namespace Core.Vfx
                 return;
             RebuildTargets();
             var now = UnixNow();
-            var fleet = _focus.FindViewFleet();
             var system = _focus.SystemId;
 
-            if (_voyageSystem > 0 && system > 0 && system != _voyageSystem)
-                Play(new Shot { Forward = true, Caption = Trans.Format("vr.screen.arrival", SystemLabel(_focus)), Tint = _accent, Until = Time.unscaledTime + 5f },
-                    null);
-            var moving = fleet != null && fleet.IsMoving(now) && fleet.DestSystemId > 0 && fleet.DestSystemId != system;
-            if (moving && !_voyageMoving && _voyageSystem == system)
-                Play(new Shot
-                {
-                    Forward = true, Caption = Trans.Format("vr.screen.departure", GalaxyCatalog.Label(fleet.DestSystemId)), Tint = _accent,
-                    Until = Time.unscaledTime + 5f
-                }, null);
-            _voyageMoving = moving;
-            _voyageSystem = system;
-
+            // Departures and arrivals come from the voyage itself (ShipVoyage.Departed / Arriving): the server
+            // files a ship in its destination the moment it leaves, so a system change here is not an arrival.
             // Contacts: seed silently on a new system, then announce each foreign ship that appears.
             var seed = _contactsSystem != system;
             _contactsSystem = system;
