@@ -105,7 +105,8 @@ namespace Core.Stations
             var remain = Text(string.Empty, 200f, y, 110f, 17f, DiegeticUi.CyanDim);
             _live.Add((remain, () => Core.Holo.TravelPlanner.TimeText(end - FleetOrderGate.UnixNow())));
             Bar(new Vector2(-130f, y - 26f), new Vector2(440f, 7f),
-                () => total <= 0f ? 0f : 1f - Mathf.Clamp01((end - FleetOrderGate.UnixNow()) / total));
+                () => ServerTimers.Shipyard(p.Id) ??
+                      (total <= 0f ? 0f : 1f - Mathf.Clamp01((end - FleetOrderGate.UnixNow()) / total)));
             var cost = BuildingCatalog.SpeedupCost(end - FleetOrderGate.UnixNow());
             var canPay = cost == 0 || _eco.Nova >= cost;
             var finish = Btn(cost == 0 ? Trans.Format("vr.ops.finish", Trans.Get("free"))
@@ -258,6 +259,8 @@ namespace Core.Stations
             if (_busy)
                 return;
             _busy = true;
+            // Any order may replace the running job: its server progress is read again.
+            ServerTimers.Invalidate();
             try
             {
                 var r = await ActionJs.Get(action, q);

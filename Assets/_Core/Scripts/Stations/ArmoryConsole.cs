@@ -819,7 +819,8 @@ namespace Core.Stations
 
             DiegeticUi.HoloSelectTray(_body, new Vector2(0f, y), new Vector2(1060f, 48f));
             AccentBar(y, pending ? UiKit.Amber : UiKit.Danger);
-            var shipName = me != null && !string.IsNullOrEmpty(me.Name) ? me.Name : "#" + myFleet;
+            var shipName = b["nearby"] != null ? Trans.Get("vr.armory.nearby")
+                : me != null && !string.IsNullOrEmpty(me.Name) ? me.Name : "#" + myFleet;
             Line(Trans.Format(pending ? "vr.armory.pending" : "vr.armory.active", where) +
                  "   <size=75%><color=#7fd8ff>" + shipName + "</color></size>", -230f, y, 19f, UiKit.TextBright, 560f,
                 TextAlignmentOptions.MidlineLeft);
@@ -876,6 +877,7 @@ namespace Core.Stations
                     }
                 }
 
+                await AddNearbyPending(list);
                 _battles = list;
             }
             finally
@@ -885,6 +887,62 @@ namespace Core.Stations
 
             if (_open && _tab == Tab.Operations && !_busy)
                 Render();
+        }
+
+        /// <summary>
+        /// Battles forming in the system in view that we are not part of (GetPendingBattles): open space
+        /// (planetid 0, pirates) and the worlds that matter here — ours and the one our ship orbits. Our idle
+        /// ships there can reinforce while it is being set up. At most four reads per refresh.
+        /// </summary>
+        async Task AddNearbyPending(JArray list)
+        {
+            var sys = _focus != null ? _focus.SystemId : 0;
+            if (sys <= 0)
+                return;
+            var mine = new HashSet<int>();
+            foreach (var b in list)
+                mine.Add(FocusContext.AsInt(b["id"]));
+            var planets = new List<int> { 0 };
+            var view = _focus.FindViewFleet();
+            if (view != null && view.PlanetId > 0)
+                planets.Add(view.PlanetId);
+            foreach (var p in _focus.Planets)
+                if (planets.Count < 4 && OwnedPlanets.Contains(p.Id) && !planets.Contains(p.Id))
+                    planets.Add(p.Id);
+
+            var reads = new List<Task<ApiResult>>();
+            foreach (var pid in planets)
+                reads.Add(ActionJs.Get("GetPendingBattles", new Dictionary<string, string>
+                {
+                    { "systemid", sys.ToString() },
+                    { "planetid", pid.ToString() }
+                }));
+            await Task.WhenAll(reads);
+            foreach (var r in reads)
+            {
+                if (!r.Result.Ok || string.IsNullOrEmpty(r.Result.Body))
+                    continue;
+                JArray rows;
+                try
+                {
+                    rows = JToken.Parse(r.Result.Body) as JArray;
+                }
+                catch
+                {
+                    continue;
+                }
+
+                if (rows == null)
+                    continue;
+                foreach (var b in rows)
+                {
+                    if (!mine.Add(FocusContext.AsInt(b["id"])) || b is not JObject o)
+                        continue;
+                    o["myFleetId"] = 0;
+                    o["nearby"] = true;
+                    list.Add(o);
+                }
+            }
         }
 
         async Task Reinforce(int battleId, FocusFleet fleet)

@@ -590,7 +590,8 @@ namespace Core.Stations
             var remain = Line(string.Empty, -250f, y - 20f, 18f, DiegeticUi.CyanDim, 520f, TextAlignmentOptions.MidlineLeft);
             _live.Add((remain, () => Core.Holo.TravelPlanner.TimeText(end - FleetOrderGate.UnixNow())));
             Bar(new Vector2(-250f, y - 44f), new Vector2(520f, 8f),
-                () => duration <= 0f ? 0f : 1f - Mathf.Clamp01((end - FleetOrderGate.UnixNow()) / duration));
+                () => ServerTimers.Building(planet.Id) ??
+                      (duration <= 0f ? 0f : 1f - Mathf.Clamp01((end - FleetOrderGate.UnixNow()) / duration)));
 
             var remaining = end - FleetOrderGate.UnixNow();
             var cost = BuildingCatalog.SpeedupCost(remaining);
@@ -657,6 +658,7 @@ namespace Core.Stations
         async Task Speedup()
         {
             _busy = true;
+            ServerTimers.Invalidate();
             try
             {
                 var result = await ActionJs.Get("SpeedupBuilding", new Dictionary<string, string>
@@ -677,6 +679,7 @@ namespace Core.Stations
         async Task CancelQueued(int queueId, string type)
         {
             _busy = true;
+            ServerTimers.Invalidate();
             try
             {
                 // Server reads `id` (the web's queue_id is a bug: docs/PARITY.md).
@@ -872,11 +875,53 @@ namespace Core.Stations
                 var col = i % 2;
                 var row = i / 2;
                 var x = col == 0 ? -270f : 270f;
-                var y = 72f - row * 62f;
+                var y = 72f - row * 58f;
                 DiegeticUi.HoloSelectTray(_body, new Vector2(x, y), new Vector2(520f, 54f));
                 Line(rows[i].Item1, x - 10f, y, 18f, DiegeticUi.CyanDim, 480f, TextAlignmentOptions.MidlineLeft);
                 Line(rows[i].Item2, x + 10f, y, 20f, UiKit.TextBright, 480f, TextAlignmentOptions.MidlineRight);
             }
+
+            // Mine yield per day and energy generated (RefreshStats, the web's planet Stats page), read every 30 s.
+            if (_stats == null || _statsPlanet != p.Id || Time.unscaledTime - _statsAt > 30f)
+                Run(LoadStats(p.Id));
+            if (_stats != null && _statsPlanet == p.Id)
+            {
+                float PerDay(string k) => FocusContext.AsFloat(_stats[k]) * 86400f;
+                Line(Trans.Get("stats") + "  ·  " + Num(PerDay("mineralM")) + " " + Trans.Get("vr.res.mineral") + "  ·  " +
+                     Num(PerDay("crystalM")) + " " + Trans.Get("vr.res.crystal") + "  ·  " + Num(PerDay("biomassM")) + " " +
+                     Trans.Get("vr.res.biomass") + " " + Trans.Get("perDay") + "   ·   " + Trans.Get("energy") + " " +
+                     Num(FocusContext.AsFloat(_stats["energyGenerateStats"])),
+                    0f, -205f, 17f, DiegeticUi.CyanDim, 1040f);
+            }
+        }
+
+        JObject _stats;
+        int _statsPlanet;
+        float _statsAt = -999f;
+        bool _statsLoading;
+
+        async Task LoadStats(int planetId)
+        {
+            if (_statsLoading)
+                return;
+            _statsLoading = true;
+            _statsAt = Time.unscaledTime;
+            try
+            {
+                var r = await ActionJs.Get("RefreshStats", new Dictionary<string, string> { { "planet", planetId.ToString() } });
+                var o = ScreenKit.Object(r);
+                if (o == null)
+                    return;
+                _stats = o;
+                _statsPlanet = planetId;
+            }
+            finally
+            {
+                _statsLoading = false;
+            }
+
+            if (_tab == Tab.Report && _planetId == planetId)
+                Render();
         }
 
         /// <summary>GetResource raw earn is per second; the web shows it per hour.</summary>

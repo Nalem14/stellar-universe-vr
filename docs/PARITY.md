@@ -21,15 +21,15 @@ Généré depuis `action-api.json` (158 actions), `actionjs.php` et un grep des 
 | Galaxie | 8 | 8 | 100 % |
 | Flotte | 21 | 23 | 91 % |
 | Vaisseau / chantier | 12 | 13 | 92 % |
-| Planète / bâtiments / recherche | 13 | 17 | 76 % |
-| Combat | 11 | 14 | 79 % |
+| Planète / bâtiments / recherche | 17 | 17 | 100 % |
+| Combat | 12 | 14 | 86 % |
 | Jumpgate | 2 | 2 | 100 % |
 | Stargate | 7 | 7 | 100 % |
 | Social (chat, mail) | 11 | 11 | 100 % |
 | Guerre | 9 | 9 | 100 % |
 | Alliance | 17 | 17 | 100 % |
 | Empire / progression / shop | 24 | 27 | 89 % |
-| **Total** | **145** | **158** | **92 %** |
+| **Total** | **150** | **158** | **95 %** |
 
 Appelées par le client web : 139/158. « Appelée » ≠ « finie » : voir la colonne *Statut*.
 
@@ -108,7 +108,7 @@ Appelées par le client web : 139/158. « Appelée » ≠ « finie » : voir la 
 | `ApplyShipTemplate` | W | fleet, template | `Stations/BlueprintPanel.cs` | `ui/ShipBuilderUI.js` | Engineering | P5 | Branché |  |
 | `CancelQueuedShip` | W | id, queue_id | `Stations/ShipyardPanel.cs` | `scenes/planet.js` | Engineering | P5 | Branché | Param `id` (ligne planet_ship_queue) |
 | `DelShip` | W | ship | `Stations/DryDock.cs` | `objects/fleet.js` | Engineering | P5 | Branché | Râtelier du hangar : destruction en deux temps |
-| `DelToFleet` | W | fleet, ship | — | `objects/fleet.js` | Engineering | P5 | À faire |  |
+| `DelToFleet` | W | fleet, ship | — | `objects/fleet.js` | Engineering | — | Hors scope | Remplacé par `RemoveShipModule` (cale sèche) ; plus appelé par le client Phaser — voir écarts (contourne les gardes) |
 | `DeleteShipTemplate` | W | id | `Stations/BlueprintPanel.cs` | `ui/ShipBuilderUI.js` | Engineering | P5 | Branché |  |
 | `GetShipLayout` | R | fleet | `Stations/DryDock.cs` +1 | `ui/ShipBuilderUI.js` | Engineering | P5 | Branché | Coque 1:1 dans la cale + hublots (`ShipHullBuilder`) |
 | `GetShipTemplates` | R | — | `Stations/BlueprintPanel.cs` | `ui/ShipBuilderUI.js` | Engineering | P5 | Branché |  |
@@ -125,15 +125,15 @@ Appelées par le client web : 139/158. « Appelée » ≠ « finie » : voir la 
 | `BuildDefenseUnit` | W | planet, type, qty | `Crew/CrewLines.cs` +1 | `objects/planet.js` | Tactical | P5 | Branché | Armurerie, onglet Défenses ; plateformes en orbite de nos mondes dans l'espace réel |
 | `CancelQueuedBuilding` | W | id, queue_id | `Stations/OpsConsole.cs` | `scenes/planet.js` | Ops | P5 | Branché | Param `id` ou `queue_id` ; échecs en `error:<clé>` ; file = `buildingtype` + `duration` |
 | `CancelQueuedResearch` | W | id, queue_id | `Stations/ResearchLab.cs` | `scenes/research.js` | Science | P5 | Branché | Param `id` (ligne empire_research_queue, tech en `research`) ; cristal arraché de son pad ou × |
-| `CheckBuildingQueue` | R | planet | — | `view/game.php` | Ops | P5 | À faire | `percent` basé sur `workingStart` + `working` (fallback legacy) |
-| `CheckResearchQueue` | R | — | — | `view/game.php` | Science | P5 | À faire |  |
-| `CheckShipQueue` | R | planet | — | `view/game.php` | Engineering | P5 | À faire | `percent` = elapsed/SHIPSTATS.time (plus time()/endTime) |
+| `CheckBuildingQueue` | R | planet | `App/ServerTimers.cs` | `view/game.php` | Ops | P5 | Branché | `ServerTimers` : barre du chantier actif de la console Ops = progression du serveur (`workingStart`, repli legacy), relue toutes les 15 s à l'écran et après accélération / annulation ; estimation locale en attendant |
+| `CheckResearchQueue` | R | — | `App/ServerTimers.cs` | `view/game.php` | Science | P5 | Branché | Idem pour l'anneau et la barre de la recherche en cours du labo |
+| `CheckShipQueue` | R | planet | `App/ServerTimers.cs` | `view/game.php` | Engineering | P5 | Démo | Idem pour le module en cours de la cale sèche (onglet Chantier) |
 | `DowngradeBuilding` | W | buildingtype, planet | `Stations/OpsConsole.cs` | `objects/planet.js` | Ops | P5 | Branché | Immédiat, sans remboursement : confirmation en deux temps |
 | `GetPlanetDecisions` | R | planet | `Stations/OpsConsole.cs` | `objects/planet.js` | Ops | P5 | Branché | 10 décisions / planète / heure, `nextRefreshAt` → compte à rebours ; titres via `decision_*` / `decisionDesc_*` |
 | `GetResource` | R | planet, raw? | `App/EconomyService.cs` | `objects/planet.js` | Ops (poll global) | P0 | Branché | `EconomyService` : `raw=1` sur **toutes** les planètes (csv ≤ 50) toutes les 10 s — accumule la production et fait avancer les files. `user` = PublicUser (id/username) seulement |
 | `ImproveResearch` | W | research, planet | `Crew/CrewLines.cs` +1 | `objects/research.js` | Science | P5 | Branché | Labo Science : cristal de la constellation → synthétiseur (ou bouton) ; `planet` = meilleur researchLab ; corps vide = lancé, JSON `{queued,targetLevel}` = en file ; prérequis `GetConfigs.researchs.requiert` |
 | `RecruitTroop` | W | planet, type, qty | `Crew/CrewLines.cs` +1 | `objects/planet.js` | Tactical | P5 | Branché | Console Armurerie (Tactique) : lot 1–500, coût × qty, durée time×qty×(100−(computer+1))/100, un lot par planète (`troopWorking`) |
-| `RefreshStats` | W | planet | — | `objects/planet.js` | Ops | P5 | À faire |  |
+| `RefreshStats` | W | planet | `Stations/OpsConsole.cs` | `objects/planet.js` | Ops | P5 | Branché | Onglet Rapport de la console Ops : rendement des mines par jour et énergie produite (page Stats du web), relu toutes les 30 s ; voir écarts (bonus ignorés) |
 | `RenamePlanet` | W | id, name | `Stations/OpsConsole.cs` | `objects/planet.js` | Ops | P5 | Branché | Serveur : 1–32 chars, lettres/chiffres/espaces/-_. ; `error:invalidPlanetName` |
 | `SpeedupBuilding` | W | planet | `Stations/OpsConsole.cs` | `scenes/planet.js` | Ops | P5 | Branché | Coût Nova affiché avant (gratuit ≤ 60 s, sinon max(10, ⌈6·min^0.82⌉)) |
 | `SpeedupResearch` | W | — | `Stations/ResearchLab.cs` | `scenes/research.js` | Science | P5 | Branché | Écran du synthétiseur ; coût Nova affiché (gratuit ≤ 60 s) ; sans param |
@@ -152,7 +152,7 @@ Appelées par le client web : 139/158. « Appelée » ≠ « finie » : voir la 
 | `GetBattle` | R | battleid | — | — | Tactical | — | Hors scope | Legacy |
 | `GetBattleState` | R | battleid, fleetid | `Vfx/HexBattleController.cs` | `scenes/battle.js` | Tactical | P5 | Branché | Plateau diffé toutes les 2,5 s (web) ; tirs rejoués depuis les nouvelles lignes `log` sur la table, dehors et à bord |
 | `GetMyBattles` | R | — | `Stations/ArmoryConsole.cs` +1 | `scenes/galaxy.js` | Tactical | P5 | Branché | Seulement si un de nos vaisseaux a `isInBattle` : prend la table (vaisseau habité / système en vue) ou bouton Rejoindre sur le rebord |
-| `GetPendingBattles` | R | systemid, planetid | — | — | Tactical | P5 | À faire |  |
+| `GetPendingBattles` | R | systemid, planetid | `Stations/ArmoryConsole.cs` | — | Tactical | P5 | Branché | Armurerie, onglet Opérations : combats en préparation dans le système en vue dont nous ne faisons pas partie (espace ouvert `planetid=0`, planète en orbite, nos mondes ; ≤ 4 lectures) → renforts avec nos vaisseaux inactifs (`AddFleetToBattle`) |
 | `MakeBattle` | W | systemid, fleets, planetid? | `Crew/CrewLines.cs` +2 | `objects/fleet.js` | Tactical | fleets = mon vaisseau + cibles, `planetid` seulement si ≠ 0 (0 vs pirates), puis `UpdateBattle` (web startTacticalBattle) | Branché | fleets = mon vaisseau + cibles, `planetid` seulement si ≠ 0 (0 vs pirates), puis `UpdateBattle` (web startTacticalBattle) |
 | `RemoveFleetFromBattle` | W | battleid, fleetid | `Vfx/HexBattleController.cs` | `scenes/battle.js` | Tactical | P5 | Branché | Bouton Retirer le vaisseau, bataille en attente seulement |
 | `SetFleetState` | W | battleid, fleetid, auto, ready | `Vfx/HexBattleController.cs` | `scenes/battle.js` | Tactical | P5 | Branché | Bouton Prêt pendant la préparation (`auto=0`, `ready=1`) ; plus envoyé après MakeBattle (le serveur marque déjà notre camp prêt) |
@@ -407,6 +407,12 @@ Corrigés dans `stellar-universe` (`7580501`, 2026-09-25) — le client VR ne co
 - **`SpeedupFleetTravel` n'avait pas de handler** : ✅ `addAction("SpeedupFleetTravel", ['fleet'], …)` écrit dans `actionjs.php`. Garde miroir de `SpeedupBuilding` (vaisseau à nous, `desttime > time()`, pas en combat), coût `CalculateNovaFleetSpeedupCost(desttime − time())`, débit Nova sur l'empire, `desttime = time()` sur la flotte, `ForgetCache("fleets")` + `fleet-<id>-data`, `AddActivity`. Retour conforme au contrat : `{ok, cost, nova, fleet}`. Flux vérifié par exécution (6 cas : flotte absente / pas à nous / à l'arrêt / en combat / Nova insuffisant / succès).
 - **`GetConfigs` n'exposait pas `$JUMPGATE`** : ✅ `"jumpgate" => $JUMPGATE` ajouté au payload (et `$JUMPGATE` au `use(...)` du closure) — `cooldown`, `jumpCost`, `transitTime` sont donc lisibles avant d'envoyer un saut, sans recopier la config. `jumpModuleRequirement` et `prlBond`, présents dans le payload mais absents du contrat, sont documentés au passage dans `action-api.json`.
 - **Clés i18n inexistantes** : `error_fleet_not_found` / `error_fleet_not_yours` (utilisées par `RenameFleet` et `UpdateFleetDefendPosition`) n'existent pas dans `assets/langs/{fr,en}.json` → le joueur lisait `translation.error_fleet_not_found`. ✅ Remplacées par les clés natives existantes `fleetNotFound` / `notYourFleet`.
+
+### Files, stats, combats (à traiter, 2026-09-26)
+
+- **`DelToFleet` contourne les gardes de `RemoveShipModule`** : il retire n'importe quel module d'un vaisseau à quai — y compris le `ShipCore`, et sans vérifier que le reste de la coque reste relié au cœur. Le client Phaser ne l'appelle plus (`fleet.js removeShip` n'a aucun appelant), mais la modale PHP legacy (`include/parts/modal-fleet.php`, `modal-planet.php`) le propose encore. À retirer, ou à faire passer par la même règle que `RemoveShipModule`.
+- **`RefreshStats` ignore les bonus** : `mineralM` / `crystalM` / `biomassM` = niveau × production de base, alors que `GetResource.earn` applique les traits d'espèce (`mine` / `food`), la main-d'œuvre × moral et le booster `production_multiplier` (planète test : 23 328 minerai/jour contre ~41 000 réels). La page Stats du web affiche donc un rendement faux ; même formule que `GetResource` attendue.
+- **`CheckBuildingQueue` / `CheckShipQueue` / `RefreshStats` sans contrôle de propriétaire** : n'importe quelle planète par id (chantier en cours, rendement des mines d'un autre joueur) ; `RefreshStats` applique en plus le bonus d'énergie de l'empire **demandeur**.
 
 ### Spec livrée — `CreateEmpire`
 

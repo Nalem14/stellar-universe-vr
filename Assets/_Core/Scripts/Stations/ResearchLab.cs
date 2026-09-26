@@ -853,6 +853,9 @@ namespace Core.Stations
             var now = FleetOrderGate.UnixNow();
             if (end <= now)
                 return 0f;
+            // The server's own reading first (covers rows without workingStart).
+            if (ServerTimers.Research() is { } server)
+                return server;
             if (start <= 0 || start >= end)
                 return 0f;
             return Mathf.Clamp01((now - start) / (float)(end - start));
@@ -1335,6 +1338,8 @@ namespace Core.Stations
             if (_busy)
                 return false;
             _busy = true;
+            // Any order may replace the running job: its server progress is read again.
+            ServerTimers.Invalidate();
             ApiResult r;
             try
             {
