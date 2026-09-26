@@ -42,7 +42,9 @@ namespace Core.Vfx
                     BuildBootVoid();
                     break;
                 case CicLayout.MenuDeck:
-                    BuildRoom(size: 9f, hublots: 0, ceiling: 3.4f);
+                    SasShell.Build(transform, _art);
+                    KeyLight("Fill", new Vector3(0f, 3.3f, 0.9f), CicArtKit.Cyan, 0.55f, 9f);
+                    KeyLight("Warm", new Vector3(-1.8f, 2.1f, -1.2f), CicArtKit.Amber, 0.45f, 6f);
                     BuildMenuObservatory();
                     break;
                 default:
@@ -66,7 +68,8 @@ namespace Core.Vfx
             RenderSettings.ambientLight = Layout == CicLayout.Bridge
                 ? new Color(0.12f, 0.16f, 0.22f)
                 : new Color(0.025f, 0.04f, 0.055f);
-            var far = Layout == CicLayout.Bridge ? WorldScale.BridgeFarClip : 40f;
+            // The airlock's window looks out on the star sky and a planet (SasShell): same reach as the bridge.
+            var far = Layout is CicLayout.Bridge or CicLayout.MenuDeck ? WorldScale.BridgeFarClip : 40f;
             foreach (var cam in Camera.allCameras)
             {
                 if (cam == null)
@@ -149,71 +152,14 @@ namespace Core.Vfx
             KeyLight("Rim", new Vector3(-1.6f, 1.8f, 1.5f), CicArtKit.Amber, 1.1f, 7f);
         }
 
-        void BuildRoom(float size, int hublots, float ceiling)
-        {
-            var half = size * 0.5f;
-            var wallH = ceiling;
-            var wallMid = wallH * 0.5f;
-
-            Quad("Deck", new Vector3(0f, 0f, 0f), new Vector3(size, size, 1f), _art.Floor, Color.white, 0.14f,
-                tiling: 4f, rotateX: 90f, keepCollider: true);
-            Quad("Overhead", new Vector3(0f, wallH, 0f), new Vector3(size, size, 1f), _art.Wall,
-                new Color(0.12f, 0.15f, 0.18f), 0.06f, tiling: 3f, rotateX: -90f);
-
-            TrimRing("FloorTrim", 0.04f, size - 0.2f, CicArtKit.Cyan * 0.55f, 1.8f);
-            TrimRing("CeilTrim", wallH - 0.04f, size - 0.2f, CicArtKit.Amber * 0.4f, 1.2f);
-
-            Box("Fwd", new Vector3(0f, wallMid, half), new Vector3(size + 0.2f, wallH, 0.18f),
-                _art.MetalPanel(0.08f), keepCollider: true);
-            Box("Aft", new Vector3(0f, wallMid, -half), new Vector3(size + 0.2f, wallH, 0.18f),
-                _art.MetalPanel(0.08f), keepCollider: true);
-            Box("Port", new Vector3(-half, wallMid, 0f), new Vector3(0.18f, wallH, size + 0.2f),
-                _art.MetalPanel(0.08f), keepCollider: true);
-            Box("Starboard", new Vector3(half, wallMid, 0f), new Vector3(0.18f, wallH, size + 0.2f),
-                _art.MetalPanel(0.08f), keepCollider: true);
-
-            float rib = half - 0.12f;
-            foreach (var xz in new[]
-                     {
-                         new Vector3(rib, wallMid, rib), new Vector3(-rib, wallMid, rib),
-                         new Vector3(rib, wallMid, -rib), new Vector3(-rib, wallMid, -rib)
-                     })
-            {
-                Box("Rib", xz, new Vector3(0.14f, wallH, 0.14f), _art.DarkPanel(0.05f), keepCollider: true);
-            }
-
-            for (var i = 0; i < hublots; i++)
-            {
-                var t = (i + 1f) / (hublots + 1f);
-                var x = Mathf.Lerp(-half + 1.4f, half - 1.4f, t);
-                Viewport(new Vector3(x, 1.65f, half - 0.04f), new Vector3(1.8f, 1.1f, 1f));
-            }
-
-            StripLight(new Vector3(0f, wallH - 0.05f, 0f), size * 0.7f);
-            KeyLight("Fill", new Vector3(0f, wallH - 0.7f, 0f), CicArtKit.Cyan, 0.55f, size);
-            KeyLight("Warm", new Vector3(-1.8f, 2.1f, -1.2f), CicArtKit.Amber, 0.45f, 6f);
-        }
-
         void BuildMenuObservatory()
         {
-            Viewport(new Vector3(0f, 1.85f, 4.46f), new Vector3(5.6f, 2.2f, 1f));
-            Viewport(new Vector3(-2.9f, 1.7f, 4.46f), new Vector3(1.5f, 1.5f, 1f));
-            Viewport(new Vector3(2.9f, 1.7f, 4.46f), new Vector3(1.5f, 1.5f, 1f));
-            KeyLight("HublotGlow", new Vector3(0f, 1.9f, 3.6f), CicArtKit.Cyan, 2.8f, 7f);
-            KeyLight("HublotAmber", new Vector3(1.4f, 1.5f, 3.2f), CicArtKit.Amber, 0.9f, 5f);
-
-            Box("WalkPlate", new Vector3(0f, 0.03f, 0.6f), new Vector3(3.4f, 0.06f, 3.8f),
-                _art.MetalPanel(0.08f), keepCollider: true);
+            KeyLight("HublotGlow", new Vector3(0f, 1.9f, 3.9f), CicArtKit.Cyan, 2.2f, 7f);
+            KeyLight("HublotAmber", new Vector3(1.4f, 1.5f, 3.4f), CicArtKit.Amber, 0.9f, 5f);
 
             const float z = 1.55f;
-            Box("TerminalBase", new Vector3(0f, 0.08f, z), new Vector3(1.7f, 0.16f, 0.55f),
-                _art.MetalPanel(0.1f), keepCollider: true);
-            Box("TerminalColumn", new Vector3(0f, 0.7f, z + 0.08f), new Vector3(0.35f, 1.2f, 0.28f),
-                _art.DarkPanel(0.06f), keepCollider: true);
-            Box("TerminalHousing", new Vector3(0f, 1.35f, z), new Vector3(1.55f, 0.95f, 0.12f),
-                _art.DarkPanel(0.12f), keepCollider: true);
-            Box("TerminalBezel", new Vector3(0f, 1.35f, z - 0.07f), new Vector3(1.38f, 0.82f, 0.04f),
-                _art.MetalPanel(0.2f), keepCollider: false);
+            // Terminal: a turned pedestal and column (no boxes), the housing a rounded slab.
+            SasTerminal.Build(transform, _art, new Vector3(0f, 0f, z));
 
             Box("EdgeL", new Vector3(-0.72f, 1.35f, z - 0.09f), new Vector3(0.03f, 0.78f, 0.02f),
                 _art.CyanEmit(3.5f), keepCollider: false);
@@ -229,9 +175,6 @@ namespace Core.Vfx
             Sphere("BeaconL", new Vector3(-1.15f, 1.15f, z), 0.07f, CicArtKit.Amber, 4f);
             Sphere("BeaconR", new Vector3(1.15f, 1.15f, z), 0.07f, CicArtKit.Cyan, 4f);
 
-            var halo = Cylinder("Halo", new Vector3(0f, 2.55f, 1.35f), new Vector3(1.8f, 0.02f, 1.8f),
-                _art.CyanEmit(2.2f), keepCollider: false);
-            _ = halo;
             KeyLight("ConsoleKey", new Vector3(0f, 1.7f, 0.7f), CicArtKit.Cyan, 1.8f, 4.5f);
             KeyLight("ConsoleWarm", new Vector3(0.55f, 1.45f, 0.85f), CicArtKit.Amber, 0.55f, 3.5f);
 

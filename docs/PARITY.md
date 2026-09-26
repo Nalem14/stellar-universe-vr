@@ -47,8 +47,8 @@ Appelées par le client web : 139/158. « Appelée » ≠ « finie » : voir la 
 |---|---|---|---|---|---|---|---|---|
 | `GetConfigs` | R | — | `App/DiplomacyIndex.cs` +4 | `scripts/configs.js` | Système (boot) | P0 | Branché |  |
 | `GetEventData` | R | — | `Stations/QuartersRoom.cs` | `ui/ProgressionWindowUI.js` | Quartiers du commandant | P0 | Branché | Onglet Événement : objectifs, boss mondial (PV, nos dégâts, tête du classement) |
-| `GetGameAnnouncements` | R | — | `UI/SasTransmissions.cs` | `scenes/ui.js` | Sas (Menu) | P6 | Branché |  |
-| `GetLatestNews` | R | — | `UI/MainMenuConsole.cs` | — | Sas (Menu) | P6 | Branché |  |
+| `GetGameAnnouncements` | R | — | `UI/SasTransmissions.cs` | `scenes/ui.js` | Sas (Menu) | P6 | Branché | Panneau Transmissions du sas après connexion : événements en cours (fin, faction, boss mondial) et actualités (date, version, image serveur, corps HTML converti, paginé), textes `_en` selon la langue ; actualité non lue (`latest_id` ≠ dernière lue sur le casque) = panneau ambre ouvert dessus, comme l'overlay web |
+| `GetLatestNews` | R | — | `UI/MainMenuConsole.cs` | — | Sas (Menu) | P6 | Branché | Titre de la dernière actualité sous le nom du commandant, sur le terminal d'accueil du sas |
 | `GetTranslations` | R | — | `Utils/Trans.cs` | — | Système (boot) | P0 | Branché |  |
 
 ## Caméra (vue)

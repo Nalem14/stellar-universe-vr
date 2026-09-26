@@ -221,12 +221,16 @@ namespace Core.Holo
             return text;
         }
 
-        /// <summary>Locale-neutral estimate: ~45s, ~3:05, ~1:02:10.</summary>
+        /// <summary>Estimate: ~45s, ~3:05, ~1:02:10, ~88 days 12:15.</summary>
         public static string TimeText(float seconds)
         {
             var s = Mathf.Max(0, Mathf.RoundToInt(seconds));
             if (s < 60)
                 return "~" + s + "s";
+            // Seasonal events run for weeks: past two days, "~88 days 12:15" reads better than 2124:15:06.
+            if (s >= 172800)
+                return string.Format(CultureInfo.InvariantCulture, "~{0} {1} {2}:{3:00}", s / 86400, Trans.Get("days"),
+                    s / 3600 % 24, s / 60 % 60);
             var h = s / 3600;
             var m = s / 60 % 60;
             var sec = s % 60;

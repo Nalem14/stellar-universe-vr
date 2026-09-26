@@ -51,6 +51,8 @@ namespace Core.UI
         RectTransform _formsRoot;
         RectTransform _hubRoot;
         EmpireCreationWizard _creation;
+        SasTransmissions _board;
+        TMP_Text _latest;
         TMP_Text _header;
         Canvas _canvas;
         CicEnvironment _env;
@@ -82,6 +84,16 @@ namespace Core.UI
                 _env != null && _env.ConsoleMount != null ? _env.ConsoleMount : transform,
                 () => ShowPanel(PanelMode.Hub), OnEmpireCreated);
 
+            if (_env != null)
+            {
+                _board = SasTransmissions.Build(_env.transform, _env.Art);
+                // The boarding door: walking through it (or its jamb control) is the same as Continue.
+                var a = SasShell.DoorAngle * Mathf.Deg2Rad;
+                var door = SasShell.Centre + new Vector3(Mathf.Sin(a), 0f, Mathf.Cos(a)) * (SasShell.Radius - 0.1f);
+                Core.Stations.RoomDoor.Build(_env.transform, "BridgeDoor", door, SasShell.DoorAngle + 180f,
+                    Trans.Get("vr.sas.toBridge"), UiKit.Cyan, _env.Art, () => _panel == PanelMode.Hub && !_busy, EnterBridge);
+            }
+
             SetMode(FormMode.SignIn);
             await TryAutoLogin();
         }
@@ -110,6 +122,8 @@ namespace Core.UI
             _hubGreeting = Label(root, Trans.Get("welcome"), 22f, FontStyles.Italic, new Vector2(0f, 120f),
                 CyanDim);
 
+            _latest = Label(root, string.Empty, 17f, FontStyles.Normal, new Vector2(0f, 78f), Amber);
+            _latest.richText = true;
             Button(root, Trans.Get("vr.menu.continue"), new Vector2(0f, 30f), EnterBridge, DiegeticUi.BtnStyle.Cyan);
             Button(root, Trans.Get("quit"), new Vector2(0f, -55f), QuitApp, DiegeticUi.BtnStyle.Ghost);
             Button(root, Trans.Get("logout"), new Vector2(0f, -140f), DoLogout, DiegeticUi.BtnStyle.Danger);
@@ -153,10 +167,35 @@ namespace Core.UI
                     _creation.Hide();
             }
 
+            if (panel == PanelMode.Hub)
+            {
+                _board?.Show();
+                Core.Utils.AsyncTap.Run(ShowLatest());
+            }
+            else
+            {
+                _board?.Hide();
+            }
+
             if (_header == null && _formsRoot != null)
                 _header = _formsRoot.parent.Find("Header/HeaderLabel")?.GetComponent<TMP_Text>();
             if (_header != null)
                 _header.text = Trans.Get(panel == PanelMode.Create ? "create-empire" : "connectToUniverse");
+        }
+
+        /// <summary>Headline of the newest news under the greeting (GetLatestNews); the board holds the rest.</summary>
+        async Task ShowLatest()
+        {
+            if (_latest == null)
+                return;
+            var r = await ActionJs.Get("GetLatestNews");
+            var news = Core.Stations.ScreenKit.Object(r);
+            if (_latest == null)
+                return;
+            var title = Core.Stations.ScreenKit.Localized(news, "title");
+            _latest.text = title.Length > 0
+                ? Trans.Format("vr.sas.latest", Core.Stations.ScreenKit.Verbatim(title))
+                : string.Empty;
         }
 
         void RefreshHubGreeting()
