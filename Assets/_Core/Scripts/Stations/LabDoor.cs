@@ -6,18 +6,17 @@ using UnityEngine;
 namespace Core.Stations
 {
     /// <summary>
-    /// The bridge door to the science lab, port side of the aft bulkhead (the dry dock door is starboard).
-    /// Research is empire-wide, so the lab is open from a ship's bridge as from a station.
+    /// The corridor door to the science lab (first door to port).
     /// </summary>
     public static class LabDoor
     {
-        static readonly Vector3 Position = new(-2.4f, 0f, -WorldScale.CicDeck * 0.5f + 0.12f);
+        static (Vector3 pos, float yaw) Pose => CorridorRoom.DoorPose(CorridorRoom.Slot.LabPort);
 
-        public static RoomDoor Build(Transform bridge, CicArtKit art) =>
-            RoomDoor.Build(bridge, "LabDoor", Position, 0f, Trans.Get("vr.lab.enter"), ResearchLab.Accent, art,
+        public static RoomDoor Build(Transform corridor, CicArtKit art) =>
+            RoomDoor.Build(corridor, "LabDoor", Pose.pos, Pose.yaw, Trans.Get("vr.lab.enter"), ResearchLab.Accent, art,
                 CanPass, () => AsyncTap.Run(ResearchLab.Instance.Enter()));
 
-        static bool CanPass() => ResearchLab.Instance != null && !ResearchLab.Inside && !DryDock.Inside && !DiplomacyRoom.AnyRoomInside &&
+        static bool CanPass() => ResearchLab.Instance != null && !ResearchLab.Inside && !DryDock.Inside && CorridorRoom.Inside &&
                                  AuthManager.Ensure().Empire != null;
     }
 }

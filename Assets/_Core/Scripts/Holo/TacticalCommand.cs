@@ -56,6 +56,13 @@ namespace Core.Holo
         public int SelectedFleetId => _selectedId;
 
         /// <summary>Destination under the aim while a ship is selected (null = none).</summary>
+        /// <summary>The token under the captain's pointer on the table (any kind, with or without a selection).</summary>
+        public HoloToken Hovered => _hover;
+
+        /// <summary>The order the selected ship would get on <paramref name="target"/> (ETA, reserves), for other displays.</summary>
+        public string PreviewFor(HoloToken target) =>
+            SelectedFleet != null && target != null && Invalid(SelectedFleet, target) == null ? Quote(SelectedFleet, target) : null;
+
         public HoloToken AimedTarget => _selectedId > 0 && _hover != null && _hover.Kind != HoloTokenKind.Fleet ? _hover : null;
 
         /// <summary>Selection or aimed target changed (the queue path and the exterior beacons follow).</summary>

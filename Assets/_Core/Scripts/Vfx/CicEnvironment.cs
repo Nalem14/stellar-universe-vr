@@ -23,13 +23,9 @@ namespace Core.Vfx
         public Transform ConsoleMount { get; private set; }
         public HoloZoneMap ZoneMap { get; private set; }
         public CicArtKit Art => _art;
-        public IReadOnlyList<Transform> HublotMounts => _hublotMounts;
-
-        readonly List<Transform> _hublotMounts = new();
 
         public void Build()
         {
-            _hublotMounts.Clear();
             ZoneMap = null;
             Table = null;
             _art = new CicArtKit();
@@ -189,125 +185,6 @@ namespace Core.Vfx
             plate.transform.SetParent(ConsoleMount, false);
             plate.transform.localPosition = new Vector3(0f, 0f, 0.05f);
             plate.transform.localRotation = Quaternion.identity;
-        }
-
-        public void BuildWindowedForwardWall(float half, float wallH, float wallMid, int hublots)
-        {
-            const float winW = WorldScale.CicHublotWidth;
-            const float winH = WorldScale.CicHublotHeight;
-            const float winY = WorldScale.CicHublotCenterY;
-            var z = half;
-            var thickness = 0.22f;
-
-            Box("FwdSill", new Vector3(0f, (winY - winH * 0.5f) * 0.5f, z),
-                new Vector3(half * 2f + 0.25f, winY - winH * 0.5f, thickness),
-                _art.MetalPanel(0.08f), keepCollider: true);
-            var lintelY = winY + winH * 0.5f;
-            var lintelH = wallH - lintelY;
-            Box("FwdLintel", new Vector3(0f, lintelY + lintelH * 0.5f, z),
-                new Vector3(half * 2f + 0.25f, lintelH, thickness),
-                _art.MetalPanel(0.08f), keepCollider: true);
-
-            var xs = new float[hublots];
-            for (var i = 0; i < hublots; i++)
-            {
-                var t = (i + 1f) / (hublots + 1f);
-                xs[i] = Mathf.Lerp(-half + 1.4f, half - 1.4f, t);
-            }
-
-            float prev = -half - 0.1f;
-            for (var i = 0; i < hublots; i++)
-            {
-                var left = xs[i] - winW * 0.5f;
-                var mid = (prev + left) * 0.5f;
-                var width = Mathf.Max(0.12f, left - prev);
-                Box("FwdMullion_" + i, new Vector3(mid, winY, z), new Vector3(width, winH, thickness),
-                    _art.MetalPanel(0.08f), keepCollider: true);
-                prev = xs[i] + winW * 0.5f;
-            }
-
-            var rightEdge = half + 0.1f;
-            var midR = (prev + rightEdge) * 0.5f;
-            var widthR = Mathf.Max(0.12f, rightEdge - prev);
-            Box("FwdMullion_R", new Vector3(midR, winY, z), new Vector3(widthR, winH, thickness),
-                _art.MetalPanel(0.08f), keepCollider: true);
-        }
-
-        public void Viewport(Vector3 pos, Vector3 scale, bool registerMount = false, bool openHole = false)
-        {
-            if (openHole)
-            {
-                var hw = scale.x * 0.5f;
-                var hh = scale.y * 0.5f;
-                const float rim = 0.08f;
-                Box("HublotRimL", pos + new Vector3(-hw - rim * 0.5f, 0f, 0.02f),
-                    new Vector3(rim, scale.y + rim * 2f, 0.12f), _art.DarkPanel(0.15f), keepCollider: true);
-                Box("HublotRimR", pos + new Vector3(hw + rim * 0.5f, 0f, 0.02f),
-                    new Vector3(rim, scale.y + rim * 2f, 0.12f), _art.DarkPanel(0.15f), keepCollider: true);
-                Box("HublotRimT", pos + new Vector3(0f, hh + rim * 0.5f, 0.02f),
-                    new Vector3(scale.x + rim * 2f, rim, 0.12f), _art.DarkPanel(0.15f), keepCollider: true);
-                Box("HublotRimB", pos + new Vector3(0f, -hh - rim * 0.5f, 0.02f),
-                    new Vector3(scale.x + rim * 2f, rim, 0.12f), _art.DarkPanel(0.15f), keepCollider: true);
-                Box("HublotGlowL", pos + new Vector3(-hw - 0.02f, 0f, -0.02f),
-                    new Vector3(0.03f, scale.y * 0.92f, 0.03f), _art.CyanEmit(3.5f), keepCollider: false);
-                Box("HublotGlowR", pos + new Vector3(hw + 0.02f, 0f, -0.02f),
-                    new Vector3(0.03f, scale.y * 0.92f, 0.03f), _art.CyanEmit(3.5f), keepCollider: false);
-                KeyLight("HublotLamp", pos + new Vector3(0f, 0f, -0.55f), CicArtKit.Cyan, 1.35f, 3.8f);
-
-                if (registerMount)
-                {
-                    var holeMount = new GameObject("HublotMount");
-                    holeMount.transform.SetParent(transform, false);
-                    holeMount.transform.localPosition = pos + new Vector3(0f, 0f, -0.12f);
-                    holeMount.transform.localRotation = Quaternion.identity;
-                    // mounts stay in local CIC space (parent may orbit the star)
-                    _hublotMounts.Add(holeMount.transform);
-                }
-
-                return;
-            }
-
-            var frame = Quad("HublotFrame", pos + new Vector3(0f, 0f, 0.04f), scale + new Vector3(0.28f, 0.28f, 0f),
-                _art.Wall, CicArtKit.DarkMetal, 0.06f);
-            frame.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
-
-            var bezel = Quad("HublotBezel", pos + new Vector3(0f, 0f, 0.03f), scale + new Vector3(0.12f, 0.12f, 0f),
-                null, CicArtKit.Cyan * 0.55f, 2.8f);
-            bezel.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
-
-            var glass = Quad("Hublot", pos, scale, _art.Stars, new Color(0.55f, 0.75f, 1f, 1f),
-                registerMount ? 0.9f : 2.2f);
-            glass.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
-
-            KeyLight("HublotLamp", pos + new Vector3(0f, 0f, -0.55f), CicArtKit.Cyan, registerMount ? 1.1f : 2.2f,
-                3.5f);
-
-            if (!registerMount)
-                return;
-
-            var mount = new GameObject("HublotMount");
-            mount.transform.SetParent(glass.transform, false);
-            mount.transform.localPosition = new Vector3(0f, 0f, 0.05f);
-            mount.transform.localRotation = Quaternion.identity;
-            mount.transform.localScale = Vector3.one;
-            _hublotMounts.Add(mount.transform);
-        }
-
-        public void StripLight(Vector3 pos, float width)
-        {
-            Quad("Strip", pos, new Vector3(width, 0.06f, 1f), null, CicArtKit.Cyan, 4.2f, rotateX: 90f);
-        }
-
-        public void TrimRing(string name, float y, float size, Color color, float emission)
-        {
-            Box(name + "N", new Vector3(0f, y, size * 0.5f - 0.05f), new Vector3(size, 0.03f, 0.08f),
-                _art.Lit(Texture2D.whiteTexture, color, emission), keepCollider: false);
-            Box(name + "S", new Vector3(0f, y, -size * 0.5f + 0.05f), new Vector3(size, 0.03f, 0.08f),
-                _art.Lit(Texture2D.whiteTexture, color, emission), keepCollider: false);
-            Box(name + "E", new Vector3(size * 0.5f - 0.05f, y, 0f), new Vector3(0.08f, 0.03f, size),
-                _art.Lit(Texture2D.whiteTexture, color, emission), keepCollider: false);
-            Box(name + "W", new Vector3(-size * 0.5f + 0.05f, y, 0f), new Vector3(0.08f, 0.03f, size),
-                _art.Lit(Texture2D.whiteTexture, color, emission), keepCollider: false);
         }
 
         public GameObject Quad(string name, Vector3 pos, Vector3 scale, Texture tex, Color tint, float emission,

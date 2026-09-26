@@ -221,14 +221,19 @@ namespace Core.Stations
         // ── Enter / leave ─────────────────────────────────────────────────────────
 
         public static bool AnyRoomInside =>
-            Inside || GateRoom.Inside || ResearchLab.Inside || DryDock.Inside || QuartersRoom.Inside;
+            Inside || GateRoom.Inside || ResearchLab.Inside || DryDock.Inside || QuartersRoom.Inside || CorridorRoom.Inside;
+
+        /// <summary>In a room other than the corridor (the corridor is where rooms are entered from).</summary>
+        public static bool InRoomBeyondCorridor => AnyRoomInside && !CorridorRoom.Inside;
 
         public async Task Enter()
         {
-            if (AnyRoomInside)
+            if (InRoomBeyondCorridor)
                 return;
             var fade = ViewFade.Ensure();
             await fade.FadeOut();
+            if (CorridorRoom.Inside)
+                CorridorRoom.Instance.Depart();
             // Over our ship, the star in the middle of the right-hand windows seen from the stand.
             RoomPlacement.OverShip(transform, DiplomacyDecor.RightWindowCentre(Centre, Radius) - Stand);
             gameObject.SetActive(true);
@@ -264,13 +269,8 @@ namespace Core.Stations
             Inside = false;
             if (DiplomacyService.Instance != null)
                 DiplomacyService.Instance.Changed -= OnDiplomacyChanged;
-            var rig = FindFirstObjectByType<XROrigin>();
-            var bridge = FindFirstObjectByType<BridgeViewRig>();
-            if (rig != null && bridge != null && bridge.BridgeMount != null)
-            {
-                rig.transform.SetParent(bridge.BridgeMount, false);
-                bridge.PutPlayerOnDeck();
-            }
+            // Out into the corridor, in front of this room's door.
+            CorridorRoom.ReturnPlayer(CorridorRoom.Slot.DiplomacyPort);
 
             gameObject.SetActive(false);
             await fade.FadeIn();

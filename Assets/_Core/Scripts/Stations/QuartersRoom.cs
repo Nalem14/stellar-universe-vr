@@ -241,10 +241,12 @@ namespace Core.Stations
 
         public async Task Enter()
         {
-            if (DiplomacyRoom.AnyRoomInside || Inside)
+            if (DiplomacyRoom.InRoomBeyondCorridor || Inside)
                 return;
             var fade = ViewFade.Ensure();
             await fade.FadeOut();
+            if (CorridorRoom.Inside)
+                CorridorRoom.Instance.Depart();
             // Over our ship, the bay (ahead of the stand) facing the star.
             RoomPlacement.OverShip(transform, Vector3.forward);
             gameObject.SetActive(true);
@@ -274,13 +276,8 @@ namespace Core.Stations
             await fade.FadeOut();
             Inside = false;
             CommsConsole.Instance?.Undock();
-            var rig = FindFirstObjectByType<XROrigin>();
-            var bridge = FindFirstObjectByType<BridgeViewRig>();
-            if (rig != null && bridge != null && bridge.BridgeMount != null)
-            {
-                rig.transform.SetParent(bridge.BridgeMount, false);
-                bridge.PutPlayerOnDeck();
-            }
+            // Out into the corridor, in front of this room's door.
+            CorridorRoom.ReturnPlayer(CorridorRoom.Slot.QuartersStarboard);
 
             gameObject.SetActive(false);
             await fade.FadeIn();

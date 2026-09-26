@@ -16,16 +16,23 @@ namespace Core.Vfx
             var mul = ship ? 1f : 0.85f;
             foreach (var r in host.GetComponentsInChildren<MeshRenderer>(true))
             {
-                if (r == null || r.sharedMaterial == null)
+                if (r == null || r.sharedMaterial == null || host.Art == null)
                     continue;
                 var n = r.gameObject.name;
+                // The sky panel over the table: cool daylight on a ship, a warmer lamp at a station.
+                if (n == "SkyPanel")
+                {
+                    r.sharedMaterial = host.Art.Lit(Texture2D.whiteTexture, ship ? new Color(0.7f, 0.88f, 1f) : new Color(1f, 0.86f, 0.66f), 1.25f);
+                    continue;
+                }
+
                 if (n.IndexOf("Strip", System.StringComparison.OrdinalIgnoreCase) < 0 &&
                     n.IndexOf("Accent", System.StringComparison.OrdinalIgnoreCase) < 0 &&
                     n.IndexOf("Trim", System.StringComparison.OrdinalIgnoreCase) < 0)
                     continue;
-                if (host.Art == null)
-                    continue;
-                r.sharedMaterial = host.Art.Lit(Texture2D.whiteTexture, accent * mul, ship ? 3.2f : 2.2f);
+                // Floor lines stay soft; wall and frame lines carry the accent.
+                var floor = n is "KickStrip" or "DeckStrip";
+                r.sharedMaterial = host.Art.Lit(Texture2D.whiteTexture, accent * mul, floor ? 1f : ship ? 2.4f : 2f);
             }
         }
     }

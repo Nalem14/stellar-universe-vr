@@ -193,6 +193,31 @@ namespace Core.Vfx
             return mat;
         }
 
+        /// <summary>
+        /// Bridge shell surface (SU/HullInterior): shaded by the room's own lights through RoomLightRig, seams on a
+        /// <paramref name="panel"/> metre grid. Meshes carry UVs in metres and occlusion in vertex colour.
+        /// Falls back to the unlit kit material when the shader is missing.
+        /// </summary>
+        public Material Hull(Texture tex, Color tint, Vector2 panel, float tiling = 0.5f, float seam = 0.45f, float lift = 0.05f)
+        {
+            var key = $"HI|{(tex != null ? tex.GetInstanceID() : 0)}|{ColorKey(tint)}|{panel.x:F2},{panel.y:F2}|{tiling:F2}|{seam:F2}|{lift:F2}";
+            if (_cache.TryGetValue(key, out var cached) && cached != null)
+                return cached;
+            var shader = Shader.Find("SU/HullInterior");
+            if (shader == null)
+                return Lit(tex, tint, 0.3f, tiling);
+            var mat = new Material(shader) { name = "SU_Hull" };
+            if (tex != null)
+                mat.mainTexture = tex;
+            mat.SetColor("_Color", tint);
+            mat.SetFloat("_Tiling", tiling);
+            mat.SetVector("_PanelSize", new Vector4(panel.x, panel.y, 0f, 0f));
+            mat.SetFloat("_Seam", seam);
+            mat.SetFloat("_Lift", lift);
+            _cache[key] = mat;
+            return mat;
+        }
+
         public Material MetalPanel(float emission = 0.55f) => Lit(Panel ?? Wall, Metal, emission, 1.4f);
         public Material DarkPanel(float emission = 0.35f) => Lit(Panel ?? Wall, DarkMetal, emission, 1.2f);
         public Material SoftPanel(float emission = 0.45f) => Lit(Wall, SoftMetal, emission, 1.3f);

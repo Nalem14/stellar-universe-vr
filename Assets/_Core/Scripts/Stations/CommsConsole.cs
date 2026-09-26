@@ -128,7 +128,7 @@ namespace Core.Stations
             // Wars and alliances have their own room: the officer walks the captain there.
             DiegeticUi.HoloButton(_frame, Trans.Get("vr.diplo.open"), new Vector2(290f, 245f), new Vector2(190f, 46f), () =>
             {
-                if (DiplomacyRoom.Instance == null || DiplomacyRoom.AnyRoomInside)
+                if (DiplomacyRoom.Instance == null || DiplomacyRoom.InRoomBeyondCorridor)
                     return;
                 Close();
                 Run(DiplomacyRoom.Instance.Enter());

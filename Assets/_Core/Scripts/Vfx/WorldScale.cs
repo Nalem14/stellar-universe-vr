@@ -9,7 +9,7 @@ namespace Core.Vfx
     public static class WorldScale
     {
         public const float CicDeck = 12f;
-        public const float CicCeiling = 3.1f;
+        public const float CicCeiling = 3.4f;
 
         /// <summary>Table top height above deck (chest reach).</summary>
         public const float CicTableHeight = 0.88f;

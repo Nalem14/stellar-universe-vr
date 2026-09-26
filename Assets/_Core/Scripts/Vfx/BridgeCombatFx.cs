@@ -86,17 +86,19 @@ namespace Core.Vfx
             _stripMat.name = "SU_AlertStrip";
             _strips = new GameObject("RedAlertBars");
             _strips.transform.SetParent(transform, false);
-            // Along the top of the walls, under the ceiling beams (visible from the chair and the table).
-            var half = WorldScale.CicDeck * 0.5f - 0.1f;
-            var y = WorldScale.CicCeiling - 0.55f;
-            Strip(new Vector3(0f, y, half), new Vector3(half * 2f, 0.05f, 0.05f));
-            Strip(new Vector3(0f, y, -half), new Vector3(half * 2f, 0.05f, 0.05f));
-            Strip(new Vector3(half, y, 0f), new Vector3(0.05f, 0.05f, half * 2f));
-            Strip(new Vector3(-half, y, 0f), new Vector3(0.05f, 0.05f, half * 2f));
+            // Along the top of every wall of the shell, over the window heads (visible from the chair and the table).
+            for (var e = 0; e < BridgeShell.Plan.Length; e++)
+            {
+                var len = BridgeShell.EdgeLength(e);
+                var bar = Strip(BridgeShell.EdgePoint(e, len * 0.5f, 0.05f, BridgeShell.WallTop - 0.07f), new Vector3(len - 0.3f, 0.05f, 0.05f));
+                // Cube x along the edge: LookRotation(normal) puts local x on up × normal = the edge direction.
+                bar.localRotation = Quaternion.LookRotation(BridgeShell.EdgeNormal(e), Vector3.up);
+            }
+
             _strips.SetActive(false);
         }
 
-        void Strip(Vector3 pos, Vector3 size)
+        Transform Strip(Vector3 pos, Vector3 size)
         {
             var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
             go.name = "AlertBar";
@@ -108,6 +110,7 @@ namespace Core.Vfx
             mr.sharedMaterial = _stripMat;
             mr.shadowCastingMode = ShadowCastingMode.Off;
             mr.receiveShadows = false;
+            return go.transform;
         }
 
         void OnDestroy()

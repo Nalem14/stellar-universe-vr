@@ -130,7 +130,7 @@ Chaque phase livre **l'art complet** de ce qu'elle touche, sans placeholder. Une
 - Kit `Core.UI` (§2.3) ; pièce en prefab généré en Editor (§2.6).
 - Disposition inspirée de Bridge Crew :
   - fauteuil du captain au centre-arrière, table holo devant lui ;
-  - viewscreen au-dessus des hublots avant ;
+  - écran principal incurvé dans la cloison avant (P5.6) ;
   - **6 stations** en fer à cheval (Helm, Tactical, Engineering, Science, Comms, Ops), avec les consoles tournées vers l'avant pour leur opérateur et les répétiteurs orientés vers le captain ;
   - TP dans le champ de vision.
 - Arm pads du fauteuil : raccourcis du captain (alerte, focus flotte, zoom holo).
@@ -187,6 +187,23 @@ Avancement : H1, H2a, H2b ✅ (Editor). **H3a combat ✅** (Editor, sur un état
 **H3b ✅** (Editor, sur de vrais ordres) : la file d'ordres du vaisseau choisi (sinon du vaisseau habité) est un chemin 3D animé, avec une balise numérotée par cible (étape en cours en cyan, saut vers un autre système au bord de la table, retour de boucle plus pâle). Gâchette sur une balise → retirer l'étape, boucle, vider ; balise saisie et lâchée sur une autre planète / un autre champ → étape redirigée. **Même route dans l'espace réel** (tracé depuis le vrai vaisseau, balises à anneau et pilier sur les vrais astres, repère vert sur la cible visée à la table). Les jetons se déploient depuis l'étoile à leur première apparition dans un système.
 
 ### P5.6 — Écran principal (idée joueur 2026-09-25)
+**Lot 1 ✅** (Editor ; vraies données, pas testé en casque) :
+- **Pont refait** : octogone allongé, pans coupés, deux verrières de proue, soffite incliné, plafond à caissons avec puits de lumière au-dessus de la table, nervures du sol au plafond. Nouveau shader `SU/HullInterior`, éclairé par les lumières de la pièce via `RoomLightRig`. Collisions épaisses derrière chaque mur, et `FallGuard` (retour au dernier point sûr en cas de chute) dans toutes les pièces.
+- **Écran incurvé** (`BridgeViewscreen`) :
+  - caméra de coque 1152×400 à 24 Hz, coupée hors du champ de vision ou hors du pont ;
+  - HUD rendu dans le flux : repères sur les astres et les contacts, ruban de cap, grille ;
+  - carte de la cible (propriétaire, état, orbite, habitabilité, réserves, aperçu d'ordre), heure locale, transmissions non lues ;
+  - boîtier propre, distinct des hublots : bezel, casquette d'émetteurs, piliers, barre d'état animée.
+- **Régie de l'écran**, par ordre de priorité :
+  1. alerte rouge (l'ennemi cadré, manche, coque) ;
+  2. ce que le captain touche ou vise sur la holomap (planète, vaisseau, champ d'astéroïdes, anomalie), maintenu 8 s ;
+  3. verrouillage au regard sur un repère ;
+  4. destination en transit, ou cible travaillée (récolte, siège, exploration) ;
+  5. au repos, la vue avant (vaisseau) ou la planète sous la station.
+- **Mode vaisseau ou station** : cyan ou ambre, lumière du plafond plus chaude en station, planète sous la station à l'écran.
+- **Couloir** (`CorridorRoom`) : le pont n'a plus qu'une sortie, à l'arrière. Toutes les pièces donnent sur la coursive (labo, cale sèche, diplomatie, quartiers, base Stargate au fond), avec hublots sur l'extérieur partagé. En sortant d'une pièce, on se retrouve devant sa porte dans le couloir.
+- Reste : combat plan par plan, siège, arrivée / départ, demandes « À l'écran » à l'équipage, gestes (zoom, orbite), incrustation.
+
 Remplacer les hublots avant par **un très grand écran incurvé** (viewscreen à la Star Trek Bridge Crew) qui rend une caméra dans le `SystemExterior` partagé. Par défaut : la vue **devant le vaisseau**. L'écran « réalise » ensuite la scène selon le contexte, comme un régisseur.
 - **Rendu** : une caméra dédiée (RenderTexture ≈ 2048×768, 30–45 Hz sur Quest, sans post-processing propre, culling limité à l'extérieur) projetée sur une surface cylindrique courbée vers le captain ; cadre physique, bord lumineux, scanlines et léger fresnel ; hublots latéraux conservés (profondeur et parallaxe réelles), l'écran avant devient la « fenêtre intelligente ».
 - **Modes de caméra (régie automatique, priorités)** : avant (repos) → **suivi de cible** (vaisseau visé à la table ou en combat : caméra épaule, cible cadrée, réticule et fiche) → **combat** (plan large des deux camps, coupe sur le tireur puis l'impact à chaque salve, ralenti sur une destruction) → **siège** (orbite de la planète, bombardement et riposte) → **arrivée / départ** (plan de sortie d'hyperespace, traînée de saut) → **événement** (anomalie détectée, contact hostile, navettes de troupes, construction terminée en orbite). Transitions en fondu « glitch holo » de 0,3 s, jamais de coupe franche pendant un geste.

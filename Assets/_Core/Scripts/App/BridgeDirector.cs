@@ -81,7 +81,6 @@ namespace Core.App
             CommsService.Build(interior.transform);
             Core.Stations.CommsConsole.Build(interior.transform);
             Core.Stations.DryDock.Build(env.Art, _focus, _poller, economy);
-            Core.Stations.DockDoor.Build(interior.transform, env.Art, _focus);
             Core.Stations.ResearchLab.Build(env.Art, economy, _focus);
             Core.Stations.PlanetSurvey.Build(interior.transform);
             var anomalies = AnomalyService.Build(interior.transform, _focus);
@@ -92,16 +91,24 @@ namespace Core.App
                 asteroids.Updated += _zoneMap.RefreshAsteroidIntel;
             asteroids.Updated += _exterior.ApplyAsteroidReserves;
             ExteriorJumpgateFx.Attach(_exterior, _focus, economy);
-            Core.Stations.LabDoor.Build(interior.transform, env.Art);
             Core.Stations.GateRoom.Build(env.Art, economy);
-            Core.Stations.GateDoor.Build(interior.transform, env.Art);
             DiplomacyService.Build(interior.transform);
             Core.Stations.DiplomacyRoom.Build(env.Art);
-            Core.Stations.DiplomacyDoor.Build(interior.transform, env.Art);
             Core.Stations.QuartersRoom.Build(env.Art);
-            Core.Stations.QuartersDoor.Build(interior.transform, env.Art);
+            // One way off the bridge: the aft door opens on the corridor, and every room opens off the corridor.
+            var corridor = Core.Stations.CorridorRoom.Build(env.Art, _focus);
+            Core.Stations.RoomDoor.Build(interior.transform, "CorridorDoor",
+                new Vector3(0f, 0f, -WorldScale.CicDeck * 0.5f + 0.12f), 0f, Trans.Get("vr.corridor.enter"), CicArtKit.Cyan, env.Art,
+                () => !Core.Stations.DiplomacyRoom.AnyRoomInside, () => Core.Utils.AsyncTap.Run(corridor.Enter()));
+            Core.Stations.LabDoor.Build(corridor.transform, env.Art);
+            Core.Stations.DockDoor.Build(corridor.transform, env.Art, _focus);
+            Core.Stations.DiplomacyDoor.Build(corridor.transform, env.Art);
+            Core.Stations.QuartersDoor.Build(corridor.transform, env.Art);
+            Core.Stations.GateDoor.Build(corridor.transform, env.Art);
             CrewStationsBuilder.Build(env, env.Art, hex, _zoneMap, _poller, _focus, _loader);
-            BridgeViewscreen.Build(env, _focus);
+            BridgeViewscreen.Build(env, _focus, _exterior, hex);
+            BridgeWallDisplays.Build(env, _focus);
+            FallGuard.Ensure();
 
             var teleporter = BridgeViewTeleporter.Build(env, env.Art);
             teleporter.Bind(_loader, _focus, env.Art);

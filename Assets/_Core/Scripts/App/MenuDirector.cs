@@ -19,6 +19,7 @@ namespace Core.App
             var console = gameObject.AddComponent<MainMenuConsole>();
             console.Bind(env);
             console.Build();
+            FallGuard.Ensure();
             PlayAmbience();
         }
 

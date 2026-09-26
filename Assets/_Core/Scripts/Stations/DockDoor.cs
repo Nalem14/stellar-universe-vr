@@ -6,24 +6,23 @@ using UnityEngine;
 namespace Core.Stations
 {
     /// <summary>
-    /// The bridge door to the station's dry dock: it only exists at a virtual orbital station over one of our
-    /// worlds (a ship's bridge has no dock). Walking through it enters <see cref="DryDock"/> for that planet.
+    /// The corridor door to the station's dry dock (first door to starboard): it only exists at a virtual orbital
+    /// station over one of our worlds (a ship has no dock). Walking through it enters <see cref="DryDock"/> for that planet.
     /// </summary>
     public sealed class DockDoor : MonoBehaviour
     {
-        /// <summary>Aft bulkhead, starboard of the captain's chair (TP is to port).</summary>
-        static readonly Vector3 Position = new(2.4f, 0f, -WorldScale.CicDeck * 0.5f + 0.12f);
+        static (Vector3 pos, float yaw) Pose => CorridorRoom.DoorPose(CorridorRoom.Slot.DockStarboard);
 
         FocusContext _focus;
         RoomDoor _door;
 
-        public static DockDoor Build(Transform bridge, CicArtKit art, FocusContext focus)
+        public static DockDoor Build(Transform corridor, CicArtKit art, FocusContext focus)
         {
             var go = new GameObject("DockDoorPresence");
-            go.transform.SetParent(bridge, false);
+            go.transform.SetParent(corridor, false);
             var presence = go.AddComponent<DockDoor>();
             presence._focus = focus;
-            presence._door = RoomDoor.Build(bridge, "DockDoor", Position, 0f, Trans.Get("vr.dock.enter"),
+            presence._door = RoomDoor.Build(corridor, "DockDoor", Pose.pos, Pose.yaw, Trans.Get("vr.dock.enter"),
                 new Color(0.4f, 0.95f, 0.55f, 1f), art, presence.CanPass, presence.Pass);
             if (focus != null)
                 focus.Changed += presence.Apply;
@@ -40,7 +39,7 @@ namespace Core.Stations
         int StationPlanet => _focus != null && _focus.ViewFleetId <= 0 ? _focus.ViewPlanetId : 0;
 
         bool CanPass() => StationPlanet > 0 && OwnedPlanets.Contains(StationPlanet) && DryDock.Instance != null &&
-                          !DryDock.Inside;
+                          !DryDock.Inside && CorridorRoom.Inside;
 
         void Apply()
         {

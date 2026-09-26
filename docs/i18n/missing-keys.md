@@ -18,6 +18,34 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 
 ---
 
+## À intégrer — pont : écran principal
+
+| Clé | EN | FR | Contexte |
+|---|---|---|---|
+| `vr.screen.forward` | Forward view | Vue avant | Titre du mode : caméra de proue |
+| `vr.screen.scope` | Long-range optics | Optique longue portée | Titre du mode : cible cadrée |
+| `vr.screen.tracking` | Tracking | Poursuite | Cible touchée sur la holomap |
+| `vr.screen.transit` | In transit | En transit | Notre vaisseau en route |
+| `vr.screen.redAlert` | Red alert | Alerte rouge | Combat / siège dans le système |
+| `vr.screen.survey` | System survey | Relevé du système | Carte au repos |
+| `vr.screen.order` | Order | Ordre | Aperçu d'ordre du vaisseau sélectionné |
+| `vr.screen.destination` | Destination {0} | Destination {0} | {0} = coordonnées du système |
+| `vr.screen.remaining` | {0} remaining | Encore {0} | Récolte / siège / exploration |
+| `vr.screen.hostiles` | Hostiles: {0} | Hostiles : {0} | |
+| `vr.screen.contacts` | Contacts: {0} | Contacts : {0} | Vaisseaux étrangers présents |
+| `vr.screen.hull` | Hull {0} / {1} | Coque {0} / {1} | Notre vaisseau en combat |
+| `vr.screen.orbit` | Orbit {0} | Orbite {0} | Rang orbital de la planète |
+| `vr.screen.oursHere` | Our ships here: {0} | Nos vaisseaux ici : {0} | |
+| `vr.screen.ours` | {0} ours | {0} à nous | Planètes du système à nous |
+| `vr.screen.ours1` | Ours | À nous | Propriétaire = nous |
+| `vr.screen.unclaimed` | Unclaimed | Non revendiquée | Planète sans propriétaire |
+| `vr.screen.pirate` | Pirates | Pirates | Propriétaire d'un vaisseau pirate |
+| `vr.screen.idle` | Standing by | En attente | Vaisseau cible sans ordre |
+| `vr.screen.underSiege` | Under siege | Assiégée | |
+| `vr.screen.comms` | Transmissions: {0} | Transmissions : {0} | Messages non lus (bandeau) |
+| `vr.corridor.enter` | Corridor | Coursive | Porte arrière du pont (seule sortie) |
+| `vr.armory.nearby` | Nearby — reinforcements possible | À proximité — renforts possibles | Armurerie, combats en préparation où l'on n'est pas |
+
 ---
 
 ## Intégré côté web

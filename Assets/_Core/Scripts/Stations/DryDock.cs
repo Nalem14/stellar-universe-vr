@@ -883,7 +883,7 @@ namespace Core.Stations
         /// <summary>Walk into the dock for <paramref name="planetId"/> (station planet or the one in orbit).</summary>
         public async Task Enter(int planetId, int fleetId)
         {
-            if (Inside)
+            if (Inside || DiplomacyRoom.InRoomBeyondCorridor)
                 return;
             // The dock belongs to the orbital station you stand in: only one of our worlds has one here.
             await OwnedPlanets.EnsureLoaded();
@@ -895,6 +895,8 @@ namespace Core.Stations
 
             var fade = ViewFade.Ensure();
             await fade.FadeOut();
+            if (CorridorRoom.Inside)
+                CorridorRoom.Instance.Depart();
             gameObject.SetActive(true);
             var rig = FindFirstObjectByType<XROrigin>();
             if (rig != null)
@@ -929,13 +931,8 @@ namespace Core.Stations
                 Destroy(_crate);
             _crate = null;
             _crateHeld = false;
-            var rig = FindFirstObjectByType<XROrigin>();
-            var bridge = FindFirstObjectByType<BridgeViewRig>();
-            if (rig != null && bridge != null && bridge.BridgeMount != null)
-            {
-                rig.transform.SetParent(bridge.BridgeMount, false);
-                bridge.PutPlayerOnDeck();
-            }
+            // Out into the corridor, in front of this room's door.
+            CorridorRoom.ReturnPlayer(CorridorRoom.Slot.DockStarboard);
 
             gameObject.SetActive(false);
             await fade.FadeIn();

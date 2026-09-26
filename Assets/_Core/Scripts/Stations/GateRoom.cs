@@ -253,10 +253,12 @@ namespace Core.Stations
 
         public async Task Enter()
         {
-            if (DiplomacyRoom.AnyRoomInside)
+            if (DiplomacyRoom.InRoomBeyondCorridor)
                 return;
             var fade = ViewFade.Ensure();
             await fade.FadeOut();
+            if (CorridorRoom.Inside)
+                CorridorRoom.Instance.Depart();
             gameObject.SetActive(true);
             var rig = FindFirstObjectByType<XROrigin>();
             if (rig != null)
@@ -294,13 +296,8 @@ namespace Core.Stations
             await fade.FadeOut();
             Inside = false;
             SetAlarm(false);
-            var rig = FindFirstObjectByType<XROrigin>();
-            var bridge = FindFirstObjectByType<BridgeViewRig>();
-            if (rig != null && bridge != null && bridge.BridgeMount != null)
-            {
-                rig.transform.SetParent(bridge.BridgeMount, false);
-                bridge.PutPlayerOnDeck();
-            }
+            // Out into the corridor, in front of this room's door.
+            CorridorRoom.ReturnPlayer(CorridorRoom.Slot.GateEnd);
 
             gameObject.SetActive(false);
             await fade.FadeIn();
