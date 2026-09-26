@@ -248,7 +248,14 @@ Changer de système doit se **voir** : le vaisseau part, quitte le système, le 
 - **Écran principal** : carte de transit avec destination et mode, vue avant pendant le transit, légendes de départ et d'arrivée pilotées par le voyage (avant, la bascule serveur faisait afficher « Arrivée » au départ). La caméra de coque se lisse désormais dans le repère du pont : elle ne traîne plus dans la pièce quand le vaisseau file.
 - **Barre** : répliques au passage en transit et à la sortie (clés dans `missing-keys.md`).
 - Le joueur reste où il est pendant un voyage (plus de retour forcé au fauteuil quand seul le système change).
-- Reste : effets de départ et d'arrivée pour les **autres** vaisseaux vus par les hublots (flash de saut, sortie d'hyperespace), sillage moteur sur les trajets intra-système, pièces annexes (couloir, labo…) qui ne suivent pas encore le vaisseau pendant un départ.
+
+**Lot 2 ✅** (Editor ; arrivée et départ d'un autre vaisseau simulés sur les données client, saut intra-système et couloir testés en réel ; pas testé en casque) :
+- **Autres vaisseaux** (`SystemExterior` + `ExteriorTransitFx`) : un vaisseau qui part reste visible, s'arrache de son poste puis saute (éclair, trait de lumière, anneau de choc selon le mode ; en sous-lumière il s'enfonce dans le noir). Un vaisseau en approche d'un autre système reste invisible pendant son trajet, surgit dans les dernières secondes et freine jusqu'à son poste pile à `desttime`.
+- **Moteurs** : `EngineBurn.Throttle` allonge et chauffe les flammes pendant un déplacement, avec un **sillage** (traînée cyan pour nous, ambre pour les autres).
+- **Saut intra-système du vaisseau habité** : ronflement des moteurs et poussière proportionnels à la vitesse réelle.
+- **Pièces à hublots** (couloir, diplomatie, quartiers) : elles suivent le vaisseau (`RideShip`) pendant les départs, approches et sauts, joueur compris.
+- **Postes d'amarrage** : chaque vaisseau d'une même planète a son rang (avant, deux ids de même reste modulo 5 se garaient l'un dans l'autre — ou dans notre pont).
+- **ETA** : le booster Nova `move_speed` est appliqué comme le serveur (après correction côté web du sens du facteur, voir `PARITY.md`).
 
 ### P6 — Méta
 - ✅ **Quartiers du commandant** (Editor ; lectures réelles, `SetPolitics` testé aller-retour, aucun achat) : cabine au-dessus du vaisseau par la porte tribord de la cloison arrière, grande baie sur le vrai système. Bureau en bois sombre avec l'écran **Empire** incliné bas : identité (renommer, drapeau), autorité et éthiques (jetons, deux temps), politiques (8 catégories), espèce (type, traits, un jeton), journal de bord (`GetActivity`). Console **Progression** (niveau, objectifs du jour / semaine / mois, succès filtrés, événement et boss mondial) et **mur des trophées** (18 plaques). Console **Boutique** (boosters, consommables, cosmétiques, titres, packs et historique Nova). Plaque du bureau et vitrine = titre équipé, drapeau, couleur de flotte ; la couleur équipée teinte aussi **nos coques dehors**. Terminal **Comms** mural (la console Comms s'y ancre). Reste : recharge Nova depuis le casque (aucun chemin de paiement VR), lit / étagères perso.

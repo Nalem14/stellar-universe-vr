@@ -35,6 +35,54 @@ namespace Core.Vfx
                 return;
             _sig = sig;
             ShipHullBuilder.Build(transform, modules, _owned, seed);
+            _engines = null;
+        }
+
+        EngineBurn[] _engines;
+        TrailRenderer _wake;
+        float _throttle = 1f;
+
+        /// <summary>
+        /// Engine burn of this hull (1 = idle). Under way the flames stretch and a light wake streams behind;
+        /// engines and wake are looked up once per hull build, never per frame.
+        /// </summary>
+        public void SetThrottle(float throttle)
+        {
+            if (Mathf.Abs(throttle - _throttle) < 0.02f && _engines != null)
+                return;
+            _throttle = throttle;
+            _engines ??= GetComponentsInChildren<EngineBurn>(true);
+            for (var i = 0; i < _engines.Length; i++)
+                if (_engines[i] != null)
+                    _engines[i].Throttle = throttle;
+            var wake = throttle > 1.25f;
+            if (wake && _wake == null)
+                _wake = BuildWake();
+            if (_wake != null && _wake.emitting != wake)
+                _wake.emitting = wake;
+        }
+
+        TrailRenderer BuildWake()
+        {
+            var go = new GameObject("Wake");
+            go.transform.SetParent(transform, false);
+            // Aft of the 9×9 hull (grid rows run along +Z).
+            go.transform.localPosition = new Vector3(0f, 0f, -WorldScale.ShipSpan * 0.5f);
+            var t = go.AddComponent<TrailRenderer>();
+            t.time = 2.2f;
+            t.minVertexDistance = 2.5f;
+            t.widthMultiplier = WorldScale.ShipSpan * 0.22f;
+            t.widthCurve = new AnimationCurve(new Keyframe(0f, 1f), new Keyframe(1f, 0f));
+            var tint = _owned ? new Color(0.35f, 0.85f, 1f) : new Color(1f, 0.62f, 0.3f);
+            var g = new Gradient();
+            g.SetKeys(new[] { new GradientColorKey(Color.Lerp(tint, Color.white, 0.5f), 0f), new GradientColorKey(tint, 1f) },
+                new[] { new GradientAlphaKey(0.55f, 0f), new GradientAlphaKey(0f, 1f) });
+            t.colorGradient = g;
+            t.sharedMaterial = CombatFxKit.Beam();
+            t.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            t.receiveShadows = false;
+            t.emitting = false;
+            return t;
         }
 
         IEnumerator PullLayout()

@@ -34,6 +34,34 @@ namespace Core.Stations
             room.SetPositionAndRotation(pos,
                 Quaternion.LookRotation(toStar.normalized, Vector3.up) *
                 Quaternion.Inverse(Quaternion.LookRotation(viewLocal.normalized, Vector3.up)));
+
+            // The wing is part of the ship: it flies with it (departures, approaches, in-system hops), and the
+            // player standing in it with it.
+            var ride = room.GetComponent<RideShip>() ?? room.gameObject.AddComponent<RideShip>();
+            ride.Latch(bridge.BridgeMount);
+        }
+    }
+
+    /// <summary>Keeps a room at a fixed pose relative to the ship it was placed over (after the ship moved this frame).</summary>
+    [DefaultExecutionOrder(100)]
+    public sealed class RideShip : MonoBehaviour
+    {
+        Transform _mount;
+        Vector3 _localPos;
+        Quaternion _localRot;
+
+        public void Latch(Transform mount)
+        {
+            _mount = mount;
+            _localPos = mount.InverseTransformPoint(transform.position);
+            _localRot = Quaternion.Inverse(mount.rotation) * transform.rotation;
+        }
+
+        void LateUpdate()
+        {
+            if (_mount == null)
+                return;
+            transform.SetPositionAndRotation(_mount.TransformPoint(_localPos), _mount.rotation * _localRot);
         }
     }
 }

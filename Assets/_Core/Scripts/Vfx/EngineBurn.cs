@@ -18,6 +18,8 @@ namespace Core.Vfx
         public float Breath = 2.15f;
         public float Flicker = 13.4f;
         public float Phase;
+        /// <summary>1 = cruising idle; up to ~2.5 = full burn (longer, hotter flame, denser plume).</summary>
+        public float Throttle = 1f;
 
         Vector3 _plasmaScale, _flameScale, _washScale;
         Vector3 _plasmaPos, _flamePos, _washPos;
@@ -105,20 +107,21 @@ namespace Core.Vfx
             var flick = 0.5f + 0.5f * Mathf.Sin(t * Flicker) * Mathf.Sin(t * Flicker * 1.618f);
             var stutter = 0.5f + 0.5f * Mathf.Sin(t * 29.3f + Phase * 2.1f);
             var drive = Mathf.Clamp01(breath * 0.54f + flick * 0.33f + stutter * 0.13f);
-            var longZ = Mathf.Lerp(0.88f, 1.28f, drive);
-            var fat = Mathf.Lerp(0.9f, 1.1f, drive);
+            var burn = Mathf.Max(0.5f, Throttle);
+            var longZ = Mathf.Lerp(0.88f, 1.28f, drive) * burn;
+            var fat = Mathf.Lerp(0.9f, 1.1f, drive) * Mathf.Lerp(1f, 1.18f, Mathf.Clamp01(burn - 1f));
 
-            Apply(Plasma, _plasmaR, _plasmaPos, _plasmaScale, fat, Mathf.Lerp(0.94f, 1.14f, drive), 0f, drive, 4.2f,
-                8.8f);
-            Apply(Flame, _flameR, _flamePos, _flameScale, fat, longZ, -0.06f * drive, drive, 2.4f, 6.8f);
-            Apply(Wash, _washR, _washPos, _washScale, fat * 0.96f, longZ * 1.08f, -0.1f * drive, drive, 1.2f, 4.2f);
+            Apply(Plasma, _plasmaR, _plasmaPos, _plasmaScale, fat, Mathf.Lerp(0.94f, 1.14f, drive), 0f, drive, 4.2f * burn,
+                8.8f * burn);
+            Apply(Flame, _flameR, _flamePos, _flameScale, fat, longZ, -0.06f * drive * burn, drive, 2.4f * burn, 6.8f * burn);
+            Apply(Wash, _washR, _washPos, _washScale, fat * 0.96f, longZ * 1.08f, -0.1f * drive * burn, drive, 1.2f * burn, 4.2f * burn);
 
             if (Plume == null)
                 return;
             var em = Plume.emission;
-            em.rateOverTime = _rate * Mathf.Lerp(0.48f, 1.32f, drive);
+            em.rateOverTime = _rate * Mathf.Lerp(0.48f, 1.32f, drive) * burn;
             var main = Plume.main;
-            var thrust = Mathf.Lerp(0.68f, 1.28f, drive);
+            var thrust = Mathf.Lerp(0.68f, 1.28f, drive) * burn;
             main.startSpeed = new ParticleSystem.MinMaxCurve(_speedMin * thrust, _speedMax * thrust);
             var swell = Mathf.Lerp(0.82f, 1.2f, drive);
             main.startSize = new ParticleSystem.MinMaxCurve(_sizeMin * swell, _sizeMax * swell);

@@ -37,7 +37,7 @@ namespace Core.Holo
     /// distance = hypot on galaxy x/y (PRL: on visual_x/visual_y, as the server measures it); speed = ship speed (hyperspace) or min(speed, sublightSpeedCap);
     /// time = max(systemTravelDurationMin, distance × systemTravelSecondsPerDistance / speed);
     /// hyperspace crystal = ⌈distance × cost⌉ (falls back to sub-light if short); PRL range = base + level × step.
-    /// Speed boosters are server-side only, so ETAs are shown as estimates (~).
+    /// The move_speed Nova booster is applied as the server does (<see cref="Boosters"/>); ETAs stay estimates (~).
     /// </summary>
     public static class TravelPlanner
     {
@@ -239,8 +239,12 @@ namespace Core.Holo
                 : string.Format(CultureInfo.InvariantCulture, "~{0}:{1:00}", m, sec);
         }
 
-        static float Eta(float distance, float speed) =>
-            Mathf.Max(GameConfig.TravelDurationMin, distance * GameConfig.TravelSecondsPerDistance / Mathf.Max(1f, speed));
+        /// <summary>Server: speed /= move_speed booster, then max(1, (int)speed) (actionjs.php MoveFleetToSystem).</summary>
+        static float Eta(float distance, float speed)
+        {
+            var boosted = Mathf.Max(1f, Mathf.Floor(speed / Mathf.Max(0.01f, Boosters.MoveTimeFactor)));
+            return Mathf.Max(GameConfig.TravelDurationMin, distance * GameConfig.TravelSecondsPerDistance / boosted);
+        }
 
         static float PrlLevel()
         {

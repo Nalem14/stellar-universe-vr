@@ -79,6 +79,8 @@ namespace Core.Vfx
             _asteroids.Clear();
             _fleets.Clear();
             _fleetMotion.Clear();
+            _transits.Clear();
+            _jumped.Clear();
             _builtSystemId = _focus != null ? _focus.SystemId : 0;
 
             BuildStar(_focus);
@@ -189,8 +191,11 @@ namespace Core.Vfx
                 if (body != null)
                     slot = body.Slot;
                 var standoff = WorldScale.FleetStandoff(WorldScale.PlanetRadius(slot));
+                // Each ship at this world has its own berth (rank among them, by id): two ids that share a
+                // remainder no longer park inside each other — or inside our bridge.
+                var rank = _berthRank.TryGetValue(fleet.Id, out var berth) ? berth : fleet.Id % 5;
                 return planet.position + radial * standoff
-                    + side * (WorldScale.FleetLateral + (fleet.Id % 5) * WorldScale.FleetLateralStep);
+                    + side * (WorldScale.FleetLateral + rank * WorldScale.FleetLateralStep * 3f);
             }
 
             if (fleet.AsteroidId > 0 && _asteroids.TryGetValue(fleet.AsteroidId, out var rock))
@@ -204,54 +209,140 @@ namespace Core.Vfx
                 Mathf.Sin(angle) * r));
         }
 
+        /// <summary>
+        /// Another ship crossing between systems, flown here rather than popped: leaving (it pulls away and
+        /// jumps; the server already files it in its destination) or arriving (unseen until it drops in, then
+        /// it closes on its berth, landing exactly at desttime).
+        /// </summary>
+        sealed class Transit
+        {
+            public bool Leaving;
+            public VoyageMode Mode;
+            public float Start;
+            public float Seconds;
+            public Vector3 From;
+            public Vector3 Dir;
+            public bool Shown;
+        }
+
+        readonly Dictionary<int, Transit> _transits = new();
+        /// <summary>Ships that already jumped out of this system (kept gone while the server still says "from here").</summary>
+        readonly HashSet<int> _jumped = new();
+
+        static float LeaveSeconds(VoyageMode mode) => mode switch
+        {
+            VoyageMode.Sublight => 11f,
+            VoyageMode.PrlBond => 2.4f,
+            _ => 3.6f
+        };
+
+        static float DropSeconds(VoyageMode mode) => mode switch
+        {
+            VoyageMode.Sublight => 14f,
+            VoyageMode.PrlBond => 2.2f,
+            _ => 3.4f
+        };
+
+        bool IsLeaving(FocusFleet fleet, long now) =>
+            fleet.IsMoving(now) && fleet.FromSystemId == _focus.SystemId && fleet.SystemId != _focus.SystemId;
+
+        bool IsDroppingIn(FocusFleet fleet, long now) =>
+            fleet.IsArrivingTo(_focus.SystemId, now) && fleet.FromSystemId > 0 && fleet.FromSystemId != _focus.SystemId;
+
+        readonly Dictionary<int, int> _berthRank = new();
+        readonly List<FocusFleet> _berthScratch = new();
+
+        /// <summary>Rank of each ship among those berthed at the same world (stable: by fleet id).</summary>
+        void RankBerths()
+        {
+            _berthRank.Clear();
+            _berthScratch.Clear();
+            foreach (var f in _focus.Fleets)
+                if (f.PlanetId > 0 && f.SystemId == _focus.SystemId)
+                    _berthScratch.Add(f);
+            _berthScratch.Sort((a, b) => a.PlanetId != b.PlanetId ? a.PlanetId.CompareTo(b.PlanetId) : a.Id.CompareTo(b.Id));
+            var planet = -1;
+            var rank = 0;
+            foreach (var f in _berthScratch)
+            {
+                rank = f.PlanetId == planet ? rank + 1 : 0;
+                planet = f.PlanetId;
+                _berthRank[f.Id] = rank;
+            }
+        }
+
         void SyncFleets()
         {
             if (_focus == null)
                 return;
+            RankBerths();
 
             var seen = new HashSet<int>();
             var now = UnixNow();
+            var unix = (long)now;
 
             foreach (var fleet in _focus.Fleets)
             {
-                if (!fleet.VisibleIn(_focus.SystemId, (long)now))
+                var own = _focus.ViewFleetId > 0 && fleet.Id == _focus.ViewFleetId;
+                var leaving = !own && IsLeaving(fleet, unix);
+                if (!leaving)
+                    _jumped.Remove(fleet.Id);
+                // A ship pulling out stays on screen until it jumps (only if we saw it here, not on a fresh load).
+                if (leaving && (_jumped.Contains(fleet.Id) || (!_transits.ContainsKey(fleet.Id) && !_fleets.ContainsKey(fleet.Id))))
+                    continue;
+                if (!leaving && !fleet.VisibleIn(_focus.SystemId, unix))
                     continue;
                 seen.Add(fleet.Id);
+                var mine = DiplomacyIndex.ResolveFleet(fleet) == EmpireStance.Owned;
                 if (!_fleets.TryGetValue(fleet.Id, out var tf) || tf == null)
                 {
-                    var mine = DiplomacyIndex.ResolveFleet(fleet) == EmpireStance.Owned;
                     var go = CreateFleetShip(fleet, IdleFleetPosition(fleet), mine);
                     tf = go.transform;
                     _fleets[fleet.Id] = tf;
                 }
                 else
                 {
-                    var mine = DiplomacyIndex.ResolveFleet(fleet) == EmpireStance.Owned;
                     var view = tf.GetComponent<FleetShipView>();
                     if (view != null)
                         view.Bind(fleet, mine);
                 }
+
+                if (!own && (leaving || IsDroppingIn(fleet, unix)))
+                {
+                    if (!_transits.TryGetValue(fleet.Id, out var tr) || tr.Leaving != leaving)
+                    {
+                        var mode = VoyageLog.Resolve(fleet, unix);
+                        tr = new Transit
+                        {
+                            Leaving = leaving,
+                            Mode = mode,
+                            Start = Time.time,
+                            Seconds = leaving ? LeaveSeconds(mode) : DropSeconds(mode),
+                            From = tf.position,
+                            Dir = leaving ? LeaveHeading(tf) : ArrivalHeading(IdleFleetPosition(fleet), fleet.Id),
+                            Shown = leaving
+                        };
+                        _transits[fleet.Id] = tr;
+                        _fleetMotion.Remove(fleet.Id);
+                        if (!leaving)
+                            SetVisible(tf, false);
+                    }
+
+                    continue;
+                }
+
+                if (_transits.Remove(fleet.Id))
+                    SetVisible(tf, true);
 
                 if (fleet.DestTime > now)
                 {
                     if (!_fleetMotion.TryGetValue(fleet.Id, out var motion) ||
                         System.Math.Abs(motion.EndUnix - fleet.DestTime) > 0.5)
                     {
-                        var to = IdleFleetPosition(fleet);
-                        if (fleet.FromSystemId > 0 && fleet.DestSystemId > 0 &&
-                            fleet.FromSystemId != fleet.DestSystemId)
-                        {
-                            var edge = transform.TransformPoint(new Vector3(OrbitBase + OrbitStep * 8f, 2f, 0f));
-                            if (fleet.DestSystemId == _focus.SystemId)
-                                to = IdleFleetPosition(fleet);
-                            else
-                                to = edge;
-                        }
-
                         _fleetMotion[fleet.Id] = new FleetMotion
                         {
                             From = tf.position,
-                            To = to,
+                            To = IdleFleetPosition(fleet),
                             StartUnix = now,
                             EndUnix = fleet.DestTime
                         };
@@ -263,8 +354,7 @@ namespace Core.Vfx
                     tf.position = IdleFleetPosition(fleet);
                 }
 
-                var hide = _focus.ViewFleetId > 0 && fleet.Id == _focus.ViewFleetId;
-                SetVisible(tf, !hide);
+                SetVisible(tf, !own);
             }
 
             var remove = new List<int>();
@@ -282,20 +372,55 @@ namespace Core.Vfx
             {
                 _fleets.Remove(id);
                 _fleetMotion.Remove(id);
+                _transits.Remove(id);
             }
+        }
+
+        /// <summary>Out of the system: away from the star, from where the ship points.</summary>
+        Vector3 LeaveHeading(Transform ship)
+        {
+            var outward = ship.position - transform.position;
+            outward.y = 0f;
+            outward = outward.sqrMagnitude > 1f ? outward.normalized : Vector3.forward;
+            var fwd = ship.forward;
+            fwd.y = 0f;
+            var dir = (outward * 0.7f + (fwd.sqrMagnitude > 1e-4f ? fwd.normalized : outward) * 0.3f).normalized;
+            return dir.sqrMagnitude > 1e-4f ? dir : outward;
+        }
+
+        /// <summary>Into the system toward the berth, a little off the star.</summary>
+        Vector3 ArrivalHeading(Vector3 berth, int salt)
+        {
+            var inward = transform.position - berth;
+            inward.y = 0f;
+            inward = inward.sqrMagnitude > 1f ? inward.normalized : Vector3.forward;
+            return Quaternion.AngleAxis((salt & 1) == 0 ? 18f : -18f, Vector3.up) * inward;
         }
 
         void TickFleetMotion()
         {
             var now = UnixNow();
+            var unix = (long)now;
+            List<int> jumped = null;
             foreach (var fleet in _focus.Fleets)
             {
-                if (!fleet.VisibleIn(_focus.SystemId, (long)now))
-                    continue;
                 if (!_fleets.TryGetValue(fleet.Id, out var tf) || tf == null)
                     continue;
                 // Own inhabited hull: hidden by SyncFleets on view / fleet change, never scanned per frame.
                 if (_focus.ViewFleetId == fleet.Id)
+                    continue;
+                var view = tf.GetComponent<FleetShipView>();
+
+                if (_transits.TryGetValue(fleet.Id, out var tr))
+                {
+                    if (TickTransit(fleet, tf, tr, now))
+                        (jumped ??= new List<int>()).Add(fleet.Id);
+                    if (view != null)
+                        view.SetThrottle(tr.Mode == VoyageMode.Sublight ? 2.4f : 2f);
+                    continue;
+                }
+
+                if (!fleet.VisibleIn(_focus.SystemId, unix))
                     continue;
 
                 if (_fleetMotion.TryGetValue(fleet.Id, out var motion) && motion.EndUnix > now)
@@ -307,13 +432,77 @@ namespace Core.Vfx
                     if (dir.sqrMagnitude > 0.01f)
                         tf.rotation = Quaternion.Slerp(tf.rotation, Quaternion.LookRotation(dir.normalized, Vector3.up),
                             Time.deltaTime * 3f);
+                    // Burning hard mid-hop, easing off as it brakes into its berth.
+                    if (view != null)
+                        view.SetThrottle(Mathf.Lerp(1f, 1.9f, Mathf.Sin(t * Mathf.PI)));
                 }
                 else
                 {
                     var target = IdleFleetPosition(fleet);
                     tf.position = Vector3.Lerp(tf.position, target, Time.deltaTime * 2.5f);
+                    if (view != null)
+                        view.SetThrottle(1f);
                 }
             }
+
+            if (jumped == null)
+                return;
+            foreach (var id in jumped)
+            {
+                if (_fleets.TryGetValue(id, out var tf) && tf != null)
+                    Destroy(tf.gameObject);
+                _fleets.Remove(id);
+                _transits.Remove(id);
+                _jumped.Add(id);
+            }
+        }
+
+        /// <summary>Flies a crossing ship this frame; true once it has jumped out (to be removed).</summary>
+        bool TickTransit(FocusFleet fleet, Transform tf, Transit tr, double now)
+        {
+            var face = Quaternion.LookRotation(tr.Dir, Vector3.up);
+            if (tr.Leaving)
+            {
+                var u = Mathf.Clamp01((Time.time - tr.Start) / tr.Seconds);
+                var reach = tr.Mode switch
+                {
+                    VoyageMode.Sublight => 650f * Mathf.Pow(u, 2.2f),
+                    VoyageMode.PrlBond => 6f * u,
+                    _ => 140f * u * u
+                };
+                tf.position = tr.From + tr.Dir * reach;
+                tf.rotation = Quaternion.Slerp(tf.rotation, face, Time.deltaTime * 2.5f);
+                if (u < 1f)
+                    return false;
+                ExteriorTransitFx.JumpOut(transform, tf.position, tr.Dir, tr.Mode);
+                return true;
+            }
+
+            var berth = IdleFleetPosition(fleet);
+            var left = (float)(fleet.DestTime - now);
+            if (left > tr.Seconds)
+            {
+                tf.position = berth - tr.Dir * 2000f;
+                return false;
+            }
+
+            var k = Mathf.Clamp01(left / tr.Seconds);
+            var span = tr.Mode switch
+            {
+                VoyageMode.Sublight => 700f * k * k,
+                VoyageMode.PrlBond => 40f * k * k,
+                _ => 420f * k * k * k
+            };
+            tf.position = berth - tr.Dir * span;
+            tf.rotation = face;
+            if (!tr.Shown)
+            {
+                tr.Shown = true;
+                SetVisible(tf, true);
+                ExteriorTransitFx.DropIn(transform, tf.position, tr.Dir, tr.Mode);
+            }
+
+            return false;
         }
 
         void BuildStar(FocusContext focus)

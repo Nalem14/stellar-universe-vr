@@ -120,6 +120,7 @@ namespace Core.Vfx
             v._fx = VoyageFx.Create(rig.ViewShip);
             Instance = v;
             VoyageLog.Ensure();
+            AsyncTap.Run(Boosters.Refresh());
             VoyageLog.Ordered += v.OnOrdered;
             JumpgateNetwork.Jumped += v.OnGateJumped;
             if (focus != null)
@@ -437,10 +438,19 @@ namespace Core.Vfx
 
         // ── Frame ─────────────────────────────────────────────────────────────────
 
+        bool _hop;
+        Vector3 _hopLast;
+        float _hopSpeed;
+
         void Update()
         {
             if (_phase == Phase.Idle)
+            {
+                TickHop();
                 return;
+            }
+
+            _hop = false;
             var now = Now();
             var t = Time.unscaledTime - _phaseAt;
             switch (_phase)
@@ -467,6 +477,47 @@ namespace Core.Vfx
                         Finish();
                     break;
             }
+        }
+
+        /// <summary>
+        /// In-system hop of the inhabited ship (planet to planet, to a field): the rig already flies it; the
+        /// bridge adds the engines' hum and a light dust flow scaled to the real speed, nothing more.
+        /// </summary>
+        void TickHop()
+        {
+            var f = _focus?.FindViewFleet();
+            var unix = FleetOrderGate.UnixNow();
+            var hop = f != null && f.IsMoving(unix) && !VoyageLog.IsInterstellar(f, unix);
+            var ship = _rig.ViewShip;
+            if (hop != _hop)
+            {
+                _hop = hop;
+                _hopLast = ship.position;
+                _hopSpeed = 0f;
+                if (hop)
+                {
+                    _look = VoyageFx.LookOf(VoyageMode.Sublight);
+                    _fx.SetLook(VoyageMode.Sublight);
+                    _fx.Cue(VoyageAudio.Spool, 0.2f);
+                }
+                else
+                {
+                    _fx.Off();
+                }
+            }
+
+            if (!hop || Time.deltaTime <= 0f)
+                return;
+            var v = (ship.position - _hopLast).magnitude / Time.deltaTime;
+            _hopLast = ship.position;
+            _hopSpeed = Mathf.Lerp(_hopSpeed, Mathf.Min(v, 400f), Time.deltaTime * 1.5f);
+            var k = Mathf.Clamp01(_hopSpeed / 30f);
+            _fx.StreakRate = 60f * k;
+            _fx.StreakSpeed = Mathf.Max(30f, _hopSpeed * 4f);
+            _fx.StreakStretch = 0.07f;
+            _fx.HumVolume = 0.03f + 0.07f * k;
+            _fx.HumPitch = Mathf.Lerp(0.7f, 1f, k);
+            _fx.Wash = _look.Wash * k;
         }
 
         void Finish()
