@@ -87,6 +87,7 @@ namespace Core.Crew
         int _uid;
         float _startAt;
         CrewOfficer _speaking;
+        CrewDialogue.Role _speakerRole;
 
         public bool IsActive => _step >= 0 && _step < Steps.Length;
 
@@ -153,6 +154,7 @@ namespace Core.Crew
             Persist();
             var s = Steps[_step];
             var officer = Speaker(s.Role, out var role);
+            _speakerRole = role;
 
             _screen.SetHeader(Trans.Get("guide").ToUpperInvariant() + "   " + (_step + 1) + " / " + Steps.Length);
             var accent = officer != null ? officer.Accent : UiKit.Cyan;
@@ -273,9 +275,11 @@ namespace Core.Crew
             }
 
             // Long enough to read the step; the officer then keeps facing the captain until the next one.
-            officer.Speak(Mathf.Clamp(_body.text.Length * 0.04f, 2.5f, 7f), eye);
+            var talk = Mathf.Clamp(_body.text.Length * 0.04f, 2.5f, 7f);
+            officer.Speak(talk, eye);
             officer.LookAt(eye);
             CicCue.RadioOpen(officer.MouthPosition);
+            BarkDirector.SpeakBabble(officer.MouthPosition, _speakerRole, talk - 0.5f, _step);
         }
 
         // ── Screen ──────────────────────────────────────────────────────────────

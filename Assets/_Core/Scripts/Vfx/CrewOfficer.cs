@@ -68,6 +68,8 @@ namespace Core.Vfx
             Part(head, "Helmet", new Vector3(0.21f, 0.25f, 0.25f), 0.1f, new Vector3(0f, 0.12f, 0f), Vector3.zero, accent, 0.35f, UiKit.Chassis);
             Part(head, "Visor", new Vector3(0.18f, 0.07f, 0.05f), 0.022f, new Vector3(0f, 0.13f, 0.11f), Vector3.zero, accent, 2.2f, UiKit.Chassis);
             Part(head, "Comm", new Vector3(0.03f, 0.05f, 0.13f), 0.012f, new Vector3(0.115f, 0.15f, -0.01f), Vector3.zero, accent, 1.2f, UiKit.Chassis);
+            // Our people: headgear of the empire's species on the helmet.
+            Core.Crew.CrewSpecies.DressHead(head, Core.Crew.CrewSpecies.Ours, accent);
 
             var officer = root.gameObject.AddComponent<CrewOfficer>();
             officer._chest = chest;

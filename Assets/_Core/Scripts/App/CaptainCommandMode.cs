@@ -120,8 +120,7 @@ namespace Core.App
             if (pad == null)
                 return;
             // Physical poke on the right arm console (unscaled rounded pad) — stand up / leave the seat.
-            Core.UI.PokeButton.Create(pad, "ExitCommand", Trans.Get("vr.seat.stand"), BridgeDirector.ArmPadTop,
-                BridgeDirector.ArmPadFaceUp, new Vector2(0.13f, 0.06f), CicArtKit.Amber,
+            Core.UI.ArmConsole.Button(pad, 1, 0, "ExitCommand", Trans.Get("vr.seat.stand"), CicArtKit.Amber,
                 () => Core.Utils.AsyncTap.Run(ExitCommandMode()));
         }
 

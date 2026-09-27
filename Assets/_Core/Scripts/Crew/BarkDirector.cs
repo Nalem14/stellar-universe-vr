@@ -259,6 +259,7 @@ namespace Core.Crew
             var cam = Camera.main;
             officer.Speak(duration, cam != null ? cam.transform.position : officer.transform.position);
             CicCue.RadioOpen(officer.MouthPosition);
+            StartCoroutine(SayAloud(officer, bark.Role, duration, pick));
             _busyUntil = Time.time + duration + Gap;
             _lastLineAt = Time.time;
             Invoke(nameof(CloseChannel), Mathf.Max(0.2f, duration - 0.25f));
@@ -266,6 +267,23 @@ namespace Core.Crew
         }
 
         Vector3 _closeAt;
+
+        /// <summary>The officer's voice, in "yaourt", just after the channel opens (the subtitle carries the words).</summary>
+        System.Collections.IEnumerator SayAloud(CrewOfficer officer, CrewDialogue.Role role, float duration, int variant)
+        {
+            yield return new WaitForSeconds(0.22f);
+            if (officer == null)
+                yield break;
+            SpeakBabble(officer.MouthPosition, role, duration - 0.6f, variant);
+        }
+
+        /// <summary>Babble of the station's timbre (and our species' colour) at a mouth, on the intercom from afar.</summary>
+        public static void SpeakBabble(Vector3 mouth, CrewDialogue.Role role, float seconds, int variant)
+        {
+            var clip = Core.Audio.CrewVoice.Line(Core.Audio.CrewVoice.Station((int)role), (int)CrewSpecies.Ours, seconds, variant);
+            if (clip != null)
+                Core.Audio.SfxBus.Play(clip, mouth, 0.5f, 1f, 10f, Core.Audio.SfxBus.Priority.Voice, 0.2f, intercom: true);
+        }
 
         void CloseChannel() => CicCue.RadioClose(_closeAt);
 

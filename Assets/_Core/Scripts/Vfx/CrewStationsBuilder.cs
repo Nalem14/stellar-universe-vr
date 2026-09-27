@@ -89,7 +89,7 @@ namespace Core.Vfx
             ScreenMount.FaceViewer(screen.transform,
                 root.TransformPoint(new Vector3(0f, WorldScale.EyeSeated, -0.3f)), 0.7f);
             var status = screen.gameObject.AddComponent<CrewStationScreen>();
-            status.Bind(screen, focus, def.Accent);
+            status.Bind(screen, focus, def.Accent, def.Role);
 
             // Operator chair between console and table.
             Piece(root, "SeatPost", new Vector3(0.08f, 0.42f, 0.08f), 0.035f, new Vector3(0f, 0.21f, -0.28f),

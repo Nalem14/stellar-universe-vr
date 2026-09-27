@@ -115,42 +115,47 @@ namespace Core.App
             BridgeNameplate.Build(env, _focus);
             BridgeWallDisplays.Build(env, _focus);
             BridgeDecor.Build(interior.transform, env.Art);
+            // The rest of the watch: operators at the auxiliary banks, hands walking the bridge and corridor.
+            Core.Crew.CrewLife.Build(interior.transform, corridor.transform);
             FallGuard.Ensure();
 
             var teleporter = BridgeViewTeleporter.Build(env, env.Art);
             teleporter.Bind(_loader, _focus, env.Art);
 
-            // Left arm console: refresh the ship list of the view teleporter (poke from the seat).
+            // Arm consoles (tilted panels, 2 × 3 grid): left = the view, right = the post.
             var armL = FindNamed(interior.transform, "ArmPadL");
+            var watch = WatchMode.Build(interior.transform, _focus);
             if (armL != null)
             {
-                Core.UI.PokeButton.Create(armL, "ArmPadL_Refresh", Trans.Get("fleets"),
-                    ArmPadTop, ArmPadFaceUp, new Vector2(0.13f, 0.06f), CicArtKit.Cyan,
+                Core.UI.ArmConsole.Button(armL, -1, 0, "ArmPadL_Refresh", Trans.Get("fleets"), CicArtKit.Cyan,
                     () => Core.Utils.AsyncTap.Run(teleporter.RefreshList()));
-                // Main screen from the chair: straight ahead, or back to the director.
-                Core.UI.PokeButton.Create(armL, "ArmPadL_Forward", Trans.Get("vr.screen.forward"),
-                    ArmPadTop + new Vector3(0f, 0f, -0.075f), ArmPadFaceUp, new Vector2(0.13f, 0.055f), CicArtKit.Cyan,
-                    () => BridgeViewscreen.Instance?.ForceForward());
-                Core.UI.PokeButton.Create(armL, "ArmPadL_Auto", Trans.Get("vr.screen.auto"),
-                    ArmPadTop + new Vector3(0f, 0f, -0.145f), ArmPadFaceUp, new Vector2(0.13f, 0.055f), CicArtKit.Cyan,
-                    () => BridgeViewscreen.Instance?.Auto());
                 // The watch (passthrough): lit when something long is running and the headset sees the room.
-                var watch = WatchMode.Build(interior.transform, _focus);
-                watch.BindOffer(Core.UI.PokeButton.Create(armL, "ArmPadL_Watch", Trans.Get("vr.watch.enter"),
-                    ArmPadTop + new Vector3(0f, 0f, 0.068f), ArmPadFaceUp, new Vector2(0.13f, 0.045f), CicArtKit.Amber,
-                    watch.Enter));
+                watch.BindOffer(Core.UI.ArmConsole.Button(armL, -1, 1, "ArmPadL_Watch", Trans.Get("vr.watch.enter"),
+                    CicArtKit.Amber, watch.Enter));
+                // Main screen from the chair: straight ahead, or back to the director.
+                Core.UI.ArmConsole.Button(armL, -1, 2, "ArmPadL_Forward", Trans.Get("vr.screen.forward"), CicArtKit.Cyan,
+                    () => BridgeViewscreen.Instance?.ForceForward());
+                Core.UI.ArmConsole.Button(armL, -1, 3, "ArmPadL_Auto", Trans.Get("vr.screen.auto"), CicArtKit.Cyan,
+                    () => BridgeViewscreen.Instance?.Auto());
             }
 
-            // First-steps guide told by the crew; the Guide button on the right arm pad replays it.
+            // First-steps guide told by the crew; the Guide button on the right console replays it.
             var guide = Core.Crew.TutorialGuide.Build(interior.transform, _focus,
                 env.Table != null ? env.Table.transform : null);
             var armR = FindNamed(interior.transform, "ArmPadR");
             if (armR != null)
             {
-                var guideButton = Core.UI.PokeButton.Create(armR, "ArmPadR_Guide", Trans.Get("guide"),
-                    ArmPadTop + new Vector3(0f, 0f, -0.075f), ArmPadFaceUp, new Vector2(0.13f, 0.055f), CicArtKit.Cyan,
+                var guideButton = Core.UI.ArmConsole.Button(armR, 1, 1, "ArmPadR_Guide", Trans.Get("guide"), CicArtKit.Cyan,
                     guide.Restart);
                 guide.BindGuideButton(guideButton.transform);
+                // Glow (bloom) on / off: judged on the headset, remembered on it.
+                Core.UI.PokeButton glow = null;
+                glow = Core.UI.ArmConsole.Button(armR, 1, 2, "ArmPadR_Glow", GlowLabel(), CicArtKit.Cyan, () =>
+                {
+                    CicEnvironment.ToggleGlow();
+                    if (glow != null && glow.Label != null)
+                        glow.Label.text = GlowLabel();
+                });
             }
 
             // Command mode scales a parent of HoloMapMount so zoom (child localScale) stays independent.
@@ -196,6 +201,9 @@ namespace Core.App
             boot.BindLoader(_loader);
             boot.Run();
         }
+
+        static string GlowLabel() =>
+            Trans.Get("vr.fx.glow") + " · " + Trans.Get(CicEnvironment.GlowEnabled ? "vr.fx.on" : "vr.fx.off");
 
         /// <summary>Top face of the 0.03 m arm console, a hair above it, slightly toward the knee.</summary>
         internal static readonly Vector3 ArmPadTop = new(0f, 0.017f, 0.04f);

@@ -243,24 +243,11 @@ namespace Core.Vfx
             _portrait.color = Color.Lerp(tint, Color.white, 0.15f);
             // AI and legacy empires may have no species row (specy = null): the humanoid default then.
             var species = empire?["specy"] is Newtonsoft.Json.Linq.JObject sp ? FocusContext.AsInt(sp["type_id"]) : 0;
-            _portraitMat.SetFloat(VariantId, who.IsSystem ? 8f : SpeciesSilhouette(species));
+            _portraitMat.SetFloat(VariantId, who.IsSystem ? 8f : (float)(int)Core.Crew.CrewSpecies.FromType(species));
             _portraitMat.SetFloat(SeedId, Mathf.Repeat(who.UserId * 0.6180339f, 1f));
             var age = Time.unscaledTime - who.At;
             _portraitMat.SetFloat(TalkId, Mathf.Clamp01(1f - (age - 3f) / 2f));
         }
-
-        /// <summary>species_types.id → silhouette family (SU/HoloPortrait _Variant).</summary>
-        static float SpeciesSilhouette(int typeId) => typeId switch
-        {
-            2 => 1f,
-            3 or 8 => 2f,
-            5 or 13 => 3f,
-            6 => 4f,
-            7 or 14 => 5f,
-            9 or 10 => 6f,
-            11 => 7f,
-            _ => 0f
-        };
 
         /// <summary>Command emblem for the game's own mail: a gold star in a cyan ring.</summary>
         const string SystemEmblem = "{\"bg\":\"#04121c\",\"shapes\":[{\"shape\":\"ring\",\"color\":\"#39d7ff\"},{\"shape\":\"star\",\"color\":\"#ffb347\"},{\"shape\":\"none\",\"color\":\"#ffffff\"}]}";

@@ -339,8 +339,22 @@ namespace Core.Vfx
             var data = cam.GetComponent<UniversalAdditionalCameraData>();
             if (data == null)
                 data = cam.gameObject.AddComponent<UniversalAdditionalCameraData>();
-            data.renderPostProcessing = true;
+            data.renderPostProcessing = GlowEnabled;
             data.antialiasing = AntialiasingMode.None;
+        }
+
+        const string GlowKey = "su.fx.glow";
+
+        /// <summary>Bloom + vignette on (default). A comfort / performance switch kept on the headset.</summary>
+        public static bool GlowEnabled => PlayerPrefs.GetInt(GlowKey, 1) == 1;
+
+        /// <summary>Flip the glow (right arm pad): costs one full-screen pass per eye on Quest.</summary>
+        public static bool ToggleGlow()
+        {
+            var on = !GlowEnabled;
+            PlayerPrefs.SetInt(GlowKey, on ? 1 : 0);
+            EnableCameraPost();
+            return on;
         }
 
         public static void DropColliderStatic(GameObject go)
