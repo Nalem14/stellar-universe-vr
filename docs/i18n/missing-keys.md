@@ -17,19 +17,6 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 - **Paramètres** : `{0}`, `{1}`… (`Trans.Format`, `string.Format` en culture invariante).
 - Pour les répliques, les ordres et les échecs, le ton reprend celui du journal de colonisation web : l'équipage s'adresse au joueur en « Commandant ».
 
-## À intégrer — menu d'options (`vr.menu.*`)
-
-Panneau ouvert par le bouton menu de la manette gauche (volume, lueur, rotation, guide, quart, retour au fauteuil).
-
-| Clé | EN | FR |
-|---|---|---|
-| `vr.menu.title` | Options | Options |
-| `vr.menu.volume` | Volume | Volume |
-| `vr.menu.turn` | Turning | Rotation |
-| `vr.menu.turnSmooth` | smooth | fluide |
-| `vr.menu.turnSnap` | snap | par à-coups |
-| `vr.menu.recenter` | To the chair | Au fauteuil |
-
 ## Intégré côté web
 
 - Clés `vr.*`, `crew.*`, `buildingDesc_*`, `colonyLog_*`, `relation_*` dans `assets/langs/{fr,en}.json`.
@@ -47,6 +34,7 @@ Panneau ouvert par le bouton menu de la manette gauche (volume, lueur, rotation,
 - `vr.watch.battle`, `vr.watch.battleWait`, `vr.watch.board`, `vr.watch.building`, `vr.watch.enter`, `vr.watch.explore`, `vr.watch.harvest`, `vr.watch.idle`, `vr.watch.link`, `vr.watch.research`, `vr.watch.siege`, `vr.watch.transit`, `vr.watch.yourTurn` dans **les dix langues**.
 - `vr.pirate.leaves`, `vr.pirate.name` dans **les dix langues**.
 - `vr.console.amberAlert`, `vr.console.battleStations`, `vr.console.clear`, `vr.console.noTraffic`, `vr.console.ready`, `vr.console.unavailable`, `vr.fx.glow`, `vr.fx.off`, `vr.fx.on` dans **les dix langues**.
+- `vr.menu.recenter`, `vr.menu.title`, `vr.menu.turn`, `vr.menu.turnSmooth`, `vr.menu.turnSnap`, `vr.menu.volume` dans **les dix langues**.
 
 ---
 
