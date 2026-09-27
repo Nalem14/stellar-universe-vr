@@ -63,7 +63,12 @@ def write_table(code, data):
 
 
 def placeholders(text):
-    return sorted(re.findall(r'\{\d+\}', str(text)))
+    """Paramètres d'un texte : `{0}`… et les nommés (`{fleet}`, `{planet}`…).
+
+    Les mails de roleplay passent des paramètres NOMMÉS : un contrôle limité à
+    `{0}` ne verrait pas un `{fleet}` perdu à la traduction.
+    """
+    return sorted(re.findall(r'\{[A-Za-z0-9_]+\}', str(text)))
 
 
 def sections(text, wanted):
@@ -103,7 +108,9 @@ def family(key):
     """
     parts = key.split('.')
     if len(parts) < 2:
-        return ''
+        # Famille à underscore (`rm_explore_opening_0` → `rm_`) : les clés d'un
+        # même préfixe restent groupées au lieu de partir à la fin du fichier.
+        return key.split('_')[0] + '_' if '_' in key else ''
     if parts[-1].isdigit():
         parts = parts[:-1]
     return '.'.join(parts[:-1]) + '.' if len(parts) > 1 else ''
