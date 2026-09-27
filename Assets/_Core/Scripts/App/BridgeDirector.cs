@@ -114,6 +114,7 @@ namespace Core.App
             BridgeViewscreen.Build(env, _focus, _exterior, hex);
             BridgeNameplate.Build(env, _focus);
             BridgeWallDisplays.Build(env, _focus);
+            BridgeDecor.Build(interior.transform, env.Art);
             FallGuard.Ensure();
 
             var teleporter = BridgeViewTeleporter.Build(env, env.Art);

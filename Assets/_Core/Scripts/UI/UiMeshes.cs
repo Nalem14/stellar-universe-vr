@@ -13,6 +13,7 @@ namespace Core.UI
         const int Segments = 5;
 
         static readonly Dictionary<long, Mesh> Cache = new();
+        static readonly Dictionary<long, Mesh> SourceCache = new();
 
         /// <summary>Rounded box centred on the origin, size in metres.</summary>
         public static Mesh RoundedBox(Vector3 size, float radius)
@@ -23,13 +24,39 @@ namespace Core.UI
             if (Cache.TryGetValue(key, out var cached) && cached != null)
                 return cached;
 
-            var mesh = Build(size, radius);
+            var mesh = Build(size, radius, false);
             mesh.name = $"UiRoundedBox_{size.x:F3}x{size.y:F3}x{size.z:F3}_r{radius:F3}";
             Cache[key] = mesh;
             return mesh;
         }
 
-        static Mesh Build(Vector3 size, float radius)
+        /// <summary>
+        /// Same rounded box, kept CPU-readable: a source for <c>Mesh.CombineMeshes</c> (merged dressing),
+        /// never drawn itself. The drawable <see cref="RoundedBox"/> drops its CPU copy after upload.
+        /// </summary>
+        public static Mesh RoundedBoxSource(Vector3 size, float radius)
+        {
+            size = new Vector3(Quantize(size.x), Quantize(size.y), Quantize(size.z));
+            radius = Mathf.Min(Quantize(radius), Mathf.Min(size.x, Mathf.Min(size.y, size.z)) * 0.5f);
+            var key = Key(size, radius);
+            if (SourceCache.TryGetValue(key, out var cached) && cached != null)
+                return cached;
+            var mesh = Build(size, radius, true);
+            mesh.name = "UiRoundedBoxSource";
+            SourceCache[key] = mesh;
+            return mesh;
+        }
+
+        /// <summary>Free the CPU-side sources once the merged meshes are built.</summary>
+        public static void ReleaseSources()
+        {
+            foreach (var m in SourceCache.Values)
+                if (m != null)
+                    Object.Destroy(m);
+            SourceCache.Clear();
+        }
+
+        static Mesh Build(Vector3 size, float radius, bool readable)
         {
             var half = size * 0.5f;
             var inner = half - Vector3.one * radius;
@@ -52,7 +79,8 @@ namespace Core.UI
             mesh.SetUVs(0, uvs);
             mesh.SetTriangles(tris, 0);
             mesh.RecalculateBounds();
-            mesh.UploadMeshData(true);
+            if (!readable)
+                mesh.UploadMeshData(true);
             return mesh;
 
             void AddFace(Vector3 normal, Vector3 axisU, Vector3 axisV)
