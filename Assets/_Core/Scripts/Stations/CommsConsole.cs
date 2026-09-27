@@ -415,7 +415,7 @@ namespace Core.Stations
 
                 Line("<color=#6fa9bd>" + Clock(FocusContext.AsLong(m["date"]), false) + "</color>  <b><color=" +
                      (mine ? "#7dffb0" : "#7fd8ff") + ">" + Verbatim(name) + "</color></b>  " +
-                     Verbatim(FocusContext.AsString(m["message"])), -20f, y, 19f, UiKit.TextBright, 1020f);
+                     Verbatim(FocusContext.AsString(m["msg"] ?? m["message"])), -20f, y, 19f, UiKit.TextBright, 1020f);
             }
         }
 
