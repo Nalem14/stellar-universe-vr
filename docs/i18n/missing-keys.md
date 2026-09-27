@@ -17,15 +17,6 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 - **Paramètres** : `{0}`, `{1}`… (`Trans.Format`, `string.Format` en culture invariante).
 - Pour les répliques, les ordres et les échecs, le ton reprend celui du journal de colonisation web : l'équipage s'adresse au joueur en « Commandant ».
 
-## À intégrer — pirates (`vr.pirate.*`)
-
-Le serveur nomme les flottes pirates « Pirates Lv.N » en anglais en dur (`model/pirate.php`) : la VR affiche ce nom localisé à la place, sur la table, l'écran principal, les répéteurs et les répliques.
-
-| Clé | EN | FR |
-|---|---|---|
-| `vr.pirate.name` | Pirates · Lv. {0} | Pirates · Nv. {0} |
-| `vr.pirate.leaves` | Leaving in {0} | Repartent dans {0} |
-
 ## Intégré côté web
 
 - Clés `vr.*`, `crew.*`, `buildingDesc_*`, `colonyLog_*`, `relation_*` dans `assets/langs/{fr,en}.json`.
@@ -41,6 +32,7 @@ Le serveur nomme les flottes pirates « Pirates Lv.N » en anglais en dur (`mode
 - `vr.tutorial.step{1..16}.text` dans **les dix langues** (titres et boutons réutilisent les clés natives `tutorial.stepN.title`, `guide`, `previous`, `next`, `skip`, `end`).
 - `vr.ops.allAnswered` dans **les dix langues**.
 - `vr.watch.battle`, `vr.watch.battleWait`, `vr.watch.board`, `vr.watch.building`, `vr.watch.enter`, `vr.watch.explore`, `vr.watch.harvest`, `vr.watch.idle`, `vr.watch.link`, `vr.watch.research`, `vr.watch.siege`, `vr.watch.transit`, `vr.watch.yourTurn` dans **les dix langues**.
+- `vr.pirate.leaves`, `vr.pirate.name` dans **les dix langues**.
 
 ---
 
