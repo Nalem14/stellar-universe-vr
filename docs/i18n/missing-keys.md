@@ -16,19 +16,6 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 - **Paramètres** : `{0}`, `{1}`… (`Trans.Format`, `string.Format` en culture invariante).
 - Pour les répliques, les ordres et les échecs, le ton reprend celui du journal de colonisation web : l'équipage s'adresse au joueur en « Commandant ».
 
----
-
-## À intégrer — P7 alertes du vaisseau
-
-| Clé | EN | FR |
-|---|---|---|
-| `crew.tactical.alertRed.1` | Red alert! All hands to battle stations. | Alerte rouge ! Tout le monde à son poste de combat. |
-| `crew.tactical.alertRed.2` | Red alert, Commander. Shields up, weapons hot. | Alerte rouge, Commandant. Boucliers levés, armes parées. |
-| `crew.tactical.alertAmber.1` | Yellow alert, Commander. Hostiles in the system. | Alerte jaune, Commandant. Hostiles dans le système. |
-| `crew.tactical.alertAmber.2` | Going to yellow alert. Keeping them on the scope. | Passage en alerte jaune. Je les garde à l'écran. |
-| `crew.tactical.alertClear.1` | Stand down from alert, Commander. All clear. | Fin d'alerte, Commandant. La voie est libre. |
-| `crew.tactical.alertClear.2` | Condition normal. Standing down. | Retour à la normale. On lève l'alerte. |
-
 ## Intégré côté web
 
 - Clés `vr.*`, `crew.*`, `buildingDesc_*`, `colonyLog_*`, `relation_*` dans `assets/langs/{fr,en}.json`.
@@ -39,6 +26,8 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 - Remaps client (§1) : le code VR utilise les clés natives (`fleets`, `asteroidField`, `moveToSystem`, `defendPosition*`, `explorePlanet`, `depositCargo`, `withdrawCargo`, `harvestAsteroid`, `attackOrbit`, `cancel`, `sublight` / `hyperdrive`, `buildingDesc_<type>`, plaques `vr.station.*`, etc.).
 
 - Helm (P5 — portail de saut, accélération, astéroïdes) : `vr.jumpgate.ready` / `recharging` / `none` et répliques `crew.helm.jumpgate.1` / `jumpgate.2` / `speedup.1` dans `assets/langs/{fr,en}.json`.
+
+- P7 alertes du vaisseau : `crew.tactical.alertRed.1` / `.2`, `alertAmber.1` / `.2`, `alertClear.1` / `.2` dans **les dix langues**, terminologie alignée sur `vr.screen.redAlert` et `vr.screen.hostiles`.
 
 ---
 

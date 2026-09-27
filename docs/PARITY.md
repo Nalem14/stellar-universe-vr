@@ -286,6 +286,7 @@ Corrigés dans `stellar-universe` (`7580501`, 2026-09-25) — le client VR ne co
 | Clés de l'écran principal du pont (`vr.screen.*` 21 clés, `vr.corridor.enter`, `vr.armory.nearby`) en fr/en | Fait |
 | Clés « À l'écran » (`vr.screen.onScreen` / `salvo` / `destroyed` / `bombard` / `contact` / `departure` / `arrival` + répliques `crew.*.onScreen` / `noScreen`) en fr/en | Fait |
 | Clés « À l'écran » — gestes et correspondant (`vr.screen.auto` / `manual` / `transmission` / `channel` + `crew.comms.onScreen` / `noScreen`) **dans les dix langues** | Fait |
+| Répliques d'alerte P7 (`crew.tactical.alertRed` / `alertAmber` / `alertClear`, 2 variantes chacune) **dans les dix langues** | Fait |
 | Répliques de voyage de la barre (`crew.helm.transitSublight` / `transitHyperspace` ×2 / `transitBond` / `transitGate` / `dropOut` ×2 / `approach`) en fr/en | Fait |
 
 ### Restants
