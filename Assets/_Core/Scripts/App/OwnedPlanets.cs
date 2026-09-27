@@ -15,12 +15,16 @@ namespace Core.App
     {
         static readonly List<GalaxyCatalog.PlanetRef> Planets = new();
         static readonly HashSet<int> Ids = new();
+        static readonly HashSet<int> Systems = new();
         static int _forUser;
         static bool _fresh;
 
         public static IReadOnlyList<GalaxyCatalog.PlanetRef> All => Planets;
 
         public static bool Contains(int planetId) => Ids.Contains(planetId);
+
+        /// <summary>One of our worlds is in <paramref name="systemId"/>.</summary>
+        public static bool InSystem(int systemId) => Systems.Contains(systemId);
 
         /// <summary>First owned planet, preferring <paramref name="systemId"/> when given.</summary>
         public static bool TryFirst(int systemId, out GalaxyCatalog.PlanetRef planet)
@@ -91,6 +95,7 @@ namespace Core.App
         {
             Planets.Clear();
             Ids.Clear();
+            Systems.Clear();
             _forUser = user;
             if (list == null)
                 return;
@@ -99,6 +104,7 @@ namespace Core.App
             {
                 Planets.Add(p);
                 Ids.Add(p.Id);
+                Systems.Add(p.SystemId);
             }
         }
 

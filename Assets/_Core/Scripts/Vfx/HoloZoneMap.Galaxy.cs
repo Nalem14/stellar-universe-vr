@@ -90,7 +90,8 @@ namespace Core.Vfx
             _gCentre = focus != null && GalaxyCatalog.TryGet(focus.SystemId, out var here)
                 ? new Vector2(here.MapX, here.MapY)
                 : new Vector2((minX + maxX) * 0.5f, (minY + maxY) * 0.5f);
-            _gScale = Mathf.Clamp(_gMaxScale * 0.4f, _gMinScale, _gMaxScale);
+            // Close enough that neighbouring stars are a couple of fingers apart (aiming one is easy).
+            _gScale = Mathf.Clamp(_gMaxScale * 0.7f, _gMinScale, _gMaxScale);
             ClampGalaxyCentre();
             _gHasSelection = false;
 
@@ -380,6 +381,16 @@ namespace Core.Vfx
         /// Drop target under a dragged ship: the star nearest the hand among ALL systems on the plate
         /// (not only the pooled ones) — a pooled token is moved onto it on demand.
         /// </summary>
+        /// <summary>The star token of <paramref name="systemId"/> on the galaxy plate (null off the plate).</summary>
+        int _gLastPick;
+
+        public HoloToken GalaxyTargetForSystem(int systemId)
+        {
+            if (!_showingGalaxy || _root == null || !GalaxyCatalog.TryGet(systemId, out var star))
+                return null;
+            return GalaxyTargetNear(_root.TransformPoint(MapToLocal(star.MapX, star.MapY, 0f)), 0.02f);
+        }
+
         public HoloToken GalaxyTargetNear(Vector3 worldPos, float maxMeters)
         {
             if (!_showingGalaxy || _root == null || _gPool.Count == 0)
@@ -388,7 +399,9 @@ namespace Core.Vfx
             var limit = WorldScale.HoloDiscRadius * GalaxyViewRadiusFactor;
             var stars = GalaxyCatalog.All;
             var best = -1;
-            var bestSq = maxMeters * maxMeters;
+            // Magnet: a system holding one of our ships or worlds wins from twice as far, and the star already
+            // under the aim holds until another is clearly nearer (no flicker between neighbours).
+            var bestSq = maxMeters * maxMeters * 4f;
             for (var i = 0; i < stars.Count; i++)
             {
                 var p = MapToLocal(stars[i].MapX, stars[i].MapY, 0f);
@@ -397,15 +410,21 @@ namespace Core.Vfx
                 var dx = p.x - local.x;
                 var dz = p.z - local.z;
                 var d = dx * dx + dz * dz;
-                if (d < bestSq)
+                var id = stars[i].Id;
+                var ours = _gFleetsPerSystem.ContainsKey(id) || OwnedPlanets.InSystem(id);
+                if (!ours && d > maxMeters * maxMeters)
+                    continue;
+                var w = d * (ours ? 0.25f : 1f) * (id == _gLastPick ? 0.6f : 1f);
+                if (w < bestSq)
                 {
-                    bestSq = d;
+                    bestSq = w;
                     best = i;
                 }
             }
 
             if (best < 0)
                 return null;
+            _gLastPick = stars[best].Id;
             var star = stars[best];
             for (var i = 0; i < _gPool.Count; i++)
             {

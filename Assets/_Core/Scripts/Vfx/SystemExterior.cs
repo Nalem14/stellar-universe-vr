@@ -17,6 +17,7 @@ namespace Core.Vfx
         int _builtSystemId = -1;
         Transform _content;
         Vector3 _starWorldPos;
+        Color _starColor = Color.white;
         readonly Dictionary<int, Transform> _planets = new();
         readonly Dictionary<int, Transform> _asteroids = new();
         readonly Dictionary<int, Transform> _fleets = new();
@@ -119,6 +120,8 @@ namespace Core.Vfx
 
             SystemBodyKit.ApplyStarLightDirection(lightDir);
             SyncFleets();
+            // Life and weather of the system (seeded + real anomalies and settled worlds).
+            SystemAmbience.Build(_content, this, _focus, _starColor);
         }
 
         void EnsureContentRoot()
@@ -543,6 +546,7 @@ namespace Core.Vfx
             var kit = SystemBodyKit.Star(focus != null ? focus.SystemTypeKey : null,
                 focus != null ? focus.SystemType : 0);
             _starWorldPos = transform.position;
+            _starColor = kit.Color;
 
             var body = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             body.name = "Star";

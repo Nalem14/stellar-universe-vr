@@ -267,6 +267,25 @@ Changer de système doit se **voir** : le vaisseau part, quitte le système, le 
 - **L'écran filmait parfois l'intérieur du pont (la table holo)** : quand la cible était trop proche pour reculer (la planète en orbite, un vaisseau amarré à côté), la caméra de coque revenait au centre de la pièce. Elle reste désormais toujours hors de la coque (9 m). La vue avant pivote autour du pont, un sujet de l'autre côté du vaisseau provoque une coupe au lieu d'un glissé à travers la pièce, et l'orbite manuelle s'arrête à 110°. Vu de loin, la pièce est masquée (boîte de profondeur `SU/DepthMask`) et c'est **notre coque** qui apparaît à sa place.
 - **Des vaisseaux traversaient planètes et soleil** : `SpaceRoute` fait contourner l'étoile (couronne) et les planètes (anneaux) aux sauts intra-système, aux départs et arrivées des autres vaisseaux, et aux départs et approches du vaisseau habité. La route reste droite quand la ligne est dégagée ; elle est calculée une fois par déplacement.
 
+### P5.8 — Espace vivant (idée joueur 2026-09-27)
+**Lot 1 ✅** (Editor ; pas testé en casque) — `SystemAmbience`, construit avec chaque système, masqué avec lui entre deux systèmes :
+- **Réel** :
+  - les anomalies du serveur apparaissent dans l'espace, au même relèvement que sur la table :
+    - épave de frégate qui se disloque (étincelles, lampe qui vacille) ;
+    - balise précurseur (monolithe, anneaux de lumière, pulsation) ;
+    - astéroïde de cristal (prismes et éclats en orbite) ;
+    - faille ionique (lentille de lumière, arcs, matière aspirée) ;
+  - un scan qui fait disparaître l'anomalie la retire aussi de l'espace ;
+  - **trafic civil** : de 2 à 7 cargos (vraies coques 9×9 civiles) qui font la navette entre nos mondes habités et deux portes de bord de système, en contournant les astres.
+- **Déterministe par système** (graine = id du système, donc identique à chaque visite ; purement visuel côté VR) :
+  - nébuleuses d'orage avec éclairs (45 %) ;
+  - trou noir lointain (12 %) : disque d'accrétion `SU/AccretionDisk`, jets, matière qui spirale ;
+  - faisceaux de pulsar (50 % autour des étoiles bleues et blanches) ;
+  - comètes sur orbites de Kepler, avec queue ionique opposée à l'étoile (45 %) ;
+  - bandes de faune du vide (32 %) : raies bioluminescentes `SU/VoidManta` avec sillage ;
+  - poussière autour du vaisseau, qui rend le mouvement visible.
+- **Plaque d'identité** au-dessus de l'écran principal : vaisseau ou station orbitale, son nom et le système.
+
 ### P6 — Méta
 - ✅ **Quartiers du commandant** (Editor ; lectures réelles, `SetPolitics` testé aller-retour, aucun achat) : cabine au-dessus du vaisseau par la porte tribord de la cloison arrière, grande baie sur le vrai système. Bureau en bois sombre avec l'écran **Empire** incliné bas : identité (renommer, drapeau), autorité et éthiques (jetons, deux temps), politiques (8 catégories), espèce (type, traits, un jeton), journal de bord (`GetActivity`). Console **Progression** (niveau, objectifs du jour / semaine / mois, succès filtrés, événement et boss mondial) et **mur des trophées** (18 plaques). Console **Boutique** (boosters, consommables, cosmétiques, titres, packs et historique Nova). Plaque du bureau et vitrine = titre équipé, drapeau, couleur de flotte ; la couleur équipée teinte aussi **nos coques dehors**. Terminal **Comms** mural (la console Comms s'y ancre). Reste : recharge Nova depuis le casque (aucun chemin de paiement VR), lit / étagères perso.
 - ✅ **Sas — accueil au login** (Editor ; vraies données) : le sas est refait en rotonde (mur courbe tourné, corniche et coupole à oculus ouvert sur les étoiles, nervures qui suivent le profil, grande baie panoramique sur une planète) ; terminal sur pied tourné. Panneau **Transmissions** sur un lutrin à gauche du terminal : événements (fin, faction, boss mondial) et actualités (image serveur, corps HTML converti, pages) — `GetGameAnnouncements` ; dernière actualité sous le nom du commandant — `GetLatestNews`. **Porte d'embarquement** à tribord : la franchir (ou son bouton) = Continuer.

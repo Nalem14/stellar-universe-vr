@@ -112,6 +112,7 @@ namespace Core.App
             Core.Stations.GateDoor.Build(corridor.transform, env.Art, _focus);
             CrewStationsBuilder.Build(env, env.Art, hex, _zoneMap, _poller, _focus, _loader);
             BridgeViewscreen.Build(env, _focus, _exterior, hex);
+            BridgeNameplate.Build(env, _focus);
             BridgeWallDisplays.Build(env, _focus);
             FallGuard.Ensure();
 

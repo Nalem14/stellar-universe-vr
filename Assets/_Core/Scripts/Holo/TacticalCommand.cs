@@ -293,6 +293,23 @@ namespace Core.Holo
 
             if (token.Kind == HoloTokenKind.Fleet && token.Owned)
             {
+                // Galaxy, a ship already picked: pointing at another of ours elsewhere means "go where it is"
+                // (its token sits on its star and hides it), not "pick that one instead".
+                var picked = SelectedFleet;
+                var other = _focus?.FindFleet(token.Id);
+                if (picked != null && other != null && token.Id != _selectedId && _map.ShowingGalaxy)
+                {
+                    var now = FleetOrderGate.UnixNow();
+                    var there = other.IsMoving(now) && other.DestSystemId > 0 ? other.DestSystemId : other.SystemId;
+                    var here = picked.IsMoving(now) && picked.DestSystemId > 0 ? picked.DestSystemId : picked.SystemId;
+                    var star = there != here ? _map.GalaxyTargetForSystem(there) : null;
+                    if (star != null)
+                    {
+                        ClickTarget(star);
+                        return;
+                    }
+                }
+
                 if (token.Id == _selectedId)
                     Deselect();
                 else
@@ -300,6 +317,12 @@ namespace Core.Holo
                 return;
             }
 
+            ClickTarget(token);
+        }
+
+        /// <summary>A world, rock, star or foreign ship clicked: the order for the picked ship (or its name).</summary>
+        void ClickTarget(HoloToken token)
+        {
             var fleet = SelectedFleet;
             if (fleet == null)
             {
