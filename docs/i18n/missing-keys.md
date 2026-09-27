@@ -17,22 +17,6 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 - **Paramètres** : `{0}`, `{1}`… (`Trans.Format`, `string.Format` en culture invariante).
 - Pour les répliques, les ordres et les échecs, le ton reprend celui du journal de colonisation web : l'équipage s'adresse au joueur en « Commandant ».
 
-## À intégrer — écrans de poste vivants, lueur (`vr.console.*`, `vr.fx.*`)
-
-Écrans des six postes (données du rôle, bandeau d'alerte) et interrupteur de lueur (bloom) de l'accoudoir droit.
-
-| Clé | EN | FR |
-|---|---|---|
-| `vr.console.ready` | ready | prêt |
-| `vr.console.unavailable` | unavailable | indisponible |
-| `vr.console.clear` | No contact | Aucun contact |
-| `vr.console.noTraffic` | No traffic | Aucune transmission |
-| `vr.console.battleStations` | Battle stations | Postes de combat |
-| `vr.console.amberAlert` | Amber alert | Alerte ambre |
-| `vr.fx.glow` | Glow | Lueur |
-| `vr.fx.on` | on | activée |
-| `vr.fx.off` | off | désactivée |
-
 ## Intégré côté web
 
 - Clés `vr.*`, `crew.*`, `buildingDesc_*`, `colonyLog_*`, `relation_*` dans `assets/langs/{fr,en}.json`.
@@ -49,6 +33,7 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 - `vr.ops.allAnswered` dans **les dix langues**.
 - `vr.watch.battle`, `vr.watch.battleWait`, `vr.watch.board`, `vr.watch.building`, `vr.watch.enter`, `vr.watch.explore`, `vr.watch.harvest`, `vr.watch.idle`, `vr.watch.link`, `vr.watch.research`, `vr.watch.siege`, `vr.watch.transit`, `vr.watch.yourTurn` dans **les dix langues**.
 - `vr.pirate.leaves`, `vr.pirate.name` dans **les dix langues**.
+- `vr.console.amberAlert`, `vr.console.battleStations`, `vr.console.clear`, `vr.console.noTraffic`, `vr.console.ready`, `vr.console.unavailable`, `vr.fx.glow`, `vr.fx.off`, `vr.fx.on` dans **les dix langues**.
 
 ---
 
