@@ -290,6 +290,7 @@ Corrigés dans `stellar-universe` (`7580501`, 2026-09-25) — le client VR ne co
 | Répliques d'alerte P7 (`crew.tactical.alertRed` / `alertAmber` / `alertClear`, 2 variantes chacune) **dans les dix langues** | Fait |
 | Textes du tutoriel guidé P6 (`vr.tutorial.step{1..16}.text`) **dans les dix langues**, titres et boutons réutilisant les clés natives | Fait |
 | Message de fin de lot de décisions (`vr.ops.allAnswered`) **dans les dix langues** — le web le lisait en dur en français dans `planet.js` | Fait |
+| Clés du mode quart passthrough (`vr.watch.*` : entrée, retour à bord, liaison distante, et le libellé de chaque affaire veillée) **dans les dix langues** | Fait |
 | Répliques de voyage de la barre (`crew.helm.transitSublight` / `transitHyperspace` ×2 / `transitBond` / `transitGate` / `dropOut` ×2 / `approach`) en fr/en | Fait |
 
 ### Restants
