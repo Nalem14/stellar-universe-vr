@@ -17,6 +17,19 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 - **Paramètres** : `{0}`, `{1}`… (`Trans.Format`, `string.Format` en culture invariante).
 - Pour les répliques, les ordres et les échecs, le ton reprend celui du journal de colonisation web : l'équipage s'adresse au joueur en « Commandant ».
 
+## À intégrer — menu d'options (`vr.menu.*`)
+
+Panneau ouvert par le bouton menu de la manette gauche (volume, lueur, rotation, guide, quart, retour au fauteuil).
+
+| Clé | EN | FR |
+|---|---|---|
+| `vr.menu.title` | Options | Options |
+| `vr.menu.volume` | Volume | Volume |
+| `vr.menu.turn` | Turning | Rotation |
+| `vr.menu.turnSmooth` | smooth | fluide |
+| `vr.menu.turnSnap` | snap | par à-coups |
+| `vr.menu.recenter` | To the chair | Au fauteuil |
+
 ## Intégré côté web
 
 - Clés `vr.*`, `crew.*`, `buildingDesc_*`, `colonyLog_*`, `relation_*` dans `assets/langs/{fr,en}.json`.

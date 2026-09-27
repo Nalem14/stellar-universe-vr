@@ -357,6 +357,8 @@ Même langage que les postes de l'équipage (quincaillerie arrondie `SU/ConsoleM
 - **Voix en « yaourt »** (`CrewVoice`) : babil synthétisé en formants (voyelles, consonnes, mots, intonation, filtre radio), un timbre par poste, coloré par l'espèce ; joué à la bouche de l'officier (intercom depuis une autre pièce) pendant ses répliques et le guide. Échantillons dans `Screenshots/voices/`.
 - **Accoudoirs refaits** (`ArmConsole`) : un boîtier incliné de 20° vers le capitaine sur chaque accoudoir, platine sombre et filet lumineux, grille 2 × 2 de vrais boutons avec une taille de texte unique. Gauche : Vaisseaux, Quart, Vue avant, Régie auto. Droite : Se lever, Guide, Lueur.
 - **Lueur (bloom) sur Quest** : le renderer Android reçoit enfin `PostProcessData` (le post-traitement était retiré de la build). Bloom et vignettage LDR du volume du pont, interrupteur « Lueur » sur l'accoudoir droit, mémorisé sur le casque. À juger sur Quest.
+- **Écran de poignet** (`WristPanel`) : tourner le poignet gauche vers soi fait apparaître l'heure, l'état d'alerte, le solde Nova, la prochaine affaire à veiller avec son compte à rebours et les transmissions non lues ; suit la manette ou la main suivie.
+- **Menu d'options** (`QuickMenu`, bouton menu de la manette gauche, M en Editor) : volume général, lueur, rotation fluide ou par à-coups (`ControllerInputActionManager.smoothTurnEnabled`), relancer le guide, prendre le quart, retour au fauteuil ; réglages gardés sur le casque.
 - **Clavier système Quest** activé (`enableSystemKeyboard`) : les champs de saisie ouvrent le clavier de Meta, avec son bouton micro de **dictée** pour répondre aux Comms.
 
 **Restant P7** (à décider et tester sur casque) :

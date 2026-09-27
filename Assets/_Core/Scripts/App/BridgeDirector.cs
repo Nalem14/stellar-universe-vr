@@ -125,6 +125,10 @@ namespace Core.App
             // Arm consoles (tilted panels, 2 × 3 grid): left = the view, right = the post.
             var armL = FindNamed(interior.transform, "ArmPadL");
             var watch = WatchMode.Build(interior.transform, _focus);
+            // The captain's wrist readout (turn the left wrist) and options (left menu button).
+            var watchLayer = LayerMask.NameToLayer("Watch");
+            Core.UI.WristPanel.Build(FindInactive("Left Controller"), FindInactive("Left Hand"), watchLayer);
+            Core.UI.QuickMenu.Build(interior.transform, watchLayer);
             if (armL != null)
             {
                 Core.UI.ArmConsole.Button(armL, -1, 0, "ArmPadL_Refresh", Trans.Get("fleets"), CicArtKit.Cyan,
@@ -210,6 +214,15 @@ namespace Core.App
 
         /// <summary>Kit front is -Z; +90° about X turns it to face up (+Y), text reading from the seat.</summary>
         internal static readonly Quaternion ArmPadFaceUp = Quaternion.Euler(90f, 0f, 0f);
+
+        /// <summary>A rig object by name, active or not (the hand rig sleeps while controllers are held).</summary>
+        static Transform FindInactive(string name)
+        {
+            foreach (var t in Resources.FindObjectsOfTypeAll<Transform>())
+                if (t.name == name && t.gameObject.scene.IsValid())
+                    return t;
+            return null;
+        }
 
         static Transform FindNamed(Transform root, string name)
         {
