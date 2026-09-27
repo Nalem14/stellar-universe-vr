@@ -287,6 +287,7 @@ Corrigés dans `stellar-universe` (`7580501`, 2026-09-25) — le client VR ne co
 | Clés « À l'écran » (`vr.screen.onScreen` / `salvo` / `destroyed` / `bombard` / `contact` / `departure` / `arrival` + répliques `crew.*.onScreen` / `noScreen`) en fr/en | Fait |
 | Clés « À l'écran » — gestes et correspondant (`vr.screen.auto` / `manual` / `transmission` / `channel` + `crew.comms.onScreen` / `noScreen`) **dans les dix langues** | Fait |
 | Répliques d'alerte P7 (`crew.tactical.alertRed` / `alertAmber` / `alertClear`, 2 variantes chacune) **dans les dix langues** | Fait |
+| Textes du tutoriel guidé P6 (`vr.tutorial.step{1..16}.text`) **dans les dix langues**, titres et boutons réutilisant les clés natives | Fait |
 | Répliques de voyage de la barre (`crew.helm.transitSublight` / `transitHyperspace` ×2 / `transitBond` / `transitGate` / `dropOut` ×2 / `approach`) en fr/en | Fait |
 
 ### Restants

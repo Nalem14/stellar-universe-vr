@@ -211,6 +211,43 @@ def cmd_add(path, dry_run=False):
     return cmd_check()
 
 
+def natural(key):
+    """Tri naturel : step2 avant step10."""
+    return [int(part) if part.isdigit() else part for part in re.split(r'(\d+)', key)]
+
+
+def compact(keys):
+    """Forme courte d'une liste de clés, pour la ligne de traçabilité.
+
+    `vr.tutorial.step1.text` … `vr.tutorial.step16.text` → `vr.tutorial.step{1..16}.text`
+    Le préfixe et le suffixe communs sont sortis au caractère près (pour séparer
+    `step1` de `step2`, un découpage par segments ne suffit pas), et ce qui reste
+    doit être numérique. Sinon les clés sont listées, triées naturellement.
+    """
+    keys = sorted(keys, key=natural)
+    if len(keys) == 1:
+        return f'`{keys[0]}`'
+
+    head = 0
+    while head < min(len(k) for k in keys) and len({k[head] for k in keys}) == 1:
+        head += 1
+
+    tail = 0
+    limit = min(len(k) for k in keys) - head
+    while tail < limit and len({k[-1 - tail] for k in keys}) == 1:
+        tail += 1
+
+    middle = [k[head:len(k) - tail if tail else None] for k in keys]
+    if middle and all(m.isdigit() for m in middle):
+        numbers = sorted(int(m) for m in middle)
+        span = (f'{numbers[0]}..{numbers[-1]}'
+                if numbers == list(range(numbers[0], numbers[-1] + 1))
+                else ','.join(str(n) for n in numbers))
+        return f'`{keys[0][:head]}{{{span}}}{keys[0][len(keys[0]) - tail:] if tail else ""}`'
+
+    return ', '.join(f'`{k}`' for k in keys)
+
+
 def cmd_cleanup():
     text = open(MISSING_KEYS, encoding='utf-8').read()
     listed = pending_keys(text)
@@ -227,9 +264,7 @@ def cmd_cleanup():
         print('Sections conservées (clés encore manquantes) : ' + ', '.join(left))
         return 1
 
-    families = sorted({family(k).rstrip('.') for k in done})
-    bullet = (f"- {', '.join('`%s`' % k for k in sorted(done))} "
-              f"dans **les dix langues** (familles : {', '.join(families)}).\n")
+    bullet = f"- {compact(done)} dans **les dix langues**.\n" 
 
     # Trace en fin de « Intégré côté web », puis retrait des sections intégrées.
     target = sections(text, lambda t: t.startswith('Intégré côté web'))
