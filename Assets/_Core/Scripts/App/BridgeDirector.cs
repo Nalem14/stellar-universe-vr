@@ -135,6 +135,18 @@ namespace Core.App
                     () => BridgeViewscreen.Instance?.Auto());
             }
 
+            // First-steps guide told by the crew; the Guide button on the right arm pad replays it.
+            var guide = Core.Crew.TutorialGuide.Build(interior.transform, _focus,
+                env.Table != null ? env.Table.transform : null);
+            var armR = FindNamed(interior.transform, "ArmPadR");
+            if (armR != null)
+            {
+                var guideButton = Core.UI.PokeButton.Create(armR, "ArmPadR_Guide", Trans.Get("guide"),
+                    ArmPadTop + new Vector3(0f, 0f, -0.075f), ArmPadFaceUp, new Vector2(0.13f, 0.055f), CicArtKit.Cyan,
+                    guide.Restart);
+                guide.BindGuideButton(guideButton.transform);
+            }
+
             // Command mode scales a parent of HoloMapMount so zoom (child localScale) stays independent.
             var seat = FindNamed(interior.transform, "CaptainSeat");
             var arm = FindNamed(interior.transform, "ArmPadR");

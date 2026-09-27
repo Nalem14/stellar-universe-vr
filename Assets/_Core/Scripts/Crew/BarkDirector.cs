@@ -122,6 +122,11 @@ namespace Core.Crew
                 Instance = null;
         }
 
+        bool _hushed;
+
+        /// <summary>No idle chatter while the guide is talking the captain through a step.</summary>
+        public void Hush(bool on) => _hushed = on;
+
         /// <summary>The officer manning <paramref name="role"/>'s station, if any.</summary>
         public CrewOfficer Officer(CrewDialogue.Role role) => _officers.TryGetValue(role, out var o) ? o : null;
 
@@ -190,7 +195,7 @@ namespace Core.Crew
                 WatchWorld();
             }
 
-            if (Time.time >= _nextIdle && _queue.Count == 0 && Time.time - _lastLineAt > IdleAfter)
+            if (!_hushed && Time.time >= _nextIdle && _queue.Count == 0 && Time.time - _lastLineAt > IdleAfter)
             {
                 _nextIdle = Time.time + IdleAfter + Random.value * 60f;
                 SayIdle();
