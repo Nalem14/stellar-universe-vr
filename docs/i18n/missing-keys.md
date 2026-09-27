@@ -17,6 +17,16 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 - **Paramètres** : `{0}`, `{1}`… (`Trans.Format`, `string.Format` en culture invariante).
 - Pour les répliques, les ordres et les échecs, le ton reprend celui du journal de colonisation web : l'équipage s'adresse au joueur en « Commandant ».
 
+## À intégrer — options de confort (QuickMenu)
+
+| Clé | EN | FR | Contexte |
+|---|---|---|---|
+| `vr.menu.move` | Moving | Déplacement | Libellé du réglage, suivi de « · fluide » ou « · téléportation » |
+| `vr.menu.moveSmooth` | smooth | fluide | Déplacement continu au stick gauche |
+| `vr.menu.moveTeleport` | teleport | téléportation | Stick gauche en avant : arc de téléportation au sol |
+| `vr.menu.vignette` | Comfort vignette | Vignette de confort | Suivi de `vr.fx.on` / `vr.fx.off` (accord féminin en FR) |
+| `vr.menu.seated` | Seated play | Position assise | Suivi de `vr.fx.on` / `vr.fx.off` ; relève la vue à hauteur debout, sauf au fauteuil |
+
 ## Intégré côté web
 
 - Clés `vr.*`, `crew.*`, `buildingDesc_*`, `colonyLog_*`, `relation_*` dans `assets/langs/{fr,en}.json`.

@@ -107,9 +107,8 @@ namespace Core.Vfx
                 if (t == null)
                     continue;
                 var n = t.name;
-                if (n.Equals("Teleportation", StringComparison.Ordinal) ||
-                    n.IndexOf("Teleport Interactor", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                    n.IndexOf("Climb Teleport", StringComparison.OrdinalIgnoreCase) >= 0)
+                // Teleport provider / interactor stay: the teleport movement option (Core.App.ComfortSettings).
+                if (n.IndexOf("Climb Teleport", StringComparison.OrdinalIgnoreCase) >= 0)
                     t.gameObject.SetActive(false);
             }
 

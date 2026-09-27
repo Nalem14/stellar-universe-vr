@@ -135,7 +135,8 @@ namespace Core.App
                 var n = mb.GetType().Name;
                 if (n.IndexOf("Locomotion", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
                     n.IndexOf("ContinuousMove", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
-                    n.IndexOf("DynamicMove", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                    n.IndexOf("DynamicMove", System.StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    n.IndexOf("TeleportationProvider", System.StringComparison.Ordinal) >= 0)
                     list.Add(mb);
             }
 

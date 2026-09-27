@@ -96,6 +96,9 @@ namespace Core.UI
                     Trans.Get("vr.sas.toBridge"), UiKit.Cyan, _env.Art, () => _panel == PanelMode.Hub && !_busy, EnterBridge);
             }
 
+            // Options on the left menu button here too: comfort (seated play, moving, turning) before the bridge.
+            QuickMenu.Build(transform, -1);
+
             SetMode(FormMode.SignIn);
             await TryAutoLogin();
         }
