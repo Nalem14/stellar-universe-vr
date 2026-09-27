@@ -465,6 +465,7 @@ namespace Core.Vfx
             // The field waking, and each character landing (the Quest keyboard is silent on its own).
             field.onSelect.AddListener(_ => CicCue.Hover(go.transform.position));
             field.onValueChanged.AddListener(_ => CicCue.Key(go.transform.position));
+            Core.UI.HoloKeyboard.Attach(field);
             return field;
         }
 
