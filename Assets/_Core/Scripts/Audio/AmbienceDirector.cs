@@ -27,7 +27,8 @@ namespace Core.Audio
             Diplomacy,
             Gate,
             Lab,
-            Dock
+            Dock,
+            Watch
         }
 
         enum Layer
@@ -119,6 +120,9 @@ namespace Core.Audio
                 return Zone.Menu;
             if (scene != SceneFlow.Bridge)
                 return Zone.None;
+            // On watch the player is in their own room: the ship falls away to a faint link hum.
+            if (Core.App.WatchMode.Inside)
+                return Zone.Watch;
             if (DryDock.Inside)
                 return Zone.Dock;
             if (ResearchLab.Inside)
@@ -153,6 +157,10 @@ namespace Core.Audio
                     Set(Layer.Ship, 0.26f);
                     Set(Layer.Reactor, 0.1f);
                     Set(Layer.Air, 0.035f);
+                    break;
+                case Zone.Watch:
+                    // The remote link to the ship, barely there: the real room is the sound.
+                    Set(Layer.Ship, 0.035f);
                     break;
                 case Zone.Corridor:
                     Set(Layer.Ship, 0.1f);

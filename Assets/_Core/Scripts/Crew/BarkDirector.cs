@@ -18,6 +18,9 @@ namespace Core.Crew
     {
         public static BarkDirector Instance { get; private set; }
 
+        /// <summary>Every line spoken (station title, accent, text): the watch cluster repeats it in the real room.</summary>
+        public static event System.Action<string, Color, string> Spoke;
+
         struct Bark
         {
             public CrewDialogue.Role Role;
@@ -252,6 +255,7 @@ namespace Core.Crew
             var speaker = _stationTitleKeys.TryGetValue(bark.Role, out var titleKey) ? Trans.Get(titleKey) : string.Empty;
 
             var duration = _subtitle != null ? _subtitle.Show(speaker, officer.Accent, text) : 3f;
+            Spoke?.Invoke(speaker, officer.Accent, text);
             var cam = Camera.main;
             officer.Speak(duration, cam != null ? cam.transform.position : officer.transform.position);
             CicCue.RadioOpen(officer.MouthPosition);

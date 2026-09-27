@@ -134,6 +134,11 @@ namespace Core.App
                 Core.UI.PokeButton.Create(armL, "ArmPadL_Auto", Trans.Get("vr.screen.auto"),
                     ArmPadTop + new Vector3(0f, 0f, -0.145f), ArmPadFaceUp, new Vector2(0.13f, 0.055f), CicArtKit.Cyan,
                     () => BridgeViewscreen.Instance?.Auto());
+                // The watch (passthrough): lit when something long is running and the headset sees the room.
+                var watch = WatchMode.Build(interior.transform, _focus);
+                watch.BindOffer(Core.UI.PokeButton.Create(armL, "ArmPadL_Watch", Trans.Get("vr.watch.enter"),
+                    ArmPadTop + new Vector3(0f, 0f, 0.068f), ArmPadFaceUp, new Vector2(0.13f, 0.045f), CicArtKit.Amber,
+                    watch.Enter));
             }
 
             // First-steps guide told by the crew; the Guide button on the right arm pad replays it.

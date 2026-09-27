@@ -17,6 +17,26 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 - **Paramètres** : `{0}`, `{1}`… (`Trans.Format`, `string.Format` en culture invariante).
 - Pour les répliques, les ordres et les échecs, le ton reprend celui du journal de colonisation web : l'équipage s'adresse au joueur en « Commandant ».
 
+## À intégrer — mode quart en passthrough (`vr.watch.*`)
+
+Cluster holo du quart (VISION-VR §2.1) : le bouton de l'accoudoir, le retour à bord et le libellé de chaque affaire veillée. Les noms de bâtiment, de recherche et de vaisseau restent ceux du serveur.
+
+| Clé | EN | FR |
+|---|---|---|
+| `vr.watch.enter` | Watch | Quart |
+| `vr.watch.board` | Aboard | À bord |
+| `vr.watch.link` | Remote link | Liaison distante |
+| `vr.watch.idle` | Nothing to watch | Rien à veiller |
+| `vr.watch.battle` | Battle | Combat |
+| `vr.watch.battleWait` | Waiting for the enemy | En attente de l'adversaire |
+| `vr.watch.yourTurn` | Your move, Commander | À vous de jouer, Commandant |
+| `vr.watch.transit` | Under way | En route |
+| `vr.watch.siege` | Siege | Siège |
+| `vr.watch.harvest` | Mining | Extraction |
+| `vr.watch.explore` | Survey | Exploration |
+| `vr.watch.building` | Construction | Construction |
+| `vr.watch.research` | Research | Recherche |
+
 ## Intégré côté web
 
 - Clés `vr.*`, `crew.*`, `buildingDesc_*`, `colonyLog_*`, `relation_*` dans `assets/langs/{fr,en}.json`.
