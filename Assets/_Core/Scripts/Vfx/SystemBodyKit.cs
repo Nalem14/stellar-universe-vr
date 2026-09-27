@@ -134,6 +134,94 @@ namespace Core.Vfx
             return _asteroid;
         }
 
+        static Mesh _ringMesh;
+        static Material _ringMat;
+        static Material _ringMatOwned;
+        static Texture2D _ringTex;
+
+        /// <summary>Planetary ring: a flat annulus (inner 0.62, outer 1 — scale by the outer radius), both faces.</summary>
+        public static Mesh RingMesh()
+        {
+            if (_ringMesh != null)
+                return _ringMesh;
+            const int segs = 128;
+            const float r0 = 0.62f;
+            var v = new Vector3[(segs + 1) * 2];
+            var uv = new Vector2[v.Length];
+            var tris = new int[segs * 6];
+            for (var i = 0; i <= segs; i++)
+            {
+                var a = i / (float)segs * Mathf.PI * 2f;
+                var dir = new Vector3(Mathf.Sin(a), 0f, Mathf.Cos(a));
+                v[i * 2] = dir * r0;
+                v[i * 2 + 1] = dir;
+                uv[i * 2] = new Vector2(i / (float)segs * 8f, 0f);
+                uv[i * 2 + 1] = new Vector2(i / (float)segs * 8f, 1f);
+            }
+
+            for (var i = 0; i < segs; i++)
+            {
+                var b = i * 2;
+                tris[i * 6] = b;
+                tris[i * 6 + 1] = b + 1;
+                tris[i * 6 + 2] = b + 2;
+                tris[i * 6 + 3] = b + 2;
+                tris[i * 6 + 4] = b + 1;
+                tris[i * 6 + 5] = b + 3;
+            }
+
+            _ringMesh = new Mesh { name = "SU_PlanetRing", vertices = v, uv = uv, triangles = tris };
+            _ringMesh.RecalculateNormals();
+            _ringMesh.RecalculateBounds();
+            return _ringMesh;
+        }
+
+        /// <summary>
+        /// Shared ring material: additive (the ring catches the star), banded across its width — ringlets, a dark
+        /// Cassini-like gap, soft inner and outer edges. Owned worlds' rings run a little cooler.
+        /// </summary>
+        public static Material RingMat(bool owned)
+        {
+            if (owned ? _ringMatOwned != null : _ringMat != null)
+                return owned ? _ringMatOwned : _ringMat;
+            if (_ringTex == null)
+            {
+                const int w = 4, h = 256;
+                _ringTex = new Texture2D(w, h, TextureFormat.RGBA32, false) { name = "SU_RingBands", wrapMode = TextureWrapMode.Clamp };
+                var rng = new System.Random(7);
+                var px = new Color[w * h];
+                for (var y = 0; y < h; y++)
+                {
+                    var r = y / (h - 1f);
+                    var bands = 0.55f + 0.25f * Mathf.Sin(r * 71f) + 0.15f * Mathf.Sin(r * 173f + 1.3f) + (float)rng.NextDouble() * 0.12f;
+                    var gap = 1f - Mathf.Exp(-Mathf.Pow((r - 0.58f) / 0.035f, 2f)) * 0.92f;
+                    var edge = Mathf.SmoothStep(0f, 1f, r / 0.12f) * Mathf.SmoothStep(0f, 1f, (1f - r) / 0.18f);
+                    var a = Mathf.Clamp01(bands * gap * edge);
+                    var tint = Color.Lerp(new Color(0.95f, 0.86f, 0.7f), new Color(0.78f, 0.84f, 0.92f), r);
+                    for (var x = 0; x < w; x++)
+                        px[y * w + x] = new Color(tint.r * a, tint.g * a, tint.b * a, a);
+                }
+
+                _ringTex.SetPixels(px);
+                _ringTex.Apply(false, true);
+            }
+
+            var shader = Shader.Find("SU/ParticleGlow") ?? Shader.Find("SU/UnlitEmissive");
+            var m = new Material(shader) { name = owned ? "SU_PlanetRingOwned" : "SU_PlanetRing", mainTexture = _ringTex };
+            var c = owned ? new Color(0.62f, 0.86f, 1f, 1f) : new Color(1f, 0.9f, 0.76f, 1f);
+            if (m.HasProperty("_Color"))
+                m.SetColor("_Color", c);
+            if (m.HasProperty("_Emission"))
+                m.SetColor("_Emission", c);
+            if (m.HasProperty("_EmissionMul"))
+                m.SetFloat("_EmissionMul", 0.55f);
+            if (owned)
+                _ringMatOwned = m;
+            else
+                _ringMat = m;
+            return m;
+        }
+
         public static Material NebulaMat(int systemId)
         {
             EnsureTextures();

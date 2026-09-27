@@ -143,7 +143,9 @@ namespace Core.App
 
         void Say(string line)
         {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
             Debug.Log("[SU] " + line);
+#endif
             if (_readout != null)
                 _readout.text = line;
         }

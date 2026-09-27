@@ -16,7 +16,8 @@ namespace Core.App
         static XrSimulatorSceneHook s_Instance;
         /// <summary>Late coaching spawns (lazy tooltips) are caught by a 1 Hz sweep, not a per-frame scene scan.</summary>
         static readonly WaitForSecondsRealtime SweepInterval = new(1f);
-        const int LateSweeps = 12;
+        /// <summary>A player build has no simulator; the rig's callouts are gone after a few sweeps (each scans the scene).</summary>
+        static int LateSweeps => Application.isEditor ? 12 : 3;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Boot()

@@ -184,7 +184,9 @@ namespace Core.App
                     });
                     if (!cp.Ok)
                     {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
                         Debug.LogWarning("[SU] changeplanet " + cp.Error);
+#endif
                         if (fadeFx != null)
                             await fadeFx.FadeIn();
                         return false;
@@ -200,7 +202,9 @@ namespace Core.App
                     });
                     if (!change.Ok)
                     {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
                         Debug.LogWarning("[SU] changesystem " + change.Error);
+#endif
                         if (fadeFx != null)
                             await fadeFx.FadeIn();
                         return false;

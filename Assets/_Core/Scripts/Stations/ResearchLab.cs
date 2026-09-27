@@ -1490,8 +1490,14 @@ namespace Core.Stations
             {
                 _nextTick = Time.unscaledTime + 0.5f;
                 foreach (var (t, v) in _live)
-                    if (t != null)
-                        t.text = v();
+                {
+                    if (t == null)
+                        continue;
+                    // Only when it changed: an unchanged assignment still rebuilds the text mesh.
+                    var s = v();
+                    if (t.text != s)
+                        t.text = s;
+                }
                 foreach (var (img, v) in _bars)
                     if (img != null)
                         img.rectTransform.anchorMax = new Vector2(Mathf.Clamp01(v()), 1f);

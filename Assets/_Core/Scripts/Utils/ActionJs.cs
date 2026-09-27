@@ -34,7 +34,9 @@ namespace Core.Utils
 
             if (req.result == UnityWebRequest.Result.ConnectionError)
             {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
                 Debug.LogWarning($"[SU] {action} network: {req.error}");
+#endif
                 return ApiResult.Fail("network");
             }
 
@@ -42,7 +44,9 @@ namespace Core.Utils
             if (body.StartsWith("error:", StringComparison.Ordinal))
             {
                 var message = body.Length > 6 ? body.Substring(6) : "error";
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
                 Debug.LogWarning($"[SU] {action} fail: {message}");
+#endif
                 return ApiResult.Fail(message);
             }
 

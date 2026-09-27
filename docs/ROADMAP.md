@@ -293,7 +293,21 @@ Changer de système doit se **voir** : le vaisseau part, quitte le système, le 
   - chaque niveau déclenche son jeu de sons (klaxon puis trois « whoop » de poste de combat, carillon et sonar, fin d'alerte), une teinte rouge pulsée ou ambre dans les murs de **toutes les pièces** (`_SU_AlertTint` dans `SU/HullInterior` et `SU/ConsoleMetal`) et une réplique de l'officier Tactique (clés dans `missing-keys.md`).
 - Correctif : l'arrivée d'un message privé n'était jamais reconnue comme telle (`CommsService` comparait le nouveau compte à lui-même).
 
-**Restant P7** : lot B finition (repli de shaders bruts, primitives placeholder, logs hors Editor, hook du simulateur XR dans la build, lumières additionnelles et post-traitement sur Quest) ; passe de perfs sur device.
+**Lot B finition ✅** (Editor) :
+- Anneaux planétaires : un vrai anneau (maillage annulaire partagé, bandes et division procédurales, additif) au lieu d'un cylindre aplati qui montrait un disque plein.
+- Poussière du pont : points lumineux doux qui apparaissent et s'effacent (c'étaient des carrés durs).
+- Caisse de module de la cale sèche : métal brossé et bandes lumineuses à la couleur de la famille du module (c'était un cube coloré uni).
+- Retirés : le cube de coque fantôme de `BridgeViewRig`, jamais affiché. Repli de matériau ajouté sur la zone d'assise.
+- Build joueur :
+  - logs réseau et de démarrage réservés à l'Editor et aux builds de développement ;
+  - le hook du simulateur XR ne balaie plus la scène que 3 fois par chargement (12 en Editor) ;
+  - les textes « en direct » des consoles ne reconstruisent plus leur maillage quand rien n'a changé.
+- Profil URP Quest : lumières additionnelles et ombres de la lumière principale désactivées. Aucun shader `SU/*` ne les lit, l'éclairage des pièces passe par `RoomLightRig`.
+
+**Restant P7** (à décider et tester sur casque) :
+- **Bloom sur Quest** : le renderer Android n'a pas de post-traitement, donc le bloom et le vignettage ne tournent qu'en Editor. L'activer coûte une passe plein écran et une résolution MSAA par œil. À mesurer sur casque avant de l'activer (sinon on garde la lueur dans les shaders).
+- Taux de rafraîchissement et fovéation (fonctionnalités Meta OpenXR).
+- Passe de perfs sur device (particules additives proches des yeux, `FindObjectsByType` toutes les 2 s dans trois outils de la table).
 
 ---
 

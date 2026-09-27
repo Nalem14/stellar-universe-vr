@@ -86,6 +86,7 @@ namespace Core.Stations
         float _armedUntil;
         (int x, int y)? _hover;
         (int x, int y)? _pendingWeld;
+        MaterialPropertyBlock _crateMpb;
         bool _busy;
         readonly List<FocusShipModule> _layout = new();
 
@@ -1040,10 +1041,28 @@ namespace Core.Stations
                     0.95f, 0.22f, UiKit.TextBright);
                 tag.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
                 tag.name = "Tag";
+                // A brushed-metal crate with a lit band in the module family's colour (not a flat coloured box).
+                _crate.GetComponent<MeshRenderer>().sharedMaterial = UiKit.Cap;
+                foreach (var (y, h) in new[] { (0.3f, 0.07f), (-0.3f, 0.07f) })
+                {
+                    var band = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                    band.name = "Band";
+                    Destroy(band.GetComponent<Collider>());
+                    band.transform.SetParent(_crate.transform, false);
+                    band.transform.localPosition = new Vector3(0f, y, 0f);
+                    band.transform.localScale = new Vector3(1.03f, h, 1.03f);
+                    band.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                }
             }
 
             var accent = ModuleCatalog.Accent(ModuleCatalog.Family(_selectedType));
-            _crate.GetComponent<MeshRenderer>().sharedMaterial = _art.Lit(Texture2D.whiteTexture, accent, 1.4f);
+            var lit = _art.Lit(Texture2D.whiteTexture, accent, 1.6f);
+            foreach (Transform child in _crate.transform)
+                if (child.name == "Band")
+                    child.GetComponent<MeshRenderer>().sharedMaterial = lit;
+            _crateMpb ??= new MaterialPropertyBlock();
+            _crateMpb.SetColor("_Accent", accent);
+            _crate.GetComponent<MeshRenderer>().SetPropertyBlock(_crateMpb);
             var label = _crate.transform.Find("Tag")?.GetComponent<TextMeshPro>();
             if (label != null)
                 label.text = Short(Trans.Get(_selectedType));

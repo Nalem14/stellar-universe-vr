@@ -283,7 +283,7 @@ namespace Core.Vfx
             var main = ps.main;
             main.startLifetime = 8f;
             main.startSpeed = 0.02f;
-            main.startSize = 0.012f;
+            main.startSize = new ParticleSystem.MinMaxCurve(0.012f, 0.024f);
             main.startColor = new Color(0.4f, 0.9f, 1f, 0.35f);
             main.maxParticles = Layout == CicLayout.BootVoid ? 120 : Layout == CicLayout.MenuDeck ? 100 : 70;
             main.simulationSpace = ParticleSystemSimulationSpace.World;
@@ -292,8 +292,16 @@ namespace Core.Vfx
             var shape = ps.shape;
             shape.shapeType = ParticleSystemShapeType.Box;
             shape.scale = Layout == CicLayout.Bridge ? new Vector3(5f, 2.2f, 5f) : new Vector3(4f, 2f, 4f);
+            // Motes drift in and out of the light instead of popping.
+            var col = ps.colorOverLifetime;
+            col.enabled = true;
+            var fade = new Gradient();
+            fade.SetKeys(new[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+                new[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(1f, 0.25f), new GradientAlphaKey(1f, 0.7f), new GradientAlphaKey(0f, 1f) });
+            col.color = fade;
             var renderer = go.GetComponent<ParticleSystemRenderer>();
-            renderer.sharedMaterial = _art.Lit(Texture2D.whiteTexture, CicArtKit.Cyan, 2f);
+            // Soft round glow (a flat white texture drew hard squares).
+            renderer.sharedMaterial = CombatFxKit.Glow();
         }
 
         void EnsureVolume()

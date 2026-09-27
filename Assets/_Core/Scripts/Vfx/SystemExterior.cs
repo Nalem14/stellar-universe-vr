@@ -664,19 +664,17 @@ namespace Core.Vfx
 
         void BuildRing(Transform parent, float planetRadius, SystemBodyKit.Ownership own)
         {
-            var ring = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            ring.name = "Ring";
+            // A real annulus (the planet shows through the gap), tilted a touch off the ecliptic.
+            var ring = new GameObject("Ring");
             ring.transform.SetParent(parent, false);
-            ring.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
-            var outer = planetRadius * 1.85f;
-            ring.transform.localScale = new Vector3(outer * 2f, 0.08f, outer * 2f);
-            StripCollider(ring);
-            // Reuse nebula-ish soft material tinted cold / cyan
-            var mat = SystemBodyKit.NebulaMat(own == SystemBodyKit.Ownership.Owned ? 2 : 0);
-            var r = ring.GetComponent<MeshRenderer>();
-            r.sharedMaterial = mat;
+            ring.transform.localRotation = Quaternion.Euler(12f, 0f, 6f);
+            ring.transform.localScale = Vector3.one * (planetRadius * 1.85f);
+            ring.AddComponent<MeshFilter>().sharedMesh = SystemBodyKit.RingMesh();
+            var r = ring.AddComponent<MeshRenderer>();
+            r.sharedMaterial = SystemBodyKit.RingMat(own == SystemBodyKit.Ownership.Owned);
             r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             r.receiveShadows = false;
+            r.lightProbeUsage = UnityEngine.Rendering.LightProbeUsage.Off;
         }
 
         void BuildAsteroid(FocusAsteroid rock)

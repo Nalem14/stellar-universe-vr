@@ -14,7 +14,6 @@ namespace Core.App
         FocusContext _focus;
         SystemExterior _exterior;
         Transform _viewShip;
-        Transform _hull;
         Transform _bridgeMount;
         XROrigin _xrOrigin;
         Transform _xrOriginalParent;
@@ -87,17 +86,7 @@ namespace Core.App
             ship.transform.SetParent(transform, false);
             _viewShip = ship.transform;
 
-            var hull = GameObject.CreatePrimitive(PrimitiveType.Cube);
-            hull.name = "Hull";
-            hull.transform.SetParent(_viewShip, false);
-            hull.transform.localPosition = new Vector3(0f, -2.2f, 0f);
-            hull.transform.localScale = new Vector3(14f, 3.2f, 22f);
-            var col = hull.GetComponent<Collider>();
-            if (col != null)
-                Destroy(col);
-            hull.GetComponent<MeshRenderer>().sharedMaterial = SharedHiddenHullMat();
-            _hull = hull.transform;
-            SetHullVisible(false);
+            // Our own hull is the exterior's FleetShipView (hidden aboard, drawn for the viewscreen's outside shots).
 
             var mount = new GameObject("BridgeMount");
             mount.transform.SetParent(_viewShip, false);
@@ -107,21 +96,6 @@ namespace Core.App
 
             _viewShip.position = transform.position + new Vector3(SystemExterior.OrbitBase * 0.55f,
                 WorldScale.EclipticHeight, 0f);
-        }
-
-        static Material _hiddenHullMat;
-
-        static Material SharedHiddenHullMat()
-        {
-            if (_hiddenHullMat != null)
-                return _hiddenHullMat;
-            var shader = Shader.Find("SU/UnlitEmissive") ?? Shader.Find("Unlit/Color");
-            _hiddenHullMat = new Material(shader);
-            if (_hiddenHullMat.HasProperty("_Color"))
-                _hiddenHullMat.SetColor("_Color", new Color(0.12f, 0.14f, 0.18f));
-            if (_hiddenHullMat.HasProperty("_EmissionMul"))
-                _hiddenHullMat.SetFloat("_EmissionMul", 0.2f);
-            return _hiddenHullMat;
         }
 
         void ParentPlayer()
@@ -221,7 +195,6 @@ namespace Core.App
                 _bankVel = 0f;
                 if (force && onDeck)
                     PutPlayerOnDeck();
-                SetHullVisible(false);
                 return;
             }
 
@@ -269,7 +242,6 @@ namespace Core.App
                     * Quaternion.Euler(0f, 0f, _bank);
             }
 
-            SetHullVisible(false);
         }
 
         static long UnixNow() =>
@@ -307,15 +279,6 @@ namespace Core.App
 
             return _exterior.transform.position + new Vector3(SystemExterior.OrbitBase * 0.55f,
                 WorldScale.EclipticHeight, 0f);
-        }
-
-        void SetHullVisible(bool visible)
-        {
-            if (_hull == null)
-                return;
-            var r = _hull.GetComponent<Renderer>();
-            if (r != null)
-                r.enabled = visible;
         }
     }
 }

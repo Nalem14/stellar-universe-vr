@@ -78,10 +78,9 @@ namespace Core.App
                 col.radius = 0.7f;
                 var art = seat.GetComponentInParent<CicEnvironment>()?.Art;
                 // A faint ring on the cushion, not a saturated disc.
-                if (art != null)
-                    go.GetComponent<MeshRenderer>().sharedMaterial =
-                        art.Holo(art.OrbitRing != null ? art.OrbitRing : Texture2D.whiteTexture,
-                            new Color(0.2f, 0.95f, 1f, 0.3f));
+                go.GetComponent<MeshRenderer>().sharedMaterial = art != null
+                    ? art.Holo(art.OrbitRing != null ? art.OrbitRing : Texture2D.whiteTexture, new Color(0.2f, 0.95f, 1f, 0.3f))
+                    : CombatFxKit.Glow();
                 zoneT = go.transform;
 
                 // Prompt in metres on an unscaled socket above the seat, turned toward the standing

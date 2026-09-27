@@ -1006,8 +1006,13 @@ namespace Core.Stations
                 return;
             _nextLive = Time.unscaledTime + 0.5f;
             foreach (var (text, value) in _live)
-                if (text != null)
-                    text.text = value();
+            {
+                if (text == null)
+                    continue;
+                var line = value();
+                if (text.text != line)
+                    text.text = line;
+            }
             foreach (var (fill, value) in _bars)
                 if (fill != null)
                     fill.rectTransform.anchorMax = new Vector2(Mathf.Clamp01(value()), 1f);
