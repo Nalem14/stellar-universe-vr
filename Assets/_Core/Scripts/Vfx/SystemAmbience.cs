@@ -11,7 +11,7 @@ namespace Core.Vfx
     /// <item><b>Real</b>: the server's anomalies drawn in space where the table shows them (derelict wreck,
     /// precursor beacon, crystal monolith, ion rift), civilian traffic between the worlds that are settled.</item>
     /// <item><b>Seeded by the system id</b> (persistent, VR-only, not game data): nebula storms with
-    /// lightning, a distant black hole, a pulsar's sweeping beams (hot stars), comets on long orbits, pods of
+    /// lightning, thunderstorms on some worlds (seeded by the planet), a distant black hole, a pulsar's sweeping beams (hot stars), comets on long orbits, pods of
     /// void fauna, and the drifting dust that shows the ship moving.</item>
     /// </list>
     /// Built once per system under the exterior content (hidden with it between systems); one Update drives
@@ -61,6 +61,7 @@ namespace Core.Vfx
             if (Roll(6) < 0.32f)
                 BuildFauna(3 + (int)(Roll(7) * 3f));
             BuildTraffic();
+            BuildWeather();
             BindAnomalies();
         }
 
@@ -77,6 +78,7 @@ namespace Core.Vfx
             TickComets(t);
             TickFauna(t, dt);
             TickTraffic(dt);
+            TickWeather(t);
             TickAnomalies(t, dt);
         }
 
@@ -146,27 +148,6 @@ namespace Core.Vfx
             Quiet(r);
             go.AddComponent<BillboardFace>();
             return go.transform;
-        }
-
-        /// <summary>Two crossed beam quads along local +X (length) — reads from any side.</summary>
-        Transform Beam(Transform parent, string name, float length, float width, Color color)
-        {
-            var root = new GameObject(name).transform;
-            root.SetParent(parent, false);
-            for (var i = 0; i < 2; i++)
-            {
-                var q = new GameObject("Blade" + i);
-                q.transform.SetParent(root, false);
-                q.transform.localPosition = new Vector3(length * 0.5f, 0f, 0f);
-                q.transform.localRotation = Quaternion.Euler(i * 90f, 0f, 0f);
-                q.transform.localScale = new Vector3(length, width, 1f);
-                q.AddComponent<MeshFilter>().sharedMesh = QuadMesh();
-                var r = q.AddComponent<MeshRenderer>();
-                r.sharedMaterial = BeamMat(color);
-                Quiet(r);
-            }
-
-            return root;
         }
 
         static void Quiet(Renderer r)

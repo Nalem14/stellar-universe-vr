@@ -189,8 +189,15 @@ namespace Core.Vfx
             public Vector3 EdgePos;
         }
 
+        const float EngineGlow = 1.7f;
+
         readonly List<Hauler> _haulers = new();
         readonly List<Port> _ports = new();
+        /// <summary>The exterior's star and planets plus our own ship: traffic never threads the bridge.</summary>
+        readonly List<RouteObstacle> _lanes = new();
+
+        /// <summary>Keep-out round the inhabited ship for civil traffic (its hull plus a wide berth).</summary>
+        const float ShipBerth = WorldScale.ShipSpan * 1.6f;
 
         void BuildTraffic()
         {
@@ -207,6 +214,11 @@ namespace Core.Vfx
             // Two gates on the system's rim for through-traffic (haulers jump in and out there).
             for (var i = 0; i < 2; i++)
                 _ports.Add(new Port { Edge = true, EdgePos = Place(61 + i * 5, WorldScale.OrbitBase + WorldScale.OrbitStep * 7f, WorldScale.OrbitBase + WorldScale.OrbitStep * 8f, 30f) });
+
+            if (_ext != null)
+                _lanes.AddRange(_ext.Obstacles);
+            if (_ship != null)
+                _lanes.Add(new RouteObstacle(_ship, ShipBerth));
 
             var count = Mathf.Clamp(2 + settled * 2, 2, 7);
             for (var i = 0; i < count; i++)
@@ -227,14 +239,21 @@ namespace Core.Vfx
             body.transform.SetParent(go.transform, false);
             body.transform.localScale = Vector3.one * Random.Range(0.7f, 1f);
             // A real 9×9 hull silhouette (civil layouts: drive, holds, core, sensor bow), one mesh, one draw.
-            body.AddComponent<MeshFilter>().sharedMesh = HaulerMesh(i % CivilLayouts.Length);
+            var mesh = HaulerMesh(i % CivilLayouts.Length);
+            body.AddComponent<MeshFilter>().sharedMesh = mesh;
             var r = body.AddComponent<MeshRenderer>();
             r.sharedMaterial = ShipHullBuilder.CivilHull();
             Quiet(r);
+            // Lights at the hull's real extents: drive glow astern, port red / starboard green, a white strobe on top.
+            var b = mesh != null ? mesh.bounds : new Bounds(Vector3.zero, new Vector3(4f, 2f, 12f));
+            var k = body.transform.localScale.x;
+            var aft = (b.min.z - 0.3f) * k;
             var civil = Random.value < 0.5f ? new Color(1f, 0.72f, 0.35f) : new Color(0.55f, 0.85f, 1f);
-            var e0 = Sprite(go.transform, "Engine", new Vector3(-0.8f, 0f, -6f), 2.6f, civil);
-            var e1 = Sprite(go.transform, "Engine", new Vector3(0.8f, 0f, -6f), 2.6f, civil);
-            var nav = Sprite(go.transform, "Nav", new Vector3(0f, 1.4f, 0.5f), 1.1f, new Color(1f, 0.25f, 0.2f));
+            var e0 = Sprite(go.transform, "Engine", new Vector3(-0.8f, 0f, aft), EngineGlow, civil);
+            var e1 = Sprite(go.transform, "Engine", new Vector3(0.8f, 0f, aft), EngineGlow, civil);
+            Sprite(go.transform, "NavPort", new Vector3(b.min.x * k - 0.2f, 0f, b.center.z * k), 0.9f, new Color(1f, 0.2f, 0.15f));
+            Sprite(go.transform, "NavStarboard", new Vector3(b.max.x * k + 0.2f, 0f, b.center.z * k), 0.9f, new Color(0.25f, 1f, 0.45f));
+            var nav = Sprite(go.transform, "Strobe", new Vector3(0f, b.max.y * k + 0.25f, b.center.z * k), 1.6f, Color.white);
             return new Hauler
             {
                 T = go.transform,
@@ -252,7 +271,12 @@ namespace Core.Vfx
             // Just off the world, on a bearing of its own (orbital docks round the planet).
             var a = Hash01(salt * 131 + p.Body.GetInstanceID()) * Mathf.PI * 2f;
             var local = p.Body.localPosition;
-            return local + new Vector3(Mathf.Cos(a), 0.15f, Mathf.Sin(a)) * (p.Radius * 1.35f + 6f);
+            var reach = p.Radius * 1.35f + 6f;
+            var dock = local + new Vector3(Mathf.Cos(a), 0.15f, Mathf.Sin(a)) * reach;
+            // Our station orbits here too: a dock that would crowd the bridge moves round to the far side.
+            if (_ship != null && (_root.TransformPoint(dock) - _ship.position).sqrMagnitude < ShipBerth * ShipBerth * 2.25f)
+                dock = local + new Vector3(-Mathf.Cos(a), 0.15f, -Mathf.Sin(a)) * reach;
+            return dock;
         }
 
         void TickTraffic(float dt)
@@ -277,9 +301,7 @@ namespace Core.Vfx
                     // Rim to rim is a pass-through; never rim to the same rim.
                     var a = h.T.localPosition;
                     var b = PortPoint(_ports[to], i + Random.Range(0, 5));
-                    h.Route = _ext != null
-                        ? _ext.Route(_root.TransformPoint(a), _root.TransformPoint(b))
-                        : SpaceRoute.Line(_root.TransformPoint(a), _root.TransformPoint(b));
+                    h.Route = SpaceRoute.Plan(_root.TransformPoint(a), _root.TransformPoint(b), _lanes);
                     h.Len = Vector3.Distance(a, b);
                     h.U = 0f;
                     h.To = to;
@@ -297,7 +319,7 @@ namespace Core.Vfx
                 h.T.rotation = Quaternion.Slerp(h.T.rotation, Quaternion.LookRotation(dir, Vector3.up), dt * 2f);
                 var burn = 0.7f + ease * 0.6f;
                 foreach (var e in h.Engines)
-                    e.localScale = Vector3.one * (2.6f * burn);
+                    e.localScale = Vector3.one * (EngineGlow * burn);
                 if (h.U < 1f)
                     continue;
                 h.Route = null;
@@ -306,7 +328,7 @@ namespace Core.Vfx
                 if (_ports[h.To].Edge)
                     Show(h, false);
                 foreach (var e in h.Engines)
-                    e.localScale = Vector3.one * 1.2f;
+                    e.localScale = Vector3.one * (EngineGlow * 0.5f);
             }
         }
 

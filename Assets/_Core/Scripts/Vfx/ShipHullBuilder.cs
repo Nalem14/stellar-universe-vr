@@ -135,8 +135,17 @@ namespace Core.Vfx
         static Material _civilHull;
 
         /// <summary>Civilian hull (haulers, liners): cream plating with the cargo livery, amber trim — shared.</summary>
-        public static Material CivilHull() =>
-            _civilHull != null ? _civilHull : _civilHull = HullMat(new Color(0.9f, 0.87f, 0.8f), Amber * 0.5f, LoadTex("Cargo"), 0.7f);
+        public static Material CivilHull()
+        {
+            if (_civilHull != null)
+                return _civilHull;
+            // The cargo plating is a dark olive: lifted and neutralised to a pale merchant grey (values over 1 are fine).
+            _civilHull = HullMat(new Color(2.75f, 2.5f, 2.75f), Amber * 0.7f, LoadTex("Cargo"), 0.7f);
+            // Liners and freighters are crewed: rows of lit portholes on the flanks.
+            if (_civilHull.HasProperty("_Windows"))
+                _civilHull.SetFloat("_Windows", 2.4f);
+            return _civilHull;
+        }
 
         static Palette CachePalette(bool owned)
         {

@@ -79,20 +79,20 @@ Appelées par le client web : 139/158. « Appelée » ≠ « finie » : voir la 
 | `ClearFleetOrderQueue` | W | fleet | `Holo/OrderQueue.cs` | `objects/fleet.js` | Helm | P4 | Branché |  |
 | `Colonize` | W | ship, planet | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Ops | `ship` = id du module `colonyShip` (legacy `ColonyShip` OK) ; planète libre, habitabilité ≥ 6 | Branché | `ship` = id du module `colonyShip` (legacy `ColonyShip` OK) ; planète libre, habitabilité ≥ 6 |
 | `DepositCargo` | W | fleet, planet, mineral?, crystal?, biomass? | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Ops | P5 | Branché |  |
-| `ExplorePlanet` | W | fleet, planet | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Science | P5 | Branché |  |
+| `ExplorePlanet` | W | fleet, planet | `Audio/OrderCues.cs` +2 | `objects/fleet.js` | Science | P5 | Branché |  |
 | `GetAllFleets` | R | — | `App/BridgeSystemLoader.cs` +3 | `scenes/galaxy.js` | Helm | P0 | Branché | Cache serveur 3 s → poll VR 3,5 s. Traite les files de flotte. `user` = PublicUser (id/username) ; cache fleets purgé au hit |
 | `GetAllFleetsAround` | R | — | — | `scenes/galaxy.js` | Helm | — | Hors scope | Interdit en VR (règle AGENTS) — `GetAllFleets` + filtre client |
 | `GetSystemAsteroids` | R | systemid | `App/AsteroidService.cs` | `scenes/system.js` | Helm | P5 | Branché | `AsteroidService` : lecture fraîche à chaque système visité (la liste de `GetSystems` peut dater d'une heure), puis toutes les 30 s pendant qu'un de nos vaisseaux y mine (2 min sinon) et après `HarvestAsteroid` ; réserves minerai / cristal sur le jeton, l'arc et le pupitre, amas qui rétrécit sur la table et dehors, champ épuisé retiré |
 | `HarvestAsteroid` | W | fleet, asteroid | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Engineering | P5 | Branché |  |
 | `LoadTroops` | W | fleet, planet, troops | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Tactical | P5 | Branché | Soute à troupes de l'Armurerie : `{type: qty}` ; réponse = unités déplacées → navettes dehors + étincelle sur la table |
-| `MoveFleetToAsteroid` | W | fleet, asteroid, hyperspace? | `Crew/CrewLines.cs` +2 | `objects/fleet.js` | Helm | P4 | Branché | idem hyperspace |
-| `MoveFleetToPlanet` | W | fleet, planet, hyperspace? | `Crew/CrewLines.cs` +2 | `objects/fleet.js` | Helm | P4 | Branché | idem hyperspace |
-| `MoveFleetToSystem` | W | fleet, pos, hyperspace? | `Crew/CrewLines.cs` +2 | `objects/fleet.js` | Helm | P4 | Branché | Toujours `hyperspace` explicite (0 sous-lumière / 1 hyperespace) après devis au pupitre (`TravelPlanner`, formules serveur) ; `ok:sublight_*` → `ApiResult.NoticeKey` |
-| `PrlBondFleetToSystem` | W | fleet, system?, pos? | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Helm | P4 | Branché | Devis portée / coût / recharge au pupitre (`TravelPlanner`, distance sur `visual_x/visual_y` comme le serveur), `fleet` + `system` + `pos` ; lâcher sur une étoile de la galaxie |
+| `MoveFleetToAsteroid` | W | fleet, asteroid, hyperspace? | `App/VoyageLog.cs` +4 | `objects/fleet.js` | Helm | P4 | Branché | idem hyperspace |
+| `MoveFleetToPlanet` | W | fleet, planet, hyperspace? | `App/VoyageLog.cs` +4 | `objects/fleet.js` | Helm | P4 | Branché | idem hyperspace |
+| `MoveFleetToSystem` | W | fleet, pos, hyperspace? | `App/VoyageLog.cs` +4 | `objects/fleet.js` | Helm | P4 | Branché | Toujours `hyperspace` explicite (0 sous-lumière / 1 hyperespace) après devis au pupitre (`TravelPlanner`, formules serveur) ; `ok:sublight_*` → `ApiResult.NoticeKey` |
+| `PrlBondFleetToSystem` | W | fleet, system?, pos? | `App/VoyageLog.cs` +3 | `objects/fleet.js` | Helm | P4 | Branché | Devis portée / coût / recharge au pupitre (`TravelPlanner`, distance sur `visual_x/visual_y` comme le serveur), `fleet` + `system` + `pos` ; lâcher sur une étoile de la galaxie |
 | `ProcessFleetOrderQueue` | W | fleet | — | — | Helm | — | Hors scope | Géré par cron + `GetAllFleets` ; pas d'UI |
 | `RemoveFleetOrderStep` | W | fleet, stepIndex | `Holo/OrderQueue.cs` | `objects/fleet.js` | Helm | P4 | Branché | `stepIndex` 0-based : répéteur Helm, ou plaque ouverte sur une balise de la file (table) |
 | `RenameFleet` | W | id, name | `Stations/DryDock.cs` | `objects/fleet.js` | Helm | P5 | Branché | Cale sèche, clavier Quest |
-| `SetFleetOrderQueue` | W | fleet, queue, loop? | `Holo/OrderQueue.cs` | `objects/fleet.js` | Helm | P4 | Branché | Balise de la file lâchée sur une autre planète / un autre champ : on renvoie les étapes restantes (le serveur remet l’index à 0), champs du serveur conservés |
+| `SetFleetOrderQueue` | W | fleet, queue, loop? | `Audio/OrderCues.cs` +1 | `objects/fleet.js` | Helm | P4 | Branché | Balise de la file lâchée sur une autre planète / un autre champ : on renvoie les étapes restantes (le serveur remet l’index à 0), champs du serveur conservés |
 | `SpeedupFleetTravel` | W | fleet | `Crew/CrewLines.cs` +3 | `scripts/helper.js` | Helm | P5 | Branché | Vaisseau en route sélectionné sur la table (ou répéteur Helm) : pupitre « Terminer le voyage · N Nova » (gratuit < 1 min, même courbe que les autres accélérations), refus si Nova insuffisant ; **aucun handler serveur** (voir écarts) |
 | `ToggleFleetQueueLoop` | W | fleet, loop? | `Holo/OrderQueue.cs` | `objects/fleet.js` | Helm | P4 | Branché | `loop` explicite 0/1 |
 | `UnloadTroops` | W | fleet, planet, troops | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Tactical | P5 | Branché | Idem, vers la garnison de nos planètes seulement |
@@ -133,7 +133,7 @@ Appelées par le client web : 139/158. « Appelée » ≠ « finie » : voir la 
 | `GetResource` | R | planet, raw? | `App/EconomyService.cs` | `objects/planet.js` | Ops (poll global) | P0 | Branché | `EconomyService` : `raw=1` sur **toutes** les planètes (csv ≤ 50) toutes les 10 s — accumule la production et fait avancer les files. `user` = PublicUser (id/username) seulement |
 | `ImproveResearch` | W | research, planet | `Crew/CrewLines.cs` +1 | `objects/research.js` | Science | P5 | Branché | Labo Science : cristal de la constellation → synthétiseur (ou bouton) ; `planet` = meilleur researchLab ; corps vide = lancé, JSON `{queued,targetLevel}` = en file ; prérequis `GetConfigs.researchs.requiert` |
 | `RecruitTroop` | W | planet, type, qty | `Crew/CrewLines.cs` +1 | `objects/planet.js` | Tactical | P5 | Branché | Console Armurerie (Tactique) : lot 1–500, coût × qty, durée time×qty×(100−(computer+1))/100, un lot par planète (`troopWorking`) |
-| `RefreshStats` | W | planet | `Stations/OpsConsole.cs` | `objects/planet.js` | Ops | P5 | Branché | Onglet Rapport de la console Ops : rendement des mines par jour et énergie produite (page Stats du web), relu toutes les 30 s ; même formule que `GetResource` et empire du **propriétaire** de la planète |
+| `RefreshStats` | W | planet | `Stations/OpsConsole.cs` | `objects/planet.js` | Ops | P5 | Branché | Onglet Rapport de la console Ops : rendement des mines par jour et énergie produite (page Stats du web), relu toutes les 30 s ; voir écarts (bonus ignorés) |
 | `RenamePlanet` | W | id, name | `Stations/OpsConsole.cs` | `objects/planet.js` | Ops | P5 | Branché | Serveur : 1–32 chars, lettres/chiffres/espaces/-_. ; `error:invalidPlanetName` |
 | `SpeedupBuilding` | W | planet | `Stations/OpsConsole.cs` | `scenes/planet.js` | Ops | P5 | Branché | Coût Nova affiché avant (gratuit ≤ 60 s, sinon max(10, ⌈6·min^0.82⌉)) |
 | `SpeedupResearch` | W | — | `Stations/ResearchLab.cs` | `scenes/research.js` | Science | P5 | Branché | Écran du synthétiseur ; coût Nova affiché (gratuit ≤ 60 s) ; sans param |
@@ -143,7 +143,7 @@ Appelées par le client web : 139/158. « Appelée » ≠ « finie » : voir la 
 
 | Action | R/W | Params | VR | Web | Station | Phase | Statut | Notes |
 |---|---|---|---|---|---|---|---|---|
-| `AddFleetToBattle` | W | battleid, fleetid | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Tactical | P5 | Branché | Onglet Opérations : vaisseau inactif du même système (le serveur ne vérifie pas la position), bataille en préparation ; ouvre le plateau |
+| `AddFleetToBattle` | W | battleid, fleetid | `Audio/OrderCues.cs` +2 | `objects/fleet.js` | Tactical | P5 | Branché | Onglet Opérations : vaisseau inactif du même système (le serveur ne vérifie pas la position), bataille en préparation ; ouvre le plateau |
 | `BattleDoAction` | W | battleid, fleetid, bship_id, action, subaction, skill_id, target_bship_id, target_q, target_r | `Vfx/HexBattleController.cs` | `scenes/battle.js` | Tactical | P0 | Branché | Plateau de combat sur la table : viser→viser (case = move, compétence armée puis cible) ; `subaction` + `battle_subaction` ; `skill_id` seulement pour une compétence ; erreurs brutes → `vr.battle.err.*` |
 | `BattleEndFleetTurn` | W | battleid, fleetid | `Vfx/HexBattleController.cs` | `scenes/battle.js` | Tactical | P5 | Branché | Bouton Fin du tour du pupitre (et réplique Tactique) |
 | `CheckPlanetAttack` | R | planet | `App/SiegeWatch.cs` | `objects/planet.js` | Tactical | P5 | Branché | `SiegeWatch` : appelé dès que `attackEndTime` expire pour un siège qui nous touche (`wip` → relance 5 s, `ok` → résolu) ; bombardement dehors + anneau sur la table |
@@ -163,7 +163,7 @@ Appelées par le client web : 139/158. « Appelée » ≠ « finie » : voir la 
 | Action | R/W | Params | VR | Web | Station | Phase | Statut | Notes |
 |---|---|---|---|---|---|---|---|---|
 | `GetJumpgateDestinations` | R | planet | `Holo/JumpgateNetwork.cs` | `objects/planet.js` | Helm | P5 | Branché | Lu à la sélection d'un vaisseau à quai sur un de nos mondes à Portail (cache 20 s) : mondes-portails cerclés de violet sur la table ; menu « Portail de Saut » du répéteur Helm |
-| `SendFleetToJumpgate` | W | fleet, targetPlanet | `Crew/CrewLines.cs` +3 | `objects/planet.js` | Helm | P5 | Branché | Lâcher / viser un monde-portail (planète, ou étoile en galaxie) : option « Portail de Saut » en tête du pupitre, refus miroir du serveur (recharge `jumpgateReadyAt`, ressources de la planète d'origine) ; dehors : portail en orbite de nos mondes équipés (voyants violets / ambre en recharge), champ de pliage qui s'ouvre, traînée et éclair au départ, ouverture à l'arrivée |
+| `SendFleetToJumpgate` | W | fleet, targetPlanet | `App/VoyageLog.cs` +5 | `objects/planet.js` | Helm | P5 | Branché | Lâcher / viser un monde-portail (planète, ou étoile en galaxie) : option « Portail de Saut » en tête du pupitre, refus miroir du serveur (recharge `jumpgateReadyAt`, ressources de la planète d'origine) ; dehors : portail en orbite de nos mondes équipés (voyants violets / ambre en recharge), champ de pliage qui s'ouvre, traînée et éclair au départ, ouverture à l'arrivée |
 
 ## Stargate
 
@@ -186,8 +186,8 @@ Appelées par le client web : 139/158. « Appelée » ≠ « finie » : voir la 
 | `GetChat` | R | lastid? | `Stations/CommsConsole.cs` | `objects/chat.js` | Comms | P5 | Branché | Console Comms, onglet Canal : `lastid`, relu toutes les 3 s seulement quand il est à l'écran ; messages du jour (serveur) ; `contact_name` brut (pas le `username` HTML) |
 | `GetMail` | R | id | `Stations/CommsConsole.cs` | `ui/MailWindowUI.js` | Comms | P5 | Branché | Lecture (marque lu côté serveur) → badge relu ; Répondre préremplit « Re: » |
 | `GetMailUnreadCount` | R | — | `App/CommsService.cs` | `ui/MailWindowUI.js` | Comms | P5 | Branché | `CommsService` toutes les 15 s : réplique Comms + balise « message en attente » au-dessus de l'officier Comms |
-| `GetMails` | R | folder | `Stations/CommsConsole.cs` | `ui/MailWindowUI.js` | Comms | P5 | Branché | Onglet Courrier : `folder` inbox / sent, `filter` player / system / battle / diplomacy ; expéditeur 0 → libellé `system` (le serveur écrit « SYSTÈME ») |
-| `GetPrivateConversations` | R | — | `Stations/CommsConsole.cs` | `ui/PanelChatUI.js` | Comms | P5 | Branché | Colonne gauche de l'onglet Privé (badge non lus) |
+| `GetMails` | R | folder | `App/CommsService.cs` +1 | `ui/MailWindowUI.js` | Comms | P5 | Branché | Onglet Courrier : `folder` inbox / sent, `filter` player / system / battle / diplomacy ; expéditeur 0 → libellé `system` (le serveur écrit « SYSTÈME ») |
+| `GetPrivateConversations` | R | — | `App/CommsService.cs` +1 | `ui/PanelChatUI.js` | Comms | P5 | Branché | Colonne gauche de l'onglet Privé (badge non lus) |
 | `GetPrivateMessages` | R | contact_id, lastid | `Stations/CommsConsole.cs` | `ui/PanelChatUI.js` | Comms | P5 | Branché | Fil ouvert, `lastid`, relu toutes les 3 s ; marque lu côté serveur |
 | `SearchPlayers` | R | query | `Stations/CommsConsole.cs` | — | Comms | P5 | Branché | Recherche de commandant pour ouvrir un fil (soi-même exclu) |
 | `SendMail` | W | recipient, subject, content | `Stations/CommsConsole.cs` | `ui/MailWindowUI.js` | Comms | P5 | Branché | `recipient` = nom ou id ; garde client champs requis |
@@ -241,7 +241,7 @@ Appelées par le client web : 139/158. « Appelée » ≠ « finie » : voir la 
 | `GetActivity` | R | lastid | `Stations/QuartersRoom.cs` | `objects/activity.js` | Quartiers du commandant | P6 | Branché | Journal de bord du bureau : `lastid`, relu toutes les 10 s à l'écran |
 | `GetAuthorities` | R | — | `Stations/QuartersRoom.cs` +1 | `ui/EmpireHubUI.js` | Quartiers du commandant | P6 | Branché |  |
 | `GetDailyObjectives` | R | — | — | — | Quartiers du commandant | — | Hors scope | Web utilise `GetProgressionObjectives` |
-| `GetEmpire` | R | user | `Stations/DiplomacyRoom.cs` | `scripts/user.js` | Chambre diplomatique | P5 | Branché | Dossier diplomatique : autorité, espèce et éthiques de l'empire visé (`user` = users.id) |
+| `GetEmpire` | R | user | `App/Correspondent.cs` +1 | `scripts/user.js` | Chambre diplomatique | P5 | Branché | Dossier diplomatique : autorité, espèce et éthiques de l'empire visé (`user` = users.id) |
 | `GetEmpires` | R | — | `App/DiplomacyIndex.cs` +1 | `objects/empire.js` | Chambre diplomatique | P5 | Branché | `DiplomacyIndex` (teintes des jetons et coques) ; orrery, sièges de l'hémicycle et dossiers de la chambre diplomatique |
 | `GetLeaderTraits` | R | — | `UI/EmpireCreationWizard.cs` | — | Quartiers du commandant | P3 | Branché | Liste lore pour CreateEmpire |
 | `GetMeEmpire` | R | — | `App/AuthManager.cs` +1 | `objects/policy.js` | Système (boot) | P0 | Branché | `error:noEmpire` si compte sans empire (flux CreateEmpire) |
@@ -251,7 +251,7 @@ Appelées par le client web : 139/158. « Appelée » ≠ « finie » : voir la 
 | `GetPolitics` | R | — | `Stations/QuartersRoom.cs` | `ui/EmpireHubUI.js` | Quartiers du commandant | P6 | Branché | Onglet Politique : 8 catégories, effets en % |
 | `GetProgressionObjectives` | R | — | `Stations/QuartersRoom.cs` | `ui/ProgressionWindowUI.js` | Quartiers du commandant | P6 | Branché | Objectifs du jour / de la semaine / du mois avec comptes à rebours ; relu toutes les 30 s dans la cabine |
 | `GetRelation` | R | user1, user2 | `Stations/DiplomacyRoom.cs` | `objects/empire.js` | Chambre diplomatique | P5 | Branché | Jauge de relation du dossier (user1 = moi, user2 = l'empire visé) |
-| `GetShopData` | R | — | `Stations/QuartersRoom.cs` | `ui/ShopWindowUI.js` | Quartiers du commandant | P6 | Démo | Console Boutique : boosters (durée restante), consommables, cosmétiques, titres ; solde Nova et jetons |
+| `GetShopData` | R | — | `App/Boosters.cs` +1 | `ui/ShopWindowUI.js` | Quartiers du commandant | P6 | Démo | Console Boutique : boosters (durée restante), consommables, cosmétiques, titres ; solde Nova et jetons |
 | `GetSpeciesTraits` | R | — | `Stations/QuartersRoom.cs` +1 | `objects/specy.js` | Quartiers du commandant | P6 | Branché |  |
 | `GetSpeciesTypes` | R | — | `Stations/QuartersRoom.cs` +1 | `objects/specy.js` | Quartiers du commandant | P6 | Branché |  |
 | `GetWeeklyObjectives` | R | — | — | — | Quartiers du commandant | — | Hors scope | Idem |

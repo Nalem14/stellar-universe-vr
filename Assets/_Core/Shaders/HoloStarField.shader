@@ -3,7 +3,8 @@ Shader "SU/HoloStarField"
     // Galaxy overview on the holo table: every system is one quad of a single mesh (one draw call), expanded
     // here into a camera-facing billboard around its centre (all four vertices carry the centre; uv = corner,
     // uv2.x = size in object metres) so the stars read as glowing points floating in the volume.
-    // Glyph is procedural (hot core + soft halo + faint ring), tinted per vertex by owner stance;
+    // Glyph is procedural (hot pin-point core, tight glow, four fine diffraction spikes, a gentle twinkle —
+    // a star, not a bubble; uv2.y = twinkle phase, +2 = "you are here" ring), tinted per vertex;
     // quads fade out at the disc rim (object-space radius) so pans never spill past the table.
     Properties
     {
@@ -45,6 +46,7 @@ Shader "SU/HoloStarField"
                 float4 vertex : SV_POSITION;
                 float2 uv : TEXCOORD0;
                 float4 color : COLOR;
+                float mark : TEXCOORD1;
                 UNITY_VERTEX_OUTPUT_STEREO
             };
 
@@ -61,7 +63,10 @@ Shader "SU/HoloStarField"
                 float r = length(v.vertex.xz);
                 float rim = saturate((_DiscRadius - r) / max(1e-4, _RimFade));
                 o.color = v.color;
-                o.color.a *= rim;
+                float phase = frac(v.uv2.y);
+                o.mark = step(1.5, v.uv2.y);
+                // Slow twinkle, a different phase per star.
+                o.color.a *= rim * (0.82 + 0.18 * sin(_Time.y * (1.3 + phase * 1.7) + phase * 40.0));
                 return o;
             }
 
@@ -69,13 +74,16 @@ Shader "SU/HoloStarField"
             {
                 UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(i);
                 float d = length(i.uv);
-                float core = saturate(1.0 - d * 3.2);
-                core *= core;
-                float halo = saturate(1.0 - d);
-                halo = halo * halo * 0.45;
-                float ring = saturate(1.0 - abs(d - 0.78) * 14.0) * 0.35;
-                float cover = saturate(core + halo + ring) * i.color.a;
-                float3 col = lerp(i.color.rgb, 1.0.xxx, core * 0.6) * _Intensity;
+                float core = saturate(1.0 - d * 4.5);
+                core *= core * core;
+                float glow = saturate(1.0 - d);
+                glow = glow * glow * glow * glow * 0.55;
+                float2 a = abs(i.uv);
+                float spikes = (saturate(1.0 - a.x * 22.0) * pow(saturate(1.0 - a.y), 3.0)
+                    + saturate(1.0 - a.y * 22.0) * pow(saturate(1.0 - a.x), 3.0)) * 0.4;
+                float ring = saturate(1.0 - abs(d - 0.8) * 14.0) * 0.45 * i.mark;
+                float cover = saturate(core + glow + spikes + ring) * i.color.a;
+                float3 col = lerp(i.color.rgb, 1.0.xxx, core * 0.7) * _Intensity;
                 return float4(col, cover);
             }
             ENDCG

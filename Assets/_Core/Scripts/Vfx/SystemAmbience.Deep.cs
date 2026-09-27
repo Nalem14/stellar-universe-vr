@@ -47,8 +47,11 @@ namespace Core.Vfx
             _jets = new Transform[2];
             for (var i = 0; i < 2; i++)
             {
-                var jet = Beam(_hole, "Jet" + i, 520f, 14f, new Color(0.55f, 0.75f, 1f, 1f) * 0.55f);
+                var jet = new GameObject("Jet" + i).transform;
+                jet.SetParent(_hole, false);
                 jet.localRotation = Quaternion.Euler(0f, 0f, i == 0 ? 90f : -90f);
+                Cone(jet, "Sheath", 640f, 90f, new Color(0.45f, 0.65f, 1f) * 0.2f);
+                Cone(jet, "Core", 560f, 30f, new Color(0.6f, 0.8f, 1f) * 0.4f);
                 _jets[i] = jet;
             }
 
@@ -127,12 +130,71 @@ namespace Core.Vfx
             var tilt = new GameObject("Axis").transform;
             tilt.SetParent(_pulsar, false);
             tilt.localRotation = Quaternion.Euler(0f, 0f, 18f + Roll(31) * 22f);
-            var c = Color.Lerp(_star, Color.white, 0.5f) * 0.45f;
+            var c = Color.Lerp(_star, Color.white, 0.5f);
             for (var i = 0; i < 2; i++)
             {
-                var b = Beam(tilt, "Beam" + i, 1000f, 26f, c);
+                // A soft lighthouse cone: a hot core inside a broad faint sheath, both fading into the dark.
+                var b = new GameObject("Beam" + i).transform;
+                b.SetParent(tilt, false);
                 b.localRotation = Quaternion.Euler(0f, i == 0 ? 0f : 180f, 0f);
+                Cone(b, "Sheath", 1100f, 170f, c * 0.24f);
+                Cone(b, "Core", 900f, 44f, c * 0.36f);
             }
+        }
+
+        /// <summary>Two crossed tapered quads along local +X: narrow and bright at the root, wide and gone at the tip.</summary>
+        void Cone(Transform parent, string name, float length, float width, Color color)
+        {
+            for (var i = 0; i < 2; i++)
+            {
+                var q = new GameObject(name + i);
+                q.transform.SetParent(parent, false);
+                q.transform.localRotation = Quaternion.Euler(i * 90f, 0f, 0f);
+                q.transform.localScale = new Vector3(length, width, 1f);
+                q.AddComponent<MeshFilter>().sharedMesh = ConeMesh();
+                var r = q.AddComponent<MeshRenderer>();
+                r.sharedMaterial = BeamMat(color);
+                Quiet(r);
+            }
+        }
+
+        static Mesh _cone;
+
+        static Mesh ConeMesh()
+        {
+            if (_cone != null)
+                return _cone;
+            const int seg = 10;
+            var v = new Vector3[(seg + 1) * 2];
+            var uv = new Vector2[v.Length];
+            var col = new Color[v.Length];
+            var tri = new int[seg * 6];
+            for (var s = 0; s <= seg; s++)
+            {
+                var x = s / (float)seg;
+                var half = 0.5f * Mathf.Lerp(0.06f, 1f, Mathf.Sqrt(x));
+                // Rises out of the star, then fades with distance.
+                var a = Mathf.SmoothStep(0f, 1f, x / 0.06f) * Mathf.Pow(1f - x, 1.6f);
+                v[s * 2] = new Vector3(x, -half, 0f);
+                v[s * 2 + 1] = new Vector3(x, half, 0f);
+                uv[s * 2] = new Vector2(x, 0f);
+                uv[s * 2 + 1] = new Vector2(x, 1f);
+                col[s * 2] = col[s * 2 + 1] = new Color(1f, 1f, 1f, a);
+                if (s == seg)
+                    continue;
+                var t = s * 6;
+                var o = s * 2;
+                tri[t] = o;
+                tri[t + 1] = o + 1;
+                tri[t + 2] = o + 2;
+                tri[t + 3] = o + 1;
+                tri[t + 4] = o + 3;
+                tri[t + 5] = o + 2;
+            }
+
+            _cone = new Mesh { name = "SU_PulsarCone", vertices = v, uv = uv, colors = col, triangles = tri };
+            _cone.RecalculateBounds();
+            return _cone;
         }
 
         void TickPulsar(float dt)

@@ -244,25 +244,29 @@ namespace Core.Vfx
                     continue;
                 Color c;
                 float size;
+                var mark = false;
                 if (s.Id == hereId)
                 {
                     c = StarHere;
                     size = 0.05f;
+                    mark = true;
                 }
                 else if (s.OwnerId > 0)
                 {
                     // Held systems: bright, tinted lightly by the owner (the territory carries the colour).
-                    c = Color.Lerp(Color.white, OwnerColor(s.OwnerId), 0.35f);
+                    c = Color.Lerp(SpectralTint(s.Id), OwnerColor(s.OwnerId), 0.35f);
                     c.a = 1f;
-                    size = 0.03f;
+                    size = 0.034f;
                 }
                 else
                 {
-                    c = StarEmpty;
-                    size = 0.02f;
+                    // Unclaimed: a small star in its own (stable) spectral colour.
+                    c = Color.Lerp(StarEmpty, SpectralTint(s.Id), 0.6f);
+                    c.a = StarEmpty.a;
+                    size = 0.024f;
                 }
 
-                AddStarQuad(p, size, c);
+                AddStarQuad(p, size, c, Seed01(s.Id), mark);
             }
 
             _gMesh.Clear();
@@ -288,15 +292,17 @@ namespace Core.Vfx
         readonly List<Vector2> _gSizes = new();
 
         /// <summary>One star = four vertices at its centre; the shader turns them into a camera-facing glow.</summary>
-        void AddStarQuad(Vector3 p, float size, Color c)
+        /// <param name="seed">Twinkle phase (0–1); <paramref name="mark"/> adds the "you are here" ring.</param>
+        void AddStarQuad(Vector3 p, float size, Color c, float seed, bool mark)
         {
             var b = _gVerts.Count;
             Color32 c32 = c;
+            var extra = seed + (mark ? 2f : 0f);
             for (var k = 0; k < 4; k++)
             {
                 _gVerts.Add(p);
                 _gColors.Add(c32);
-                _gSizes.Add(new Vector2(size, 0f));
+                _gSizes.Add(new Vector2(size, extra));
             }
 
             _gUvs.Add(new Vector2(0f, 0f));
@@ -309,6 +315,29 @@ namespace Core.Vfx
             _gTris.Add(b);
             _gTris.Add(b + 2);
             _gTris.Add(b + 3);
+        }
+
+        static float Seed01(int id)
+        {
+            unchecked
+            {
+                return ((uint)id * 2654435761u >> 8) % 997 / 997f;
+            }
+        }
+
+        /// <summary>A stable spectral class per system: mostly white-yellow, some blue giants, orange and red dwarfs.</summary>
+        static Color SpectralTint(int id)
+        {
+            unchecked
+            {
+                var h = ((uint)id * 374761393u + 668265263u) >> 12;
+                var r = h % 100;
+                if (r < 10) return new Color(0.62f, 0.78f, 1f);
+                if (r < 40) return new Color(0.95f, 0.96f, 1f);
+                if (r < 70) return new Color(1f, 0.93f, 0.72f);
+                if (r < 88) return new Color(1f, 0.74f, 0.45f);
+                return new Color(1f, 0.52f, 0.38f);
+            }
         }
 
         /// <summary>Stars float at slightly different heights (stable per system): a volume, not a print.</summary>

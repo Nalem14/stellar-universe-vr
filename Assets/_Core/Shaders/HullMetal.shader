@@ -12,6 +12,8 @@ Shader "SU/HullMetal"
         _PanelScale ("Panel Scale", Float) = 2.4
         _Groove ("Groove", Float) = 0.55
         _Wear ("Wear", Float) = 0.22
+        _Windows ("Windows", Float) = 0
+        _WindowColor ("Window Color", Color) = (1, 0.78, 0.45, 1)
     }
     SubShader
     {
@@ -37,6 +39,8 @@ Shader "SU/HullMetal"
             float _PanelScale;
             float _Groove;
             float _Wear;
+            float _Windows;
+            float4 _WindowColor;
 
             struct appdata
             {
@@ -101,6 +105,16 @@ Shader "SU/HullMetal"
                     + _RimColor.rgb * fres * 0.4
                     + spec
                     + _Emission.rgb * _EmissionMul;
+
+                // Civil hulls: rows of lit portholes on the flanks (seeded per window, some dark), off by default.
+                float side = 1.0 - smoothstep(0.16, 0.34, an.y);
+                float2 wuv = float2(an.x >= an.z ? i.objPos.z : i.objPos.x, i.objPos.y) * float2(1.05, 1.2);
+                float2 cell = floor(wuv);
+                float2 wf = abs(frac(wuv) - 0.5);
+                float pane = (1.0 - smoothstep(0.18, 0.24, wf.x)) * (1.0 - smoothstep(0.12, 0.17, wf.y));
+                float lit = step(0.3, hash31(float3(cell, sign(i.objPos.x) + sign(i.objPos.z) * 3.0)));
+                float3 warm = lerp(_WindowColor.rgb, float3(0.7, 0.9, 1.0), step(0.86, hash31(float3(cell.yx, 5.0))));
+                col += warm * pane * lit * side * _Windows * (1.0 - groove);
                 return float4(col, 1);
             }
             ENDCG
