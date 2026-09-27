@@ -20,6 +20,8 @@ namespace Core.Vfx
 
         Image _commsPanel;
         RawImage _commsFlag;
+        RawImage _portrait;
+        Material _portraitMat;
         Image _commsFlagRim;
         TMP_Text _commsHeader;
         TMP_Text _commsEmpire;
@@ -39,9 +41,35 @@ namespace Core.Vfx
             var p = _commsPanel.transform;
             NewBar(p, "Rule", new Vector2(0f, 104f), new Vector2(780f, 2f), new Color(1f, 1f, 1f, 0.25f));
             _commsFlagRim = NewBar(p, "FlagRim", new Vector2(-250f, -22f), new Vector2(262f, 176f), Color.white);
+            // The correspondent in person: a hologram of head and shoulders (SU/HoloPortrait), their flag as a
+            // badge in the corner.
+            var backGo = new GameObject("PortraitBack", typeof(RectTransform), typeof(Image));
+            backGo.transform.SetParent(_commsFlagRim.transform, false);
+            backGo.GetComponent<RectTransform>().sizeDelta = new Vector2(252f, 168f);
+            var back = backGo.GetComponent<Image>();
+            back.color = new Color(0.01f, 0.03f, 0.05f, 1f);
+            back.raycastTarget = false;
+            var portraitGo = new GameObject("Portrait", typeof(RectTransform), typeof(RawImage));
+            portraitGo.transform.SetParent(_commsFlagRim.transform, false);
+            portraitGo.GetComponent<RectTransform>().sizeDelta = new Vector2(252f, 168f);
+            _portrait = portraitGo.GetComponent<RawImage>();
+            _portrait.raycastTarget = false;
+            var shader = Shader.Find("SU/HoloPortrait");
+            if (shader != null)
+            {
+                _portraitMat = new Material(shader) { name = "SU_HoloPortrait" };
+                _portrait.material = _portraitMat;
+            }
+            else
+            {
+                portraitGo.SetActive(false);
+            }
+
             var flagGo = new GameObject("Flag", typeof(RectTransform), typeof(RawImage));
             flagGo.transform.SetParent(_commsFlagRim.transform, false);
-            flagGo.GetComponent<RectTransform>().sizeDelta = new Vector2(252f, 168f);
+            var flagRt = flagGo.GetComponent<RectTransform>();
+            flagRt.sizeDelta = new Vector2(78f, 52f);
+            flagRt.anchoredPosition = new Vector2(126f - 39f - 6f, -84f + 26f + 6f);
             _commsFlag = flagGo.GetComponent<RawImage>();
             _commsFlag.raycastTarget = false;
             _commsHeader = Text(p, new Vector2(-10f, 124f), new Vector2(760f, 30f), 20f, TextAlignmentOptions.Left, true);
@@ -181,6 +209,7 @@ namespace Core.Vfx
             _commsFlagRim.color = tint * (0.75f + 0.25f * Mathf.Sin(Time.unscaledTime * 3f));
             _commsEmpire.color = Color.Lerp(tint, Color.white, 0.35f);
             PaintFlag(who.IsSystem ? SystemEmblem : FocusContext.AsString(empire?["flag"]));
+            Portrait(who, empire, tint);
 
             // The card: who they are to us.
             if (!who.IsSystem)
@@ -200,6 +229,38 @@ namespace Core.Vfx
             if (who.IsMail)
                 body.AppendLine(Trans.Get("inbox"));
         }
+
+        static readonly int VariantId = Shader.PropertyToID("_Variant");
+        static readonly int SeedId = Shader.PropertyToID("_Seed");
+        static readonly int TalkId = Shader.PropertyToID("_Talk");
+
+        /// <summary>Their face: the silhouette of their species, proportions of their own, the mouth moving while
+        /// their words are fresh; system mail shows the command emblem.</summary>
+        void Portrait(Correspondent who, Newtonsoft.Json.Linq.JObject empire, Color tint)
+        {
+            if (_portraitMat == null)
+                return;
+            _portrait.color = Color.Lerp(tint, Color.white, 0.15f);
+            // AI and legacy empires may have no species row (specy = null): the humanoid default then.
+            var species = empire?["specy"] is Newtonsoft.Json.Linq.JObject sp ? FocusContext.AsInt(sp["type_id"]) : 0;
+            _portraitMat.SetFloat(VariantId, who.IsSystem ? 8f : SpeciesSilhouette(species));
+            _portraitMat.SetFloat(SeedId, Mathf.Repeat(who.UserId * 0.6180339f, 1f));
+            var age = Time.unscaledTime - who.At;
+            _portraitMat.SetFloat(TalkId, Mathf.Clamp01(1f - (age - 3f) / 2f));
+        }
+
+        /// <summary>species_types.id → silhouette family (SU/HoloPortrait _Variant).</summary>
+        static float SpeciesSilhouette(int typeId) => typeId switch
+        {
+            2 => 1f,
+            3 or 8 => 2f,
+            5 or 13 => 3f,
+            6 => 4f,
+            7 or 14 => 5f,
+            9 or 10 => 6f,
+            11 => 7f,
+            _ => 0f
+        };
 
         /// <summary>Command emblem for the game's own mail: a gold star in a cyan ring.</summary>
         const string SystemEmblem = "{\"bg\":\"#04121c\",\"shapes\":[{\"shape\":\"ring\",\"color\":\"#39d7ff\"},{\"shape\":\"star\",\"color\":\"#ffb347\"},{\"shape\":\"none\",\"color\":\"#ffffff\"}]}";
