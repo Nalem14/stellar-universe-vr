@@ -258,10 +258,13 @@ namespace Core.Stations
         {
             if (_open && _anchor != null)
                 _anchor.GetComponentInParent<CrewOfficer>()?.LookAt(null);
+            var had = OpenContact;
             _open = false;
             if (CommsService.Instance != null)
                 CommsService.Instance.Changed -= RenderChips;
             gameObject.SetActive(false);
+            if (had > 0)
+                ChannelChanged?.Invoke(0, string.Empty);
         }
 
         void Place()
@@ -591,12 +594,29 @@ namespace Core.Stations
             }
         }
 
+        /// <summary>A private channel is open on the console: (users.id, name); 0 = closed.</summary>
+        public static event System.Action<int, string> ChannelChanged;
+
+        /// <summary>users.id of the open private channel (0 = none, or the console is closed).</summary>
+        public int OpenContact => _open && _tab == Tab.Private ? _contactId : 0;
+        public string OpenContactName => _contactName;
+
+        /// <summary>The last thing <paramref name="contactId"/> said in the open thread.</summary>
+        public string LastFrom(int contactId)
+        {
+            for (var i = _thread.Count - 1; i >= 0; i--)
+                if (FocusContext.AsInt(_thread[i]["sender_id"]) == contactId)
+                    return FocusContext.AsString(_thread[i]["message"]);
+            return string.Empty;
+        }
+
         void PickContact(int id, string name)
         {
             if (id <= 0 || id == Me())
                 return;
             _contactId = id;
             _contactName = name ?? string.Empty;
+            ChannelChanged?.Invoke(id, _contactName);
             _thread.Clear();
             _threadLast = 0;
             _pollAt = 0f;

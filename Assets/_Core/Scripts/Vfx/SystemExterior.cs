@@ -190,12 +190,14 @@ namespace Core.Vfx
                 var body = _focus != null ? _focus.FindPlanet(fleet.PlanetId) : null;
                 if (body != null)
                     slot = body.Slot;
-                var standoff = WorldScale.FleetStandoff(WorldScale.PlanetRadius(slot));
+                var bodyRadius = WorldScale.PlanetRadius(slot);
+                var standoff = WorldScale.FleetStandoff(bodyRadius);
                 // Each ship at this world has its own berth (rank among them, by id): two ids that share a
-                // remainder no longer park inside each other — or inside our bridge.
+                // remainder no longer park inside each other — or inside our bridge. Berths start beside the
+                // globe, so a ship looking sunward (the bridge at rest) sees past its own world.
                 var rank = _berthRank.TryGetValue(fleet.Id, out var berth) ? berth : fleet.Id % 5;
                 return planet.position + radial * standoff
-                    + side * (WorldScale.FleetLateral + rank * WorldScale.FleetLateralStep * 3f);
+                    + side * (bodyRadius + WorldScale.FleetLateral + rank * WorldScale.FleetLateralStep * 3f);
             }
 
             if (fleet.AsteroidId > 0 && _asteroids.TryGetValue(fleet.AsteroidId, out var rock))

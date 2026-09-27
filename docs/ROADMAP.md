@@ -218,7 +218,13 @@ Avancement : H1, H2a, H2b ✅ (Editor). **H3a combat ✅** (Editor, sur un état
   - Ingénierie : nos autres vaisseaux, sinon un champ d'astéroïdes ;
   - Ops : notre monde ici.
   L'officier répond, et l'écran garde la cible 20 s.
-- Reste : gestes (zoom, orbite), incrustation, Comms (correspondant à l'écran).
+**Lot 3 ✅** (Editor ; incrustation, correspondant, orbite et boutons vérifiés par appels directs ; gestes à la main non testés sans casque) :
+- **Gestes** : viser l'écran et serrer (grip) puis glisser = orbiter autour de la cible (ou balayer la vue avant) ; deux mains = écarter / pincer pour zoomer ; double saisie = retour à la régie. Une main sur le plan garde le sujet 25 s ; le mode s'affiche « Manuel ».
+- **Accoudoir gauche** : « Vue avant » (tenue 30 s) et « Régie auto ».
+- **Incrustation** : un événement que l'intention du captain aurait écarté (salve, bombardement, contact) passe dans une vignette (seconde caméra 384×216 à 12 Hz, cadre teinté + légende) au lieu d'être perdu.
+- **Correspondant à l'écran** : nouvelle transmission (MP ou courrier, identifiée par `GetPrivateConversations` / `GetMails`), canal privé ouvert sur la console Comms, ou « À l'écran » de l'officier Comms → drapeau de l'empire (`GetEmpire`), nom, titre et nom du dirigeant, relation, dernier message ; emblème du commandement pour le courrier système.
+- Postes d'amarrage décalés hors du globe : au repos, la vue avant n'est plus bouchée par notre propre planète.
+- Reste : gestes validés au casque, portrait holo animé du correspondant.
 
 Remplacer les hublots avant par **un très grand écran incurvé** (viewscreen à la Star Trek Bridge Crew) qui rend une caméra dans le `SystemExterior` partagé. Par défaut : la vue **devant le vaisseau**. L'écran « réalise » ensuite la scène selon le contexte, comme un régisseur.
 - **Rendu** : une caméra dédiée (RenderTexture ≈ 2048×768, 30–45 Hz sur Quest, sans post-processing propre, culling limité à l'extérieur) projetée sur une surface cylindrique courbée vers le captain ; cadre physique, bord lumineux, scanlines et léger fresnel ; hublots latéraux conservés (profondeur et parallaxe réelles), l'écran avant devient la « fenêtre intelligente ».

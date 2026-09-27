@@ -17,7 +17,7 @@ namespace Core.Vfx
         public const int Height = 400;
         /// <summary>Layer of the screen HUD: seen by this camera, culled from the player's.</summary>
         public const int HudLayer = 31;
-        const float Interval = 1f / 24f;
+        const float MainInterval = 1f / 24f;
         /// <summary>Metres out from the bridge centre along the line of sight: clear of the room shell.</summary>
         const float HullStandoff = 9f;
         /// <summary>Vertical field of view straight ahead (matches the screen's angular size from the chair, ×1.6).</summary>
@@ -33,6 +33,21 @@ namespace Core.Vfx
         float _fov = ForwardFov;
         float _next;
         bool _armed;
+        float _interval = MainInterval;
+
+        /// <summary>Captain's hand on the shot: orbit around the subject (or pan the forward view), in degrees.</summary>
+        public float OrbitYaw { get; set; }
+        public float OrbitPitch { get; set; }
+        /// <summary>Zoom factor: &lt; 1 closer / narrower, &gt; 1 wider (1 = the director's framing).</summary>
+        public float Zoom { get; set; } = 1f;
+        public bool Manual => Mathf.Abs(OrbitYaw) > 0.5f || Mathf.Abs(OrbitPitch) > 0.5f || Mathf.Abs(Zoom - 1f) > 0.02f;
+
+        public void ResetManual()
+        {
+            OrbitYaw = 0f;
+            OrbitPitch = 0f;
+            Zoom = 1f;
+        }
 
         public RenderTexture Texture => _rt;
         public Camera Camera => _cam;
@@ -41,15 +56,21 @@ namespace Core.Vfx
         /// <summary>True on the frame the camera renders (move HUD elements just before).</summary>
         public bool RendersThisFrame { get; private set; }
 
-        public static ViewscreenCamera Create(Transform bridge)
+        /// <summary>
+        /// The main feed (<see cref="Width"/>×<see cref="Height"/>, 24 Hz), or a smaller one (picture-in-picture:
+        /// its own size and rate, blind to the HUD layer it is shown on).
+        /// </summary>
+        public static ViewscreenCamera Create(Transform bridge, int width = Width, int height = Height, float interval = MainInterval,
+            string name = "ViewscreenCamera")
         {
-            var go = new GameObject("ViewscreenCamera");
+            var go = new GameObject(name);
             go.transform.SetParent(bridge, false);
             var vc = go.AddComponent<ViewscreenCamera>();
             vc._bridge = bridge;
-            vc._rt = new RenderTexture(Width, Height, 16, RenderTextureFormat.ARGB32)
+            vc._interval = interval;
+            vc._rt = new RenderTexture(width, height, 16, RenderTextureFormat.ARGB32)
             {
-                name = "SU_ViewscreenFeed", antiAliasing = 1, useMipMap = false, wrapMode = TextureWrapMode.Clamp
+                name = "SU_" + name, antiAliasing = 1, useMipMap = false, wrapMode = TextureWrapMode.Clamp
             };
             vc._rt.Create();
 
@@ -71,6 +92,8 @@ namespace Core.Vfx
             data.antialiasing = AntialiasingMode.None;
             data.requiresColorOption = CameraOverrideOption.Off;
             data.requiresDepthOption = CameraOverrideOption.Off;
+            if (width != Width || height != Height)
+                cam.cullingMask &= ~(1 << HudLayer);
             vc._cam = cam;
             vc.Place();
             return vc;
@@ -95,7 +118,7 @@ namespace Core.Vfx
             RendersThisFrame = Active && Time.unscaledTime >= _next;
             if (!RendersThisFrame)
                 return;
-            _next = Time.unscaledTime + Interval;
+            _next = Time.unscaledTime + _interval;
             Place();
             _cam.enabled = true;
             _armed = true;
@@ -110,10 +133,10 @@ namespace Core.Vfx
             float fov;
             if (subject == null)
             {
-                // Straight ahead, from the hull just outside the room.
-                look = _bridge.forward;
-                pos = origin + look * HullStandoff;
-                fov = ForwardFov;
+                // Straight ahead, from the hull just outside the room (the captain may pan it and zoom).
+                look = Quaternion.AngleAxis(OrbitYaw, _bridge.up) * Quaternion.AngleAxis(-OrbitPitch, _bridge.right) * _bridge.forward;
+                pos = origin + _bridge.forward * HullStandoff;
+                fov = Mathf.Clamp(ForwardFov * Zoom, 6f, 70f);
             }
             else
             {
@@ -122,8 +145,11 @@ namespace Core.Vfx
                 var to = subject.position - origin;
                 var dist = Mathf.Max(1f, to.magnitude);
                 var dir = to / dist;
-                var approach = Quaternion.AngleAxis(20f, _bridge.up) * dir;
-                var drone = _radius * 1.8f / Mathf.Tan(DroneFov * 0.5f * Mathf.Deg2Rad);
+                var side = Vector3.Cross(_bridge.up, dir);
+                if (side.sqrMagnitude < 1e-4f)
+                    side = _bridge.right;
+                var approach = Quaternion.AngleAxis(20f + OrbitYaw, _bridge.up) * Quaternion.AngleAxis(OrbitPitch, side.normalized) * dir;
+                var drone = _radius * 1.8f / Mathf.Tan(DroneFov * 0.5f * Mathf.Deg2Rad) * Zoom;
                 pos = subject.position - approach * drone;
                 if (Vector3.Dot(pos - origin, dir) < HullStandoff)
                     pos = origin + dir * Mathf.Clamp(Mathf.Min(HullStandoff, dist - _radius * 2.5f), 0f, HullStandoff);
@@ -135,7 +161,7 @@ namespace Core.Vfx
             // Moves, slews and zooms settle over ~1 s; a slow drift keeps the feed alive. Smoothed in the
             // bridge's frame: the ship flying at speed (departure, approach) carries the camera rigidly instead
             // of leaving it trailing back into the room.
-            var k = 1f - Mathf.Exp(-Interval * 3.2f);
+            var k = 1f - Mathf.Exp(-_interval * 3.2f);
             _fov = Mathf.Lerp(_fov, fov, k);
             var local = _bridge.InverseTransformPoint(pos);
             var localLook = _bridge.InverseTransformDirection(look);

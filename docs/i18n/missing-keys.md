@@ -18,6 +18,19 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 
 ---
 
+## À intégrer — écran principal : gestes, incrustation, correspondant
+
+| Clé | EN | FR |
+|---|---|---|
+| `vr.screen.auto` | Auto | Régie auto |
+| `vr.screen.manual` | Manual | Manuel |
+| `vr.screen.transmission` | Incoming transmission | Transmission entrante |
+| `vr.screen.channel` | Channel open | Canal ouvert |
+| `crew.comms.onScreen.1` | Channel on screen, Commander. | Canal à l'écran, Commandant. |
+| `crew.comms.noScreen.1` | No open channel, Commander. | Aucun canal ouvert, Commandant. |
+
+---
+
 ## Intégré côté web
 
 - Clés `vr.*`, `crew.*`, `buildingDesc_*`, `colonyLog_*`, `relation_*` dans `assets/langs/{fr,en}.json`.

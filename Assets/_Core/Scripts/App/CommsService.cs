@@ -24,6 +24,10 @@ namespace Core.App
         public int PmUnread { get; private set; }
         public int Total => MailUnread + PmUnread;
         public event Action Changed;
+        /// <summary>A new message or mail came in: its sender, read from the newest unread item.</summary>
+        public event Action<Correspondent> Incoming;
+        /// <summary>The last correspondent heard from (null until one writes).</summary>
+        public Correspondent Last { get; private set; }
 
         bool _seeded;
         Coroutine _loop;
@@ -96,6 +100,7 @@ namespace Core.App
             MailUnread = mail;
             PmUnread = pm;
             _seeded = true;
+            var pmRose = _seeded && pm > PmUnread;
             if (rose)
             {
                 Core.Crew.BarkDirector.Instance?.Say(CrewDialogue.Role.Comms, "newMail", 2, string.Empty, Total);
@@ -105,6 +110,62 @@ namespace Core.App
 
             if (changed)
                 Changed?.Invoke();
+            if (rose)
+                await Identify(pmRose);
+        }
+
+        /// <summary>Who wrote: the newest unread thread (GetPrivateConversations), else the newest unread mail.</summary>
+        async System.Threading.Tasks.Task Identify(bool pm)
+        {
+            Correspondent who = null;
+            try
+            {
+                if (pm)
+                {
+                    var res = await ActionJs.Get("GetPrivateConversations");
+                    if (res.Ok && JToken.Parse(res.Body) is JArray rows)
+                        foreach (var r in rows)
+                            if (FocusContext.AsInt(r["unread_count"]) > 0)
+                            {
+                                who = new Correspondent
+                                {
+                                    UserId = FocusContext.AsInt(r["contact_id"]),
+                                    Username = FocusContext.AsString(r["contact_username"]),
+                                    Text = FocusContext.AsString(r["last_message"])
+                                };
+                                break;
+                            }
+                }
+
+                if (who == null)
+                {
+                    var res = await ActionJs.Get("GetMails", new System.Collections.Generic.Dictionary<string, string> { { "folder", "inbox" } });
+                    if (res.Ok && JToken.Parse(res.Body) is JArray rows)
+                        foreach (var m in rows)
+                            if (FocusContext.AsInt(m["is_read"]) == 0)
+                            {
+                                who = new Correspondent
+                                {
+                                    UserId = FocusContext.AsInt(m["sender_id"]),
+                                    Username = FocusContext.AsString(m["sender_username"]),
+                                    Text = FocusContext.AsString(m["subject"]),
+                                    IsMail = true
+                                };
+                                break;
+                            }
+                }
+            }
+            catch
+            {
+                // Shape varies: no face on the screen this time, the officer still reports it.
+            }
+
+            if (who == null)
+                return;
+            who.At = UnityEngine.Time.unscaledTime;
+            await Correspondent.LoadEmpire(who.UserId);
+            Last = who;
+            Incoming?.Invoke(who);
         }
 
         // ── Beacon over the Comms station ─────────────────────────────────────────

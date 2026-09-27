@@ -211,7 +211,10 @@ namespace Core.Vfx
             if (_shot == null || Time.unscaledTime >= _shot.Until)
                 return false;
             if (intent && !_shot.Urgent)
+            {
+                ToInset(_shot);
                 return false;
+            }
             if (_shot.Forward)
                 return true;
             if (_shot.Pair)
@@ -278,6 +281,14 @@ namespace Core.Vfx
                 return false;
             if (_targetsDirty)
                 RebuildTargets();
+            if (role == CrewDialogue.Role.Comms)
+            {
+                // Comms puts the correspondent up: the open channel, else the last one who wrote.
+                var ok = CommsOnScreen() > 0;
+                Core.Crew.BarkDirector.Instance?.Say(role, ok ? "onScreen" : "noScreen", 2);
+                return ok;
+            }
+
             var key = SubjectFor(role);
             if (key < 0 && role != CrewDialogue.Role.Helm)
             {

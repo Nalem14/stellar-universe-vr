@@ -35,7 +35,7 @@ namespace Core.Crew
             { "science.scan", 1 }, { "science.researchDone", 1 }, { "science.researchStart", 1 },
             { "science.queueFull", 1 }, { "science.fail", 1 }, { "science.idle", 1 }, { "science.onScreen", 1 }, { "science.noScreen", 1 },
 
-            { "comms.greet", 1 }, { "comms.newMail", 1 }, { "comms.chat", 1 }, { "comms.warDeclared", 1 },
+            { "comms.greet", 1 }, { "comms.newMail", 1 }, { "comms.onScreen", 1 }, { "comms.noScreen", 1 }, { "comms.chat", 1 }, { "comms.warDeclared", 1 },
             { "comms.peaceOffer", 1 }, { "comms.allianceInvite", 1 }, { "comms.sent", 1 },
             { "comms.stargateOpen", 1 }, { "comms.fail", 1 }, { "comms.idle", 1 },
             { "comms.gateDispatch", 1 }, { "comms.gateIncoming", 1 }, { "comms.gateSuccess", 1 },

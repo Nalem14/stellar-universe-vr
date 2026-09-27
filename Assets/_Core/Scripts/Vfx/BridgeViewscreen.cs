@@ -32,7 +32,8 @@ namespace Core.Vfx
             Survey,
             Transit,
             Tracking,
-            RedAlert
+            RedAlert,
+            Comms
         }
 
         const float W = ViewscreenCamera.Width;
@@ -143,6 +144,8 @@ namespace Core.Vfx
             if (CommsService.Instance != null)
                 CommsService.Instance.Changed += view.OnSelection;
             view.BindDirection();
+            view.BindComms();
+            view.BindGestures(host.transform);
             Instance = view;
             return view;
         }
@@ -174,6 +177,7 @@ namespace Core.Vfx
             if (CommsService.Instance != null)
                 CommsService.Instance.Changed -= OnSelection;
             UnbindDirection();
+            UnbindComms();
             if (Instance == this)
                 Instance = null;
         }
@@ -605,7 +609,11 @@ namespace Core.Vfx
             _cam.Active = main != null && !DiplomacyRoom.AnyRoomInside &&
                           Vector3.Dot(main.transform.forward, (transform.parent.TransformPoint(_screenCentre) - main.transform.position).normalized) > 0.15f;
             if (!_cam.Active)
+            {
+                if (_pip.Active)
+                    TickInset(false);
                 return;
+            }
 
             if (_targetsDirty)
                 RebuildTargets();
@@ -616,7 +624,9 @@ namespace Core.Vfx
             }
 
             Gaze(main);
+            TickGestures();
             TickDirection();
+            TickInset(true);
             _switch = Mathf.MoveTowards(_switch, 0f, Time.unscaledDeltaTime * 2.2f);
             var pulse = _current == Mode.RedAlert ? 0.75f + 0.25f * Mathf.Sin(Time.unscaledTime * 4f) : 1f;
             _screenMat.SetFloat("_Switch", _switch);
@@ -849,8 +859,29 @@ namespace Core.Vfx
                     Survey(body, now);
             }
 
+            // The captain asked for straight ahead (chair button, or his hands on the forward view).
+            if (mode != Mode.RedAlert && ForwardHeld)
+            {
+                subject = null;
+                intent = true;
+            }
+
+            // A correspondent on screen: an incoming transmission, the open channel, the Comms officer's pick.
+            var comms = mode != Mode.RedAlert && CommsActive(intent);
+            if (comms)
+            {
+                mode = Mode.Comms;
+                subject = null;
+                intent = true;
+                body.Clear();
+                bar = null;
+                title = _commsWho.IsSystem ? Trans.Get("system") : Plain(string.IsNullOrEmpty(_commsWho.Username) ? "#" + _commsWho.UserId : _commsWho.Username);
+            }
+
+            ShowComms(comms, body);
+
             // Live direction: a salvo, a kill, a bombardment, a contact or our jump takes the picture for a few
-            // seconds — never over what the captain is pointing at (the card stays on his target).
+            // seconds — never over what the captain holds: then it plays in the inset (the card stays on his target).
             if (DirectedShot(intent, out var shot))
                 subject = shot;
             ShowCaption();
@@ -863,6 +894,8 @@ namespace Core.Vfx
             {
                 _subjectKey = subjectKey;
                 _switch = 1f;
+                // New subject: the captain's orbit / zoom was for the old one.
+                _cam.ResetManual();
             }
 
             _subject = subject;
@@ -876,8 +909,9 @@ namespace Core.Vfx
                 Mode.RedAlert => Trans.Get("vr.screen.redAlert"),
                 Mode.Tracking => Trans.Get("vr.screen.tracking"),
                 Mode.Transit => Trans.Get("vr.screen.transit"),
+                Mode.Comms => Trans.Get("vr.comms.title"),
                 _ => subject == null ? Trans.Get("vr.screen.forward") : Trans.Get("vr.screen.scope")
-            });
+            } + (_cam.Manual || ForwardHeld ? "  ·  " + Trans.Get("vr.screen.manual") : string.Empty));
             _mode.color = tint;
             Set(_system, _focus.HasSystem ? SystemLabel(_focus) : Trans.Get("Loading"));
             var clock = System.DateTime.Now.ToString("HH:mm", System.Globalization.CultureInfo.InvariantCulture);
@@ -1115,9 +1149,11 @@ namespace Core.Vfx
             var cam = _cam.Camera;
             var tanHalf = Mathf.Tan(cam.fieldOfView * 0.5f * Mathf.Deg2Rad);
             var used = 0;
+            // During a transmission the face has the screen: no markers through the panel.
+            var clear = _current == Mode.Comms;
             foreach (var t in _targets)
             {
-                if (used >= _brackets.Count)
+                if (used >= _brackets.Count || clear)
                     break;
                 if (t.T == null || !t.T.gameObject.activeInHierarchy)
                     continue;

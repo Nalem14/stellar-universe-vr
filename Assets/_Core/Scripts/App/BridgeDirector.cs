@@ -121,6 +121,13 @@ namespace Core.App
                 Core.UI.PokeButton.Create(armL, "ArmPadL_Refresh", Trans.Get("fleets"),
                     ArmPadTop, ArmPadFaceUp, new Vector2(0.13f, 0.06f), CicArtKit.Cyan,
                     () => Core.Utils.AsyncTap.Run(teleporter.RefreshList()));
+                // Main screen from the chair: straight ahead, or back to the director.
+                Core.UI.PokeButton.Create(armL, "ArmPadL_Forward", Trans.Get("vr.screen.forward"),
+                    ArmPadTop + new Vector3(0f, 0f, -0.075f), ArmPadFaceUp, new Vector2(0.13f, 0.055f), CicArtKit.Cyan,
+                    () => BridgeViewscreen.Instance?.ForceForward());
+                Core.UI.PokeButton.Create(armL, "ArmPadL_Auto", Trans.Get("vr.screen.auto"),
+                    ArmPadTop + new Vector3(0f, 0f, -0.145f), ArmPadFaceUp, new Vector2(0.13f, 0.055f), CicArtKit.Cyan,
+                    () => BridgeViewscreen.Instance?.Auto());
             }
 
             // Command mode scales a parent of HoloMapMount so zoom (child localScale) stays independent.
