@@ -80,3 +80,7 @@ Database.sqlite
 .vscode/
 # Agent / editor verification captures (never committed)
 /Screenshots/
+
+# Build temp / Python cache
+.utmp/
+__pycache__/
