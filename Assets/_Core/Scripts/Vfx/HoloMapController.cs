@@ -42,6 +42,11 @@ namespace Core.Vfx
         public HoloMapMode Mode => _mode;
         /// <summary>System map gestures belong to <see cref="Core.Holo.MapManipulator"/> (grab / turn / scale).</summary>
         public bool SystemGesturesExternal { get; set; }
+        /// <summary>
+        /// Galaxy two-hand zoom driven from outside (<see cref="Core.Holo.MapManipulator"/> through the
+        /// interactors): works with tracked hands too, which have no grip button to read here.
+        /// </summary>
+        public bool GalaxyGesturesExternal { get; set; }
         public IReadOnlyCollection<int> SelectedFleetIds => _selected;
         public event System.Action<HoloMapMode> ModeChanged;
 
@@ -131,6 +136,33 @@ namespace Core.Vfx
                 _push = 1f;
         }
 
+        /// <summary>
+        /// One step of a two-hand gesture from world positions (now and last frame): the spread zooms round the
+        /// hands' middle, and on the galaxy the middle's drift pans the plate.
+        /// </summary>
+        public void TwoHandStep(Vector3 a, Vector3 b, Vector3 prevA, Vector3 prevB)
+        {
+            if (_map == null || _map.InteractionLocked)
+                return;
+            var mount = _map.transform;
+            Vector2 Flat(Vector3 w)
+            {
+                var l = mount.InverseTransformPoint(w);
+                return new Vector2(l.x, l.z);
+            }
+
+            var fa = Flat(a);
+            var fb = Flat(b);
+            var pa = Flat(prevA);
+            var pb = Flat(prevB);
+            var prevDist = Mathf.Max(0.02f, (pb - pa).magnitude);
+            var dist = Mathf.Max(0.02f, (fb - fa).magnitude);
+            var mid = (fa + fb) * 0.5f;
+            Zoom(dist / prevDist, mid);
+            if (_mode == HoloMapMode.Galaxy)
+                _map.GalaxyPan(mid - (pa + pb) * 0.5f);
+        }
+
         /// <summary>Scale the map by <paramref name="factor"/> around a table-local pivot; switches level at the ends.</summary>
         public void Zoom(float factor, Vector2 pivotLocal)
         {
@@ -190,7 +222,8 @@ namespace Core.Vfx
                 _handsResolved = true;
             }
 
-            if (SystemGesturesExternal && _mode == HoloMapMode.System)
+            if ((SystemGesturesExternal && _mode == HoloMapMode.System) ||
+                (GalaxyGesturesExternal && _mode == HoloMapMode.Galaxy))
             {
                 EndGesture();
                 return false;

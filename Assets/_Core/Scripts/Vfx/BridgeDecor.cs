@@ -142,6 +142,93 @@ namespace Core.Vfx
             k.Bake(root);
         }
 
+        /// <summary>
+        /// The same kit along the corridor walls (docs: the coursive off the bridge): every piece sits between
+        /// the ribs, the portholes and the doors, backs to the wall, leaving a 2.5 m walkway. Wall screens,
+        /// door status strips, a locker and a fire cabinet, a bench under a readout, stacked cases, a narrow
+        /// console bank. Merged per material like the bridge dressing.
+        /// </summary>
+        public static void BuildCorridor(Transform corridor, CicArtKit art, float halfWidth)
+        {
+            var root = new GameObject("CorridorDecor").transform;
+            root.SetParent(corridor, false);
+            var k = new Kit();
+            var m = new Mats
+            {
+                Body = UiKit.Chassis,
+                Panel = UiKit.Cap,
+                Dark = UiKit.Bezel,
+                Cyan = art.CyanEmit(2.4f),
+                Amber = art.AmberEmit(2f),
+                Screen = ScreenMat()
+            };
+
+            Matrix4x4 Side(int side, float z) => Matrix4x4.TRS(new Vector3(side * halfWidth, 0f, z),
+                Quaternion.Euler(0f, side > 0 ? -90f : 90f, 0f), Vector3.one);
+
+            // Starboard (+x), bridge end to gate end.
+            WallScreen(k, m, Side(1, 1.25f), 1.55f, new Vector2(0.62f, 0.38f), 2, 0.3f, ScreenCyan);
+            StatusStrip(k, m, Side(1, 3.25f), 21);
+            Locker(k, m, root, Side(1, 6.0f), 7);
+            Crates(k, m, root, Side(1, 8.75f), 1);
+            StatusStrip(k, m, Side(1, 10.85f), 23);
+            ConsoleBank(k, m, root, Side(1, 13.55f), 1.0f, 3);
+
+            // Port (−x).
+            FireCabinet(k, m, root, Side(-1, 1.25f));
+            WallScreen(k, m, Side(-1, 3.25f), 1.6f, new Vector2(0.5f, 0.34f), 3, 0.6f, ScreenGreen);
+            Bench(k, m, root, Side(-1, 6.0f));
+            WallScreen(k, m, Side(-1, 6.0f), 1.62f, new Vector2(0.7f, 0.4f), 1, 0.9f, ScreenAmber);
+            WallScreen(k, m, Side(-1, 8.75f), 1.55f, new Vector2(0.62f, 0.38f), 0, 1.2f, ScreenCyan);
+            StatusStrip(k, m, Side(-1, 10.85f), 25);
+            Crates(k, m, root, Side(-1, 13.55f), -1);
+            k.Bake(root);
+        }
+
+        static void WallScreen(Kit k, Mats m, Matrix4x4 f, float y, Vector2 size, int page, float seed, Color tint)
+        {
+            k.Frame = f;
+            k.Box(m.Dark, new Vector3(size.x + 0.06f, size.y + 0.06f, 0.05f), new Vector3(0f, y, Back - 0.07f));
+            k.Screen(m.Screen, new Vector3(0f, y, Back - 0.04f), Vector3.forward, Vector3.up, size, page, seed, tint);
+            k.Box(m.Cyan, new Vector3(size.x * 0.8f, 0.01f, 0.01f), new Vector3(0f, y - size.y * 0.5f - 0.05f, Back - 0.05f));
+        }
+
+        static void StatusStrip(Kit k, Mats m, Matrix4x4 f, int seed)
+        {
+            k.Frame = f;
+            k.Box(m.Dark, new Vector3(0.2f, 0.56f, 0.04f), new Vector3(0f, 1.45f, Back - 0.08f));
+            k.Screen(m.Screen, new Vector3(0f, 1.45f, Back - 0.055f), Vector3.forward, Vector3.up, new Vector2(0.15f, 0.5f), 4, seed * 0.17f, ScreenCyan);
+            k.Box(m.Amber, new Vector3(0.14f, 0.02f, 0.01f), new Vector3(0f, 1.78f, Back - 0.06f));
+        }
+
+        static void FireCabinet(Kit k, Mats m, Transform root, Matrix4x4 f)
+        {
+            k.Frame = f;
+            const float w = 0.56f;
+            const float h = 0.9f;
+            const float d = 0.2f;
+            k.Box(m.Body, new Vector3(w, h, d), new Vector3(0f, 1.05f, Back + d * 0.5f - 0.02f));
+            k.Box(m.Panel, new Vector3(w - 0.06f, h - 0.06f, 0.02f), new Vector3(0f, 1.05f, Back + d - 0.01f));
+            // Hazard bands top and bottom, a lit release handle, a status readout.
+            k.Box(m.Amber, new Vector3(w - 0.04f, 0.04f, 0.012f), new Vector3(0f, 1.05f + h * 0.5f - 0.06f, Back + d + 0.004f));
+            k.Box(m.Amber, new Vector3(w - 0.04f, 0.04f, 0.012f), new Vector3(0f, 1.05f - h * 0.5f + 0.06f, Back + d + 0.004f));
+            k.Box(m.Cyan, new Vector3(0.14f, 0.02f, 0.02f), new Vector3(0f, 1.02f, Back + d + 0.012f));
+            k.Screen(m.Screen, new Vector3(0f, 1.2f, Back + d + 0.006f), Vector3.forward, Vector3.up, new Vector2(0.2f, 0.1f), 4, 0.77f, ScreenAmber);
+            Block(root, f, new Vector3(w, h, d), new Vector3(0f, 1.05f, Back + d * 0.5f));
+        }
+
+        static void Bench(Kit k, Mats m, Transform root, Matrix4x4 f)
+        {
+            k.Frame = f;
+            const float w = 1.0f;
+            // A wall-hung bench: seat on two brackets, a light line under it.
+            k.Box(m.Panel, new Vector3(w, 0.06f, 0.4f), new Vector3(0f, 0.46f, Back + 0.2f), default, 0.02f);
+            for (var i = -1; i <= 1; i += 2)
+                k.Box(m.Dark, new Vector3(0.05f, 0.3f, 0.36f), new Vector3(i * (w * 0.5f - 0.08f), 0.3f, Back + 0.18f));
+            k.Box(m.Cyan, new Vector3(w - 0.1f, 0.01f, 0.01f), new Vector3(0f, 0.42f, Back + 0.4f));
+            Block(root, f, new Vector3(w, 0.5f, 0.42f), new Vector3(0f, 0.25f, Back + 0.21f));
+        }
+
         struct Mats
         {
             public Material Body, Panel, Dark, Cyan, Amber, Screen;

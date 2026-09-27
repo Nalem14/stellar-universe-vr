@@ -164,7 +164,7 @@ Chaque phase livre **l'art complet** de ce qu'elle touche, sans placeholder. Une
 - ✅ Galaxie complète sans plafond : tous les systèmes en **un** mesh (`SU/HoloStarField`, teinte par détenteur = territoires web), placés sur `visual_x/visual_y` comme le web. 24 tokens interactifs recyclés près du centre ; la cible d'un lâcher est l'étoile la plus proche de la main parmi **tous** les systèmes. Tes vaisseaux sont posés sur leur étoile et se glissent vers une autre pour un saut devisé.
 - ✅ **Au lâcher : preview + confirmation** au pupitre : sublight, hyperspace ou Bond PRL, avec ETA et coût calculés depuis `GetConfigs` (distance PRL sur les coordonnées visuelles, comme le serveur).
 - ✅ Trajectoires et file d'ordres éditable (`SetFleetOrderQueue`, `RemoveFleetOrderStep`, `ToggleFleetQueueLoop`).
-- Reste : pinch en hand tracking (sans manettes) — à faire avec XR Hands en P7.
+- ✅ **Hand tracking** (Editor ; pas testé en casque) : le rig est le préfab XRI « Hands Variant » (bascule manettes ↔ mains, le pinch est la sélection de l'interacteur de main). Tous les gestes de la table lisent désormais les interacteurs : un pinch saisit et déplace la carte, deux pinchs la zooment et la tournent. Le zoom galaxie, qui lisait le bouton de grip des manettes (absent sur une main), passe aussi par `HoloMapController.TwoHandStep`.
 
 ### P5 — Stations = domaines de jeu (parité)
 
@@ -344,6 +344,8 @@ Changer de système doit se **voir** : le vaisseau part, quitte le système, le 
 - murs bâbord et tribord : une baie de consoles auxiliaires (bureau incliné, deux écrans vivants et touches lumineuses, deux moniteurs muraux et une réglette de voyants), deux casiers d'équipement (portes, poignées lumineuses, bandeau ambre, voyant de porte), une pile de caisses sanglées dans le coin, des conduites sur consoles sous la corniche ;
 - pans arrière : quatre baies serveurs (trois lames de voyants, afficheur de baie, couronne lumineuse) ;
 - mur arrière : deux buffets bas sous les écrans muraux, avec lecteurs inclinés.
+
+- couloir (`BridgeDecor.BuildCorridor`) : entre les nervures, les hublots et les portes, écrans muraux, réglettes de voyants près des portes, casier, armoire anti-incendie, banc sous un afficheur, caisses et petite baie de consoles, avec 2,5 m de passage libre.
 
 Même langage que les postes de l'équipage (quincaillerie arrondie `SU/ConsoleMetal`, filets cyan et ambre). Les écrans sont `SU/FakeScreen` : oscilloscope, histogramme, journal défilant, radar ou voyants, tout est dessiné dans le shader, sans texture ni travail CPU, et sans texte à traduire. Tout est fusionné par matériau (6 draw calls, ~31 k sommets), avec des collisions pour ne pas traverser les meubles.
 

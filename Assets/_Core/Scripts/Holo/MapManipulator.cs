@@ -10,9 +10,10 @@ namespace Core.Holo
     /// Holo table v2 navigation (docs/design/HOLOTABLE.md §2.5, BattleGroup VR style): grip in empty space
     /// grabs the diorama — one hand pulls it toward you / moves it, two hands scale it (spread) and turn it
     /// (rotate the hands round each other). Seated or standing, the map comes to the captain.
-    /// Rim buttons: Recentre, and Galaxy ⟷ System. On the galaxy, one hand pans the star plate (two hands
-    /// stay with <see cref="HoloMapController"/>). Grips that already hold something (a ship, the seat) are
-    /// left alone.
+    /// Rim buttons: Recentre, and Galaxy ⟷ System. On the galaxy, one hand pans the star plate and two hands
+    /// zoom it (<see cref="HoloMapController.TwoHandStep"/>). Grips that already hold something (a ship, the seat) are
+    /// left alone. Works the same with tracked hands (XRI hands rig: a pinch is the hand interactor's select),
+    /// galaxy zoom included — every gesture reads the interactors, never a controller button.
     /// </summary>
     public sealed class MapManipulator : MonoBehaviour
     {
@@ -47,6 +48,7 @@ namespace Core.Holo
             if (ctrl != null)
             {
                 ctrl.SystemGesturesExternal = true;
+                ctrl.GalaxyGesturesExternal = true;
                 ctrl.ModeChanged += m.OnModeChanged;
             }
 
@@ -221,17 +223,21 @@ namespace Core.Holo
             var pa = _a.transform.position;
             if (mode == HoloMapMode.Galaxy)
             {
-                // Galaxy: one hand pans the plate; two hands are HoloMapController's zoom.
+                // Galaxy: one hand pans the plate; two hands (grips or pinches) spread to zoom.
                 if (_b == null)
                 {
                     var la = transform.InverseTransformPoint(pa);
                     var lp = transform.InverseTransformPoint(_prevA);
                     _map.GalaxyPan(new Vector2(la.x - lp.x, la.z - lp.z));
                 }
+                else
+                {
+                    var pb = _b.transform.position;
+                    _ctrl?.TwoHandStep(pa, pb, _prevA, _prevB);
+                    _prevB = pb;
+                }
 
                 _prevA = pa;
-                if (_b != null)
-                    _prevB = _b.transform.position;
                 return;
             }
 

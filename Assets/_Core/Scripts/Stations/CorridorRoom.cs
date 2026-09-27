@@ -196,6 +196,9 @@ namespace Core.Stations
                 pipe.GetComponent<MeshRenderer>().sharedMaterial = conduit;
             }
 
+            // Working-ship dressing between the ribs, portholes and doors (same kit as the bridge).
+            BridgeDecor.BuildCorridor(transform, _art, HalfWidth);
+
             // Solid hull boxes behind the side walls (a character body never slips through a one-sided mesh).
             for (var side = -1; side <= 1; side += 2)
                 Box(new Vector3(side * (HalfWidth + 0.3f), 1.6f, Length * 0.5f), new Vector3(0.6f, 3.6f, Length + 1f));
