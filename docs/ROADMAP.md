@@ -45,6 +45,13 @@ Principes non négociables, rappelés ici :
 - `hyperspace` vaut 1 par défaut : il faut envoyer `hyperspace=0` pour voyager en sublight.
 - Le Sensor Array devient le Deep Space Scanner, l'arbre de recherche est réorganisé, et la galaxie est placée selon les `x,y` de la DB.
 
+### Synchronisation web du 2026-09-27 (`65f4249..908bcbb`)
+- **`ToggleFleetAutoExplore`** (nouvelle) : interrupteur dans le répéteur Science des vaisseaux à module scientifique, `enabled` explicite, état lu sur `GetAllFleets.autoExplore`. Non déclenché en test : le vaisseau partirait seul de système en système.
+- **Décisions planétaires** : comme le web, une décision répondue quitte la liste, et la confirmation donne les montants réellement appliqués. Nouvelle clé `vr.ops.allAnswered`.
+- **Taille des vaisseaux** : le serveur ne plafonne plus que par la grille 9×9 ; la VR n'appliquait pas de plafond côté client.
+- **Mails narratifs** (`rm_*`, exploration, colonisation, extraction, combats) : texte brut rédigé dans la langue du destinataire, lu tel quel par la console Comms.
+- **Files** : un ordre passe en file dès qu'une file existe, et les files avancent hors ligne par cron ; la VR lisait déjà `queued` dans la réponse.
+
 ### Modèle serveur à respecter
 
 La simulation est **paresseuse** :
@@ -328,6 +335,13 @@ Changer de système doit se **voir** : le vaisseau part, quitte le système, le 
   - le hook du simulateur XR ne balaie plus la scène que 3 fois par chargement (12 en Editor) ;
   - les textes « en direct » des consoles ne reconstruisent plus leur maillage quand rien n'a changé.
 - Profil URP Quest : lumières additionnelles et ombres de la lumière principale désactivées. Aucun shader `SU/*` ne les lit, l'éclairage des pièces passe par `RoomLightRig`.
+
+**Lot C décor du pont ✅** (Editor ; retour joueur 2026-09-27 : « il manque de faux décors ») — `BridgeDecor` :
+- murs bâbord et tribord : une baie de consoles auxiliaires (bureau incliné, deux écrans vivants et touches lumineuses, deux moniteurs muraux et une réglette de voyants), deux casiers d'équipement (portes, poignées lumineuses, bandeau ambre, voyant de porte), une pile de caisses sanglées dans le coin, des conduites sur consoles sous la corniche ;
+- pans arrière : quatre baies serveurs (trois lames de voyants, afficheur de baie, couronne lumineuse) ;
+- mur arrière : deux buffets bas sous les écrans muraux, avec lecteurs inclinés.
+
+Même langage que les postes de l'équipage (quincaillerie arrondie `SU/ConsoleMetal`, filets cyan et ambre). Les écrans sont `SU/FakeScreen` : oscilloscope, histogramme, journal défilant, radar ou voyants, tout est dessiné dans le shader, sans texture ni travail CPU, et sans texte à traduire. Tout est fusionné par matériau (6 draw calls, ~31 k sommets), avec des collisions pour ne pas traverser les meubles.
 
 **Restant P7** (à décider et tester sur casque) :
 - **Bloom sur Quest** : le renderer Android n'a pas de post-traitement, donc le bloom et le vignettage ne tournent qu'en Editor. L'activer coûte une passe plein écran et une résolution MSAA par œil. À mesurer sur casque avant de l'activer (sinon on garde la lueur dans les shaders).

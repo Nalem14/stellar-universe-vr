@@ -716,21 +716,25 @@ namespace Core.Stations
             _live.Add((countdown, () => Trans.Format("vr.ops.nextBatch",
                 Core.Holo.TravelPlanner.TimeText(next - FleetOrderGate.UnixNow()))));
 
-            if (_decisions.Count == 0)
+            // As on the web: an answered decision leaves the list (its outcome was shown on answering).
+            var pending = new List<JToken>();
+            foreach (var row in _decisions)
+                if (string.IsNullOrEmpty(FocusContext.AsString(row["choice"])))
+                    pending.Add(row);
+            if (pending.Count == 0)
             {
-                Line(Trans.Get("vr.ops.noDecision"), 0f, 0f, 22f, DiegeticUi.CyanDim);
+                Line(Trans.Get(_decisions.Count > 0 ? "vr.ops.allAnswered" : "vr.ops.noDecision"), 0f, 0f, 22f, DiegeticUi.CyanDim);
                 return;
             }
 
-            Pager(_decisions.Count, DecisionsPerPage);
+            Pager(pending.Count, DecisionsPerPage);
             var first = _page * DecisionsPerPage;
-            for (var i = first; i < _decisions.Count && i < first + DecisionsPerPage; i++)
+            for (var i = first; i < pending.Count && i < first + DecisionsPerPage; i++)
             {
-                var d = _decisions[i];
+                var d = pending[i];
                 var y = 12f - (i - first) * 108f;
                 var def = d["def"];
                 var key = FocusContext.AsString(d["decision_key"]);
-                var choice = FocusContext.AsString(d["choice"]);
 
                 DiegeticUi.HoloSelectTray(_body, new Vector2(0f, y), new Vector2(1060f, 100f));
                 // Title and text come localized from the server (model/decision.php DECISION_DEFS).
@@ -746,13 +750,6 @@ namespace Core.Stations
                 desc.fontSizeMax = 15f;
                 Line(Effect(def?["yes"]), -170f, y - 40f, 15f, UiKit.Amber, 700f, TextAlignmentOptions.MidlineLeft);
 
-                if (!string.IsNullOrEmpty(choice))
-                {
-                    Line(Trans.Format("vr.ops.answered", Trans.Get(choice == "yes" ? "vr.ops.yes" : "vr.ops.no")),
-                        390f, y, 19f, DiegeticUi.CyanDim, 260f);
-                    continue;
-                }
-
                 var pid = planet.Id;
                 DiegeticUi.HoloButton(_body, Trans.Get("vr.ops.yes"), new Vector2(330f, y + 22f), new Vector2(150f, 44f),
                     () => Run(Answer(pid, key, "yes")), DiegeticUi.BtnStyle.Cyan);
@@ -761,6 +758,34 @@ namespace Core.Stations
                     () => Run(Answer(pid, key, "no")), DiegeticUi.BtnStyle.Ghost);
                 if (def?["no"] != null)
                     Line(Effect(def["no"]), 470f, y - 26f, 13f, UiKit.Amber, 120f);
+            }
+        }
+
+        /// <summary>" · −1 200 Biomass · +720 Crystal" from AnswerPlanetDecision's taken / given.</summary>
+        static string Applied(ApiResult r)
+        {
+            if (string.IsNullOrEmpty(r.Body) || r.Body[0] != '{')
+                return string.Empty;
+            try
+            {
+                var o = JObject.Parse(r.Body);
+                var text = string.Empty;
+                foreach (var (field, sign) in new[] { ("taken", "−"), ("given", "+") })
+                {
+                    var part = o[field];
+                    if (part == null || part.Type != JTokenType.Object)
+                        continue;
+                    var amount = FocusContext.AsFloat(part["amount"]);
+                    if (amount <= 0f)
+                        continue;
+                    text += " · " + sign + Num(amount) + " " + Trans.Get("vr.res." + FocusContext.AsString(part["res"]));
+                }
+
+                return text;
+            }
+            catch
+            {
+                return string.Empty;
             }
         }
 
@@ -835,6 +860,9 @@ namespace Core.Stations
                     { "choice", choice }
                 });
                 var (ok, message) = Interpret(result, "decisionRecorded");
+                // The exact amounts the server applied (−taken, +given), as the web toast shows them.
+                if (ok)
+                    message += Applied(result);
                 Feedback(ok, message);
                 Core.Crew.BarkDirector.Instance?.OrderResult(CrewDialogue.Role.Ops, "AnswerPlanetDecision", result,
                     string.Empty);

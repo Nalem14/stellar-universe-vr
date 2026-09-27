@@ -1,6 +1,6 @@
 # PARITY — Stellar Universe VR ↔ `actionjs.php`
 
-Généré depuis `action-api.json` (158 actions), `actionjs.php` et un grep des deux clients. Référence web : `/Users/thommy/Websites/stellar-universe`. Roadmap : [`ROADMAP.md`](ROADMAP.md).
+Généré depuis `action-api.json` (159 actions), `actionjs.php` et un grep des deux clients. Référence web : `/Users/thommy/Websites/stellar-universe`. Roadmap : [`ROADMAP.md`](ROADMAP.md).
 
 **Règle** : chaque feature livrée met à jour sa ligne. Avant de coder, lire l'implémentation web (colonne *Web*) + `model/*.php`. On adapte la jouabilité au pont VR ; le contrat serveur reste strict. La VR ne renvoie **jamais** au web.
 
@@ -19,7 +19,7 @@ Généré depuis `action-api.json` (158 actions), `actionjs.php` et un grep des 
 | Méta / boot | 5 | 5 | 100 % |
 | Caméra (vue) | 2 | 2 | 100 % |
 | Galaxie | 8 | 8 | 100 % |
-| Flotte | 21 | 23 | 91 % |
+| Flotte | 22 | 24 | 92 % |
 | Vaisseau / chantier | 12 | 13 | 92 % |
 | Planète / bâtiments / recherche | 17 | 17 | 100 % |
 | Combat | 12 | 14 | 86 % |
@@ -29,9 +29,9 @@ Généré depuis `action-api.json` (158 actions), `actionjs.php` et un grep des 
 | Guerre | 9 | 9 | 100 % |
 | Alliance | 17 | 17 | 100 % |
 | Empire / progression / shop | 24 | 27 | 89 % |
-| **Total** | **150** | **158** | **95 %** |
+| **Total** | **151** | **159** | **95 %** |
 
-Appelées par le client web : 139/158. « Appelée » ≠ « finie » : voir la colonne *Statut*.
+Appelées par le client web : 140/159. « Appelée » ≠ « finie » : voir la colonne *Statut*.
 
 ## Auth
 
@@ -94,6 +94,7 @@ Appelées par le client web : 139/158. « Appelée » ≠ « finie » : voir la 
 | `RenameFleet` | W | id, name | `Stations/DryDock.cs` | `objects/fleet.js` | Helm | P5 | Branché | Cale sèche, clavier Quest |
 | `SetFleetOrderQueue` | W | fleet, queue, loop? | `Audio/OrderCues.cs` +1 | `objects/fleet.js` | Helm | P4 | Branché | Balise de la file lâchée sur une autre planète / un autre champ : on renvoie les étapes restantes (le serveur remet l’index à 0), champs du serveur conservés |
 | `SpeedupFleetTravel` | W | fleet | `Crew/CrewLines.cs` +3 | `scripts/helper.js` | Helm | P5 | Branché | Vaisseau en route sélectionné sur la table (ou répéteur Helm) : pupitre « Terminer le voyage · N Nova » (gratuit < 1 min, même courbe que les autres accélérations), refus si Nova insuffisant ; **aucun handler serveur** (voir écarts) |
+| `ToggleFleetAutoExplore` | W | fleet, enabled? | `Vfx/CrewDialogue.cs` | `objects/fleet.js` | Science | P5 | Branché | Répéteur Science d'un vaisseau à module scientifique (ScienceModule / SensorArray / DeepSpaceScanner) : `enabled` explicite 0/1, état lu sur `GetAllFleets.autoExplore` |
 | `ToggleFleetQueueLoop` | W | fleet, loop? | `Holo/OrderQueue.cs` | `objects/fleet.js` | Helm | P4 | Branché | `loop` explicite 0/1 |
 | `UnloadTroops` | W | fleet, planet, troops | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Tactical | P5 | Branché | Idem, vers la garnison de nos planètes seulement |
 | `UpdateFleetDefendPosition` | W | id, position | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Tactical | P5 | Branché |  |
@@ -112,7 +113,7 @@ Appelées par le client web : 139/158. « Appelée » ≠ « finie » : voir la 
 | `DeleteShipTemplate` | W | id | `Stations/BlueprintPanel.cs` | `ui/ShipBuilderUI.js` | Engineering | P5 | Branché |  |
 | `GetShipLayout` | R | fleet | `Stations/DryDock.cs` +1 | `ui/ShipBuilderUI.js` | Engineering | P5 | Branché | Coque 1:1 dans la cale + hublots (`ShipHullBuilder`) |
 | `GetShipTemplates` | R | — | `Stations/BlueprintPanel.cs` | `ui/ShipBuilderUI.js` | Engineering | P5 | Branché |  |
-| `PlaceShipModule` | W | ship, fleet, gx, gy | `Stations/DryDock.cs` | `ui/ShipBuilderUI.js` | Engineering | P5 | Branché | Cale sèche : caisse posée à la main (ou case visée) ; serveur + VR : adjacence 4-voisins, cœur, planète, MAX_FLEET_SIZE, cache fleet_stats_ |
+| `PlaceShipModule` | W | ship, fleet, gx, gy | `Stations/DryDock.cs` | `ui/ShipBuilderUI.js` | Engineering | P5 | Branché | Cale sèche : caisse posée à la main (ou case visée) ; serveur + VR : adjacence 4-voisins, cœur, planète, cache fleet_stats_ ; plus de plafond de taille (web `81f4c17`) : seule la grille 9×9 limite |
 | `RemoveShipModule` | W | ship | `Stations/DryDock.cs` | `ui/ShipBuilderUI.js` | Engineering | P5 | Branché | Cale sèche : en deux temps ; refusé si le retrait couperait le vaisseau du cœur |
 | `SaveShipTemplate` | W | fleet, name | `Stations/BlueprintPanel.cs` | `ui/ShipBuilderUI.js` | Engineering | P5 | Branché |  |
 | `SpeedupShipyard` | W | planet, ship? | `Stations/ShipyardPanel.cs` | `scenes/planet.js` | Engineering | P5 | Branché | Coût Nova affiché (gratuit ≤ 60 s) |
@@ -121,7 +122,7 @@ Appelées par le client web : 139/158. « Appelée » ≠ « finie » : voir la 
 
 | Action | R/W | Params | VR | Web | Station | Phase | Statut | Notes |
 |---|---|---|---|---|---|---|---|---|
-| `AnswerPlanetDecision` | W | planet, decision, choice | `Stations/OpsConsole.cs` | `objects/planet.js` | Ops | P5 | Branché | `decision` = **`decision_key`** (chaîne), pas l'id ; `choice` yes/no ; erreurs i18n |
+| `AnswerPlanetDecision` | W | planet, decision, choice | `Stations/OpsConsole.cs` | `objects/planet.js` | Ops | P5 | Branché | `decision` = **`decision_key`** (chaîne), pas l'id ; `choice` yes/no ; erreurs i18n ; comme le web (`c37afb9`) une décision répondue quitte la liste et la confirmation donne les montants appliqués (`taken` / `given`) |
 | `BuildDefenseUnit` | W | planet, type, qty | `Crew/CrewLines.cs` +1 | `objects/planet.js` | Tactical | P5 | Branché | Armurerie, onglet Défenses ; plateformes en orbite de nos mondes dans l'espace réel |
 | `CancelQueuedBuilding` | W | id, queue_id | `Stations/OpsConsole.cs` | `scenes/planet.js` | Ops | P5 | Branché | Param `id` ou `queue_id` ; échecs en `error:<clé>` ; file = `buildingtype` + `duration` |
 | `CancelQueuedResearch` | W | id, queue_id | `Stations/ResearchLab.cs` | `scenes/research.js` | Science | P5 | Branché | Param `id` (ligne empire_research_queue, tech en `research`) ; cristal arraché de son pad ou × |

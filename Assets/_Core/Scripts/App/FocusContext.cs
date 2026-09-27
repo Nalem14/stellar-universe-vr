@@ -76,6 +76,8 @@ namespace Core.App
         public readonly List<FocusQueueStep> Queue = new();
         public int QueueIndex;
         public bool QueueLoop;
+        /// <summary>Server auto-exploration (GetAllFleets autoExplore): a science ship surveying on its own.</summary>
+        public bool AutoExplore;
 
         public bool IsMoving(long unixNow) => DestTime > unixNow;
         public bool IsSieging(long unixNow) => AttackEndTime > unixNow;
@@ -610,6 +612,7 @@ namespace Core.App
                     row.PrlBondReadyAt = AsLong(fleet["prlBondReadyAt"]);
                     row.QueueIndex = AsInt(fleet["orderQueueIndex"]);
                     row.QueueLoop = AsInt(fleet["orderQueueLoop"]) == 1;
+                    row.AutoExplore = AsInt(fleet["autoExplore"]) == 1;
                     if (fleet["orderQueueList"] is JArray steps)
                     {
                         foreach (var st in steps)

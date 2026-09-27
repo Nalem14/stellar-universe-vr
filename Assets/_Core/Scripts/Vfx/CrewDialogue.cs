@@ -732,6 +732,57 @@ namespace Core.Vfx
                     }));
             }
 
+            // Auto-exploration (ToggleFleetAutoExplore): the ship surveys every planet here, then hops on to
+            // unknown stars by itself. Offered to ships with a science module, as on the web order panel.
+            if (HasScienceModule(fleet))
+            {
+                var on = fleet.AutoExplore;
+                AddAction(Trans.Get("autoExploreMode") + "  ·  " + Trans.Get(on ? "autoExploreActive" : "autoExploreDisabled"),
+                    () => ToggleAutoExplore(fleet, !on), on ? DiegeticUi.BtnStyle.Amber : DiegeticUi.BtnStyle.Cyan);
+            }
+        }
+
+        /// <summary>Same modules the server accepts (actionjs ToggleFleetAutoExplore).</summary>
+        static bool HasScienceModule(FocusFleet fleet)
+        {
+            foreach (var m in fleet.Modules)
+                if (m != null && m.Type is "ScienceModule" or "SensorArray" or "DeepSpaceScanner")
+                    return true;
+            return false;
+        }
+
+        async Task ToggleAutoExplore(FocusFleet fleet, bool enable)
+        {
+            _map?.SetReadout(Trans.Get("Loading"));
+            // Explicit value (never a blind toggle): a stale poll cannot flip it the wrong way.
+            var result = await ActionJs.Get("ToggleFleetAutoExplore", new Dictionary<string, string>
+            {
+                { "fleet", fleet.Id.ToString() },
+                { "enabled", enable ? "1" : "0" }
+            });
+            if (!result.Ok)
+            {
+                CicCue.Fail(transform.position);
+                _map?.SetReadout(string.IsNullOrEmpty(result.Error) ? Trans.Get("vr.common.error") : result.Error);
+                Core.Crew.BarkDirector.Instance?.OrderResult(_role, "ToggleFleetAutoExplore", result, string.Empty);
+                return;
+            }
+
+            var now = enable;
+            try
+            {
+                if (!string.IsNullOrEmpty(result.Body) && result.Body[0] == '{')
+                    now = FocusContext.AsInt(Newtonsoft.Json.Linq.JObject.Parse(result.Body)["autoExplore"]) == 1;
+            }
+            catch
+            {
+                // Keep the requested state.
+            }
+
+            fleet.AutoExplore = now;
+            CicCue.Ok(transform.position);
+            _map?.SetReadout(Trans.Get(now ? "autoExploreActive" : "autoExploreDisabled"));
+            Core.Crew.BarkDirector.Instance?.OrderResult(_role, "ToggleFleetAutoExplore", result, fleet.Name);
         }
 
         /// <summary>Ops: planet stewardship console first, then cargo / colony orders with the planet in orbit.</summary>

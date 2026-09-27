@@ -17,6 +17,14 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 - **Paramètres** : `{0}`, `{1}`… (`Trans.Format`, `string.Format` en culture invariante).
 - Pour les répliques, les ordres et les échecs, le ton reprend celui du journal de colonisation web : l'équipage s'adresse au joueur en « Commandant ».
 
+## À intégrer — Ops décisions (web `c37afb9`)
+
+La VR retire elle aussi les décisions répondues de la liste. Quand tout le lot de l'heure est traité, elle affiche ce message (le web l'a en dur dans `planet.js`).
+
+| Clé | EN | FR |
+|---|---|---|
+| `vr.ops.allAnswered` | Every decision in this batch has been handled. A new batch arrives next hour. | Toutes les décisions de ce lot ont été traitées. Un nouveau lot arrive à la prochaine heure. |
+
 ## Intégré côté web
 
 - Clés `vr.*`, `crew.*`, `buildingDesc_*`, `colonyLog_*`, `relation_*` dans `assets/langs/{fr,en}.json`.
