@@ -4,7 +4,7 @@ Ce fichier recense les clés dont le client VR a besoin et qui manquent dans `as
 
 **Circuit** :
 - L'agent VR liste ici la clé, avec ses textes EN et FR.
-- Thommy l'intègre côté web (admin Translate → `assets/langs/{fr,en}.json`, ou commit direct sur ces fichiers).
+- Thommy l'intègre côté web (admin Translate, ou commit direct sur `assets/langs/*.json`) — désormais dans **les dix langues** d'un coup : EN et FR tels que listés, les huit autres traduites en reprenant la terminologie déjà en place.
 - La ligne est ensuite retirée de ce fichier.
 
 Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle est aussi ajoutée à `su-missing-trans-keys.txt`. Le client n'invente jamais de texte de secours.
@@ -15,19 +15,6 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 - **Répliques crew** : `crew.<role>.<event>.<n>`. Les rôles sont `helm`, `tactical`, `engineering`, `science`, `comms` et `ops`. `<n>` part de 1, et `BarkDirector` tire une variante au hasard sans répétition.
 - **Paramètres** : `{0}`, `{1}`… (`Trans.Format`, `string.Format` en culture invariante).
 - Pour les répliques, les ordres et les échecs, le ton reprend celui du journal de colonisation web : l'équipage s'adresse au joueur en « Commandant ».
-
----
-
-## À intégrer — écran principal : gestes, incrustation, correspondant
-
-| Clé | EN | FR |
-|---|---|---|
-| `vr.screen.auto` | Auto | Régie auto |
-| `vr.screen.manual` | Manual | Manuel |
-| `vr.screen.transmission` | Incoming transmission | Transmission entrante |
-| `vr.screen.channel` | Channel open | Canal ouvert |
-| `crew.comms.onScreen.1` | Channel on screen, Commander. | Canal à l'écran, Commandant. |
-| `crew.comms.noScreen.1` | No open channel, Commander. | Aucun canal ouvert, Commandant. |
 
 ---
 
