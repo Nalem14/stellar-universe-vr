@@ -128,7 +128,7 @@ Appelées par le client web : 140/159. « Appelée » ≠ « finie » : voir la 
 | `CancelQueuedResearch` | W | id, queue_id | `Stations/ResearchLab.cs` | `scenes/research.js` | Science | P5 | Branché | Param `id` (ligne empire_research_queue, tech en `research`) ; cristal arraché de son pad ou × |
 | `CheckBuildingQueue` | R | planet | `App/ServerTimers.cs` | `view/game.php` | Ops | P5 | Branché | `ServerTimers` : barre du chantier actif de la console Ops = progression du serveur (`workingStart`, repli legacy), relue toutes les 15 s à l'écran et après accélération / annulation ; estimation locale en attendant |
 | `CheckResearchQueue` | R | — | `App/ServerTimers.cs` | `view/game.php` | Science | P5 | Branché | Idem pour l'anneau et la barre de la recherche en cours du labo |
-| `CheckShipQueue` | R | planet | `App/ServerTimers.cs` | `view/game.php` | Engineering | P5 | Démo | Idem pour le module en cours de la cale sèche (onglet Chantier) |
+| `CheckShipQueue` | R | planet | `App/ServerTimers.cs` | `view/game.php` | Engineering | P5 | Branché | Idem pour le module en cours de la cale sèche (onglet Chantier) |
 | `DowngradeBuilding` | W | buildingtype, planet | `Stations/OpsConsole.cs` | `objects/planet.js` | Ops | P5 | Branché | Immédiat, sans remboursement : confirmation en deux temps |
 | `GetPlanetDecisions` | R | planet | `Stations/OpsConsole.cs` | `objects/planet.js` | Ops | P5 | Branché | 10 décisions / planète / heure, `nextRefreshAt` → compte à rebours ; titres via `decision_*` / `decisionDesc_*` |
 | `GetResource` | R | planet, raw? | `App/EconomyService.cs` | `objects/planet.js` | Ops (poll global) | P0 | Branché | `EconomyService` : `raw=1` sur **toutes** les planètes (csv ≤ 50) toutes les 10 s — accumule la production et fait avancer les files. `user` = PublicUser (id/username) seulement |
@@ -203,7 +203,7 @@ Appelées par le client web : 140/159. « Appelée » ≠ « finie » : voir la 
 | `CancelPeaceOffer` | W | war | `Stations/DiplomacyRoom.cs` | `ui/WarsWindowUI.js` | Chambre diplomatique | P5 | Branché | Chancellerie, notre offre en attente |
 | `DeclareWar` | W | target | `Stations/DiplomacyRoom.cs` | `ui/WarsWindowUI.js` | Chambre diplomatique | P5 | Branché | Dossier de l'empire visé sur l'orrery : planètes exigées (GetEmpirePlanets), ressources, en deux temps ; `planets` csv + `mineral`/`crystal`/`biomass` |
 | `DeclinePeaceOffer` | W | war | `Stations/DiplomacyRoom.cs` | `ui/WarsWindowUI.js` | Chambre diplomatique | P5 | Branché | Chancellerie, offre de l'adversaire |
-| `GetMyWars` | R | — | `App/DiplomacyService.cs` | `ui/WarsWindowUI.js` | Chambre diplomatique | P5 | Démo | `DiplomacyService` toutes les 30 s (répliques Comms : guerre déclarée contre nous, offre de paix, fin de guerre) ; onglet Conflits de la Chancellerie |
+| `GetMyWars` | R | — | `App/DiplomacyService.cs` | `ui/WarsWindowUI.js` | Chambre diplomatique | P5 | Branché | `DiplomacyService` toutes les 30 s (répliques Comms : guerre déclarée contre nous, offre de paix, fin de guerre) ; onglet Conflits de la Chancellerie |
 | `GetWarDetails` | R | war | `Stations/DiplomacyRoom.cs` | — | Chambre diplomatique | P5 | Branché | Relu à la sélection d'un conflit (Chancellerie) |
 | `OfferPeace` | W | war | `Stations/DiplomacyRoom.cs` | `ui/WarsWindowUI.js` | Chambre diplomatique | P5 | Branché | Chancellerie, conflit actif |
 | `SurrenderWar` | W | war | `Stations/DiplomacyRoom.cs` | `ui/WarsWindowUI.js` | Chambre diplomatique | P5 | Branché | Attaquant seulement, en deux temps |
@@ -252,7 +252,7 @@ Appelées par le client web : 140/159. « Appelée » ≠ « finie » : voir la 
 | `GetPolitics` | R | — | `Stations/QuartersRoom.cs` | `ui/EmpireHubUI.js` | Quartiers du commandant | P6 | Branché | Onglet Politique : 8 catégories, effets en % |
 | `GetProgressionObjectives` | R | — | `Stations/QuartersRoom.cs` | `ui/ProgressionWindowUI.js` | Quartiers du commandant | P6 | Branché | Objectifs du jour / de la semaine / du mois avec comptes à rebours ; relu toutes les 30 s dans la cabine |
 | `GetRelation` | R | user1, user2 | `Stations/DiplomacyRoom.cs` | `objects/empire.js` | Chambre diplomatique | P5 | Branché | Jauge de relation du dossier (user1 = moi, user2 = l'empire visé) |
-| `GetShopData` | R | — | `App/Boosters.cs` +1 | `ui/ShopWindowUI.js` | Quartiers du commandant | P6 | Démo | Console Boutique : boosters (durée restante), consommables, cosmétiques, titres ; solde Nova et jetons |
+| `GetShopData` | R | — | `App/Boosters.cs` +1 | `ui/ShopWindowUI.js` | Quartiers du commandant | P6 | Branché | Console Boutique : boosters (durée restante), consommables, cosmétiques, titres ; solde Nova et jetons |
 | `GetSpeciesTraits` | R | — | `Stations/QuartersRoom.cs` +1 | `objects/specy.js` | Quartiers du commandant | P6 | Branché |  |
 | `GetSpeciesTypes` | R | — | `Stations/QuartersRoom.cs` +1 | `objects/specy.js` | Quartiers du commandant | P6 | Branché |  |
 | `GetWeeklyObjectives` | R | — | — | — | Quartiers du commandant | — | Hors scope | Idem |

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Newtonsoft.Json.Linq;
+using Core.Utils;
 
 namespace Core.App
 {
@@ -41,6 +42,9 @@ namespace Core.App
         public long ExploreEndTime;
         public bool IsInBattle;
         public bool IsPirate;
+        /// <summary>Pirate raiders only (fleets.level / expiresAt): strength, and when they leave if nobody engages.</summary>
+        public int PirateLevel;
+        public long PirateLeavesAt;
         public string Pos = string.Empty;
         public readonly List<FocusShipModule> Modules = new();
 
@@ -585,6 +589,14 @@ namespace Core.App
                         IsPirate = AsBool(fleet["isPirate"]),
                         Pos = AsString(fleet["pos"])
                     };
+                    if (row.IsPirate)
+                    {
+                        row.PirateLevel = AsInt(fleet["level"]);
+                        row.PirateLeavesAt = AsLong(fleet["expiresAt"]);
+                        // The server names them "Pirates Lv.N" in English: say it in the player's language.
+                        if (row.PirateLevel > 0)
+                            row.Name = Trans.Format("vr.pirate.name", row.PirateLevel);
+                    }
                     if (fleet["stats"] is JObject stats)
                     {
                         row.Speed = AsFloat(stats["speed"]);

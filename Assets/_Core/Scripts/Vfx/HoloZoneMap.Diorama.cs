@@ -458,7 +458,8 @@ namespace Core.Vfx
                 return c + off * 0.05f + Vector3.up * 0.015f;
             }
 
-            var rr = OrbitR(Mathf.Max(1, slot)) + 0.04f;
+            // Raiders on the outer rim, past the last orbit (as outside and on the web).
+            var rr = fleet != null && fleet.IsPirate ? OrbitR(12) + 0.03f : OrbitR(Mathf.Max(1, slot)) + 0.04f;
             var pos = new Vector3(Mathf.Cos(ang) * rr, DioramaLift + 0.012f, Mathf.Sin(ang) * rr);
             heading = new Vector3(-Mathf.Sin(ang), 0f, Mathf.Cos(ang));
             return pos;

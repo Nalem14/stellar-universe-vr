@@ -14,6 +14,7 @@ namespace Core.Vfx
     {
         int _fleetId;
         bool _owned;
+        bool _pirate;
         string _sig = string.Empty;
         bool _layoutRequested;
 
@@ -23,6 +24,7 @@ namespace Core.Vfx
                 return;
             _fleetId = fleet.Id;
             _owned = owned;
+            _pirate = fleet.IsPirate;
             Apply(fleet.Modules, fleet.Id);
             if (owned && !HasGrid(fleet.Modules) && !_layoutRequested)
                 StartCoroutine(PullLayout());
@@ -30,11 +32,11 @@ namespace Core.Vfx
 
         void Apply(IReadOnlyList<FocusShipModule> modules, int seed)
         {
-            var sig = ShipHullBuilder.Signature(modules) + "|" + seed + (_owned ? "|own" : "|foe");
+            var sig = ShipHullBuilder.Signature(modules) + "|" + seed + (_owned ? "|own" : _pirate ? "|pirate" : "|foe");
             if (sig == _sig && transform.childCount > 0)
                 return;
             _sig = sig;
-            ShipHullBuilder.Build(transform, modules, _owned, seed);
+            ShipHullBuilder.Build(transform, modules, _owned, seed, _pirate);
             _engines = null;
         }
 

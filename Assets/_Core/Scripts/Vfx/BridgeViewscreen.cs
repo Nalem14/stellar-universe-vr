@@ -1073,6 +1073,9 @@ namespace Core.Vfx
                     if (f == null)
                         break;
                     body.AppendLine(Owner(f.UserId, f.IsPirate));
+                    // Raiders leave on their own if nobody engages them.
+                    if (f.IsPirate && f.PirateLeavesAt > now)
+                        body.AppendLine(Trans.Format("vr.pirate.leaves", TravelPlanner.TimeText(f.PirateLeavesAt - now)));
                     body.AppendLine(FleetOrderGate.CanMove(f) ? Trans.Get("vr.screen.idle") : Trans.Get(FleetOrderGate.BusyKey(f)));
                     if (f.IsMoving(now))
                         body.AppendLine(Trans.Format("vr.travel.eta", TravelPlanner.TimeText(f.DestTime - now)));

@@ -272,7 +272,114 @@ namespace Core.Stations
                 }
             }
 
+            BuildBunk(room, art, accent, metal, wood, brass);
             return refs;
+        }
+
+        /// <summary>
+        /// The captain's own corner, starboard aft (clear of the door and the ribs): a made bunk along the wall
+        /// with a wooden headboard and a reading light, a nightstand with a model of a ship on a stand, two
+        /// personal shelves over the bed (books, a potted plant) and a framed star chart above them.
+        /// </summary>
+        static void BuildBunk(Transform room, CicArtKit art, Color accent, Material metal, Material wood, Material brass)
+        {
+            var linen = art.Lit(Texture2D.whiteTexture, new Color(0.62f, 0.66f, 0.72f), 0.08f);
+            var blanket = art.Lit(Texture2D.whiteTexture, new Color(0.1f, 0.15f, 0.27f), 0.06f);
+            var fold = art.Lit(Texture2D.whiteTexture, new Color(0.16f, 0.22f, 0.36f), 0.06f);
+            var warm = art.Lit(Texture2D.whiteTexture, new Color(1f, 0.84f, 0.6f), 2.2f);
+            var wallX = HalfWidth - 0.1f;
+
+            // Bunk: +z of the local frame runs forward along the wall, head at local z = −1.
+            var bunk = new GameObject("Bunk").transform;
+            bunk.SetParent(room, false);
+            bunk.localPosition = new Vector3(wallX - 0.52f, 0f, -0.65f);
+            GateRoomDecor.Rounded(bunk, "Base", new Vector3(0.96f, 0.3f, 2.1f), 0.04f, new Vector3(0f, 0.17f, 0f), UiKit.Chassis, accent, 0.2f);
+            GateRoomDecor.Box(bunk, "Kick", new Vector3(-0.485f, 0.05f, 0f), new Vector3(0.01f, 0.012f, 2f), brass);
+            GateRoomDecor.Rounded(bunk, "Mattress", new Vector3(0.88f, 0.15f, 2.02f), 0.06f, new Vector3(0f, 0.39f, 0f), linen, accent, 0f);
+            GateRoomDecor.Rounded(bunk, "Blanket", new Vector3(0.92f, 0.05f, 1.3f), 0.025f, new Vector3(0f, 0.47f, 0.33f), blanket, accent, 0f);
+            GateRoomDecor.Rounded(bunk, "Fold", new Vector3(0.93f, 0.07f, 0.22f), 0.03f, new Vector3(0f, 0.48f, -0.36f), fold, accent, 0f);
+            GateRoomDecor.Rounded(bunk, "Pillow", new Vector3(0.62f, 0.11f, 0.34f), 0.05f, new Vector3(0f, 0.51f, -0.78f), linen, accent, 0f);
+            GateRoomDecor.Rounded(bunk, "Headboard", new Vector3(0.98f, 0.78f, 0.07f), 0.03f, new Vector3(0f, 0.62f, -1.06f), wood, accent, 0f);
+            GateRoomDecor.Box(bunk, "HeadTrim", new Vector3(0f, 1.02f, -1.02f), new Vector3(0.9f, 0.02f, 0.02f), brass);
+            // Reading light on a short arm off the wall, pooling on the pillow.
+            GateRoomDecor.Box(bunk, "LampArm", new Vector3(0.3f, 1.3f, -0.8f), new Vector3(0.22f, 0.02f, 0.02f), metal);
+            GateRoomDecor.Rounded(bunk, "LampHead", new Vector3(0.1f, 0.05f, 0.1f), 0.02f, new Vector3(0.2f, 1.28f, -0.8f), UiKit.Chassis, accent, 0.2f);
+            GateRoomDecor.Box(bunk, "LampGlow", new Vector3(0.2f, 1.252f, -0.8f), new Vector3(0.07f, 0.006f, 0.07f), warm);
+
+            // Nightstand at the head, with the model of a ship on its stand.
+            var stand = new GameObject("Nightstand").transform;
+            stand.SetParent(room, false);
+            stand.localPosition = new Vector3(wallX - 0.34f, 0f, -2.05f);
+            GateRoomDecor.Rounded(stand, "Body", new Vector3(0.5f, 0.5f, 0.44f), 0.03f, new Vector3(0f, 0.25f, 0f), wood, accent, 0f);
+            GateRoomDecor.Box(stand, "Drawer", new Vector3(-0.221f, 0.3f, 0f), new Vector3(0.01f, 0.14f, 0.36f), UiKit.Chassis);
+            GateRoomDecor.Box(stand, "Pull", new Vector3(-0.228f, 0.3f, 0f), new Vector3(0.01f, 0.012f, 0.12f), brass);
+            GateRoomDecor.Rounded(stand, "Plinth", new Vector3(0.16f, 0.03f, 0.16f), 0.015f, new Vector3(0f, 0.515f, 0f), UiKit.Chassis, accent, 0.4f);
+            GateRoomDecor.Box(stand, "Rod", new Vector3(0f, 0.6f, 0f), new Vector3(0.012f, 0.14f, 0.012f), metal);
+            var model = new GameObject("ShipModel");
+            model.transform.SetParent(stand, false);
+            model.transform.localPosition = new Vector3(0f, 0.69f, 0f);
+            model.transform.localRotation = Quaternion.Euler(-8f, 35f, 6f);
+            model.transform.localScale = Vector3.one * 0.017f;
+            model.AddComponent<MeshFilter>().sharedMesh = ModelShip();
+            var mr = model.AddComponent<MeshRenderer>();
+            mr.sharedMaterial = ShipHullBuilder.CivilHull();
+            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+
+            // Personal shelves over the bed, and a framed star chart above them.
+            for (var s = 0; s < 2; s++)
+            {
+                var y = 1.52f + s * 0.42f;
+                GateRoomDecor.Box(room, "BunkShelf", new Vector3(wallX - 0.13f, y, -0.75f), new Vector3(0.24f, 0.03f, 1.5f), wood);
+                GateRoomDecor.Box(room, "BunkShelfGlow", new Vector3(wallX - 0.25f, y - 0.02f, -0.75f), new Vector3(0.006f, 0.008f, 1.4f), brass);
+                var z = -1.42f;
+                for (var b = 0; b < 9; b++)
+                {
+                    var tall = 0.2f + ((b * 7 + s * 3) % 4) * 0.025f;
+                    var thick = 0.035f + ((b + s) % 3) * 0.012f;
+                    var hue = (b * 5 + s * 2) % 4;
+                    var c = hue == 0 ? new Color(0.35f, 0.12f, 0.1f) : hue == 1 ? new Color(0.12f, 0.2f, 0.32f)
+                        : hue == 2 ? new Color(0.3f, 0.26f, 0.18f) : new Color(0.15f, 0.25f, 0.2f);
+                    GateRoomDecor.Box(room, "Book", new Vector3(wallX - 0.12f, y + 0.015f + tall * 0.5f, z), new Vector3(0.17f, tall, thick),
+                        art.Lit(Texture2D.whiteTexture, c, 0.05f));
+                    z += thick + 0.006f;
+                }
+            }
+
+            // A small potted plant at the end of the top shelf.
+            var pot = GateRoomDecor.Rounded(room, "Pot", new Vector3(0.12f, 0.12f, 0.12f), 0.05f, new Vector3(wallX - 0.13f, 2.0f, -0.18f), UiKit.Chassis, accent, 0.3f);
+            var leaf = art.Lit(Texture2D.whiteTexture, new Color(0.22f, 0.5f, 0.3f), 0.25f);
+            for (var l = 0; l < 7; l++)
+            {
+                var g = GateRoomDecor.Box(pot.transform, "Leaf", new Vector3(0f, 0.1f, 0f), new Vector3(0.03f, 0.16f, 0.006f), leaf);
+                g.transform.localRotation = Quaternion.Euler(18f + (l % 3) * 9f, l * 51f, 0f);
+                g.transform.localPosition = g.transform.localRotation * new Vector3(0f, 0.08f, 0f) + Vector3.up * 0.04f;
+            }
+
+            GateRoomDecor.Box(room, "ChartFrame", new Vector3(wallX - 0.02f, 2.5f, -0.75f), new Vector3(0.03f, 0.5f, 0.8f), wood);
+            var chart = GateRoomDecor.Quad(room, "Chart", new Vector3(wallX - 0.04f, 2.5f, -0.75f), new Vector3(0.72f, 0.42f, 1f),
+                art.Lit(art.Stars != null ? art.Stars : Texture2D.whiteTexture, new Color(0.75f, 0.85f, 1f), 1.1f));
+            // Quad front is its −z: +90° about y turns it toward the room (−x), off the starboard wall.
+            chart.transform.localRotation = Quaternion.Euler(0f, 90f, 0f);
+        }
+
+        static Mesh _model;
+
+        /// <summary>A keepsake model: a 9×9 liner silhouette (drive, holds, core, sensor bow), shared hull art.</summary>
+        static Mesh ModelShip()
+        {
+            if (_model != null)
+                return _model;
+            var mods = new System.Collections.Generic.List<Core.App.FocusShipModule>
+            {
+                new() { Id = 1, Type = "HyperspaceDrive", GridX = 4, GridY = 2 },
+                new() { Id = 2, Type = "CargoHold", GridX = 3, GridY = 4 },
+                new() { Id = 3, Type = "ShipCore", GridX = 4, GridY = 4 },
+                new() { Id = 4, Type = "CargoHold", GridX = 5, GridY = 4 },
+                new() { Id = 5, Type = "CargoHold", GridX = 4, GridY = 3 },
+                new() { Id = 6, Type = "SensorArray", GridX = 4, GridY = 6 },
+                new() { Id = 7, Type = "CargoHold", GridX = 4, GridY = 5 }
+            };
+            return _model = ShipHullBuilder.SilhouetteMesh(mods, 4242);
         }
 
         // ── Procedural textures ───────────────────────────────────────────────────

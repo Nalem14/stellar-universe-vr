@@ -63,7 +63,8 @@ namespace Core.Vfx
             return list;
         }
 
-        public static void Build(Transform root, IReadOnlyList<FocusShipModule> modules, bool owned, int seed)
+        public static void Build(Transform root, IReadOnlyList<FocusShipModule> modules, bool owned, int seed,
+            bool pirate = false)
         {
             if (root == null)
                 return;
@@ -81,7 +82,7 @@ namespace Core.Vfx
                     engine[laid[i].GridX, laid[i].GridY] = true;
             }
 
-            var kit = new Kit(root, zSign, CachePalette(owned));
+            var kit = new Kit(root, zSign, pirate && !owned ? PiratePalette() : CachePalette(owned));
             BuildChassis(kit, occupied, engine);
             for (var i = 0; i < laid.Count; i++)
                 BuildModule(kit, laid[i]);
@@ -146,6 +147,11 @@ namespace Core.Vfx
                 _civilHull.SetFloat("_Windows", 2.4f);
             return _civilHull;
         }
+
+        static Palette _piratePal;
+
+        /// <summary>Pirate raiders: the web's orange (#ffa14d), not an empire's red — PvE prey at a glance.</summary>
+        static Palette PiratePalette() => _piratePal ??= new Palette(false, new Color(1f, 0.63f, 0.3f, 1f));
 
         static Palette CachePalette(bool owned)
         {

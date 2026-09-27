@@ -32,7 +32,6 @@ for name,v in sorted(A.items()):
     rw='R' if re.match(r'^(Get|Check|Search|change)',name) else 'W'
     status='Branché' if vr else 'À faire'
     if name in ('GetAllFleetsAround','ProcessFleetOrderQueue','DoTurnBattle','GetBattle','GetDailyObjectives','GetWeeklyObjectives','GetMonthlyObjectives','DelToFleet'): status='Hors scope'
-    if vr and name in ('GetShopData','GetDailyObjectives','CheckShipQueue','GetMyWars'): status='Démo'
     rows[c].append((name,rw,', '.join(req+opt) or '—', ('`'+vr[0]+'`'+(f' +{len(vr)-1}' if len(vr)>1 else '')) if vr else '—', ('`'+web[0].replace('assets/js/src/','')+'`') if web else '—', OV_ST.get(name,STATION[c]), OV_PH.get(name,PHASE[c]) if status!='Hors scope' else '—', status, NOTES.get(name,'')))
 extra=sorted(registered-set(A))
 out=[]

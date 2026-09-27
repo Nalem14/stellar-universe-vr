@@ -222,7 +222,8 @@ namespace Core.Vfx
                     + Vector3.right * WorldScale.FleetLateral;
 
             var angle = (fleet.Id % 12) * 0.55f;
-            var r = OrbitBase * 1.08f;
+            // Raiders lurk out past the last worlds (the web's outer band); other open-space ships stay inside.
+            var r = fleet.IsPirate ? WorldScale.OrbitBase + WorldScale.OrbitStep * (7.2f + (fleet.Id % 3) * 0.4f) : OrbitBase * 1.08f;
             return transform.TransformPoint(new Vector3(Mathf.Cos(angle) * r, WorldScale.EclipticHeight,
                 Mathf.Sin(angle) * r));
         }
