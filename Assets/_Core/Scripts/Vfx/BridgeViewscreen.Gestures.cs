@@ -187,7 +187,7 @@ namespace Core.Vfx
                 if (d.sqrMagnitude < 1e-6f)
                     continue;
                 // Drag the scene: pull right and the subject turns right (we swing left round it).
-                _cam.OrbitYaw = Mathf.Repeat(_cam.OrbitYaw - d.x * DegreesPerMetre + 180f, 360f) - 180f;
+                _cam.OrbitYaw = Mathf.Clamp(_cam.OrbitYaw - d.x * DegreesPerMetre, -ViewscreenCamera.MaxOrbitYaw, ViewscreenCamera.MaxOrbitYaw);
                 _cam.OrbitPitch = Mathf.Clamp(_cam.OrbitPitch + d.y * DegreesPerMetre, -60f, 60f);
                 HoldByHand();
             }

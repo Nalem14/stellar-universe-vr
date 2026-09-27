@@ -73,6 +73,11 @@ namespace Core.Vfx
         Vector3 _start;
         Quaternion _startRot;
         Vector3 _depDir;
+        /// <summary>The run out of the origin system / in to the berth, round the worlds in the way.</summary>
+        SpaceRoute _depPath;
+        SpaceRoute _arrPath;
+        Vector3 _arrPathEnd;
+        float _arrPathLen;
         Vector3 _arrDir;
         bool _arrDirSet;
         Vector3 _holdPos;
@@ -261,6 +266,10 @@ namespace Core.Vfx
             _start = ship.position;
             _startRot = ship.rotation;
             _depDir = DepartureHeading(_start, destSystem);
+            var run = mode == VoyageMode.Sublight ? SublightOut : 160f;
+            _depPath = mode is VoyageMode.Sublight or VoyageMode.Hyperspace
+                ? _exterior.Route(_start, _start + _depDir * run)
+                : SpaceRoute.Line(_start, _start + _depDir * run);
             var span = (float)(_destTime - now);
             _departSeconds = Mathf.Min(mode switch
             {
@@ -711,9 +720,13 @@ namespace Core.Vfx
             switch (_mode)
             {
                 case VoyageMode.Sublight:
-                    rot = Quaternion.Slerp(_startRot, course, Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(u * 2f)));
-                    pos = _start + _depDir * (SublightOut * Mathf.Pow(u, 2.4f));
+                {
+                    var s = Mathf.Pow(u, 2.4f);
+                    pos = _depPath.At(s);
+                    rot = Quaternion.Slerp(_startRot, Quaternion.LookRotation(_depPath.Heading(s), Vector3.up),
+                        Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(u * 2f)));
                     return;
+                }
                 case VoyageMode.PrlBond:
                     rot = Quaternion.Slerp(_startRot, course, Mathf.SmoothStep(0f, 1f, u));
                     pos = _start + _depDir * (10f * u);
@@ -737,10 +750,13 @@ namespace Core.Vfx
 
                     goto default;
                 default:
-                    rot = Quaternion.Slerp(_startRot, course, Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(u * 1.6f)));
+                {
                     var k = Mathf.Clamp01((u - 0.4f) / 0.6f);
-                    pos = _start + _depDir * (160f * k * k);
+                    pos = _depPath.At(k * k);
+                    var heading = k > 0f ? Quaternion.LookRotation(_depPath.Heading(k * k), Vector3.up) : course;
+                    rot = Quaternion.Slerp(_startRot, heading, Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(u * 1.6f)));
                     return;
+                }
             }
         }
 
@@ -750,6 +766,7 @@ namespace Core.Vfx
             {
                 _arrDir = ArrivalHeading(rest);
                 _arrDirSet = true;
+                _arrPath = null;
             }
 
             rot = Quaternion.LookRotation(_arrDir, Vector3.up);
@@ -757,7 +774,7 @@ namespace Core.Vfx
             switch (_mode)
             {
                 case VoyageMode.Sublight:
-                    pos = rest - _arrDir * (SublightIn * k * k);
+                    pos = ArrivePath(rest, SublightIn, k * k, ref rot);
                     return;
                 case VoyageMode.PrlBond:
                     pos = rest - _arrDir * (BondIn * k * k);
@@ -781,9 +798,30 @@ namespace Core.Vfx
 
                     goto default;
                 default:
-                    pos = rest - _arrDir * (HyperIn * k * k * k);
+                    pos = ArrivePath(rest, HyperIn, k * k * k, ref rot);
                     return;
             }
+        }
+
+        /// <summary>
+        /// The run in to the berth, <paramref name="left"/> ∈ [0,1] of <paramref name="run"/> metres still to
+        /// fly, bent round the worlds between; planned in the destination system on the first pose, then carried
+        /// along with the berth (it drifts a little as the poll refines it).
+        /// </summary>
+        Vector3 ArrivePath(Vector3 rest, float run, float left, ref Quaternion rot)
+        {
+            if (_arrPath == null || _arrPathLen != run || (_arrPathEnd - rest).sqrMagnitude > 400f)
+            {
+                _arrPath = _exterior.Route(rest - _arrDir * run, rest);
+                _arrPathEnd = rest;
+                _arrPathLen = run;
+            }
+
+            var s = 1f - left;
+            var h = _arrPath.Heading(s);
+            if (!_arrPath.Straight)
+                rot = Quaternion.Slerp(Quaternion.LookRotation(h, Vector3.up), rot, s * s * s);
+            return _arrPath.At(s) + (rest - _arrPathEnd);
         }
 
         int ArrivalGatePlanet()

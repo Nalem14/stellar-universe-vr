@@ -18,8 +18,13 @@ namespace Core.Vfx
         /// <summary>Layer of the screen HUD: seen by this camera, culled from the player's.</summary>
         public const int HudLayer = 31;
         const float MainInterval = 1f / 24f;
-        /// <summary>Metres out from the bridge centre along the line of sight: clear of the room shell.</summary>
+        /// <summary>
+        /// Metres out from the bridge centre along the line of sight: clear of the room shell (12 × 12 m, corners
+        /// 7.3 m out). The camera never comes nearer than this — the room it would film is the bridge itself.
+        /// </summary>
         const float HullStandoff = 9f;
+        /// <summary>How far the captain may swing round a subject: past this the shot looks back at our own bridge.</summary>
+        public const float MaxOrbitYaw = 110f;
         /// <summary>Vertical field of view straight ahead (matches the screen's angular size from the chair, ×1.6).</summary>
         public const float ForwardFov = 22f;
         /// <summary>Field of view a drone shot frames its subject in.</summary>
@@ -133,9 +138,10 @@ namespace Core.Vfx
             float fov;
             if (subject == null)
             {
-                // Straight ahead, from the hull just outside the room (the captain may pan it and zoom).
+                // Straight ahead, from the hull just outside the room (the captain may pan it and zoom): the camera
+                // pivots round the bridge, always outboard of it along the way it looks.
                 look = Quaternion.AngleAxis(OrbitYaw, _bridge.up) * Quaternion.AngleAxis(-OrbitPitch, _bridge.right) * _bridge.forward;
-                pos = origin + _bridge.forward * HullStandoff;
+                pos = origin + look * HullStandoff;
                 fov = Mathf.Clamp(ForwardFov * Zoom, 6f, 70f);
             }
             else
@@ -148,11 +154,14 @@ namespace Core.Vfx
                 var side = Vector3.Cross(_bridge.up, dir);
                 if (side.sqrMagnitude < 1e-4f)
                     side = _bridge.right;
-                var approach = Quaternion.AngleAxis(20f + OrbitYaw, _bridge.up) * Quaternion.AngleAxis(OrbitPitch, side.normalized) * dir;
+                var yaw = Mathf.Clamp(OrbitYaw, -MaxOrbitYaw, MaxOrbitYaw);
+                var approach = Quaternion.AngleAxis(20f + yaw, _bridge.up) * Quaternion.AngleAxis(OrbitPitch, side.normalized) * dir;
                 var drone = _radius * 1.8f / Mathf.Tan(DroneFov * 0.5f * Mathf.Deg2Rad) * Zoom;
                 pos = subject.position - approach * drone;
+                // Too close to back off (the world we orbit, a ship berthed beside us): film it from the hull,
+                // just outboard toward it — never from inside the room (that shot was the holo table).
                 if (Vector3.Dot(pos - origin, dir) < HullStandoff)
-                    pos = origin + dir * Mathf.Clamp(Mathf.Min(HullStandoff, dist - _radius * 2.5f), 0f, HullStandoff);
+                    pos = origin + dir * HullStandoff;
                 look = (subject.position - pos).normalized;
                 fov = Mathf.Clamp(2f * Mathf.Atan(_radius * 1.8f / Mathf.Max(1f, Vector3.Distance(pos, subject.position))) * Mathf.Rad2Deg,
                     1.2f, ForwardFov * 2f);
@@ -165,11 +174,22 @@ namespace Core.Vfx
             _fov = Mathf.Lerp(_fov, fov, k);
             var local = _bridge.InverseTransformPoint(pos);
             var localLook = _bridge.InverseTransformDirection(look);
-            _local = _placed ? Vector3.Lerp(_local, local, k) : local;
-            _aim = _placed ? Vector3.Slerp(_aim, localLook, k * 1.4f) : localLook;
+            // A new subject on another side of the ship is a cut, not a pan: a glide there would cross the room.
+            var centre = new Vector3(0f, 1.6f, 0f);
+            var cut = !_placed || Vector3.Angle(_local - centre, local - centre) > 50f;
+            _local = cut ? local : Vector3.Lerp(_local, local, k);
+            _aim = cut ? localLook : Vector3.Slerp(_aim, localLook, k * 1.4f);
             _placed = true;
             if (_aim.sqrMagnitude < 1e-4f)
                 _aim = localLook;
+            // Whatever the glide, stay outside the shell and look out of it.
+            var radial = _local - centre;
+            if (radial.sqrMagnitude < HullStandoff * HullStandoff)
+                _local = centre + (radial.sqrMagnitude > 1e-4f ? radial.normalized : Vector3.forward) * HullStandoff;
+            // Close in, it never turns round to face the bridge (far out, the ship is a speck and it may).
+            radial = _local - centre;
+            if (radial.sqrMagnitude < 900f && Vector3.Dot(_aim.normalized, radial.normalized) < 0.2f)
+                _aim = Vector3.Slerp(_aim.normalized, radial.normalized, 0.5f);
             var t = Time.unscaledTime;
             var drift = Quaternion.Euler(Mathf.Sin(t * 0.21f) * _fov * 0.02f, Mathf.Sin(t * 0.17f + 1.3f) * _fov * 0.025f, 0f);
             transform.SetPositionAndRotation(_bridge.TransformPoint(_local),

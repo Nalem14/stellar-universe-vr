@@ -146,6 +146,7 @@ namespace Core.Vfx
             view.BindDirection();
             view.BindComms();
             view.BindGestures(host.transform);
+            view.BindOutside(host.transform);
             Instance = view;
             return view;
         }
@@ -178,6 +179,7 @@ namespace Core.Vfx
                 CommsService.Instance.Changed -= OnSelection;
             UnbindDirection();
             UnbindComms();
+            UnbindOutside();
             if (Instance == this)
                 Instance = null;
         }

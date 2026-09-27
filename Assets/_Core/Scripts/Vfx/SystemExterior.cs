@@ -26,9 +26,19 @@ namespace Core.Vfx
         {
             public Vector3 From;
             public Vector3 To;
+            /// <summary>From → To round the bodies in the way.</summary>
+            public SpaceRoute Route;
             public double StartUnix;
             public double EndUnix;
         }
+
+        readonly List<RouteObstacle> _obstacles = new();
+
+        /// <summary>Star and planets a flight path keeps clear of (world space, live transforms).</summary>
+        public IReadOnlyList<RouteObstacle> Obstacles => _obstacles;
+
+        /// <summary>A path from <paramref name="a"/> to <paramref name="b"/> that goes round the star and the planets.</summary>
+        public SpaceRoute Route(Vector3 a, Vector3 b) => SpaceRoute.Plan(a, b, _obstacles);
 
         public void Bind(FocusContext focus)
         {
@@ -77,6 +87,7 @@ namespace Core.Vfx
             ClearChildren(_content);
             _planets.Clear();
             _asteroids.Clear();
+            _obstacles.Clear();
             _fleets.Clear();
             _fleetMotion.Clear();
             _transits.Clear();
@@ -155,7 +166,7 @@ namespace Core.Vfx
             {
                 var t = Mathf.Clamp01((float)((now - motion.StartUnix) /
                                               System.Math.Max(0.01, motion.EndUnix - motion.StartUnix)));
-                return Vector3.Lerp(motion.From, motion.To, Smooth(t));
+                return motion.Route.At(Smooth(t));
             }
 
             return IdleFleetPosition(fleet);
@@ -170,7 +181,9 @@ namespace Core.Vfx
             var now = UnixNow();
             if (!_fleetMotion.TryGetValue(fleet.Id, out var motion) || motion.EndUnix <= now)
                 return false;
-            var d = motion.To - motion.From;
+            var t = Mathf.Clamp01((float)((now - motion.StartUnix) / System.Math.Max(0.01, motion.EndUnix - motion.StartUnix)));
+            // Along the route (it bends round a world in the way), not the chord.
+            var d = motion.Route.Heading(Smooth(t));
             d.y = 0f;
             if (d.sqrMagnitude < 0.01f)
                 return false;
@@ -224,6 +237,9 @@ namespace Core.Vfx
             public float Seconds;
             public Vector3 From;
             public Vector3 Dir;
+            /// <summary>The whole run in or out (Dir × the mode's reach), round the bodies in the way.</summary>
+            public SpaceRoute Path;
+            public float Reach;
             public bool Shown;
         }
 
@@ -341,10 +357,12 @@ namespace Core.Vfx
                     if (!_fleetMotion.TryGetValue(fleet.Id, out var motion) ||
                         System.Math.Abs(motion.EndUnix - fleet.DestTime) > 0.5)
                     {
+                        var to = IdleFleetPosition(fleet);
                         _fleetMotion[fleet.Id] = new FleetMotion
                         {
                             From = tf.position,
-                            To = IdleFleetPosition(fleet),
+                            To = to,
+                            Route = Route(tf.position, to),
                             StartUnix = now,
                             EndUnix = fleet.DestTime
                         };
@@ -429,11 +447,9 @@ namespace Core.Vfx
                 {
                     var t = Mathf.Clamp01((float)((now - motion.StartUnix) /
                                                   System.Math.Max(0.01, motion.EndUnix - motion.StartUnix)));
-                    tf.position = Vector3.Lerp(motion.From, motion.To, Smooth(t));
-                    var dir = motion.To - motion.From;
-                    if (dir.sqrMagnitude > 0.01f)
-                        tf.rotation = Quaternion.Slerp(tf.rotation, Quaternion.LookRotation(dir.normalized, Vector3.up),
-                            Time.deltaTime * 3f);
+                    tf.position = motion.Route.At(Smooth(t));
+                    var dir = motion.Route.Heading(Smooth(t));
+                    tf.rotation = Quaternion.Slerp(tf.rotation, Quaternion.LookRotation(dir, Vector3.up), Time.deltaTime * 3f);
                     // Burning hard mid-hop, easing off as it brakes into its berth.
                     if (view != null)
                         view.SetThrottle(Mathf.Lerp(1f, 1.9f, Mathf.Sin(t * Mathf.PI)));
@@ -462,21 +478,28 @@ namespace Core.Vfx
         /// <summary>Flies a crossing ship this frame; true once it has jumped out (to be removed).</summary>
         bool TickTransit(FocusFleet fleet, Transform tf, Transit tr, double now)
         {
-            var face = Quaternion.LookRotation(tr.Dir, Vector3.up);
             if (tr.Leaving)
             {
                 var u = Mathf.Clamp01((Time.time - tr.Start) / tr.Seconds);
+                var max = tr.Mode switch { VoyageMode.Sublight => 650f, VoyageMode.PrlBond => 6f, _ => 140f };
                 var reach = tr.Mode switch
                 {
-                    VoyageMode.Sublight => 650f * Mathf.Pow(u, 2.2f),
-                    VoyageMode.PrlBond => 6f * u,
-                    _ => 140f * u * u
+                    VoyageMode.Sublight => Mathf.Pow(u, 2.2f),
+                    VoyageMode.PrlBond => u,
+                    _ => u * u
                 };
-                tf.position = tr.From + tr.Dir * reach;
-                tf.rotation = Quaternion.Slerp(tf.rotation, face, Time.deltaTime * 2.5f);
+                if (tr.Path == null || tr.Reach != max)
+                {
+                    tr.Path = Route(tr.From, tr.From + tr.Dir * max);
+                    tr.Reach = max;
+                }
+
+                tf.position = tr.Path.At(reach);
+                var away = tr.Path.Heading(reach);
+                tf.rotation = Quaternion.Slerp(tf.rotation, Quaternion.LookRotation(away, Vector3.up), Time.deltaTime * 2.5f);
                 if (u < 1f)
                     return false;
-                ExteriorTransitFx.JumpOut(transform, tf.position, tr.Dir, tr.Mode);
+                ExteriorTransitFx.JumpOut(transform, tf.position, away, tr.Mode);
                 return true;
             }
 
@@ -489,19 +512,27 @@ namespace Core.Vfx
             }
 
             var k = Mathf.Clamp01(left / tr.Seconds);
+            var run = tr.Mode switch { VoyageMode.Sublight => 700f, VoyageMode.PrlBond => 40f, _ => 420f };
             var span = tr.Mode switch
             {
-                VoyageMode.Sublight => 700f * k * k,
-                VoyageMode.PrlBond => 40f * k * k,
-                _ => 420f * k * k * k
+                VoyageMode.Sublight => k * k,
+                VoyageMode.PrlBond => k * k,
+                _ => k * k * k
             };
-            tf.position = berth - tr.Dir * span;
-            tf.rotation = face;
+            if (tr.Path == null || tr.Reach != run)
+            {
+                tr.Path = Route(berth - tr.Dir * run, berth);
+                tr.Reach = run;
+            }
+
+            tf.position = tr.Path.At(1f - span);
+            var heading = tr.Path.Heading(1f - span);
+            tf.rotation = Quaternion.LookRotation(heading, Vector3.up);
             if (!tr.Shown)
             {
                 tr.Shown = true;
                 SetVisible(tf, true);
-                ExteriorTransitFx.DropIn(transform, tf.position, tr.Dir, tr.Mode);
+                ExteriorTransitFx.DropIn(transform, tf.position, heading, tr.Mode);
             }
 
             return false;
@@ -518,6 +549,8 @@ namespace Core.Vfx
             body.transform.SetParent(_content, false);
             body.transform.localPosition = Vector3.zero;
             body.transform.localScale = Vector3.one * (WorldScale.StarRadius * 2f);
+            // Clear of the corona, and of the glare a hull would fly through.
+            _obstacles.Add(new RouteObstacle(body.transform, WorldScale.StarRadius * 1.9f));
             StripCollider(body);
             body.GetComponent<MeshRenderer>().sharedMaterial = kit.Surface;
 
@@ -625,6 +658,8 @@ namespace Core.Vfx
             spin.Configure(planet.Id, deg, tilt);
 
             _planets[planet.Id] = root.transform;
+            var ringed = kind == SystemBodyKit.PlanetKind.Gas && (planet.Id % 5) == 0 && radius >= 16f;
+            _obstacles.Add(new RouteObstacle(root.transform, radius * (ringed ? 1.95f : 1.3f) + WorldScale.ShipSpan * 0.5f));
         }
 
         void BuildRing(Transform parent, float planetRadius, SystemBodyKit.Ownership own)
