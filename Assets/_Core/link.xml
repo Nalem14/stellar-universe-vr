@@ -1,0 +1,6 @@
+<linker>
+  <!-- Core.UI.QuestKeyboardFix sets TMP_InputField's private Quest flags by reflection. -->
+  <assembly fullname="Unity.TextMeshPro">
+    <type fullname="TMPro.TMP_InputField" preserve="fields" />
+  </assembly>
+</linker>
