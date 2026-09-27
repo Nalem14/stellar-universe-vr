@@ -45,6 +45,8 @@ Shader "SU/HullInterior"
             float4 _SU_RoomLightCol[4];
             // Light of the space outside washing in (hyperspace blue, PRL gold, gate violet, jump flashes).
             float4 _SU_VoyageTint;
+            // Ship alert condition (red pulse / amber breath), strongest on the walls.
+            float4 _SU_AlertTint;
 
             struct appdata
             {
@@ -104,7 +106,10 @@ Shader "SU/HullInterior"
                 }
 
                 light += _SU_VoyageTint.rgb * (0.55 + 0.45 * saturate(n.y * -0.5 + 0.75));
+                light += _SU_AlertTint.rgb * (0.3 + 0.2 * (1.0 - abs(n.y)));
                 float3 col = albedo * light * i.ao + albedo * _Lift;
+                // The alert glows in the panels themselves (a dark hull still reads red / amber).
+                col += _SU_AlertTint.rgb * (0.05 + 0.07 * (1.0 - abs(n.y))) * i.ao;
                 return float4(col, 1);
             }
             ENDCG

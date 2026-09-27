@@ -281,6 +281,9 @@ namespace Core.Vfx
             _fx.SetLook(mode);
             SetPhase(Phase.Depart);
             _fx.Cue(VoyageAudio.Spool, mode == VoyageMode.Sublight ? 0.35f : 0.6f);
+            // The drive winding up to the jump: the recorded build-up, its climax on the tear.
+            if (mode is VoyageMode.Hyperspace or VoyageMode.Jumpgate)
+                _fx.BuildUp(Core.Audio.SfxLibrary.Get(Core.Audio.SfxLibrary.HyperBuild), _departSeconds, 0.5f);
             Departed?.Invoke(mode, destSystem);
         }
 
@@ -339,6 +342,7 @@ namespace Core.Vfx
                     case VoyageMode.Hyperspace:
                         _fx.Flash(_look.Bright, 1f);
                         _fx.Cue(VoyageAudio.Jump, 0.8f);
+                        _fx.Cue(Core.Audio.SfxLibrary.Get(Core.Audio.SfxLibrary.HyperStart), 0.7f);
                         break;
                     case VoyageMode.PrlBond:
                         _fx.Flash(_look.Bright, 1.1f, 120f);
@@ -526,6 +530,8 @@ namespace Core.Vfx
             _fx.StreakStretch = 0.07f;
             _fx.HumVolume = 0.03f + 0.07f * k;
             _fx.HumPitch = Mathf.Lerp(0.7f, 1f, k);
+            _fx.EngineVolume = 0.06f + 0.22f * k;
+            _fx.EnginePitch = Mathf.Lerp(0.85f, 1.1f, k);
             _fx.Wash = _look.Wash * k;
         }
 
@@ -548,6 +554,8 @@ namespace Core.Vfx
                     _fx.TunnelFlow = 0.35f;
                     _fx.HumVolume = 0.1f;
                     _fx.HumPitch = Mathf.Lerp(0.7f, 1f, u);
+                    _fx.EngineVolume = 0.1f + 0.2f * u;
+                    _fx.EnginePitch = Mathf.Lerp(0.85f, 1.15f, u);
                     _fx.Wash = _look.Wash * u;
                     break;
                 case VoyageMode.Hyperspace:
@@ -595,6 +603,8 @@ namespace Core.Vfx
                     _fx.TunnelFlow = 0.35f;
                     _fx.HumVolume = 0.1f;
                     _fx.HumPitch = 1f;
+                    _fx.EngineVolume = 0.2f;
+                    _fx.EnginePitch = 1.1f;
                     _fx.Wash = _look.Wash;
                     // The star we left shrinks astern, the one we head for swells ahead.
                     _fx.GlintAft = Mathf.Clamp01(1f - t / 45f) * 0.55f;
@@ -653,6 +663,9 @@ namespace Core.Vfx
                     _fx.StreakSpeed = Mathf.Lerp(260f, 30f, u);
                     _fx.StreakStretch = Mathf.Lerp(0.15f, 0.04f, u);
                     _fx.HumVolume = 0.1f * k;
+                    // Braking burn into the berth.
+                    _fx.EngineVolume = 0.08f + 0.18f * k;
+                    _fx.EnginePitch = Mathf.Lerp(1.1f, 0.85f, u);
                     break;
                 default:
                     // Light-lines collapse back into stars.

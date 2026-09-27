@@ -20,29 +20,14 @@ namespace Core.App
             env.Layout = CicLayout.BootVoid;
             env.Build();
             Invoke(nameof(GoMenu), HoldSeconds);
-            PlayAmbience();
+            Core.Audio.AmbienceDirector.Ensure();
+            // The CIC powering up under the logo.
+            Core.Audio.SfxBus.Play2D(Core.Audio.SfxSynth.PowerUp, 0.5f, priority: Core.Audio.SfxBus.Priority.Alert);
         }
 
         void GoMenu()
         {
             SceneFlow.Go(SceneFlow.Menu);
-        }
-
-        void PlayAmbience()
-        {
-            var bed = Resources.Load<AudioClip>("CIC/ambient");
-            if (bed == null)
-                return;
-
-            if (!TryGetComponent<AudioSource>(out var source))
-                source = gameObject.AddComponent<AudioSource>();
-
-            source.loop = true;
-            source.playOnAwake = false;
-            source.spatialBlend = 0f;
-            source.volume = 0.28f;
-            source.clip = bed;
-            source.Play();
         }
     }
 }

@@ -821,7 +821,11 @@ namespace Core.Stations
             grab.movementType = XRBaseInteractable.MovementType.Instantaneous;
             grab.throwOnDetach = false;
             grab.useDynamicAttach = true;
-            grab.selectEntered.AddListener(_ => slot.Held = true);
+            grab.selectEntered.AddListener(_ =>
+            {
+                slot.Held = true;
+                CicCue.Crystal(go.transform.position);
+            });
             grab.selectExited.AddListener(_ => OnQueueReleased(slot));
             return go;
         }
@@ -904,6 +908,7 @@ namespace Core.Stations
                 {
                     _sampleHeld = true;
                     _sampleFlight = 1f;
+                    CicCue.Crystal(_sample.transform.position);
                 });
                 _sampleGrab.selectExited.AddListener(_ => OnSampleReleased());
             }
@@ -1316,6 +1321,8 @@ namespace Core.Stations
                 return;
             }
 
+            // The synthesiser takes the sample (the reply lands a moment later).
+            CicCue.Synth(_coreRoot.position);
             var ok = await Order("ImproveResearch", new Dictionary<string, string>
             {
                 { "research", tech },

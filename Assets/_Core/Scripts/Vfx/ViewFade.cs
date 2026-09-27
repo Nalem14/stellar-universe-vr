@@ -103,8 +103,12 @@ namespace Core.Vfx
             SetAlpha(to);
         }
 
+        /// <summary>Current veil opacity (0 clear – 1 black): the ambience dips with it.</summary>
+        public static float Alpha { get; private set; }
+
         void SetAlpha(float a)
         {
+            Alpha = a;
             var c = Veil;
             c.a = a;
             _material.SetColor(ColorId, c);

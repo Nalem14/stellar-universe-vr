@@ -18,6 +18,17 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 
 ---
 
+## À intégrer — P7 alertes du vaisseau
+
+| Clé | EN | FR |
+|---|---|---|
+| `crew.tactical.alertRed.1` | Red alert! All hands to battle stations. | Alerte rouge ! Tout le monde à son poste de combat. |
+| `crew.tactical.alertRed.2` | Red alert, Commander. Shields up, weapons hot. | Alerte rouge, Commandant. Boucliers levés, armes parées. |
+| `crew.tactical.alertAmber.1` | Yellow alert, Commander. Hostiles in the system. | Alerte jaune, Commandant. Hostiles dans le système. |
+| `crew.tactical.alertAmber.2` | Going to yellow alert. Keeping them on the scope. | Passage en alerte jaune. Je les garde à l'écran. |
+| `crew.tactical.alertClear.1` | Stand down from alert, Commander. All clear. | Fin d'alerte, Commandant. La voie est libre. |
+| `crew.tactical.alertClear.2` | Condition normal. Standing down. | Retour à la normale. On lève l'alerte. |
+
 ## Intégré côté web
 
 - Clés `vr.*`, `crew.*`, `buildingDesc_*`, `colonyLog_*`, `relation_*` dans `assets/langs/{fr,en}.json`.

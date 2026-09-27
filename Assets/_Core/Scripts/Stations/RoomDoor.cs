@@ -110,7 +110,9 @@ namespace Core.Stations
             var before = _open;
             _open = Mathf.MoveTowards(_open, want ? 1f : 0f, OpenSpeed * Time.deltaTime);
             if (_open > 0f && before == 0f)
-                CicCue.Hover(transform.position + Vector3.up);
+                CicCue.Door(transform.position + Vector3.up, true);
+            else if (_open < 1f && before >= 1f && !want)
+                CicCue.Door(transform.position + Vector3.up, false);
             var slide = Width * 0.48f * MotionEase.Smooth01(_open);
             _left.localPosition = new Vector3(-Width * 0.25f - slide, Height * 0.5f, 0f);
             _right.localPosition = new Vector3(Width * 0.25f + slide, Height * 0.5f, 0f);

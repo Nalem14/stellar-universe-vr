@@ -233,6 +233,7 @@ namespace Core.Vfx
                 CicCue.Ok(go.transform.position);
                 onClick?.Invoke();
             });
+            go.AddComponent<HoverCue>();
 
             var textGo = new GameObject("Label", typeof(RectTransform), typeof(TextMeshProUGUI));
             textGo.transform.SetParent(go.transform, false);
@@ -281,6 +282,7 @@ namespace Core.Vfx
                 CicCue.Ok(go.transform.position);
                 onClick?.Invoke();
             });
+            go.AddComponent<HoverCue>();
 
             // Left accent bar
             var accent = new GameObject("Accent", typeof(RectTransform), typeof(Image));
@@ -460,6 +462,9 @@ namespace Core.Vfx
             field.shouldHideMobileInput = false;
             field.caretColor = Cyan;
             field.selectionColor = new Color(0.2f, 0.7f, 0.85f, 0.35f);
+            // The field waking, and each character landing (the Quest keyboard is silent on its own).
+            field.onSelect.AddListener(_ => CicCue.Hover(go.transform.position));
+            field.onValueChanged.AddListener(_ => CicCue.Key(go.transform.position));
             return field;
         }
 

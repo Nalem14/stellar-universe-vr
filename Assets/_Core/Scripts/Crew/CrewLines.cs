@@ -25,6 +25,7 @@ namespace Core.Crew
             { "tactical.recruit", 1 }, { "tactical.defenseBuilt", 1 }, { "tactical.troopsLoaded", 1 },
             { "tactical.troopsUnloaded", 1 }, { "tactical.reinforce", 1 }, { "tactical.siegeWon", 1 },
             { "tactical.siegeFailed", 1 }, { "tactical.planetHeld", 1 }, { "tactical.planetLost", 1 }, { "tactical.onScreen", 1 }, { "tactical.noScreen", 1 },
+            { "tactical.alertRed", 2 }, { "tactical.alertAmber", 2 }, { "tactical.alertClear", 2 },
 
             { "engineering.greet", 1 }, { "engineering.ack", 1 }, { "engineering.harvest", 1 },
             { "engineering.cargoFull", 1 }, { "engineering.moduleBuilt", 1 }, { "engineering.modulePlaced", 1 },

@@ -75,6 +75,10 @@ namespace Core.App
             var economy = EconomyService.Ensure(interior.transform);
             Core.Stations.OpsConsole.Build(interior.transform, economy);
             SiegeWatch.Build(interior.transform, _focus, _poller);
+            AlertDirector.Build(interior.transform, _focus);
+            // Every procedural cue built now, behind the boarding fade, not in the middle of the first fight.
+            CicCue.Prewarm();
+            Core.Audio.OrderCues.Ensure();
             Core.Stations.ArmoryConsole.Build(interior.transform, economy, _focus, _poller, hex);
             ExteriorTacticalFx.Attach(_exterior, _focus, economy);
             Core.Holo.HoloTacticalMarkers.Attach(_zoneMap, _focus);
@@ -105,7 +109,7 @@ namespace Core.App
             Core.Stations.DockDoor.Build(corridor.transform, env.Art, _focus);
             Core.Stations.DiplomacyDoor.Build(corridor.transform, env.Art);
             Core.Stations.QuartersDoor.Build(corridor.transform, env.Art);
-            Core.Stations.GateDoor.Build(corridor.transform, env.Art);
+            Core.Stations.GateDoor.Build(corridor.transform, env.Art, _focus);
             CrewStationsBuilder.Build(env, env.Art, hex, _zoneMap, _poller, _focus, _loader);
             BridgeViewscreen.Build(env, _focus, _exterior, hex);
             BridgeWallDisplays.Build(env, _focus);

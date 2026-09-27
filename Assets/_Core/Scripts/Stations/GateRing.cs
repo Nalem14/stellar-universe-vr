@@ -421,6 +421,8 @@ namespace Core.Stations
             _horizonMat.SetVector(RippleIds[_ripple], new Vector4(local.x, local.y, Time.timeSinceLevelLoad, strength));
             _ripple = (_ripple + 1) % RippleIds.Length;
             CombatFxKit.Emit(_burst, world, new Color(0.6f, 0.9f, 1f, 1f), 0.35f, 0.5f);
+            // A body going through the horizon: a watery shimmer.
+            Core.Audio.SfxBus.Play(Core.Audio.SfxSynth.Teleport, world, 0.3f * Mathf.Clamp01(strength), 0.7f, 18f, cooldown: 0.25f);
         }
 
         void ResetLocks()
@@ -453,7 +455,10 @@ namespace Core.Stations
             _horizonMat.SetFloat(AlarmId, incoming ? 1f : 0f);
             _open = 0f;
             _surgeT = 0f;
-            CicCue.Boom(transform.position, 0.8f);
+            // The kawoosh: the recorded vortex, the thump of the horizon forming under it.
+            Core.Audio.SfxBus.Play(Core.Audio.SfxLibrary.Get(Core.Audio.SfxLibrary.PortalOpen), transform.position, 0.75f, range: 40f,
+                priority: Core.Audio.SfxBus.Priority.Alert, cooldown: 1f);
+            CicCue.Boom(transform.position, 0.6f);
             CicCue.Whoosh(transform.position + transform.forward * 2f);
             var c = incoming ? new Color(1f, 0.4f, 0.3f, 1f) : new Color(0.55f, 0.85f, 1f, 1f);
             for (var i = 0; i < 40; i++)

@@ -96,16 +96,17 @@ namespace Core.App
             }
 
             var rose = _seeded && mail + pm > MailUnread + PmUnread;
+            // Read before the counters move (it compared the new count with itself: always false).
+            var pmRose = _seeded && pm > PmUnread;
             var changed = mail != MailUnread || pm != PmUnread;
             MailUnread = mail;
             PmUnread = pm;
             _seeded = true;
-            var pmRose = _seeded && pm > PmUnread;
             if (rose)
             {
                 Core.Crew.BarkDirector.Instance?.Say(CrewDialogue.Role.Comms, "newMail", 2, string.Empty, Total);
                 var at = _beacon != null ? _beacon.position : transform.position;
-                CicCue.RadioOpen(at);
+                CicCue.Incoming(at);
             }
 
             if (changed)

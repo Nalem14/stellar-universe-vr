@@ -236,6 +236,8 @@ namespace Core.Vfx
         {
             if (shot == null || shot.Forward || shot == _pipShot)
                 return;
+            if (_pipShot == null)
+                CicCue.Pip(transform.parent.TransformPoint(_screenCentre));
             _pipShot = shot;
             // An inset is glanced at, not watched: it stays a little after the event.
             _pipUntil = shot.Until + 2f;

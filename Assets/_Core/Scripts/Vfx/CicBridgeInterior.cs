@@ -14,7 +14,8 @@ namespace Core.Vfx
             BuildDeckInlays(host, art);
             BuildCaptainStation(host, art);
             var map = BuildHoloTable(host, art);
-            BuildAmbient(host, art);
+            Core.Audio.AmbienceDirector.Ensure();
+            BuildHoloHum(host);
             // Four room lights shade the shell (SU/HullInterior via RoomLightRig): the sky panel over the table,
             // the viewscreen's wash on the bow, and two warm pools by the aft doors.
             host.KeyLight("Fill", new Vector3(0f, 3.4f, 0.5f), new Color(0.62f, 0.8f, 1f), 1.2f, 10f);
@@ -181,25 +182,13 @@ namespace Core.Vfx
             return map;
         }
 
-        static void BuildAmbient(CicEnvironment host, CicArtKit art)
+        /// <summary>The holo table's projector: a faint spatial buzz and shimmer you hear leaning over it.</summary>
+        static void BuildHoloHum(CicEnvironment host)
         {
-            if (art.Ambient == null)
+            if (!Application.isPlaying)
                 return;
-            var go = new GameObject("BridgeAmbient");
-            go.transform.SetParent(host.transform, false);
-            go.transform.localPosition = new Vector3(0f, 1.6f, 1f);
-            var src = go.AddComponent<AudioSource>();
-            src.clip = art.Ambient;
-            src.loop = true;
-            src.playOnAwake = true;
-            src.spatialBlend = 0.65f;
-            src.volume = 0.28f;
-            src.rolloffMode = AudioRolloffMode.Linear;
-            src.minDistance = 2f;
-            src.maxDistance = 14f;
-            src.dopplerLevel = 0f;
-            if (Application.isPlaying)
-                src.Play();
+            host.gameObject.AddComponent<Core.Audio.HoloHum>().Bind(host.transform,
+                new Vector3(0f, WorldScale.CicTableHeight + 0.2f, WorldScale.CicTableCenterZ));
         }
     }
 }

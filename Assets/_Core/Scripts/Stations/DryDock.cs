@@ -300,6 +300,18 @@ namespace Core.Stations
             _sparks.transform.position = _hullBay.TransformPoint(new Vector3((x - ModuleCatalog.CoreCell) * c, 1.2f,
                 (y - ModuleCatalog.CoreCell) * c));
             _sparks.Emit(90);
+            // The module seating, then the torches running along its seam.
+            CicCue.Clunk(_sparks.transform.position);
+            StartCoroutine(WeldCrackle(_sparks.transform.position));
+        }
+
+        System.Collections.IEnumerator WeldCrackle(Vector3 at)
+        {
+            for (var i = 0; i < 5; i++)
+            {
+                CicCue.Weld(at + Random.insideUnitSphere * 0.4f);
+                yield return new WaitForSeconds(Random.Range(0.12f, 0.26f));
+            }
         }
 
         void Light(string name, Vector3 pos, Color color, float intensity, float range)
@@ -1017,7 +1029,11 @@ namespace Core.Stations
                 _crateGrab.movementType = XRBaseInteractable.MovementType.Instantaneous;
                 _crateGrab.throwOnDetach = false;
                 _crateGrab.useDynamicAttach = true;
-                _crateGrab.selectEntered.AddListener(_ => _crateHeld = true);
+                _crateGrab.selectEntered.AddListener(_ =>
+                {
+                    _crateHeld = true;
+                    CicCue.Clunk(_crate.transform.position);
+                });
                 _crateGrab.selectExited.AddListener(_ => OnCrateReleased());
                 // Crate-local units (the crate is 0.14 m): a label across its lid.
                 var tag = UiKit.Label(_crate.transform, "Tag", string.Empty, new Vector3(0f, 0.51f, 0f),

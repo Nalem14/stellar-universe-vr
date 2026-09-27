@@ -20,22 +20,7 @@ namespace Core.App
             console.Bind(env);
             console.Build();
             FallGuard.Ensure();
-            PlayAmbience();
-        }
-
-        void PlayAmbience()
-        {
-            var bed = Resources.Load<AudioClip>("CIC/ambient");
-            if (bed == null)
-                return;
-            if (!TryGetComponent<AudioSource>(out var source))
-                source = gameObject.AddComponent<AudioSource>();
-            source.loop = true;
-            source.playOnAwake = false;
-            source.spatialBlend = 0f;
-            source.volume = 0.22f;
-            source.clip = bed;
-            source.Play();
+            Core.Audio.AmbienceDirector.Ensure();
         }
     }
 }

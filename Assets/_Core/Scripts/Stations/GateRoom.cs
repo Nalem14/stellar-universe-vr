@@ -44,6 +44,12 @@ namespace Core.Stations
         public static GateRoom Instance { get; private set; }
         public static bool Inside { get; private set; }
 
+        /// <summary>The event horizon is standing in the ring (its hum fills the base).</summary>
+        public bool GateOpen => _gate != null && _gate.IsOpen;
+
+        /// <summary>An unscheduled incoming wormhole: the base's own alarm (the ship goes to amber alert).</summary>
+        public bool AlarmOn => _alarm;
+
         CicArtKit _art;
         EconomyService _eco;
         GateRing _gate;
@@ -83,6 +89,9 @@ namespace Core.Stations
         float _missionsAt;
         float _nextLive;
         bool _alarm;
+        int _stationPlanet;
+        UnityEngine.UI.Button _stepPrev;
+        UnityEngine.UI.Button _stepNext;
         float _klaxonAt;
 
         // ── Build ─────────────────────────────────────────────────────────────────
@@ -213,13 +222,13 @@ namespace Core.Stations
             GateRoomDecor.SeatOnArm(_console.transform, _decor.ConsoleMount, 0.7f);
             var frame = _console.Content;
 
-            DiegeticUi.HoloButton(frame, "‹", new Vector2(-505f, 245f), new Vector2(64f, 46f), () => StepPlanet(-1),
+            _stepPrev = DiegeticUi.HoloButton(frame, "‹", new Vector2(-505f, 245f), new Vector2(64f, 46f), () => StepPlanet(-1),
                 DiegeticUi.BtnStyle.Ghost);
             _planetLabel = DiegeticUi.HoloLabel(frame, string.Empty, new Vector2(-195f, 245f), new Vector2(540f, 46f), 24f,
                 UiKit.TextBright);
             _planetLabel.fontStyle = FontStyles.Bold;
             _planetLabel.richText = true;
-            DiegeticUi.HoloButton(frame, "›", new Vector2(115f, 245f), new Vector2(64f, 46f), () => StepPlanet(1),
+            _stepNext = DiegeticUi.HoloButton(frame, "›", new Vector2(115f, 245f), new Vector2(64f, 46f), () => StepPlanet(1),
                 DiegeticUi.BtnStyle.Ghost);
 
             _dialGroup = new GameObject("DialBar", typeof(RectTransform));
@@ -251,10 +260,16 @@ namespace Core.Stations
 
         // ── Enter / leave ─────────────────────────────────────────────────────────
 
-        public async Task Enter()
+        /// <summary>
+        /// The base is on the world below the station we stand on (the stargate is a planet building): entered
+        /// only from a station over one of our gated worlds, and bound to that world.
+        /// </summary>
+        public async Task Enter(int planetId)
         {
-            if (DiplomacyRoom.InRoomBeyondCorridor)
+            if (DiplomacyRoom.InRoomBeyondCorridor || !HasGate(planetId))
                 return;
+            _stationPlanet = planetId;
+            _planetId = planetId;
             var fade = ViewFade.Ensure();
             await fade.FadeOut();
             if (CorridorRoom.Inside)
@@ -307,10 +322,19 @@ namespace Core.Stations
         void CollectGated()
         {
             _gated.Clear();
-            foreach (var p in OwnedPlanets.All)
-                if (_eco.TryGet(p.Id, out var e) && TroopCatalog.BuiltLevel(e, "stargate") > 0)
-                    _gated.Add(p.Id);
+            if (HasGate(_stationPlanet))
+                _gated.Add(_stationPlanet);
+            var step = _gated.Count > 1;
+            if (_stepPrev != null)
+                _stepPrev.gameObject.SetActive(step);
+            if (_stepNext != null)
+                _stepNext.gameObject.SetActive(step);
         }
+
+        /// <summary>One of our worlds with a stargate built.</summary>
+        public bool HasGate(int planetId) =>
+            planetId > 0 && OwnedPlanets.Contains(planetId) && _eco != null && _eco.TryGet(planetId, out var e) &&
+            TroopCatalog.BuiltLevel(e, "stargate") > 0;
 
         public bool AnyGate()
         {

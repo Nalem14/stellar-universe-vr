@@ -35,6 +35,9 @@ Shader "SU/ConsoleMetal"
             float _FaceGlow;
             float _Brush;
             float _Gloss;
+            // Shared with SU/HullInterior: space light washing in on a voyage, the ship's alert condition.
+            float4 _SU_VoyageTint;
+            float4 _SU_AlertTint;
 
             struct appdata
             {
@@ -98,6 +101,8 @@ Shader "SU/ConsoleMetal"
 
                 float3 albedo = _Color.rgb * brush;
                 float3 col = albedo * (wrap * hemi * 0.85 + 0.2) + spec + fres * 0.08;
+                col += albedo * (_SU_VoyageTint.rgb * 0.8 + _SU_AlertTint.rgb * (0.5 + 0.3 * (1.0 - abs(n.y))));
+                col += _SU_AlertTint.rgb * 0.06;
                 float glow = saturate(bevel + _FaceGlow) * _AccentMul;
                 col += _Accent.rgb * glow;
                 return float4(col, 1);

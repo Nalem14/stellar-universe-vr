@@ -162,7 +162,10 @@ namespace Core.Vfx
             if (!Aboard(src))
                 return;
             var front = transform.TransformPoint(new Vector3(0f, 1.6f, WorldScale.CicDeck * 0.5f - 0.5f));
-            CicCue.Boom(front, heavy ? 0.35f : 0.18f);
+            // Our battery through the hull: the discharge, and a deep thump for a torpedo.
+            CicCue.Laser(front, heavy ? 0.7f : Random.Range(0.95f, 1.1f));
+            if (heavy)
+                CicCue.Boom(front, 0.35f);
             _washColor = color;
             _washT = 0f;
         }
@@ -193,7 +196,8 @@ namespace Core.Vfx
             if (!Aboard(fleet))
                 return;
             _blackout = 1f;
-            CicCue.Boom(transform.TransformPoint(new Vector3(0f, 1.6f, 0f)), 1f);
+            CicCue.Explosion(transform.TransformPoint(new Vector3(0f, 1.6f, 0f)), 1f);
+            CicCue.Boom(transform.TransformPoint(new Vector3(0f, 1.6f, 0f)), 0.8f);
             for (var i = 0; i < 3; i++)
                 Sparks(2f);
         }
@@ -205,7 +209,9 @@ namespace Core.Vfx
             if (p.Hull > 0)
             {
                 var k = Mathf.Clamp01(p.Hull / 60f);
-                CicCue.Boom(side, 0.5f + k * 0.5f);
+                CicCue.HullImpact(side, 0.5f + k * 0.5f);
+                if (k > 0.5f)
+                    CicCue.Boom(side, 0.3f + k * 0.3f);
                 _hitFlash = 0.6f + k * 0.4f;
                 _flicker = 0f;
                 _flickerLen = 0.35f + k * 0.4f;
@@ -214,7 +220,7 @@ namespace Core.Vfx
             else if (p.Shield > 0)
             {
                 // Shield took it: no damage aboard, a blue swell through the windows and a low hum.
-                CicCue.Zap(side, 0.5f);
+                CicCue.ShieldImpact(side);
                 _washColor = new Color(0.35f, 0.7f, 1f, 1f);
                 _washT = 0f;
             }

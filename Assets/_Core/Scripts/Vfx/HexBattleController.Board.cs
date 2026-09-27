@@ -827,6 +827,7 @@ namespace Core.Vfx
             if (open)
                 _reveal = 0f;
             CicCue.Deploy(_boardRoot != null ? _boardRoot.position : transform.position);
+            Core.Audio.HoloHum.Excite(1f);
         }
 
         void BeginFold()

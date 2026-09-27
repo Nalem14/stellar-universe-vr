@@ -54,12 +54,24 @@ namespace Core.Crew
         int _exploringPlanet;
         EconomyService _economy;
 
-        void OnBuildingCompleted(PlanetEconomy planet, string type) =>
+        void OnBuildingCompleted(PlanetEconomy planet, string type)
+        {
+            CicCue.Success(Listener());
             Say(CrewDialogue.Role.Ops, "buildDone", 2, Trans.Get(type),
                 string.IsNullOrEmpty(planet.Name) ? "#" + planet.Id : planet.Name);
+        }
 
-        void OnResearchCompleted(string tech) =>
+        void OnResearchCompleted(string tech)
+        {
+            CicCue.Success(Listener());
             Say(CrewDialogue.Role.Science, "researchDone", 2, Trans.Get(tech));
+        }
+
+        static Vector3 Listener()
+        {
+            var cam = Camera.main;
+            return cam != null ? cam.transform.position : Vector3.zero;
+        }
 
         /// <summary>The helm calls the transit as it happens (jump, fold, bond, or the system falling astern).</summary>
         void OnTransit(VoyageMode mode, int system) =>

@@ -58,6 +58,8 @@ namespace Core.Vfx
         Material _glintMatAft;
         AudioSource _hum;
         AudioSource _cue;
+        AudioSource _engine;
+        AudioSource _build;
         bool _built;
 
         /// <summary>Palette of a drive: tube deep / bright, streaks, room wash.</summary>
@@ -116,6 +118,9 @@ namespace Core.Vfx
         public Color Wash;
         public float HumVolume;
         public float HumPitch = 1f;
+        /// <summary>The main engines burning (sub-light runs, in-system hops): the recorded engine loop.</summary>
+        public float EngineVolume;
+        public float EnginePitch = 1f;
 
         float _flash;
         Color _flashColor = Color.white;
@@ -182,6 +187,24 @@ namespace Core.Vfx
                 _cue.PlayOneShot(clip, volume);
         }
 
+        /// <summary>A rising build-up whose climax lands <paramref name="seconds"/> from now (the jump).</summary>
+        public void BuildUp(AudioClip clip, float seconds, float volume)
+        {
+            Build();
+            if (clip == null)
+                return;
+            _build.clip = clip;
+            _build.volume = volume;
+            _build.time = Mathf.Clamp(clip.length - seconds - 0.4f, 0f, Mathf.Max(0f, clip.length - 0.1f));
+            _build.Play();
+        }
+
+        public void StopBuildUp()
+        {
+            if (_build != null && _build.isPlaying)
+                _build.Stop();
+        }
+
         /// <summary>Back to rest: everything off, rooms unlit by space.</summary>
         public void Off()
         {
@@ -191,11 +214,13 @@ namespace Core.Vfx
             GlintAhead = GlintAft = 0f;
             Wash = Color.clear;
             HumVolume = 0f;
+            EngineVolume = 0f;
         }
 
         public bool Idle =>
             StreakRate <= 0f && TunnelOpen <= 0.001f && CageOpen <= 0.001f && GlintAhead <= 0f && GlintAft <= 0f &&
             _flash <= 0.001f && HumVolume <= 0f && (_hum == null || _hum.volume <= 0.001f) &&
+            EngineVolume <= 0f && (_engine == null || _engine.volume <= 0.001f) &&
             (_streaks == null || _streaks.particleCount == 0) && (_bursts == null || _bursts.particleCount == 0);
 
         void OnDisable() => Shader.SetGlobalColor(TintId, Color.clear);
@@ -249,6 +274,16 @@ namespace Core.Vfx
                 _hum.Play();
             else if (_hum.volume <= 0.001f && _hum.isPlaying)
                 _hum.Stop();
+
+            if (_engine.clip != null)
+            {
+                _engine.volume = Mathf.MoveTowards(_engine.volume, EngineVolume, dt * 0.3f);
+                _engine.pitch = Mathf.Lerp(_engine.pitch, EnginePitch, dt * 1.2f);
+                if (_engine.volume > 0.001f && !_engine.isPlaying)
+                    _engine.Play();
+                else if (_engine.volume <= 0.001f && _engine.isPlaying)
+                    _engine.Stop();
+            }
         }
 
         ParticleSystem.Particle[] _live;
@@ -381,6 +416,15 @@ namespace Core.Vfx
             _cue = gameObject.AddComponent<AudioSource>();
             _cue.playOnAwake = false;
             _cue.spatialBlend = 0f;
+            _engine = gameObject.AddComponent<AudioSource>();
+            _engine.clip = Core.Audio.SfxLibrary.Get(Core.Audio.SfxLibrary.Engine);
+            _engine.loop = true;
+            _engine.playOnAwake = false;
+            _engine.spatialBlend = 0f;
+            _engine.volume = 0f;
+            _build = gameObject.AddComponent<AudioSource>();
+            _build.playOnAwake = false;
+            _build.spatialBlend = 0f;
         }
 
         Transform Part(string name, Mesh mesh, Material mat, out MeshRenderer r)

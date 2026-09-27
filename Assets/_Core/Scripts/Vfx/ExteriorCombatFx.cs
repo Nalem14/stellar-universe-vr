@@ -137,6 +137,11 @@ namespace Core.Vfx
             if (!_exterior.TryGetFleet(fleet, out var t))
                 return;
             var at = t.position;
+            var cam = Camera.main;
+            var v = cam != null ? 0.45f * Mathf.Clamp01(1f - Vector3.Distance(cam.transform.position, at) / 700f) : 0f;
+            if (v > 0.03f)
+                Core.Audio.SfxBus.Play2D(Core.Audio.SfxLibrary.Get(Core.Audio.SfxLibrary.Explosion), v,
+                    Random.Range(0.85f, 1.05f), Core.Audio.SfxBus.Priority.Alert, 0.2f);
             CombatFxKit.Emit(_flares, at, new Color(1f, 0.85f, 0.6f, 1f), WorldScale.ShipSpan * 2.2f, 0.9f);
             CombatFxKit.Emit(_flares, at, new Color(1f, 0.45f, 0.15f, 1f), WorldScale.ShipSpan * 3.2f, 1.6f);
             for (var i = 0; i < 40; i++)

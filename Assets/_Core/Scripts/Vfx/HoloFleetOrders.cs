@@ -335,6 +335,7 @@ namespace Core.Vfx
             var name = string.IsNullOrEmpty(token.DisplayName) ? "ship " + token.Id : token.DisplayName;
             _map?.SetReadout($"{name} → …");
             CicCue.Ok(token.transform.position);
+            Core.Audio.HoloHum.Excite(0.8f);
         }
 
         void OnSelectExited(SelectExitEventArgs args)

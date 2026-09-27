@@ -346,8 +346,14 @@ namespace Core.Vfx
         public void OpenGate(int planetId)
         {
             var g = GateAt(planetId);
-            if (g != null)
-                Open(g);
+            if (g == null)
+                return;
+            Open(g);
+            // Heard through the hull, faint with distance (the inhabited ship's own dive has its voyage audio).
+            var cam = Camera.main;
+            var v = cam != null ? 0.3f * Mathf.Clamp01(1f - Vector3.Distance(cam.transform.position, g.Tr.position) / 800f) : 0f;
+            if (v > 0.02f)
+                Core.Audio.SfxBus.Play2D(Core.Audio.SfxLibrary.Get(Core.Audio.SfxLibrary.PortalOpen), v, cooldown: 2f);
         }
 
         Gate GateAt(int planetId)

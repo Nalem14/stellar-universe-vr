@@ -342,7 +342,7 @@ namespace Core.Vfx
                 _title.text = ok ? Trans.Get("fleets") : Trans.Get("vr.common.error");
             if (ok)
             {
-                CicCue.Ok(transform.position);
+                CicCue.Teleport(transform.position);
                 await RefreshList();
             }
             else
@@ -360,7 +360,7 @@ namespace Core.Vfx
                 _title.text = ok ? Trans.Get("planets") : Trans.Get("vr.common.error");
             if (ok)
             {
-                CicCue.Ok(transform.position);
+                CicCue.Teleport(transform.position);
                 await RefreshList();
             }
             else
