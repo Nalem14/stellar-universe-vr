@@ -291,7 +291,7 @@ Corrigés dans `stellar-universe` (`7580501`, 2026-09-25) — le client VR ne co
 | Textes du tutoriel guidé P6 (`vr.tutorial.step{1..16}.text`) **dans les dix langues**, titres et boutons réutilisant les clés natives | Fait |
 | Message de fin de lot de décisions (`vr.ops.allAnswered`) **dans les dix langues** — le web le lisait en dur en français dans `planet.js` | Fait |
 | Clés du mode quart passthrough (`vr.watch.*` : entrée, retour à bord, liaison distante, et le libellé de chaque affaire veillée) **dans les dix langues** | Fait |
-| Nom et compte à rebours des pirates (`vr.pirate.name`, `vr.pirate.leaves`) **dans les dix langues** — le serveur écrit « Pirates Lv.N » en dur (`model/pirate.php`), la VR affiche ce nom localisé | Fait |
+| Nom et compte à rebours des pirates (`vr.pirate.name`, `vr.pirate.leaves`, `vr.pirate.tag`) **dans les dix langues** — le serveur écrit « Pirates Lv.N » en dur (`model/pirate.php`) et le stocke tel quel : la VR **et le web** affichent le libellé localisé, les autres flottes gardant leur nom. Le badge du web, qui portait un `?` à la place du crâne, est réparé | Fait |
 | Répliques de voyage de la barre (`crew.helm.transitSublight` / `transitHyperspace` ×2 / `transitBond` / `transitGate` / `dropOut` ×2 / `approach`) en fr/en | Fait |
 
 ### Restants
