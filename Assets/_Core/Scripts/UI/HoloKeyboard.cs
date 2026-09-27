@@ -21,6 +21,12 @@ namespace Core.UI
         /// <summary>Editor only: route fields to the holo keyboard (to test it without a headset).</summary>
         public static bool EditorHolo;
 
+        /// <summary>
+        /// Try the Meta system keyboard first. Off: under OpenXR, Unity's TouchScreenKeyboard is the Android 2D
+        /// input dialog, hidden behind the immersive app, yet it reports "Visible" — the player sees nothing.
+        /// </summary>
+        public static bool TrySystemKeyboard;
+
         const float SystemGrace = 2.5f;
         const float Scale = 0.0008f;
         const float KeyPx = 60f;
@@ -59,7 +65,22 @@ namespace Core.UI
             if (Application.platform == RuntimePlatform.Android)
                 field.shouldHideSoftKeyboard = true;
             Attached.Add(field);
+            // Open on the tap itself too, not only through the EventSystem's selection.
+            if (field.GetComponent<Tap>() == null)
+                field.gameObject.AddComponent<Tap>().Field = field;
             Ensure();
+        }
+
+        /// <summary>Opens the keyboard when its field is clicked, poked or ray-pressed.</summary>
+        sealed class Tap : MonoBehaviour, IPointerClickHandler
+        {
+            public TMP_InputField Field;
+
+            public void OnPointerClick(PointerEventData eventData)
+            {
+                if (Active && s_Instance != null && Field != null && Field.interactable && !Field.readOnly)
+                    s_Instance.Begin(Field);
+            }
         }
 
         static void Ensure()
@@ -100,10 +121,12 @@ namespace Core.UI
 
         void Begin(TMP_InputField f)
         {
+            if (_field == f && (_system != null || (_panel != null && _panel.activeSelf)))
+                return;
             End(false);
             _field = f;
             _original = f.text;
-            if (Application.platform == RuntimePlatform.Android && TouchScreenKeyboard.isSupported)
+            if (TrySystemKeyboard && Application.platform == RuntimePlatform.Android && TouchScreenKeyboard.isSupported)
             {
                 _system = TouchScreenKeyboard.Open(f.text, f.keyboardType, false, f.lineType != TMP_InputField.LineType.SingleLine,
                     f.contentType == TMP_InputField.ContentType.Password, false, string.Empty, f.characterLimit);

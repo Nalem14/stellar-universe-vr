@@ -112,11 +112,13 @@ namespace Core.UI
             _username = Field(root, "username", Trans.Get("username"), new Vector2(0f, -65f),
                 TouchScreenKeyboardType.Default);
 
-            _loginTab = Button(root, Trans.Get("login"), new Vector2(-250f, -155f), () => SetMode(FormMode.SignIn),
-                DiegeticUi.BtnStyle.Cyan);
-            _signUpTab = Button(root, Trans.Get("createAccount"), new Vector2(0f, -155f),
-                () => SetMode(FormMode.SignUp), DiegeticUi.BtnStyle.Ghost);
-            _submit = Button(root, Trans.Get("login"), new Vector2(250f, -155f), Submit, DiegeticUi.BtnStyle.Cyan);
+            // Tabs on top (they name the form), the one submit button alone below the fields.
+            _modeHint.gameObject.SetActive(false);
+            _loginTab = Button(root, Trans.Get("login"), new Vector2(-135f, 170f), () => SetMode(FormMode.SignIn),
+                DiegeticUi.BtnStyle.Cyan, 250f);
+            _signUpTab = Button(root, Trans.Get("createAccount"), new Vector2(135f, 170f),
+                () => SetMode(FormMode.SignUp), DiegeticUi.BtnStyle.Ghost, 250f);
+            _submit = Button(root, Trans.Get("login"), new Vector2(0f, -155f), Submit, DiegeticUi.BtnStyle.Amber, 380f);
         }
 
         void BuildHub(RectTransform root)
@@ -531,9 +533,9 @@ namespace Core.UI
             DiegeticUi.HoloField(parent, name, placeholder, pos, new Vector2(700f, 58f), keyboard, hidden);
 
         static Button Button(Transform parent, string label, Vector2 pos,
-            UnityEngine.Events.UnityAction click, DiegeticUi.BtnStyle style)
+            UnityEngine.Events.UnityAction click, DiegeticUi.BtnStyle style, float width = 320f)
         {
-            return DiegeticUi.HoloButton(parent, label, pos, new Vector2(320f, 64f), click, style);
+            return DiegeticUi.HoloButton(parent, label, pos, new Vector2(width, 64f), click, style);
         }
 
         static void Stretch(RectTransform rt, float pad = 0f)
