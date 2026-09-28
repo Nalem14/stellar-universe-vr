@@ -440,6 +440,14 @@ namespace Core.Vfx
                     return;
                 }
 
+                // The world (or rock field) the ship is already at: what it can do there, not a move.
+                var here = _focus.FindFleet(fleetToken.Id);
+                if (here != null && IsAt(here, target))
+                {
+                    await HereOrders(fleetToken, here, target);
+                    return;
+                }
+
                 string action;
                 var query = new Dictionary<string, string>
                 {
@@ -741,6 +749,107 @@ namespace Core.Vfx
             var spin = token.GetComponent<HoloSpin>();
             if (spin != null)
                 spin.enabled = true;
+        }
+
+        static bool IsAt(FocusFleet fleet, HoloToken target) =>
+            !fleet.IsMoving(FleetOrderGate.UnixNow()) &&
+            ((target.Kind == HoloTokenKind.Planet && fleet.PlanetId == target.Id) ||
+             (target.Kind == HoloTokenKind.Asteroid && fleet.AsteroidId == target.Id));
+
+        /// <summary>
+        /// On-the-spot orders for a ship at <paramref name="target"/> (the world it orbits, the rocks it sits
+        /// in) — the same ones, under the same conditions, as the crew consoles: survey, colonize, siege,
+        /// cargo, harvest. Empty when there is nothing to do there.
+        /// </summary>
+        public static List<Core.Holo.OrderConsole.Option> HereOptions(FocusFleet fleet, HoloToken target, FocusContext focus)
+        {
+            var options = new List<Core.Holo.OrderConsole.Option>();
+            if (fleet == null || target == null || focus == null || !IsAt(fleet, target))
+                return options;
+            if (target.Kind == HoloTokenKind.Asteroid)
+            {
+                if (FleetOrderGate.CanMine(fleet))
+                    options.Add(new Core.Holo.OrderConsole.Option(Trans.Get("harvestAsteroid"), true, UiKit.Cyan, "HarvestAsteroid"));
+                return options;
+            }
+
+            var planet = focus.FindPlanet(fleet.PlanetId);
+            if (FleetOrderGate.CanExplore(fleet) && fleet.HasScienceModule)
+                options.Add(new Core.Holo.OrderConsole.Option(Trans.Get("explorePlanet"), true, UiKit.Cyan, "ExplorePlanet"));
+            if (planet != null && planet.UserId == 0 && CrewDialogue.ColonyModuleId(fleet) > 0 && FleetOrderGate.CanStance(fleet) &&
+                (planet.Habitability == 0 || planet.Habitability >= 6))
+                options.Add(new Core.Holo.OrderConsole.Option(Trans.Get("Colonize"), true, UiKit.Amber, "Colonize"));
+            if (FleetOrderGate.CanSiege(fleet, focus))
+                options.Add(new Core.Holo.OrderConsole.Option(Trans.Get("attackOrbit"), true, new Color(1f, 0.4f, 0.35f), "FleetAttackPlanet"));
+            if (FleetOrderGate.CanCargo(fleet, focus) && options.Count < 3)
+            {
+                options.Add(new Core.Holo.OrderConsole.Option(Trans.Get("depositCargo"), true, UiKit.Cyan, "DepositCargo"));
+                options.Add(new Core.Holo.OrderConsole.Option(Trans.Get("withdrawCargo"), true, UiKit.Cyan, "WithdrawCargo"));
+            }
+
+            return options;
+        }
+
+        async Task HereOrders(HoloToken fleetToken, FocusFleet fleet, HoloToken target)
+        {
+            fleetToken.SnapHome();
+            RestoreSpin(fleetToken);
+            var options = HereOptions(fleet, target, _focus);
+            var dest = string.IsNullOrEmpty(target.DisplayName) ? target.Kind.ToString() : target.DisplayName;
+            if (options.Count == 0 || _console == null)
+            {
+                CicCue.Fail(target.transform.position);
+                _map?.SetReadout(dest + "  ·  " + Trans.Get("vr.table.alreadyThere"));
+                return;
+            }
+
+            var choice = await _console.AskAt(target.transform.position,
+                fleetToken.DisplayName.Replace('\n', ' ') + "  ·  " + dest, options);
+            if (!(choice is string action))
+            {
+                _map?.SetReadout(Trans.Get("cancel"));
+                return;
+            }
+
+            var query = new Dictionary<string, string>();
+            switch (action)
+            {
+                case "HarvestAsteroid":
+                    query["fleet"] = fleet.Id.ToString();
+                    query["asteroid"] = fleet.AsteroidId.ToString();
+                    break;
+                case "Colonize":
+                    query["ship"] = CrewDialogue.ColonyModuleId(fleet).ToString();
+                    query["planet"] = fleet.PlanetId.ToString();
+                    break;
+                default:
+                    query["fleet"] = fleet.Id.ToString();
+                    query["planet"] = fleet.PlanetId.ToString();
+                    break;
+            }
+
+            _map?.SetReadout(Trans.Get("Loading"));
+            var result = await ActionJs.Get(action, query);
+            var role = action == "ExplorePlanet" ? CrewDialogue.Role.Science
+                : action == "FleetAttackPlanet" ? CrewDialogue.Role.Tactical
+                : action == "HarvestAsteroid" ? CrewDialogue.Role.Engineering
+                : CrewDialogue.Role.Ops;
+            Core.Crew.BarkDirector.Instance?.OrderResult(role, action, result, dest);
+            if (!result.Ok)
+            {
+                CicCue.Fail(target.transform.position);
+                _map?.SetReadout(FormatError(action, result.Error));
+                return;
+            }
+
+            if (action == "ExplorePlanet")
+                SurveyBanner.Record(fleet.Id, result.Body);
+            if (action == "HarvestAsteroid" && AsteroidService.Instance != null)
+                AsyncTap.Run(AsteroidService.Instance.Refresh());
+            CicCue.Ok(target.transform.position);
+            _map?.SetReadout(fleetToken.DisplayName + "  ·  " + Trans.Get(result.NoticeKey ?? "vr.common.ok"));
+            if (_poller != null)
+                await _poller.PollNow();
         }
 
         /// <summary>

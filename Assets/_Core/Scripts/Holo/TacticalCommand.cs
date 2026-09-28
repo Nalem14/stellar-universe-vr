@@ -436,10 +436,12 @@ namespace Core.Holo
                 case HoloTokenKind.Asteroid:
                     if (!fleet.CanIssueMove(now))
                         return Trans.Get(FleetOrderGate.BusyKey(fleet));
-                    if (target.Kind == HoloTokenKind.Planet && fleet.PlanetId == target.Id)
-                        return Trans.Get("vr.table.alreadyThere");
-                    if (target.Kind == HoloTokenKind.Asteroid && fleet.AsteroidId == target.Id)
-                        return Trans.Get("vr.table.alreadyThere");
+                    // Where the ship already is: valid when there is something to do on the spot.
+                    if ((target.Kind == HoloTokenKind.Planet && fleet.PlanetId == target.Id) ||
+                        (target.Kind == HoloTokenKind.Asteroid && fleet.AsteroidId == target.Id))
+                        return HoloFleetOrders.HereOptions(fleet, target, _focus).Count > 0
+                            ? null
+                            : Trans.Get("vr.table.alreadyThere");
                     if (target.Kind == HoloTokenKind.Asteroid && _focus?.FindAsteroid(target.Id) is { Gone: true })
                         return Trans.Get("asteroidDepleted");
                     return null;

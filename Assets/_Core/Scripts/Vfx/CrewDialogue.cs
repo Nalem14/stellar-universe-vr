@@ -1142,7 +1142,7 @@ namespace Core.Vfx
             return string.Empty;
         }
 
-        static int ColonyModuleId(FocusFleet fleet)
+        internal static int ColonyModuleId(FocusFleet fleet)
         {
             foreach (var m in fleet.Modules)
             {

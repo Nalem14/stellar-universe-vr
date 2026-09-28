@@ -424,7 +424,10 @@ namespace Core.Stations
                     UiKit.TextBright, 340f, TextAlignmentOptions.MidlineLeft);
 
                 var costColor = q.Affordable ? new Color(0.78f, 0.9f, 0.96f, 1f) : UiKit.Danger;
-                Line(CostText(q), 40f, y, 18f, costColor, 360f, TextAlignmentOptions.MidlineLeft);
+                var load = LoadText(def.Type, q.Level);
+                Line(CostText(q), 40f, load.Length > 0 ? y + 11f : y, 18f, costColor, 360f, TextAlignmentOptions.MidlineLeft);
+                if (load.Length > 0)
+                    Line(load, 40f, y - 13f, 15f, new Color(0.7f, 0.85f, 0.9f, 1f), 360f, TextAlignmentOptions.MidlineLeft);
 
                 string label;
                 DiegeticUi.BtnStyle style;
@@ -475,6 +478,36 @@ namespace Core.Stations
                 return;
             _status.text = Trans.Format("vr.ops.fields", planet.FreeField) + "     " +
                            Trans.Format("vr.ops.queueSlots", BuildingCatalog.Occupied(planet), BuildingCatalog.MaxQueue(planet));
+        }
+
+        /// <summary>Buildings that draw power, as the server counts them (actionjs GetResource).</summary>
+        static readonly HashSet<string> PowerDraw = new() { "mineralMine", "crystalMine", "farm", "academy", "stargate" };
+        static readonly HashSet<string> PowerPlants = new() { "orbitSolarPlant", "solarPlant", "nuclearPlant" };
+
+        /// <summary>
+        /// What a building weighs on the planet, now → at the next level: the energy it draws (ENERGY.USAGE ×
+        /// level) or produces (factory × level, plus the empire's energy research), and the jobs it opens
+        /// (log(level + 1) × jobsPerLevel) — the server's own formulas, from GetConfigs.
+        /// </summary>
+        string LoadText(string type, int level)
+        {
+            var parts = new List<string>(2);
+            var draw = FocusContext.AsFloat(GameConfig.Upgrade?["energy"]?[type]);
+            if (PowerDraw.Contains(type) && draw > 0f)
+                parts.Add("<color=#ffc766>" + Trans.Format("vr.ops.loadEnergy", Num(draw * level), Num(draw * (level + 1))) + "</color>");
+            var make = FocusContext.AsFloat(GameConfig.Factory?[type]);
+            if (PowerPlants.Contains(type) && make > 0f)
+            {
+                make *= 1f + FocusContext.AsFloat(_eco?.Empire?["energy"]) / 100f;
+                parts.Add("<color=#8dffa8>" + Trans.Format("vr.ops.loadPower", Num(make * level), Num(make * (level + 1))) + "</color>");
+            }
+
+            var jobs = FocusContext.AsFloat(GameConfig.JobsPerLevel?[type]);
+            if (jobs > 0f)
+                parts.Add(Trans.Format("vr.ops.loadJobs",
+                    (Mathf.Log(level + 1f) * jobs).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture),
+                    (Mathf.Log(level + 2f) * jobs).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)));
+            return string.Join("  ·  ", parts);
         }
 
         static string CostText(in BuildingQuote q)

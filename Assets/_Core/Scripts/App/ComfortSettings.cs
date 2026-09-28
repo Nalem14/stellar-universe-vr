@@ -192,6 +192,14 @@ namespace Core.App
 
             if (_vignette != null && _vignette.gameObject.activeSelf != Vignette)
                 _vignette.gameObject.SetActive(Vignette);
+
+            // Only the chosen turn provider runs: the starter kit arbitrates snap vs smooth through its input
+            // actions, which several events re-enable (UI hover, near/far region, re-enable) — an odd snap
+            // slipped through while turning smoothly. With the other provider off, it cannot.
+            foreach (var snap in _rig.GetComponentsInChildren<UnityEngine.XR.Interaction.Toolkit.Locomotion.Turning.SnapTurnProvider>(true))
+                snap.enabled = !smoothTurn;
+            foreach (var smooth in _rig.GetComponentsInChildren<UnityEngine.XR.Interaction.Toolkit.Locomotion.Turning.ContinuousTurnProvider>(true))
+                smooth.enabled = smoothTurn;
         }
 
         void ApplyLift()

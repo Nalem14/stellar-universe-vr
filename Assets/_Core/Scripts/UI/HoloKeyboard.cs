@@ -192,7 +192,12 @@ namespace Core.UI
             // Release the selection, or the poll above would reopen the keyboard at once.
             if (EventSystem.current != null && EventSystem.current.currentSelectedGameObject == f.gameObject)
                 EventSystem.current.SetSelectedGameObject(null);
+            // Closing the keyboard ends the edit, however it closes (Validate, Close, another field): a field
+            // that saves on end-edit (a ship's name...) saves. TMP only raises it when it still had focus.
+            var focused = f.isFocused;
             f.DeactivateInputField();
+            if (!focused)
+                f.onEndEdit?.Invoke(f.text);
             if (submit)
                 f.onSubmit?.Invoke(f.text);
         }

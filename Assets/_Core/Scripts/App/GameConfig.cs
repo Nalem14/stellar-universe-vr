@@ -36,6 +36,8 @@ namespace Core.App
 
         /// <summary>GetConfigs.upgrade: {time:{type:{time}}, energy:{type:n}, cost:{type:{res:n}}} — per level.</summary>
         public static JObject Upgrade { get; private set; }
+        /// <summary>GetConfigs.jobsPerLevel: citizens one level of a production building employs (log-scaled).</summary>
+        public static JObject JobsPerLevel { get; private set; }
         /// <summary>GetConfigs.factory (production per level) and .storage (warehouse multipliers).</summary>
         public static JObject Factory { get; private set; }
         public static JObject Storage { get; private set; }
@@ -123,6 +125,7 @@ namespace Core.App
                 }
 
                 Upgrade = root["upgrade"] as JObject;
+                JobsPerLevel = root["jobsPerLevel"] as JObject;
                 Factory = root["factory"] as JObject;
                 Storage = root["storage"] as JObject;
                 ShipStats = root["shipstats"] as JObject;

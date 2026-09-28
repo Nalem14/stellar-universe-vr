@@ -693,6 +693,8 @@ namespace Core.Stations
                 new Vector2(540f, 48f), TouchScreenKeyboardType.Default);
             _nameField.characterLimit = 32;
             _nameField.text = _focus?.FindFleet(_fleetId)?.Name ?? string.Empty;
+            // Saved as soon as the keyboard closes; the button stays for an explicit save.
+            _nameField.onEndEdit.AddListener(_ => AsyncTap.Run(Rename()));
             Btn(_shipBody, Trans.Get("rename"), 300f, y, 220f, 48f, () => AsyncTap.Run(Rename()), DiegeticUi.BtnStyle.Ghost);
             y -= 70f;
 
@@ -780,8 +782,10 @@ namespace Core.Stations
 
                 var t = type;
                 var selected = _selectedType == type;
-                Btn(_rackList, Trans.Get(ModuleCatalog.NameKey(type)) + "  ×" + count, -115f, y, 620f, 56f,
+                // Fitting needs a ship first (left screen): until then the stock reads, but is not pickable.
+                var pick = Btn(_rackList, Trans.Get(ModuleCatalog.NameKey(type)) + "  ×" + count, -115f, y, 620f, 56f,
                     () => SelectModule(t), selected ? DiegeticUi.BtnStyle.Cyan : DiegeticUi.BtnStyle.Ghost);
+                pick.interactable = _fleetId > 0;
                 if (type != ModuleCatalog.Core || count > 0)
                     Btn(_rackList, "×", 380f, y, 70f, 56f, () => AsyncTap.Run(Scrap(t)), DiegeticUi.BtnStyle.Danger);
             }
@@ -796,7 +800,10 @@ namespace Core.Stations
                     DiegeticUi.BtnStyle.Ghost);
             }
 
-            if (_selectedType != null)
+            if (_fleetId <= 0)
+                Text(_rackList, Trans.Get("vr.dock.pickShipFirst"), 0f, -355f, 880f, 17f, UiKit.Amber,
+                    TextAlignmentOptions.Center);
+            else if (_selectedType != null)
                 Text(_rackList, Trans.Format("vr.dock.placing", Trans.Get(_selectedType)), 0f, -355f, 880f, 16f,
                     UiKit.Ok, TextAlignmentOptions.Center);
         }
@@ -1293,7 +1300,7 @@ namespace Core.Stations
         async Task Rename()
         {
             var name = (_nameField != null ? _nameField.text : string.Empty).Trim();
-            if (name.Length == 0 || _fleetId <= 0)
+            if (name.Length == 0 || _fleetId <= 0 || name == (_focus?.FindFleet(_fleetId)?.Name ?? string.Empty))
                 return;
             var r = await ActionJs.Get("RenameFleet", new Dictionary<string, string>
             {
