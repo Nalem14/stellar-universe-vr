@@ -157,6 +157,27 @@ namespace Core.App
                 var guideButton = Core.UI.ArmConsole.Button(armR, 1, 1, "ArmPadR_Guide", Trans.Get("guide"), CicArtKit.Cyan,
                     guide.Restart);
                 guide.BindGuideButton(guideButton.transform);
+                // Comms and Operations from the chair: the console opens in front of the captain (again = close).
+                Core.UI.ArmConsole.Button(armR, 1, 2, "ArmPadR_Comms", Trans.Get("vr.station.comms"), CicArtKit.Cyan, () =>
+                {
+                    var comms = Core.Stations.CommsConsole.Instance;
+                    if (comms == null)
+                        return;
+                    if (comms.IsOpen)
+                        comms.Close();
+                    else
+                        comms.Open(null);
+                });
+                Core.UI.ArmConsole.Button(armR, 1, 3, "ArmPadR_Ops", Trans.Get("vr.station.ops"), CicArtKit.Cyan, () =>
+                {
+                    var ops = Core.Stations.OpsConsole.Instance;
+                    if (ops == null)
+                        return;
+                    if (ops.IsOpen)
+                        ops.Close();
+                    else
+                        ops.Open(null, _focus != null ? _focus.ViewPlanetId : 0);
+                });
             }
 
             // Command mode scales a parent of HoloMapMount so zoom (child localScale) stays independent.
