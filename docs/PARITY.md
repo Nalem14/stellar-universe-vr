@@ -294,6 +294,7 @@ Corrigés dans `stellar-universe` (`7580501`, 2026-09-25) — le client VR ne co
 | Nom et compte à rebours des pirates (`vr.pirate.name`, `vr.pirate.leaves`, `vr.pirate.tag`) **dans les dix langues** — le serveur écrit « Pirates Lv.N » en dur (`model/pirate.php`) et le stocke tel quel : la VR **et le web** affichent le libellé localisé, les autres flottes gardant leur nom. Le badge du web, qui portait un `?` à la place du crâne, est réparé | Fait |
 | Écrans des six postes (`vr.console.*` : état, contact, trafic, postes de combat, alerte ambre) et interrupteur de lueur (`vr.fx.*`) **dans les dix langues** | Fait |
 | Panneau d'options de la manette (`vr.menu.*` : titre, volume, rotation et déplacement fluides / par à-coups / téléportation, vignette de confort, position assise, retour au fauteuil) **dans les dix langues** | Fait |
+| Bandeau d'analyse planétaire (`vr.survey.active` / `done` / `gained`) **dans les dix langues**, dans la famille `vr.survey.*` existante | Fait |
 | Répliques de voyage de la barre (`crew.helm.transitSublight` / `transitHyperspace` ×2 / `transitBond` / `transitGate` / `dropOut` ×2 / `approach`) en fr/en | Fait |
 
 ### Restants
