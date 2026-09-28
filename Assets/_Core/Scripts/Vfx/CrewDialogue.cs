@@ -538,6 +538,10 @@ namespace Core.Vfx
 
             await AddGates(fleet);
 
+            // Any star by its coordinates, typed on a pad (no hunting for it on the table).
+            if (FleetOrderGate.CanJumpSystem(fleet))
+                AddAction(Trans.Get("vr.coords.go"), () => GoToCoordinates(fleet.Id), DiegeticUi.BtnStyle.Amber, refreshAfter: false);
+
             if (FleetOrderGate.CanJumpSystem(fleet))
             {
                 GalaxyCatalog.CollectNearest(focus.SystemId, 4, _near);
@@ -1084,6 +1088,49 @@ namespace Core.Vfx
         /// Interstellar jump: quoted on the captain's lectern (sub-light / hyperspace / Bond PRL, as the web
         /// star menu) and sent only on Confirm — never the server's implicit hyperspace default.
         /// </summary>
+        /// <summary>
+        /// Coordinates typed on the pad → that star (the server needs an existing system there: if none, the
+        /// nearest one is proposed), then the usual lectern with the travel modes and their quotes.
+        /// </summary>
+        async Task GoToCoordinates(int fleetId)
+        {
+            var fleet = Focus?.FindFleet(fleetId);
+            if (fleet == null)
+                return;
+            var name = string.IsNullOrEmpty(fleet.Name) ? "#" + fleet.Id : fleet.Name;
+            var xy = await Core.Holo.CoordPad.Ask(Trans.Get("vr.coords.title") + "  ·  " + name);
+            if (xy == null)
+                return;
+            await GalaxyCatalog.EnsureLoaded();
+            GalaxyCatalog.Star best = default;
+            var found = false;
+            var bestD = float.MaxValue;
+            foreach (var s in GalaxyCatalog.All)
+            {
+                var d = (s.X - xy.Value.x) * (s.X - xy.Value.x) + (s.Y - xy.Value.y) * (s.Y - xy.Value.y);
+                if (d < bestD)
+                {
+                    bestD = d;
+                    best = s;
+                    found = true;
+                }
+            }
+
+            if (!found)
+                return;
+            var typed = GalaxyCatalog.Coordinates(xy.Value.x, xy.Value.y);
+            if (bestD > 0.01f)
+                _map?.SetReadout(Trans.Format("vr.coords.none", typed, best.Label));
+            if (best.Id == fleet.SystemId)
+            {
+                CicCue.Fail(transform.position);
+                _map?.SetReadout(best.Label + "  ·  " + Trans.Get("vr.table.alreadyThere"));
+                return;
+            }
+
+            await MoveToSystem(fleet.Id, best.Id, best.X, best.Y, best.Label);
+        }
+
         async Task MoveToSystem(int fleetId, int systemId, float x, float y, string systemLabel)
         {
             var fleet = Focus?.FindFleet(fleetId);

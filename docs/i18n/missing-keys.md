@@ -17,6 +17,14 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 - **Paramètres** : `{0}`, `{1}`… (`Trans.Format`, `string.Format` en culture invariante).
 - Pour les répliques, les ordres et les échecs, le ton reprend celui du journal de colonisation web : l'équipage s'adresse au joueur en « Commandant ».
 
+## À intégrer — aller à des coordonnées (pavé numérique, poste Helm)
+
+| Clé | EN | FR | Contexte |
+|---|---|---|---|
+| `vr.coords.go` | Go to coordinates… | Aller aux coordonnées… | Action du Helm : ouvre le pavé numérique |
+| `vr.coords.title` | Coordinates | Coordonnées | Titre du pavé (suivi du nom du vaisseau) |
+| `vr.coords.none` | No system at {0} — nearest: {1} | Aucun système en {0} — le plus proche : {1} | Coordonnées sans système : le plus proche est proposé au pupitre |
+
 ## Intégré côté web
 
 - Clés `vr.*`, `crew.*`, `buildingDesc_*`, `colonyLog_*`, `relation_*` dans `assets/langs/{fr,en}.json`.
