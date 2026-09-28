@@ -295,6 +295,7 @@ Corrigés dans `stellar-universe` (`7580501`, 2026-09-25) — le client VR ne co
 | Écrans des six postes (`vr.console.*` : état, contact, trafic, postes de combat, alerte ambre) et interrupteur de lueur (`vr.fx.*`) **dans les dix langues** | Fait |
 | Panneau d'options de la manette (`vr.menu.*` : titre, volume, rotation et déplacement fluides / par à-coups / téléportation, vignette de confort, position assise, retour au fauteuil) **dans les dix langues** | Fait |
 | Bandeau d'analyse planétaire (`vr.survey.active` / `done` / `gained`) **dans les dix langues**, dans la famille `vr.survey.*` existante | Fait |
+| Charge des bâtiments (`vr.ops.loadEnergy` / `loadPower` / `loadJobs` : valeur actuelle → niveau suivant) et invitation du râtelier (`vr.dock.pickShipFirst`) **dans les dix langues** | Fait |
 | Répliques de voyage de la barre (`crew.helm.transitSublight` / `transitHyperspace` ×2 / `transitBond` / `transitGate` / `dropOut` ×2 / `approach`) en fr/en | Fait |
 
 ### Restants

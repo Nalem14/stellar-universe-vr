@@ -17,15 +17,6 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 - **Paramètres** : `{0}`, `{1}`… (`Trans.Format`, `string.Format` en culture invariante).
 - Pour les répliques, les ordres et les échecs, le ton reprend celui du journal de colonisation web : l'équipage s'adresse au joueur en « Commandant ».
 
-## À intégrer — charge des bâtiments (Ops) et cale sèche
-
-| Clé | EN | FR | Contexte |
-|---|---|---|---|
-| `vr.ops.loadEnergy` | Energy {0} → {1} | Énergie {0} → {1} | Ligne d'un bâtiment consommateur : consommation actuelle → au niveau suivant |
-| `vr.ops.loadPower` | Power {0} → {1} | Production {0} → {1} | Centrales : énergie produite actuelle → au niveau suivant |
-| `vr.ops.loadJobs` | Jobs {0} → {1} | Emplois {0} → {1} | Emplois ouverts par le bâtiment (log(niveau+1) × jobsPerLevel) |
-| `vr.dock.pickShipFirst` | Pick a ship on the left (or New ship) to fit modules. | Choisis d'abord un vaisseau à gauche (ou « Nouveau vaisseau ») pour poser des modules. | Râtelier de modules tant qu'aucun vaisseau n'est sélectionné |
-
 ## Intégré côté web
 
 - Clés `vr.*`, `crew.*`, `buildingDesc_*`, `colonyLog_*`, `relation_*` dans `assets/langs/{fr,en}.json`.
@@ -46,6 +37,7 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 - `vr.menu.recenter`, `vr.menu.title`, `vr.menu.turn`, `vr.menu.turnSmooth`, `vr.menu.turnSnap`, `vr.menu.volume` dans **les dix langues**.
 - `vr.menu.move`, `vr.menu.moveSmooth`, `vr.menu.moveTeleport`, `vr.menu.seated`, `vr.menu.vignette` dans **les dix langues**.
 - `vr.survey.active`, `vr.survey.done`, `vr.survey.gained` dans **les dix langues**.
+- `vr.dock.pickShipFirst`, `vr.ops.loadEnergy`, `vr.ops.loadJobs`, `vr.ops.loadPower` dans **les dix langues**.
 
 ---
 
