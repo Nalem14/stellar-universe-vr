@@ -559,11 +559,10 @@ namespace Core.Vfx
                     return;
                 }
 
+                // Back to where the ship really is: the next poll lays the course and the token glides there
+                // (Core.Holo.HoloGlide) instead of jumping onto the target.
                 if (dragged)
-                {
-                    fleetToken.transform.localPosition = target.HomeLocalPos + Vector3.up * 0.04f;
-                    fleetToken.CaptureHome();
-                }
+                    fleetToken.SnapHome();
 
                 fleetToken.Busy = true;
                 RestoreSpin(fleetToken);

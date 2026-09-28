@@ -54,7 +54,10 @@ namespace Core.Vfx
         GalaxyCatalog.Star[] _gSlot = System.Array.Empty<GalaxyCatalog.Star>();
         bool[] _gSlotUsed = System.Array.Empty<bool>();
         readonly List<(float d, int i)> _gRank = new();
-        readonly List<(GameObject Root, int SystemId, int Index)> _gFleets = new();
+        readonly List<(GameObject Root, int SystemId, int Index, int FromSystem, long DestTime)> _gFleets = new();
+        /// <summary>When each ship was first seen under way between stars (the server keeps no departure time).</summary>
+        readonly Dictionary<int, long> _gUnderWaySince = new();
+        bool _gHasMovers;
         readonly Dictionary<int, int> _gFleetsPerSystem = new();
 
         public bool ShowingGalaxy => _showingGalaxy;
@@ -92,6 +95,17 @@ namespace Core.Vfx
                 : new Vector2((minX + maxX) * 0.5f, (minY + maxY) * 0.5f);
             // Close enough that neighbouring stars are a couple of fingers apart (aiming one is easy).
             _gScale = Mathf.Clamp(_gMaxScale * 0.7f, _gMinScale, _gMaxScale);
+            // Our ship between stars: frame the whole trip, the origin and the destination both on the table.
+            var ship = focus?.FindFleet(focus.ViewFleetId);
+            var nowUnix = System.DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            if (ship != null && ship.IsMoving(nowUnix) && ship.FromSystemId > 0 && ship.DestSystemId > 0 &&
+                ship.FromSystemId != ship.DestSystemId && GalaxyCatalog.TryGet(ship.FromSystemId, out var o) &&
+                GalaxyCatalog.TryGet(ship.DestSystemId, out var d))
+            {
+                _gCentre = new Vector2((o.MapX + d.MapX) * 0.5f, (o.MapY + d.MapY) * 0.5f);
+                var half = Mathf.Max(1f, new Vector2(o.MapX - d.MapX, o.MapY - d.MapY).magnitude * 0.5f);
+                _gScale = Mathf.Clamp(Mathf.Min(_gScale, r * 0.7f / half), _gMinScale, _gMaxScale);
+            }
             ClampGalaxyCentre();
             _gHasSelection = false;
 
@@ -167,7 +181,10 @@ namespace Core.Vfx
 
         void LateUpdate()
         {
-            if (!_showingGalaxy || !_gDirty || Time.unscaledTime < _gNextBuild)
+            if (!_showingGalaxy)
+                return;
+            TickGalaxyMovers();
+            if (!_gDirty || Time.unscaledTime < _gNextBuild)
                 return;
             RebuildGalaxyView(false);
         }
@@ -545,17 +562,30 @@ namespace Core.Vfx
                 {
                     if (DiplomacyIndex.ResolveFleet(fleet) != EmpireStance.Owned)
                         continue;
-                    // Under way: drawn at its destination, busy (not draggable) until it arrives.
+                    // Under way between stars: on its way from one to the other (busy, not draggable until it
+                    // arrives), with its course laid to the destination star.
                     var systemId = fleet.IsMoving(now) && fleet.DestSystemId > 0 ? fleet.DestSystemId : fleet.SystemId;
                     if (!GalaxyCatalog.TryGet(systemId, out _))
                         continue;
-                    _gFleetsPerSystem.TryGetValue(systemId, out var index);
-                    _gFleetsPerSystem[systemId] = index + 1;
+                    var from = fleet.IsMoving(now) && fleet.FromSystemId > 0 && fleet.FromSystemId != systemId &&
+                               GalaxyCatalog.TryGet(fleet.FromSystemId, out _)
+                        ? fleet.FromSystemId
+                        : 0;
+                    if (from > 0 && (!_gUnderWaySince.TryGetValue(fleet.Id, out var since) || since > now))
+                        _gUnderWaySince[fleet.Id] = now;
+                    var index = 0;
+                    if (from == 0)
+                    {
+                        _gFleetsPerSystem.TryGetValue(systemId, out index);
+                        _gFleetsPerSystem[systemId] = index + 1;
+                    }
                     var name = string.IsNullOrEmpty(fleet.Name) ? "ship" : fleet.Name;
                     var go = PlaceFleet(1, fleet.Id, DiplomacyIndex.Tint(EmpireStance.Owned), fleet.Id * 17, true,
                         !fleet.CanIssueMove(now), name, false, EmpireStance.Owned);
                     go.transform.localScale = Vector3.one * GalaxyFleetScale;
-                    _gFleets.Add((go, systemId, index));
+                    if (from > 0)
+                        Core.Holo.HoloGlide.Follow(go, true, _art.MoveGhost);
+                    _gFleets.Add((go, systemId, index, from, fleet.DestTime));
                 }
             }
 
@@ -563,11 +593,61 @@ namespace Core.Vfx
             TokensRebuilt?.Invoke();
         }
 
-        void LayoutGalaxyFleets(float lift)
+        /// <summary>Trip progress of a ship between stars: the voyage's own clock for the inhabited ship.</summary>
+        float GalaxyTripProgress(int fleetId, long destTime)
         {
+            var focus = _focus ?? FocusContext.Current;
+            var voyage = ShipVoyage.Instance;
+            if (voyage != null && voyage.Active && focus != null && fleetId == focus.ViewFleetId)
+                return voyage.Progress;
+            var now = System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0;
+            if (!_gUnderWaySince.TryGetValue(fleetId, out var since) || destTime <= since)
+                return 1f;
+            return Mathf.Clamp01((float)((now - since) / (destTime - since)));
+        }
+
+        /// <summary>Every frame while ships are between stars: slide them along and redraw their course.</summary>
+        void TickGalaxyMovers()
+        {
+            if (!_gHasMovers)
+                return;
             var limit = WorldScale.HoloDiscRadius * GalaxyViewRadiusFactor;
             foreach (var f in _gFleets)
             {
+                if (f.Root == null || f.FromSystem <= 0 || !GalaxyCatalog.TryGet(f.SystemId, out var to) ||
+                    !GalaxyCatalog.TryGet(f.FromSystem, out var from))
+                    continue;
+                var a = StarLocal(from, DioramaLift + 0.025f);
+                var b = StarLocal(to, DioramaLift + 0.025f);
+                var glide = f.Root.GetComponent<Core.Holo.HoloGlide>();
+                var t = GalaxyTripProgress(FleetIdOf(f.Root), f.DestTime);
+                if (glide != null)
+                    glide.Drive(a, b, t);
+                var p = Vector3.Lerp(a, b, t);
+                var inside = new Vector2(p.x, p.z).magnitude <= limit;
+                if (f.Root.activeSelf != inside)
+                    f.Root.SetActive(inside);
+            }
+        }
+
+        static int FleetIdOf(GameObject root)
+        {
+            var token = root.GetComponent<HoloToken>();
+            return token != null ? token.Id : 0;
+        }
+
+        void LayoutGalaxyFleets(float lift)
+        {
+            var limit = WorldScale.HoloDiscRadius * GalaxyViewRadiusFactor;
+            _gHasMovers = false;
+            foreach (var f in _gFleets)
+            {
+                if (f.FromSystem > 0)
+                {
+                    _gHasMovers = true;
+                    continue;
+                }
+
                 if (f.Root == null || !GalaxyCatalog.TryGet(f.SystemId, out var star))
                     continue;
                 // Several ships on one star fan out around it, nose outward.

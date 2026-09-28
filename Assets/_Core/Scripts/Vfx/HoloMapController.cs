@@ -79,11 +79,40 @@ namespace Core.Vfx
         void OnEnable()
         {
             UnityEngine.InputSystem.InputSystem.onDeviceChange += OnDeviceChange;
+            ShipVoyage.Departed += OnVoyageDeparted;
+            ShipVoyage.Arriving += OnVoyageArriving;
         }
 
         void OnDisable()
         {
             UnityEngine.InputSystem.InputSystem.onDeviceChange -= OnDeviceChange;
+            ShipVoyage.Departed -= OnVoyageDeparted;
+            ShipVoyage.Arriving -= OnVoyageArriving;
+        }
+
+        /// <summary>The table went to the galaxy for a trip (and goes back to the system on arrival).</summary>
+        bool _voyageGalaxy;
+
+        /// <summary>
+        /// Our ship leaves for another star: between systems there is no system to show, so the table opens the
+        /// galaxy with the trip framed and the course laid (a gate fold is too short to be worth the switch).
+        /// </summary>
+        void OnVoyageDeparted(Core.App.VoyageMode mode, int destination)
+        {
+            if (mode == Core.App.VoyageMode.Jumpgate || _mode != HoloMapMode.System)
+                return;
+            _voyageGalaxy = true;
+            SetMode(HoloMapMode.Galaxy);
+        }
+
+        /// <summary>Dropping into the destination: back to its system, unless the captain changed the view since.</summary>
+        void OnVoyageArriving(Core.App.VoyageMode mode, int destination)
+        {
+            if (!_voyageGalaxy)
+                return;
+            _voyageGalaxy = false;
+            if (_mode == HoloMapMode.Galaxy)
+                SetMode(HoloMapMode.System);
         }
 
         void OnDeviceChange(UnityEngine.InputSystem.InputDevice device, UnityEngine.InputSystem.InputDeviceChange change)
@@ -377,6 +406,9 @@ namespace Core.Vfx
         {
             if (_mode == mode)
                 return;
+            // The captain picking a view by hand takes over from the trip's automatic galaxy.
+            if (_voyageGalaxy && mode != HoloMapMode.Galaxy)
+                _voyageGalaxy = false;
             var prev = _mode;
             _mode = mode;
             _map?.SetBattleMode(mode == HoloMapMode.HexBattle);

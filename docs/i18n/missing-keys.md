@@ -17,6 +17,14 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 - **Paramètres** : `{0}`, `{1}`… (`Trans.Format`, `string.Format` en culture invariante).
 - Pour les répliques, les ordres et les échecs, le ton reprend celui du journal de colonisation web : l'équipage s'adresse au joueur en « Commandant ».
 
+## À intégrer — analyse planétaire en cours (bandeau au-dessus de la table)
+
+| Clé | EN | FR | Contexte |
+|---|---|---|---|
+| `vr.survey.active` | Survey in progress | Analyse en cours | Titre du bandeau pendant un ExplorePlanet (vaisseau à bord ou dans le système affiché) |
+| `vr.survey.done` | Survey complete | Analyse terminée | Affiché quelques secondes à la fin de l'analyse |
+| `vr.survey.gained` | +{0} research points | +{0} points de recherche | `{0}` = points renvoyés par ExplorePlanet (`researchPoints`) |
+
 ## Intégré côté web
 
 - Clés `vr.*`, `crew.*`, `buildingDesc_*`, `colonyLog_*`, `relation_*` dans `assets/langs/{fr,en}.json`.

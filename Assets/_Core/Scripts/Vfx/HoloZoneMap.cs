@@ -149,14 +149,27 @@ namespace Core.Vfx
                     continue;
                 _seenFleets.Add(fleet.Id);
                 var view = DescribeFleet(fleet, focus, now, viewId);
+                var hadToken = false;
+                var was = Vector3.zero;
                 if (_fleetViews.TryGetValue(fleet.Id, out var existing))
                 {
                     if (existing.Sig == view.Sig)
                         continue;
+                    if (existing.Root != null)
+                    {
+                        hadToken = true;
+                        was = existing.Root.transform.localPosition;
+                    }
+
                     RemoveFleetView(fleet.Id);
                 }
 
                 AddFleetView(fleet.Id, view);
+                // Under way inside this system: glide from where the token was, on the server's arrival time,
+                // with the course laid for our own ships — no jump onto the destination.
+                if (hadToken && fleet.IsMoving(now) && _fleetViews.TryGetValue(fleet.Id, out var added) &&
+                    added.Root != null && (added.Root.transform.localPosition - was).sqrMagnitude > 1e-6f)
+                    Core.Holo.HoloGlide.Start(added.Root, was, fleet.DestTime, view.Owned, _art.MoveGhost);
                 changed = true;
             }
 
@@ -189,7 +202,7 @@ namespace Core.Vfx
             public readonly string Sig;
 
             public FleetView(int slot, Color color, bool owned, bool busy, bool active, EmpireStance stance,
-                string name)
+                string name, string at)
             {
                 Slot = slot;
                 Color = color;
@@ -198,7 +211,8 @@ namespace Core.Vfx
                 Active = active;
                 Stance = stance;
                 Name = name;
-                Sig = slot + "|" + (int)stance + "|" + (busy ? 1 : 0) + (active ? 1 : 0) + (owned ? 1 : 0) + "|" + name;
+                // Where it is parked too (planet / rocks): a new target in the same orbit slot must redraw it.
+                Sig = slot + "|" + (int)stance + "|" + (busy ? 1 : 0) + (active ? 1 : 0) + (owned ? 1 : 0) + "|" + name + "|" + at;
             }
         }
 
@@ -207,7 +221,7 @@ namespace Core.Vfx
             var stance = DiplomacyIndex.ResolveFleet(fleet);
             return new FleetView(ResolveFleetSlot(fleet, focus), DiplomacyIndex.Tint(stance),
                 stance == EmpireStance.Owned, !fleet.CanIssueMove(now), viewId > 0 && fleet.Id == viewId, stance,
-                string.IsNullOrEmpty(fleet.Name) ? "ship" : fleet.Name);
+                string.IsNullOrEmpty(fleet.Name) ? "ship" : fleet.Name, fleet.PlanetId + ":" + fleet.AsteroidId);
         }
 
         void AddFleetView(int id, in FleetView v)

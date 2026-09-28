@@ -129,6 +129,9 @@ namespace Core.App
             var watchLayer = LayerMask.NameToLayer("Watch");
             Core.UI.WristPanel.Build(FindInactive("Left Controller"), FindInactive("Left Hand"), watchLayer);
             Core.UI.QuickMenu.Build(interior.transform, watchLayer);
+            // A running planetary survey, spelled out above the holo table (facing the captain).
+            SurveyBanner.Build(interior.transform, _focus, new Vector3(0f, 1.24f, 0.95f),
+                WorldScale.CicCaptainStand + Vector3.up * 1.6f, -1);
             if (armL != null)
             {
                 Core.UI.ArmConsole.Button(armL, -1, 0, "ArmPadL_Refresh", Trans.Get("fleets"), CicArtKit.Cyan,
@@ -152,14 +155,6 @@ namespace Core.App
                 var guideButton = Core.UI.ArmConsole.Button(armR, 1, 1, "ArmPadR_Guide", Trans.Get("guide"), CicArtKit.Cyan,
                     guide.Restart);
                 guide.BindGuideButton(guideButton.transform);
-                // Glow (bloom) on / off: judged on the headset, remembered on it.
-                Core.UI.PokeButton glow = null;
-                glow = Core.UI.ArmConsole.Button(armR, 1, 2, "ArmPadR_Glow", GlowLabel(), CicArtKit.Cyan, () =>
-                {
-                    CicEnvironment.ToggleGlow();
-                    if (glow != null && glow.Label != null)
-                        glow.Label.text = GlowLabel();
-                });
             }
 
             // Command mode scales a parent of HoloMapMount so zoom (child localScale) stays independent.
@@ -205,9 +200,6 @@ namespace Core.App
             boot.BindLoader(_loader);
             boot.Run();
         }
-
-        static string GlowLabel() =>
-            Trans.Get("vr.fx.glow") + " · " + Trans.Get(CicEnvironment.GlowEnabled ? "vr.fx.on" : "vr.fx.off");
 
         /// <summary>Top face of the 0.03 m arm console, a hair above it, slightly toward the knee.</summary>
         internal static readonly Vector3 ArmPadTop = new(0f, 0.017f, 0.04f);

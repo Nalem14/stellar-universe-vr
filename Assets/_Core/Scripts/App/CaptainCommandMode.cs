@@ -119,9 +119,19 @@ namespace Core.App
         {
             if (pad == null)
                 return;
-            // Physical poke on the right arm console (unscaled rounded pad) — stand up / leave the seat.
-            Core.UI.ArmConsole.Button(pad, 1, 0, "ExitCommand", Trans.Get("vr.seat.stand"), CicArtKit.Amber,
-                () => Core.Utils.AsyncTap.Run(ExitCommandMode()));
+            // Physical poke on the right arm console (unscaled rounded pad): sit down / stand up. Seated players
+            // (whose view is lifted to standing height) take the chair from here.
+            _seatButton = Core.UI.ArmConsole.Button(pad, 1, 0, "ExitCommand", Trans.Get("vr.seat.sit"), CicArtKit.Amber,
+                () => Core.Utils.AsyncTap.Run(_command ? ExitCommandMode() : EnterCommandMode()));
+            CommandModeChanged += _ => RelabelSeatButton();
+        }
+
+        Core.UI.PokeButton _seatButton;
+
+        void RelabelSeatButton()
+        {
+            if (_seatButton != null && _seatButton.Label != null)
+                _seatButton.Label.text = Trans.Get(_command ? "vr.seat.stand" : "vr.seat.sit");
         }
 
         void CacheLocomotion()
@@ -163,7 +173,8 @@ namespace Core.App
                 return;
             var head = cam.transform.position;
             var flat = new Vector2(head.x - _seat.position.x, head.z - _seat.position.z).magnitude;
-            var height = head.y - _xr.transform.position.y;
+            // Real head height: seated play lifts the view, and that lift must not keep the captain standing.
+            var height = head.y - _xr.transform.position.y - ComfortSettings.CurrentLift;
             if (flat < SitReach && height < SitHeadHeight)
             {
                 if (_lowSince < 0f)

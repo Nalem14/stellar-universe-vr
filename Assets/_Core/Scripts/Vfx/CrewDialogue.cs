@@ -1121,6 +1121,9 @@ namespace Core.Vfx
             }
 
             CicCue.Ok(transform.position);
+            if (action == "ExplorePlanet" && query != null && query.TryGetValue("fleet", out var surveyFleet) &&
+                int.TryParse(surveyFleet, out var surveyId))
+                SurveyBanner.Record(surveyId, result.Body);
             if (action == "HarvestAsteroid" && AsteroidService.Instance != null)
                 AsyncTap.Run(AsteroidService.Instance.Refresh());
             var notice = result.NoticeKey;

@@ -39,6 +39,9 @@ namespace Core.App
 
         static ComfortSettings s_Instance;
 
+        /// <summary>The view lift applied right now (m): seated play, out of the captain's chair.</summary>
+        public static float CurrentLift { get; private set; }
+
         public static bool Teleport
         {
             get => PlayerPrefs.GetInt(TeleportKey, 0) == 1;
@@ -153,6 +156,20 @@ namespace Core.App
             _leftTeleport = _left != null ? type.GetField("m_TeleportInteractor", Flags)?.GetValue(_left) as XRRayInteractor : null;
             _rightTeleport = _right != null ? (type.GetField("m_TeleportMode", Flags)?.GetValue(_right) as InputActionReference)?.action : null;
             _rightTeleportCancel = _right != null ? (type.GetField("m_TeleportModeCancel", Flags)?.GetValue(_right) as InputActionReference)?.action : null;
+            if (_right != null && _rightTeleport != null)
+            {
+                // Unplug the right hand's teleport at the source: a turn pushed slightly forward armed the arc,
+                // and on release it teleported (and turned) the player. Re-enabling runs the manager's
+                // teardown with the old references, then its setup without them.
+                _right.enabled = false;
+                type.GetField("m_TeleportMode", Flags)?.SetValue(_right, null);
+                type.GetField("m_TeleportModeCancel", Flags)?.SetValue(_right, null);
+                _right.enabled = true;
+            }
+
+            // Stick back on the right is the holo map's zoom out, never a 180° turn.
+            foreach (var snap in _rig.GetComponentsInChildren<UnityEngine.XR.Interaction.Toolkit.Locomotion.Turning.SnapTurnProvider>(true))
+                snap.enableTurnAround = false;
             _vignette = _rig.GetComponentInChildren<TunnelingVignetteController>(true);
             _arcWasOut = false;
             return true;
@@ -184,7 +201,8 @@ namespace Core.App
                 return;
             var chair = CaptainCommandMode.Instance != null && CaptainCommandMode.Instance.IsCommandMode;
             var baseY = _rig.CurrentTrackingOriginMode == UnityEngine.XR.TrackingOriginModeFlags.Floor ? 0f : _rig.CameraYOffset;
-            var y = baseY + (Seated && !chair ? SeatedLift : 0f);
+            CurrentLift = Seated && !chair ? SeatedLift : 0f;
+            var y = baseY + CurrentLift;
             var p = offset.transform.localPosition;
             if (Mathf.Abs(p.y - y) > 0.001f)
                 offset.transform.localPosition = new Vector3(p.x, y, p.z);
