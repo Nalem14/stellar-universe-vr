@@ -52,7 +52,7 @@ namespace Core.Holo
             return true;
         }
 
-        /// <summary>PRL distance: the server measures it on the drawn layout (visual coords), not the grid.</summary>
+        /// <summary>PRL distance: the server measures it on the map (map units), not the grid (Star.BondX / BondY).</summary>
         static bool TryBondDistance(FocusFleet fleet, float tx, float ty, out float distance)
         {
             distance = 0f;
@@ -143,13 +143,17 @@ namespace Core.Holo
                 return ActionJs.Get("PrlBondFleetToSystem", prl);
             }
 
-            // hyperspace defaults to 1 server-side: sub-light must say 0 explicitly.
-            return ActionJs.Get("MoveFleetToSystem", new Dictionary<string, string>
+            // hyperspace defaults to 1 server-side: sub-light must say 0 explicitly. The star by id when known
+            // (preferred over pos by the server, so stale coordinates can never misroute the ship).
+            var move = new Dictionary<string, string>
             {
                 { "fleet", fleet.Id.ToString() },
                 { "pos", pos },
                 { "hyperspace", mode == TravelMode.Hyperspace ? "1" : "0" }
-            });
+            };
+            if (systemId > 0)
+                move["system"] = systemId.ToString();
+            return ActionJs.Get("MoveFleetToSystem", move);
         }
 
         /// <summary>One lectern option per travel mode this ship has (web star menu: move / hyperspace / PRL).</summary>
@@ -174,15 +178,19 @@ namespace Core.Holo
         /// Quote on the lectern, send on Confirm. Returns (sent, result, barkAction); sent=false = cancelled.
         /// Without a lectern it sends sub-light (never the server's implicit hyperspace default).
         /// </summary>
+        /// <param name="near">Where the lectern opens (beside that point, e.g. the star aimed on the table);
+        /// null = in front of the captain (orders from a crew console).</param>
         public static async Task<(bool sent, ApiResult result, string barkAction)> AskAndSend(FocusFleet fleet,
-            int systemId, float tx, float ty, string destLabel)
+            int systemId, float tx, float ty, string destLabel, UnityEngine.Vector3? near = null)
         {
             var mode = TravelMode.Sublight;
             var console = OrderConsole.Instance;
             if (console != null)
             {
                 var name = string.IsNullOrEmpty(fleet.Name) ? "#" + fleet.Id : fleet.Name;
-                var choice = await console.Ask(name + "  →  " + destLabel, SystemOptions(fleet, tx, ty));
+                var header = name + "  →  " + destLabel;
+                var options = SystemOptions(fleet, tx, ty);
+                var choice = await (near.HasValue ? console.AskAt(near.Value, header, options) : console.AskHere(header, options));
                 if (!(choice is TravelMode chosen))
                     return (false, default, null);
                 mode = chosen;

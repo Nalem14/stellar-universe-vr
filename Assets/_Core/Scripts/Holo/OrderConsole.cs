@@ -135,6 +135,25 @@ namespace Core.Holo
             return Ask(destination, options);
         }
 
+        /// <summary>
+        /// The quote in front of the captain (a little low, facing them): for orders given away from the table —
+        /// a crew console, a pad — where the rim lectern would open out of sight and time out unseen.
+        /// </summary>
+        public Task<object> AskHere(string destination, IReadOnlyList<Option> options)
+        {
+            var cam = Camera.main;
+            if (cam == null)
+                return Ask(destination, options);
+            var fwd = cam.transform.forward;
+            fwd.y = 0f;
+            if (fwd.sqrMagnitude < 1e-4f)
+                fwd = Vector3.forward;
+            fwd.Normalize();
+            // AskAt lifts its point by 0.3 m: aim below the eyes so the screen lands just under eye level.
+            var target = cam.transform.position + fwd * 0.55f + Vector3.down * 0.45f;
+            return AskAt(target, destination, options);
+        }
+
         void RestoreHome()
         {
             if (!_homeSaved || _screen == null)

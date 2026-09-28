@@ -63,7 +63,10 @@ namespace Core.App
             {
                 case "MoveFleetToSystem":
                     mode = hyper ? VoyageMode.Hyperspace : VoyageMode.Sublight;
-                    system = SystemAtPos(query);
+                    // The server goes by the system id when sent (pos only otherwise): so does the voyage.
+                    system = query.TryGetValue("system", out var ms) && int.TryParse(ms, out var msid) && msid > 0
+                        ? msid
+                        : SystemAtPos(query);
                     break;
                 case "MoveFleetToPlanet":
                 case "MoveFleetToAsteroid":

@@ -8,7 +8,7 @@ namespace Core.Vfx
 {
     /// <summary>
     /// Galaxy overview on the holo table (web scenes/galaxy.js adapted to a table you lean over):
-    /// every system of GetSystems at its drawn position (visual_x/y, else x/y + 100, web north = far side),
+    /// every system of GetSystems at its drawn position (GalaxyCatalog.Star.MapX / MapY, web north = far side),
     /// tinted by who holds it (web territories). LOD for Quest:
     /// <list type="bullet">
     /// <item>all systems = one procedural quad mesh (SU/HoloStarField), rebuilt only when the view moves;</item>

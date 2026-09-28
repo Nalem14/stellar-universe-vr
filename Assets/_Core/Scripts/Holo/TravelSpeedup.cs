@@ -81,7 +81,7 @@ namespace Core.Holo
                        TravelPlanner.TimeText(Remaining(fleet));
             if (console != null)
             {
-                var choice = at.HasValue ? await console.AskAt(at.Value, name, options) : await console.Ask(name, options);
+                var choice = at.HasValue ? await console.AskAt(at.Value, name, options) : await console.AskHere(name, options);
                 if (choice == null)
                     return (false, default);
             }

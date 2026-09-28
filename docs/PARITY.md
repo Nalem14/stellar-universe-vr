@@ -68,27 +68,27 @@ Appelées par le client web : 140/159. « Appelée » ≠ « finie » : voir la 
 | `GetEmpirePlanets` | R | empire | `App/OwnedPlanets.cs` +1 | `ui/WarsWindowUI.js` | Système (boot) | P5 | Branché | `OwnedPlanets` : mes planètes fraîches (id, `systemid`, slot — web `c94c803`), au boot et après une fondation ; `GetSystems` en secours seulement |
 | `GetPlanet` | R | id | `Stations/PlanetSurvey.cs` | `objects/planet.js` | Relevé planétaire Science (répéteur → écran face au captain), planètes du système en vue ; `user` jamais gardé | P5 | Branché |  |
 | `GetSystemAnomalies` | R | systemid | `App/AnomalyService.cs` | `ui/StarWindowUI.js` | `AnomalyService` : une lecture par système visité (le serveur fait apparaître une anomalie à 45 % quand il n'y en a pas) ; titres par type (`anomaly_<type>`), pas le texte FR stocké | P5 | Branché |  |
-| `GetSystems` | R | — | `App/BridgeSystemLoader.cs` +2 | `scenes/galaxy.js` | Holo table | P4 | Branché | Galaxie complète sur la table (LOD, territoires par détenteur) |
+| `GetSystems` | R | — | `App/BridgeSystemLoader.cs` +2 | `scenes/galaxy.js` | Holo table | P4 | Branché | Galaxie complète sur la table (LOD, territoires par détenteur) ; dessin sur `visual_x/visual_y` (repli (x+50)×100), coordonnées et trajets sur la grille `x/y` — alignées depuis la migration serveur `MigrateSystemsGridFromMap` |
 | `ScanAnomaly` | W | anomaly, fleet | `App/AnomalyService.cs` +1 | `ui/StarWindowUI.js` | Vaisseau scanneur (ScienceModule / SensorArray / DeepSpaceScanner) déposé sur le jeton, devis des gains au pupitre ; ou répéteur Science | P5 | Branché |  |
 
 ## Flotte
 
 | Action | R/W | Params | VR | Web | Station | Phase | Statut | Notes |
 |---|---|---|---|---|---|---|---|---|
-| `AddFleetOrderStep` | W | fleet, step | `Holo/OrderQueue.cs` +1 | `objects/fleet.js` | Helm | P4 | Branché | Étape JSON : `targetId` (planète / astéroïde) ; `moveToSystem` avec **`x`,`y`** (le serveur accepte aussi `targetX`/`targetY`) |
+| `AddFleetOrderStep` | W | fleet, step | `Holo/OrderQueue.cs` +1 | `objects/fleet.js` | Helm | P4 | Branché | Étape JSON : `targetId` (planète / astéroïde) ; `moveToSystem` avec **`system`** (id, prioritaire) + `x`,`y` — le serveur estampille l'id sur chaque étape (`system: 0` = aucune étoile, étape ignorée) |
 | `ClearFleetOrderQueue` | W | fleet | `Holo/OrderQueue.cs` | `objects/fleet.js` | Helm | P4 | Branché |  |
-| `Colonize` | W | ship, planet | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Ops | `ship` = id du module `colonyShip` (legacy `ColonyShip` OK) ; planète libre, habitabilité ≥ 6 | Branché | `ship` = id du module `colonyShip` (legacy `ColonyShip` OK) ; planète libre, habitabilité ≥ 6 |
-| `DepositCargo` | W | fleet, planet, mineral?, crystal?, biomass? | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Ops | P5 | Branché |  |
-| `ExplorePlanet` | W | fleet, planet | `Audio/OrderCues.cs` +2 | `objects/fleet.js` | Science | P5 | Branché |  |
+| `Colonize` | W | ship, planet | `Crew/CrewLines.cs` +2 | `objects/fleet.js` | Ops | `ship` = id du module `colonyShip` (legacy `ColonyShip` OK) ; planète libre, habitabilité ≥ 6 | Branché | `ship` = id du module `colonyShip` (legacy `ColonyShip` OK) ; planète libre, habitabilité ≥ 6 |
+| `DepositCargo` | W | fleet, planet, mineral?, crystal?, biomass? | `Crew/CrewLines.cs` +2 | `objects/fleet.js` | Ops | P5 | Branché |  |
+| `ExplorePlanet` | W | fleet, planet | `Audio/OrderCues.cs` +3 | `objects/fleet.js` | Science | P5 | Branché |  |
 | `GetAllFleets` | R | — | `App/BridgeSystemLoader.cs` +3 | `scenes/galaxy.js` | Helm | P0 | Branché | Cache serveur 3 s → poll VR 3,5 s. Traite les files de flotte. `user` = PublicUser (id/username) ; cache fleets purgé au hit |
 | `GetAllFleetsAround` | R | — | — | `scenes/galaxy.js` | Helm | — | Hors scope | Interdit en VR (règle AGENTS) — `GetAllFleets` + filtre client |
 | `GetSystemAsteroids` | R | systemid | `App/AsteroidService.cs` | `scenes/system.js` | Helm | P5 | Branché | `AsteroidService` : lecture fraîche à chaque système visité (la liste de `GetSystems` peut dater d'une heure), puis toutes les 30 s pendant qu'un de nos vaisseaux y mine (2 min sinon) et après `HarvestAsteroid` ; réserves minerai / cristal sur le jeton, l'arc et le pupitre, amas qui rétrécit sur la table et dehors, champ épuisé retiré |
-| `HarvestAsteroid` | W | fleet, asteroid | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Engineering | P5 | Branché |  |
+| `HarvestAsteroid` | W | fleet, asteroid | `Crew/CrewLines.cs` +2 | `objects/fleet.js` | Engineering | P5 | Branché |  |
 | `LoadTroops` | W | fleet, planet, troops | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Tactical | P5 | Branché | Soute à troupes de l'Armurerie : `{type: qty}` ; réponse = unités déplacées → navettes dehors + étincelle sur la table |
 | `MoveFleetToAsteroid` | W | fleet, asteroid, hyperspace? | `App/VoyageLog.cs` +4 | `objects/fleet.js` | Helm | P4 | Branché | idem hyperspace |
 | `MoveFleetToPlanet` | W | fleet, planet, hyperspace? | `App/VoyageLog.cs` +4 | `objects/fleet.js` | Helm | P4 | Branché | idem hyperspace |
-| `MoveFleetToSystem` | W | fleet, pos, hyperspace? | `App/VoyageLog.cs` +4 | `objects/fleet.js` | Helm | P4 | Branché | Toujours `hyperspace` explicite (0 sous-lumière / 1 hyperespace) après devis au pupitre (`TravelPlanner`, formules serveur) ; `ok:sublight_*` → `ApiResult.NoticeKey` |
-| `PrlBondFleetToSystem` | W | fleet, system?, pos? | `App/VoyageLog.cs` +3 | `objects/fleet.js` | Helm | P4 | Branché | Devis portée / coût / recharge au pupitre (`TravelPlanner`, distance sur `visual_x/visual_y` comme le serveur), `fleet` + `system` + `pos` ; lâcher sur une étoile de la galaxie |
+| `MoveFleetToSystem` | W | fleet, pos, system, hyperspace? | `App/VoyageLog.cs` +4 | `objects/fleet.js` | Helm | P4 | Branché | `system` (id, prioritaire) + `pos` + toujours `hyperspace` explicite (0 sous-lumière / 1 hyperespace) après devis au pupitre (`TravelPlanner`, formules serveur) ; `ok:sublight_*` → `ApiResult.NoticeKey` ; `grid` = époque de la grille (GetConfigs), jointe à chaque requête par `ActionJs` |
+| `PrlBondFleetToSystem` | W | fleet, system?, pos? | `App/VoyageLog.cs` +3 | `objects/fleet.js` | Helm | P4 | Branché | Devis portée / coût / recharge au pupitre (`TravelPlanner`, distance sur la carte — `Star.BondX/BondY`, `SystemMapDistance` serveur), `fleet` + `system` + `pos` ; lâcher sur une étoile de la galaxie |
 | `ProcessFleetOrderQueue` | W | fleet | — | — | Helm | — | Hors scope | Géré par cron + `GetAllFleets` ; pas d'UI |
 | `RemoveFleetOrderStep` | W | fleet, stepIndex | `Holo/OrderQueue.cs` | `objects/fleet.js` | Helm | P4 | Branché | `stepIndex` 0-based : répéteur Helm, ou plaque ouverte sur une balise de la file (table) |
 | `RenameFleet` | W | id, name | `Stations/DryDock.cs` | `objects/fleet.js` | Helm | P5 | Branché | Cale sèche, clavier Quest |
@@ -98,7 +98,7 @@ Appelées par le client web : 140/159. « Appelée » ≠ « finie » : voir la 
 | `ToggleFleetQueueLoop` | W | fleet, loop? | `Holo/OrderQueue.cs` | `objects/fleet.js` | Helm | P4 | Branché | `loop` explicite 0/1 |
 | `UnloadTroops` | W | fleet, planet, troops | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Tactical | P5 | Branché | Idem, vers la garnison de nos planètes seulement |
 | `UpdateFleetDefendPosition` | W | id, position | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Tactical | P5 | Branché |  |
-| `WithdrawCargo` | W | fleet, planet, mineral?, crystal?, biomass? | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Ops | P5 | Branché |  |
+| `WithdrawCargo` | W | fleet, planet, mineral?, crystal?, biomass? | `Crew/CrewLines.cs` +2 | `objects/fleet.js` | Ops | P5 | Branché |  |
 
 ## Vaisseau / chantier
 
@@ -149,7 +149,7 @@ Appelées par le client web : 140/159. « Appelée » ≠ « finie » : voir la 
 | `BattleEndFleetTurn` | W | battleid, fleetid | `Vfx/HexBattleController.cs` | `scenes/battle.js` | Tactical | P5 | Branché | Bouton Fin du tour du pupitre (et réplique Tactique) |
 | `CheckPlanetAttack` | R | planet | `App/SiegeWatch.cs` | `objects/planet.js` | Tactical | P5 | Branché | `SiegeWatch` : appelé dès que `attackEndTime` expire pour un siège qui nous touche (`wip` → relance 5 s, `ok` → résolu) ; bombardement dehors + anneau sur la table |
 | `DoTurnBattle` | W | battleid, fleetid, action, target | — | — | Tactical | — | Hors scope | Legacy, non utilisé par le web |
-| `FleetAttackPlanet` | W | fleet, planet | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Tactical | P5 | Branché |  |
+| `FleetAttackPlanet` | W | fleet, planet | `Crew/CrewLines.cs` +2 | `objects/fleet.js` | Tactical | P5 | Branché |  |
 | `GetBattle` | R | battleid | — | — | Tactical | — | Hors scope | Legacy |
 | `GetBattleState` | R | battleid, fleetid | `Vfx/HexBattleController.cs` | `scenes/battle.js` | Tactical | P5 | Branché | Plateau diffé toutes les 2,5 s (web) ; tirs rejoués depuis les nouvelles lignes `log` sur la table, dehors et à bord |
 | `GetMyBattles` | R | — | `Stations/ArmoryConsole.cs` +1 | `scenes/galaxy.js` | Tactical | P5 | Branché | Seulement si un de nos vaisseaux a `isInBattle` : prend la table (vaisseau habité / système en vue) ou bouton Rejoindre sur le rebord |

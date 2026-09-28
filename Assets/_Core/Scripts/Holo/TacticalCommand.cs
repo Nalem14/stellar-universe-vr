@@ -448,7 +448,8 @@ namespace Core.Holo
 
             if (!(choice is int fleetId) || _focus.FindFleet(fleetId) is not { } fleet)
                 return;
-            var (sent, result, barkAction) = await TravelPlanner.AskAndSend(fleet, star.Id, star.GalaxyX, star.GalaxyY, star.DisplayName);
+            var (sent, result, barkAction) = await TravelPlanner.AskAndSend(fleet, star.Id, star.GalaxyX, star.GalaxyY, star.DisplayName,
+                star.transform.position);
             if (!sent)
                 return;
             Core.Crew.BarkDirector.Instance?.OrderResult(CrewDialogue.Role.Helm, barkAction, result, star.DisplayName);

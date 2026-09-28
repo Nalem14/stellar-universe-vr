@@ -8,11 +8,16 @@ using UnityEngine;
 namespace Core.Vfx
 {
     /// <summary>
-    /// Cached GetSystems: galaxy points for holomap Galaxy mode (systems.x/y) and every planet's owner,
+    /// Cached GetSystems: every system (grid X / Y = its coordinates and travel basis; MapX / MapY = where it is
+    /// drawn, visual_x / visual_y) for the holomap Galaxy mode, and every planet's owner,
     /// the same source the web uses for "my planets" (galaxyScene.planetsList filtered on userid).
     /// </summary>
     public static class GalaxyCatalog
     {
+        /// <summary>Grid half-extent and map units per grid cell (model/system.php SYSTEM_GRID_HALF / SYSTEM_MAP_CELL).</summary>
+        public const float GridHalf = 50f;
+        public const float MapCell = 100f;
+
         public struct Star
         {
             public int Id;
@@ -31,13 +36,20 @@ namespace Core.Vfx
             /// <summary>User holding most of the system's planets (0 = unclaimed) — the web territory tint.</summary>
             public int OwnerId;
 
-            /// <summary>Server PRL distance basis (actionjs PrlBondFleetToSystem): visual coords, else x/y.</summary>
-            public float BondX => VisualX > 0f ? VisualX : X;
-            public float BondY => VisualY > 0f ? VisualY : Y;
+            /// <summary>
+            /// Where the system is drawn (map units, 0..10000): visual_x / visual_y, else its grid cell's centre —
+            /// SystemMapPos() server-side and Helper.systemMapPos() on the web. The grid (X / Y, −50..50) is the
+            /// same place in cells of 100 map units: sub-light / hyperspace distances use the grid, Bond PRL range
+            /// the map. Both agree since the server realigned the grid on the map (MigrateSystemsGridFromMap).
+            /// </summary>
+            public float MapX => Drawn ? VisualX : (X + GridHalf) * MapCell;
+            public float MapY => Drawn ? VisualY : (Y + GridHalf) * MapCell;
 
-            /// <summary>Web galaxy layout (galaxy.js buildSystemsAndPosition): visual coords, else x/y + 100.</summary>
-            public float MapX => VisualX > 0f ? VisualX : X + 100f;
-            public float MapY => VisualY > 0f ? VisualY : Y + 100f;
+            /// <summary>Bond PRL distance basis (actionjs PrlBondFleetToSystem → SystemMapDistance): the map position.</summary>
+            public float BondX => MapX;
+            public float BondY => MapY;
+
+            bool Drawn => VisualX > 0f || VisualY > 0f;
 
             /// <summary>Systems carry no names in the game — they are known by galaxy coordinates.</summary>
             public string Label => Coordinates(X, Y);
@@ -67,6 +79,8 @@ namespace Core.Vfx
         static readonly List<Star> Stars = new();
         static readonly List<PlanetRef> Planets = new();
         static bool _loaded;
+        /// <summary>Grid epoch the catalogue was read under: a newer one (grid realigned) means re-read it.</summary>
+        static long _loadedEpoch;
 
         public static IReadOnlyList<Star> All => Stars;
 
@@ -154,8 +168,9 @@ namespace Core.Vfx
         /// <param name="force">Re-read ownership (after Colonize / conquest).</param>
         public static async Task EnsureLoaded(bool force = false)
         {
-            if (!force && _loaded && Stars.Count > 0)
+            if (!force && _loaded && Stars.Count > 0 && _loadedEpoch == Core.App.GameConfig.GridEpoch)
                 return;
+            var epoch = Core.App.GameConfig.GridEpoch;
             var result = await ActionJs.Get("GetSystems");
             if (!result.Ok)
                 return;
@@ -203,6 +218,7 @@ namespace Core.Vfx
                 }
 
                 _loaded = true;
+                _loadedEpoch = epoch;
             }
             catch
             {

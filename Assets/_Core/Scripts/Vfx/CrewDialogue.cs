@@ -1052,7 +1052,7 @@ namespace Core.Vfx
             var label = string.IsNullOrEmpty(dest.Name) ? "#" + dest.Id : dest.Name;
             if (console != null)
             {
-                var choice = await console.Ask(name + "  →  " + label,
+                var choice = await console.AskHere(name + "  →  " + label,
                     new List<Core.Holo.OrderConsole.Option> { Core.Holo.JumpgateNetwork.Option(fleet, origin, dest) });
                 if (!(choice is Core.Holo.JumpChoice))
                     return;

@@ -22,8 +22,14 @@ namespace Core.Holo
         public static Task<ApiResult> AddAsteroidStep(FocusFleet fleet, string type, int asteroidId) =>
             Add(fleet, new JObject { ["type"] = type, ["targetId"] = asteroidId });
 
-        public static Task<ApiResult> AddSystemStep(FocusFleet fleet, float x, float y) =>
-            Add(fleet, new JObject { ["type"] = "moveToSystem", ["x"] = (int)x, ["y"] = (int)y });
+        /// <summary>A moveToSystem step naming the star by id too (the server prefers it over x / y).</summary>
+        public static Task<ApiResult> AddSystemStep(FocusFleet fleet, float x, float y, int systemId = 0)
+        {
+            var step = new JObject { ["type"] = "moveToSystem", ["x"] = (int)x, ["y"] = (int)y };
+            if (systemId > 0)
+                step["system"] = systemId;
+            return Add(fleet, step);
+        }
 
         public static Task<ApiResult> Remove(FocusFleet fleet, int stepIndex) =>
             ActionJs.Get("RemoveFleetOrderStep", new Dictionary<string, string>

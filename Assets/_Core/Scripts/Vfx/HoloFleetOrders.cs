@@ -469,6 +469,9 @@ namespace Core.Vfx
                     action = "MoveFleetToSystem";
                     query["pos"] = string.Format(System.Globalization.CultureInfo.InvariantCulture,
                         "{0}.{1}", target.GalaxyX, target.GalaxyY);
+                    // The star by id (preferred by the server): stale coordinates can never misroute it.
+                    if (target.Id > 0)
+                        query["system"] = target.Id.ToString();
                 }
                 else
                 {
@@ -918,7 +921,7 @@ namespace Core.Vfx
 
         static Task<ApiResult> AddQueueStep(FocusFleet fleet, HoloToken target, string type) => target.Kind switch
         {
-            HoloTokenKind.System => Core.Holo.OrderQueue.AddSystemStep(fleet, target.GalaxyX, target.GalaxyY),
+            HoloTokenKind.System => Core.Holo.OrderQueue.AddSystemStep(fleet, target.GalaxyX, target.GalaxyY, target.Id),
             HoloTokenKind.Asteroid => Core.Holo.OrderQueue.AddAsteroidStep(fleet, type, target.Id),
             _ => Core.Holo.OrderQueue.AddPlanetStep(fleet, type, target.Id)
         };

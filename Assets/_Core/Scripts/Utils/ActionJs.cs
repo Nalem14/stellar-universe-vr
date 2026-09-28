@@ -92,6 +92,11 @@ namespace Core.Utils
                     sb.Append("&token=").Append(Uri.EscapeDataString(token));
             }
 
+            // The galaxy grid epoch this session read (GetConfigs galaxy.gridEpoch): the server refuses grid
+            // coordinates from a session that read the galaxy before its last realignment.
+            if (Core.App.GameConfig.GridEpoch > 0 && !(query != null && query.ContainsKey("grid")))
+                sb.Append("&grid=").Append(Core.App.GameConfig.GridEpoch.ToString(System.Globalization.CultureInfo.InvariantCulture));
+
             // Texts the server renders itself (system mail, decision summaries, Lang() errors) follow the
             // player's language: DetectLang() reads $_GET['lang'] first.
             if (query == null || !query.ContainsKey("lang"))

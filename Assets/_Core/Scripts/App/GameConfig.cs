@@ -38,6 +38,8 @@ namespace Core.App
         public static JObject Upgrade { get; private set; }
         /// <summary>GetConfigs.jobsPerLevel: citizens one level of a production building employs (log-scaled).</summary>
         public static JObject JobsPerLevel { get; private set; }
+        /// <summary>GetConfigs.galaxy.gridEpoch: when the grid coordinates last changed meaning (0 = never); echoed as `grid`.</summary>
+        public static long GridEpoch { get; private set; }
         /// <summary>GetConfigs.factory (production per level) and .storage (warehouse multipliers).</summary>
         public static JObject Factory { get; private set; }
         public static JObject Storage { get; private set; }
@@ -126,6 +128,7 @@ namespace Core.App
 
                 Upgrade = root["upgrade"] as JObject;
                 JobsPerLevel = root["jobsPerLevel"] as JObject;
+                GridEpoch = FocusContext.AsLong((root["galaxy"] as JObject)?["gridEpoch"]);
                 Factory = root["factory"] as JObject;
                 Storage = root["storage"] as JObject;
                 ShipStats = root["shipstats"] as JObject;
