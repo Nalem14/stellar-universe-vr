@@ -182,7 +182,12 @@ namespace Core.Vfx
         void LateUpdate()
         {
             if (!_showingGalaxy)
+            {
+                HideStarCard();
                 return;
+            }
+
+            TickGalaxyFlight();
             TickGalaxyMovers();
             if (!_gDirty || Time.unscaledTime < _gNextBuild)
                 return;
@@ -259,31 +264,29 @@ namespace Core.Vfx
                 var p = StarLocal(s, lift);
                 if (p.x * p.x + p.z * p.z > limitSq)
                     continue;
-                Color c;
+                // The star in its own colour (web galaxy.js: blue / white / yellow / orange / red), brighter and
+                // larger when someone holds it; the holder shows as a thin ring in its colour around it.
+                var c = StarColor(s);
                 float size;
                 var mark = false;
                 if (s.Id == hereId)
                 {
-                    c = StarHere;
-                    size = 0.05f;
+                    size = 0.064f;
                     mark = true;
                 }
                 else if (s.OwnerId > 0)
                 {
-                    // Held systems: bright, tinted lightly by the owner (the territory carries the colour).
-                    c = Color.Lerp(SpectralTint(s.Id), OwnerColor(s.OwnerId), 0.35f);
-                    c.a = 1f;
-                    size = 0.034f;
+                    size = 0.046f;
                 }
                 else
                 {
-                    // Unclaimed: a small star in its own (stable) spectral colour.
-                    c = Color.Lerp(StarEmpty, SpectralTint(s.Id), 0.6f);
-                    c.a = StarEmpty.a;
-                    size = 0.024f;
+                    size = 0.036f;
+                    c.a = 0.85f;
                 }
 
                 AddStarQuad(p, size, c, Seed01(s.Id), mark);
+                if (s.OwnerId > 0)
+                    AddStarQuad(p, size * 1.35f, OwnerColor(s.OwnerId), Seed01(s.Id), false, ringOnly: true);
             }
 
             _gMesh.Clear();
@@ -310,11 +313,11 @@ namespace Core.Vfx
 
         /// <summary>One star = four vertices at its centre; the shader turns them into a camera-facing glow.</summary>
         /// <param name="seed">Twinkle phase (0–1); <paramref name="mark"/> adds the "you are here" ring.</param>
-        void AddStarQuad(Vector3 p, float size, Color c, float seed, bool mark)
+        void AddStarQuad(Vector3 p, float size, Color c, float seed, bool mark, bool ringOnly = false)
         {
             var b = _gVerts.Count;
             Color32 c32 = c;
-            var extra = seed + (mark ? 2f : 0f);
+            var extra = seed + (ringOnly ? 4f : mark ? 2f : 0f);
             for (var k = 0; k < 4; k++)
             {
                 _gVerts.Add(p);
@@ -340,6 +343,20 @@ namespace Core.Vfx
             {
                 return ((uint)id * 2654435761u >> 8) % 997 / 997f;
             }
+        }
+
+        /// <summary>The web's star colours by systems.type (objects/star.js), else a stable spectral guess.</summary>
+        static Color StarColor(in GalaxyCatalog.Star s)
+        {
+            var k = s.Kind ?? string.Empty;
+            if (k.Contains("blue")) return new Color(0.36f, 0.7f, 1f, 1f);
+            if (k.Contains("red")) return new Color(1f, 0.4f, 0.36f, 1f);
+            if (k.Contains("orange")) return new Color(1f, 0.62f, 0.25f, 1f);
+            if (k.Contains("yellow")) return new Color(1f, 0.86f, 0.35f, 1f);
+            if (k.Contains("white")) return new Color(0.82f, 0.97f, 1f, 1f);
+            var c = SpectralTint(s.Id);
+            c.a = 1f;
+            return c;
         }
 
         /// <summary>A stable spectral class per system: mostly white-yellow, some blue giants, orange and red dwarfs.</summary>
@@ -668,5 +685,153 @@ namespace Core.Vfx
                     token.CaptureHome();
             }
         }
-    }
+    
+        // ── Hover card, star menu, focus flights ─────────────────────────────────
+
+        GameObject _gCard;
+        TMP_Text _gCardTitle;
+        TMP_Text _gCardBody;
+        int _gCardFor;
+        bool _gFlying;
+        Vector2 _gFlyFrom;
+        Vector2 _gFlyTo;
+        float _gFlyScaleFrom;
+        float _gFlyScaleTo;
+        float _gFlyT;
+
+        /// <summary>The galaxy plate point under a ray (table-local x / z), for zooming toward the aim.</summary>
+        public bool GalaxyAimLocal(Vector3 origin, Vector3 dir, out Vector2 local)
+        {
+            local = Vector2.zero;
+            if (!_showingGalaxy || _root == null || Mathf.Abs(dir.y) < 1e-3f)
+                return false;
+            var planeY = _root.TransformPoint(new Vector3(0f, DioramaLift + 0.03f, 0f)).y;
+            var t = (planeY - origin.y) / dir.y;
+            if (t <= 0f || t > 6f)
+                return false;
+            var p = _root.InverseTransformPoint(origin + dir * t);
+            var limit = WorldScale.HoloDiscRadius * GalaxyViewRadiusFactor;
+            if (p.x * p.x + p.z * p.z > limit * limit)
+                return false;
+            local = new Vector2(p.x, p.z);
+            return true;
+        }
+
+        /// <summary>Fly the view onto a star (centred, closer): the star menu's "zoom here", Recentre.</summary>
+        public void GalaxyFocus(int systemId, float zoomFactor)
+        {
+            if (!_showingGalaxy || !GalaxyCatalog.TryGet(systemId, out var star))
+                return;
+            _gFlyFrom = _gCentre;
+            _gFlyTo = new Vector2(star.MapX, star.MapY);
+            _gFlyScaleFrom = _gScale;
+            _gFlyScaleTo = Mathf.Clamp(_gScale * zoomFactor, _gMinScale, _gMaxScale);
+            _gFlyT = 0f;
+            _gFlying = true;
+        }
+
+        void TickGalaxyFlight()
+        {
+            if (!_gFlying)
+                return;
+            _gFlyT = Mathf.Min(1f, _gFlyT + Time.unscaledDeltaTime * 1.6f);
+            var u = MotionEase.SmoothInOut(_gFlyT);
+            _gCentre = Vector2.Lerp(_gFlyFrom, _gFlyTo, u);
+            _gScale = Mathf.Lerp(_gFlyScaleFrom, _gFlyScaleTo, u);
+            ClampGalaxyCentre();
+            _gDirty = true;
+            if (_gFlyT >= 1f)
+            {
+                _gFlying = false;
+                RebuildGalaxyView(true);
+            }
+        }
+
+        /// <summary>
+        /// A floating card over the star under the aim: its coordinates, who holds it, how many worlds, our ships
+        /// there, and — a ship picked — the trip's time by sub-light / hyperspace (the lectern's own quotes).
+        /// </summary>
+        public void ShowStarCard(HoloToken token, FocusFleet picked)
+        {
+            if (!_showingGalaxy || token == null || token.Kind != HoloTokenKind.System ||
+                !GalaxyCatalog.TryGet(token.Id, out var star))
+            {
+                HideStarCard();
+                return;
+            }
+
+            EnsureStarCard();
+            _gCardFor = token.Id;
+            _gCardTitle.text = star.Label;
+            var lines = new List<string>(4);
+            if (star.OwnerId <= 0)
+                lines.Add(Trans.Get("vr.survey.owner") + "  <color=#9fb8c8>" + Trans.Get("vr.survey.unclaimed") + "</color>");
+            else
+            {
+                var stance = DiplomacyIndex.Resolve(star.OwnerId);
+                var name = DiplomacyIndex.TryIdentity(star.OwnerId, out var n, out _) && !string.IsNullOrEmpty(n) ? n : "#" + star.OwnerId;
+                lines.Add(Trans.Get("vr.survey.owner") + "  <color=#" + ColorUtility.ToHtmlStringRGB(DiplomacyIndex.Tint(stance)) + ">" +
+                          name + "</color>");
+            }
+
+            lines.Add(Cap(Trans.Get("planets")) + "  " + star.PlanetCount +
+                      (star.ClaimedCount > 0 ? "  <size=80%><color=#9fb8c8>(" + star.ClaimedCount + " " + Trans.Get("vr.survey.claimed") + ")</color></size>" : string.Empty));
+            _gFleetsPerSystem.TryGetValue(star.Id, out var ours);
+            if (ours > 0)
+                lines.Add(Trans.Get("fleets") + "  <color=#7dffb0>" + ours + "</color>");
+            if (picked != null && picked.SystemId != star.Id)
+            {
+                var sub = Core.Holo.TravelPlanner.Quote(picked, star.X, star.Y, Core.Holo.TravelMode.Sublight);
+                var hyp = Core.Holo.TravelPlanner.Quote(picked, star.X, star.Y, Core.Holo.TravelMode.Hyperspace);
+                var eta = (sub.Available ? Trans.Get("sublight") + " " + Core.Holo.TravelPlanner.TimeText(sub.EtaSeconds) : string.Empty) +
+                          (hyp.Available ? "   " + Trans.Get("hyperdrive") + " " + Core.Holo.TravelPlanner.TimeText(hyp.EtaSeconds) : string.Empty);
+                if (eta.Length > 0)
+                    lines.Add("<color=#ffc766>" + eta.Trim() + "</color>");
+            }
+
+            _gCardBody.text = string.Join("\n", lines);
+            _gCard.SetActive(true);
+            PlaceStarCard(token);
+        }
+
+        static string Cap(string s) => string.IsNullOrEmpty(s) ? s : char.ToUpperInvariant(s[0]) + s.Substring(1);
+
+        public void HideStarCard()
+        {
+            _gCardFor = 0;
+            if (_gCard != null && _gCard.activeSelf)
+                _gCard.SetActive(false);
+        }
+
+        void EnsureStarCard()
+        {
+            if (_gCard != null)
+                return;
+            _gCard = new GameObject("StarCard");
+            _gCard.transform.SetParent(transform, false);
+            var px = new Vector2(430f, 190f);
+            var canvas = DiegeticUi.WorldCanvas(_gCard.transform, "Canvas", px, Vector3.zero, Quaternion.identity, 0.00085f);
+            canvas.sortingOrder = 30;
+            var frame = DiegeticUi.HoloFrame(canvas.transform, px);
+            frame.GetComponent<UnityEngine.UI.Image>().raycastTarget = false;
+            _gCardTitle = DiegeticUi.HoloLabel(frame, string.Empty, new Vector2(0f, 62f), new Vector2(400f, 40f), 28f, UI.UiKit.Cyan);
+            _gCardTitle.fontStyle = FontStyles.Bold;
+            _gCardBody = DiegeticUi.HoloLabel(frame, string.Empty, new Vector2(0f, -22f), new Vector2(400f, 120f), 19f, UI.UiKit.TextBright,
+                TextAlignmentOptions.Top);
+            _gCardBody.richText = true;
+            _gCard.SetActive(false);
+        }
+
+        void PlaceStarCard(HoloToken token)
+        {
+            var cam = Camera.main;
+            if (_gCard == null || token == null || cam == null)
+                return;
+            // Above the star, a little toward the captain, turned to face them (yaw + gentle pitch).
+            var at = token.transform.position + Vector3.up * 0.15f;
+            var toEye = cam.transform.position - at;
+            at += Vector3.ProjectOnPlane(toEye, Vector3.up).normalized * 0.03f;
+            _gCard.transform.SetPositionAndRotation(at, Quaternion.LookRotation(at - cam.transform.position, Vector3.up));
+        }
+}
 }

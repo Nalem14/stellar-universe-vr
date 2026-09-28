@@ -324,6 +324,13 @@ namespace Core.Holo
         void ClickTarget(HoloToken token)
         {
             var fleet = SelectedFleet;
+            if (fleet == null && token.Kind == HoloTokenKind.System && _map.ShowingGalaxy)
+            {
+                // A star, no ship picked: what to do with it (fly the view there, or send one of ours).
+                AsyncTap.Run(StarMenu(token));
+                return;
+            }
+
             if (fleet == null)
             {
                 // Nothing selected: inspecting a world / foreign ship names it.
@@ -404,6 +411,55 @@ namespace Core.Holo
             _arc.enabled = false;
             _arcLabelRoot.gameObject.SetActive(false);
             Readout(Trans.Get("vr.table.pickShip"));
+        }
+
+        /// <summary>
+        /// Star menu on the lectern: "zoom here", then up to three of our free ships to send there (each goes on
+        /// to the usual travel choice with its modes and quotes).
+        /// </summary>
+        async Task StarMenu(HoloToken star)
+        {
+            var console = OrderConsole.Instance;
+            if (console == null || _focus == null)
+                return;
+            var options = new List<OrderConsole.Option>
+            {
+                new(Trans.Get("vr.galaxy.zoomHere"), true, UiKit.Cyan, "zoom")
+            };
+            var now = FleetOrderGate.UnixNow();
+            var me = FocusContext.OwnedUserId();
+            foreach (var f in _focus.Fleets)
+            {
+                if (options.Count >= 4)
+                    break;
+                if (f == null || f.UserId != me || f.SystemId == star.Id || !f.CanIssueMove(now))
+                    continue;
+                var name = string.IsNullOrEmpty(f.Name) ? "#" + f.Id : f.Name;
+                options.Add(new OrderConsole.Option(Trans.Format("vr.galaxy.send", name), true, UiKit.Amber, f.Id));
+            }
+
+            var choice = await console.AskAt(star.transform.position, star.DisplayName, options);
+            if (choice is string s && s == "zoom")
+            {
+                _map.GalaxyFocus(star.Id, 1.8f);
+                CicCue.Ok(star.transform.position);
+                return;
+            }
+
+            if (!(choice is int fleetId) || _focus.FindFleet(fleetId) is not { } fleet)
+                return;
+            var (sent, result, barkAction) = await TravelPlanner.AskAndSend(fleet, star.Id, star.GalaxyX, star.GalaxyY, star.DisplayName);
+            if (!sent)
+                return;
+            Core.Crew.BarkDirector.Instance?.OrderResult(CrewDialogue.Role.Helm, barkAction, result, star.DisplayName);
+            if (result.Ok)
+                CicCue.Ok(star.transform.position);
+            else
+                CicCue.Fail(star.transform.position);
+            Readout(result.Ok ? Trans.Get(result.NoticeKey ?? "vr.common.ok")
+                : string.IsNullOrEmpty(result.Error) ? Trans.Get("vr.common.error") : result.Error);
+            if (result.Ok && _orders != null)
+                await _orders.PollNow();
         }
 
         async Task Issue(HoloToken target)
@@ -541,6 +597,11 @@ namespace Core.Holo
 
             _hover = token;
             Changed?.Invoke();
+            // Galaxy: a card over the aimed star (holder, worlds, our ships, trip time for the picked ship).
+            if (_hover != null && _hover.Kind == HoloTokenKind.System && _map.ShowingGalaxy)
+                _map.ShowStarCard(_hover, SelectedFleet);
+            else
+                _map.HideStarCard();
             if (_hover == null)
                 return;
             _hover.transform.localScale = Vector3.one * 1.2f;

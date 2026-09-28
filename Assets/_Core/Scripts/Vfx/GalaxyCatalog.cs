@@ -23,6 +23,11 @@ namespace Core.Vfx
             public float VisualX;
             public float VisualY;
             public int Type;
+            /// <summary>systems.type as the web draws it: blue, white, yellow, orange, red (galaxy.js star sprites).</summary>
+            public string Kind;
+            /// <summary>Worlds in the system, and how many are held by someone.</summary>
+            public int PlanetCount;
+            public int ClaimedCount;
             /// <summary>User holding most of the system's planets (0 = unclaimed) — the web territory tint.</summary>
             public int OwnerId;
 
@@ -174,7 +179,8 @@ namespace Core.Vfx
                         Y = FocusContext.AsFloat(s["y"]),
                         VisualX = FocusContext.AsFloat(s["visual_x"]),
                         VisualY = FocusContext.AsFloat(s["visual_y"]),
-                        Type = FocusContext.AsInt(s["type"])
+                        Type = FocusContext.AsInt(s["type"]),
+                        Kind = (FocusContext.AsString(s["type"]) ?? string.Empty).ToLowerInvariant()
                     };
 
                     if (s["planets"] is JArray planetArr)
@@ -189,6 +195,10 @@ namespace Core.Vfx
                     }
 
                     star.OwnerId = DominantOwner(firstPlanet);
+                    star.PlanetCount = Planets.Count - firstPlanet;
+                    for (var k = firstPlanet; k < Planets.Count; k++)
+                        if (Planets[k].UserId > 0)
+                            star.ClaimedCount++;
                     Stars.Add(star);
                 }
 

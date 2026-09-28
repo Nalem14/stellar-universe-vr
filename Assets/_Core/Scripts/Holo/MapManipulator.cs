@@ -29,6 +29,7 @@ namespace Core.Holo
 
         NearFarInteractor _a;
         NearFarInteractor _b;
+        Vector2 _panVelocity;
         Vector3 _prevA;
         Vector3 _prevB;
         float _resetT = -1f;
@@ -121,6 +122,14 @@ namespace Core.Holo
             var c = Content;
             if (c == null)
                 return;
+            // Galaxy: also fly the plate back onto where we are (the inhabited ship's star).
+            if (_map != null && _map.ShowingGalaxy)
+            {
+                var focus = Core.App.FocusContext.Current;
+                if (focus != null && focus.SystemId > 0)
+                    _map.GalaxyFocus(focus.SystemId, 1f);
+            }
+
             _resetT = 0f;
             _resetFromPos = c.localPosition;
             _resetFromRot = c.localRotation;
@@ -201,6 +210,7 @@ namespace Core.Holo
 
             if (_a == null && first != null && NearTable(first))
             {
+                _panVelocity = Vector2.zero;
                 _a = first;
                 _prevA = _a.transform.position;
                 CicCue.Hover(_prevA);
@@ -218,8 +228,24 @@ namespace Core.Holo
             }
 
             if (_a == null)
-                return;
+            {
+                // Galaxy let go: the plate glides on and slows down.
+                if (mode == HoloMapMode.Galaxy && _panVelocity.sqrMagnitude > 1e-6f)
+                {
+                    _map.GalaxyPan(_panVelocity * Time.unscaledDeltaTime);
+                    _panVelocity *= Mathf.Exp(-4f * Time.unscaledDeltaTime);
+                    if (_panVelocity.sqrMagnitude < 1e-6f)
+                    {
+                        _panVelocity = Vector2.zero;
+                        _map.GalaxyGestureEnd();
+                    }
+                }
 
+                return;
+            }
+
+            if (_panVelocity.sqrMagnitude > 0f && _b != null)
+                _panVelocity = Vector2.zero;
             var pa = _a.transform.position;
             if (mode == HoloMapMode.Galaxy)
             {
@@ -228,7 +254,11 @@ namespace Core.Holo
                 {
                     var la = transform.InverseTransformPoint(pa);
                     var lp = transform.InverseTransformPoint(_prevA);
-                    _map.GalaxyPan(new Vector2(la.x - lp.x, la.z - lp.z));
+                    var step = new Vector2(la.x - lp.x, la.z - lp.z);
+                    _map.GalaxyPan(step);
+                    // Remembered for a short glide once the hand lets go (a throw, not a dead stop).
+                    if (Time.unscaledDeltaTime > 1e-4f)
+                        _panVelocity = Vector2.Lerp(_panVelocity, step / Time.unscaledDeltaTime, 0.35f);
                 }
                 else
                 {

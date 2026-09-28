@@ -15,7 +15,7 @@ namespace Core.Vfx
     /// </summary>
     public partial class HoloZoneMap
     {
-        const int TerritoryRes = 256;
+        const int TerritoryRes = 512;
         const int MaxEmblems = 10;
 
         Texture2D _terrTex;
@@ -72,8 +72,9 @@ namespace Core.Vfx
             var n = TerritoryRes * TerritoryRes;
             var owner = new int[n];
             var dist = new float[n];
+            var dist2 = new float[n];
             for (var i = 0; i < n; i++)
-                dist[i] = float.MaxValue;
+                dist[i] = dist2[i] = float.MaxValue;
             var px = size / TerritoryRes;
             var rpx = _terrInfluence / px;
             var sums = new Dictionary<int, (Vector2 Sum, int Count)>();
@@ -94,10 +95,25 @@ namespace Core.Vfx
                     var dy = y + 0.5f - cy;
                     var d = dx * dx + dy * dy;
                     var k = y * TerritoryRes + x;
-                    if (d > rpx * rpx || d >= dist[k])
+                    if (d > rpx * rpx)
                         continue;
-                    dist[k] = d;
-                    owner[k] = s.OwnerId;
+                    // Nearest owner, and the nearest *other* owner (for a smooth border between the two).
+                    if (owner[k] == s.OwnerId)
+                    {
+                        if (d < dist[k])
+                            dist[k] = d;
+                    }
+                    else if (d < dist[k])
+                    {
+                        if (owner[k] > 0)
+                            dist2[k] = Mathf.Min(dist2[k], dist[k]);
+                        dist[k] = d;
+                        owner[k] = s.OwnerId;
+                    }
+                    else if (d < dist2[k])
+                    {
+                        dist2[k] = d;
+                    }
                 }
 
                 sums.TryGetValue(s.OwnerId, out var acc);
@@ -119,13 +135,23 @@ namespace Core.Vfx
                     continue;
                 }
 
-                var border = (x > 0 && owner[k - 1] != o) || (x < TerritoryRes - 1 && owner[k + 1] != o) ||
-                             (y > 0 && owner[k - TerritoryRes] != o) || (y < TerritoryRes - 1 && owner[k + TerritoryRes] != o);
+                // Border strength from distances, not from pixel neighbours: a soft, even line where the
+                // influence ends (against free space) or where two empires meet — no stair steps.
+                var d1 = Mathf.Sqrt(dist[k]);
+                var outer = rpx - d1;
+                var gap = outer;
+                if (dist2[k] < float.MaxValue)
+                    gap = Mathf.Min(gap, (Mathf.Sqrt(dist2[k]) - d1) * 0.5f);
+                // The line sits just inside the edge; the very edge fades to nothing (no texel stair).
+                var line = 1f - Mathf.SmoothStep(1.2f, 3.6f, gap);
+                var fade = Mathf.SmoothStep(0f, 1.4f, outer);
                 var c = OwnerColor(o);
-                var fill = o == me ? 0.4f : 0.3f;
-                _terrPixels[dst] = border
-                    ? (Color32)new Color(Mathf.Min(1f, c.r * 1.15f), Mathf.Min(1f, c.g * 1.15f), Mathf.Min(1f, c.b * 1.15f), 0.95f)
-                    : (Color32)new Color(c.r, c.g, c.b, fill);
+                // A light veil inside, a bright thin border: the stars stay the subject.
+                var fill = o == me ? 0.2f : 0.13f;
+                var bright = new Color(Mathf.Min(1f, c.r * 1.15f), Mathf.Min(1f, c.g * 1.15f), Mathf.Min(1f, c.b * 1.15f), 0.95f);
+                var px32 = Color.Lerp(new Color(c.r, c.g, c.b, fill), bright, line);
+                px32.a *= fade;
+                _terrPixels[dst] = px32;
             }
 
             if (_terrTex == null)
@@ -153,26 +179,7 @@ namespace Core.Vfx
             mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             _tokenRoots.Add(_terrQuad);
 
-            // Border curtains: the same texture, borders only, stacked above — territories read as volumes.
-            _curtainMat ??= MakeTerritoryMat();
-            _curtainMat.mainTexture = _terrTex;
-            if (_curtainMat.HasProperty("_BorderOnly"))
-                _curtainMat.SetFloat("_BorderOnly", 1f);
-            if (_curtainMat.HasProperty("_Opacity"))
-                _curtainMat.SetFloat("_Opacity", 0.35f);
-            for (var i = 0; i < _curtains.Length; i++)
-            {
-                var q = GameObject.CreatePrimitive(PrimitiveType.Quad);
-                q.name = "TerritoryCurtain" + i;
-                DropCollider(q);
-                q.transform.SetParent(_root, false);
-                q.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
-                var qr = q.GetComponent<MeshRenderer>();
-                qr.sharedMaterial = _curtainMat;
-                qr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-                _curtains[i] = q;
-                _tokenRoots.Add(q);
-            }
+            // (No stacked border curtains any more: they read as stair-stepped walls hiding the stars.)
 
             // Galactic core: a soft glow where the stars gather.
             var sum = Vector2.zero;
@@ -190,6 +197,82 @@ namespace Core.Vfx
             _tokenRoots.Add(_core);
 
             BuildEmblems(sums);
+            BuildNebula(stars);
+        }
+
+        const int NebulaRes = 128;
+        Texture2D _nebTex;
+        GameObject _nebQuad;
+        Material _nebMat;
+
+        /// <summary>
+        /// The galaxy's own shape under the stars: every star splats a soft blob into a small density map,
+        /// coloured deep blue-violet in the arms and warm toward the dense core — a nebula that is really where
+        /// the stars are. One 128² texture on one quad, drawn once per galaxy open (clipped to the table).
+        /// </summary>
+        void BuildNebula(IReadOnlyList<GalaxyCatalog.Star> stars)
+        {
+            var n = NebulaRes * NebulaRes;
+            var dens = new float[n];
+            var px = _terrRect.width / NebulaRes;
+            var r = Mathf.Max(1.5f, _terrInfluence * 1.6f / px);
+            var r2 = r * r;
+            foreach (var st in stars)
+            {
+                var cx = (st.MapX - _terrRect.x) / px;
+                var cy = (st.MapY - _terrRect.y) / px;
+                var x0 = Mathf.Max(0, Mathf.FloorToInt(cx - r));
+                var x1 = Mathf.Min(NebulaRes - 1, Mathf.CeilToInt(cx + r));
+                var y0 = Mathf.Max(0, Mathf.FloorToInt(cy - r));
+                var y1 = Mathf.Min(NebulaRes - 1, Mathf.CeilToInt(cy + r));
+                for (var y = y0; y <= y1; y++)
+                for (var x = x0; x <= x1; x++)
+                {
+                    var dx = x + 0.5f - cx;
+                    var dy = y + 0.5f - cy;
+                    var d = (dx * dx + dy * dy) / r2;
+                    if (d < 1f)
+                        dens[y * NebulaRes + x] += (1f - d) * (1f - d);
+                }
+            }
+
+            var max = 0f;
+            for (var i = 0; i < n; i++)
+                max = Mathf.Max(max, dens[i]);
+            if (max <= 0f)
+                return;
+            var pixels = new Color32[n];
+            var arm = new Color(0.22f, 0.3f, 0.9f);
+            var core = new Color(1f, 0.74f, 0.5f);
+            for (var y = 0; y < NebulaRes; y++)
+            for (var x = 0; x < NebulaRes; x++)
+            {
+                var v = Mathf.Pow(dens[y * NebulaRes + x] / max, 0.6f);
+                var c = Color.Lerp(arm, core, Mathf.SmoothStep(0.86f, 1f, v) * 0.8f);
+                c.a = Mathf.SmoothStep(0.02f, 0.9f, v) * 0.3f;
+                pixels[(NebulaRes - 1 - y) * NebulaRes + x] = c;
+            }
+
+            if (_nebTex == null)
+                _nebTex = new Texture2D(NebulaRes, NebulaRes, TextureFormat.RGBA32, false)
+                {
+                    name = "GalaxyNebula",
+                    wrapMode = TextureWrapMode.Clamp,
+                    filterMode = FilterMode.Bilinear
+                };
+            _nebTex.SetPixels32(pixels);
+            _nebTex.Apply(false);
+            _nebQuad = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            _nebQuad.name = "GalaxyNebula";
+            DropCollider(_nebQuad);
+            _nebQuad.transform.SetParent(_root, false);
+            _nebQuad.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            _nebMat ??= MakeTerritoryMat();
+            _nebMat.mainTexture = _nebTex;
+            var mr = _nebQuad.GetComponent<MeshRenderer>();
+            mr.sharedMaterial = _nebMat;
+            mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            _tokenRoots.Add(_nebQuad);
         }
 
         Material _coreMat;
@@ -300,7 +383,13 @@ namespace Core.Vfx
                 _terrQuad.transform.localScale = new Vector3(_terrRect.width * _gScale, _terrRect.height * _gScale, 1f);
                 var clipC = _root.TransformPoint(new Vector3(0f, lift, 0f));
                 var clipR = WorldScale.HoloDiscRadius * GalaxyViewRadiusFactor * _root.lossyScale.x;
-                foreach (var m in new[] { _terrMat, _curtainMat })
+                if (_nebQuad != null)
+                {
+                    _nebQuad.transform.localPosition = MapToLocal(c.x, c.y, lift - 0.006f);
+                    _nebQuad.transform.localScale = _terrQuad.transform.localScale;
+                }
+
+                foreach (var m in new[] { _terrMat, _curtainMat, _nebMat })
                 {
                     if (m == null)
                         continue;

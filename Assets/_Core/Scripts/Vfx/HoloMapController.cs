@@ -160,9 +160,33 @@ namespace Core.Vfx
                 stick += _rightAxis.ReadValue().y;
 
             if (Mathf.Abs(stick) > 0.15f)
-                Zoom(Mathf.Pow(2f, Mathf.Clamp(stick, -1f, 1f) * 1.4f * Time.unscaledDeltaTime), Vector2.zero);
+                Zoom(Mathf.Pow(2f, Mathf.Clamp(stick, -1f, 1f) * 1.4f * Time.unscaledDeltaTime), StickPivot());
             else
                 _push = 1f;
+        }
+
+        UnityEngine.XR.Interaction.Toolkit.Interactors.NearFarInteractor _rightRay;
+        float _nextRayScan;
+
+        /// <summary>Galaxy: zoom toward where the right ray points on the plate (else the table centre).</summary>
+        Vector2 StickPivot()
+        {
+            if (_mode != HoloMapMode.Galaxy || _map == null)
+                return Vector2.zero;
+            if ((_rightRay == null || !_rightRay.isActiveAndEnabled) && Time.unscaledTime >= _nextRayScan)
+            {
+                _nextRayScan = Time.unscaledTime + 2f;
+                _rightRay = null;
+                foreach (var r in FindObjectsByType<UnityEngine.XR.Interaction.Toolkit.Interactors.NearFarInteractor>(FindObjectsSortMode.None))
+                    if (r.transform.parent != null && r.transform.parent.name.IndexOf("Right", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                        _rightRay = r;
+            }
+
+            if (_rightRay == null || !_rightRay.isActiveAndEnabled)
+                return Vector2.zero;
+            return _map.GalaxyAimLocal(_rightRay.transform.position, _rightRay.transform.forward, out var local)
+                ? local
+                : Vector2.zero;
         }
 
         /// <summary>

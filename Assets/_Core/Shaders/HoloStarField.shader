@@ -47,6 +47,7 @@ Shader "SU/HoloStarField"
                 float2 uv : TEXCOORD0;
                 float4 color : COLOR;
                 float mark : TEXCOORD1;
+                float ringOnly : TEXCOORD2;
                 UNITY_VERTEX_OUTPUT_STEREO
             };
 
@@ -64,7 +65,8 @@ Shader "SU/HoloStarField"
                 float rim = saturate((_DiscRadius - r) / max(1e-4, _RimFade));
                 o.color = v.color;
                 float phase = frac(v.uv2.y);
-                o.mark = step(1.5, v.uv2.y);
+                o.ringOnly = step(3.5, v.uv2.y);
+                o.mark = step(1.5, v.uv2.y) * (1.0 - o.ringOnly);
                 // Slow twinkle, a different phase per star.
                 o.color.a *= rim * (0.82 + 0.18 * sin(_Time.y * (1.3 + phase * 1.7) + phase * 40.0));
                 return o;
@@ -74,16 +76,23 @@ Shader "SU/HoloStarField"
             {
                 UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(i);
                 float d = length(i.uv);
-                float core = saturate(1.0 - d * 4.5);
+                // Owner ring only (a second quad under a held star): a thin circle in the empire's colour.
+                if (i.ringOnly > 0.5)
+                {
+                    float band = saturate(1.0 - abs(d - 0.78) * 16.0);
+                    return float4(i.color.rgb * _Intensity, band * 0.75 * i.color.a);
+                }
+                float core = saturate(1.0 - d * 4.0);
                 core *= core * core;
+                // A coloured glow around a small hot core: the star keeps its hue instead of burning white.
                 float glow = saturate(1.0 - d);
-                glow = glow * glow * glow * glow * 0.55;
+                glow = glow * glow * glow * 0.9;
                 float2 a = abs(i.uv);
                 float spikes = (saturate(1.0 - a.x * 22.0) * pow(saturate(1.0 - a.y), 3.0)
-                    + saturate(1.0 - a.y * 22.0) * pow(saturate(1.0 - a.x), 3.0)) * 0.4;
-                float ring = saturate(1.0 - abs(d - 0.8) * 14.0) * 0.45 * i.mark;
+                    + saturate(1.0 - a.y * 22.0) * pow(saturate(1.0 - a.x), 3.0)) * 0.35;
+                float ring = saturate(1.0 - abs(d - 0.8) * 14.0) * 0.55 * i.mark;
                 float cover = saturate(core + glow + spikes + ring) * i.color.a;
-                float3 col = lerp(i.color.rgb, 1.0.xxx, core * 0.7) * _Intensity;
+                float3 col = lerp(i.color.rgb, 1.0.xxx, core * 0.35) * _Intensity;
                 return float4(col, cover);
             }
             ENDCG

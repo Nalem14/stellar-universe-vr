@@ -25,6 +25,13 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 | `vr.coords.title` | Coordinates | Coordonnées | Titre du pavé (suivi du nom du vaisseau) |
 | `vr.coords.none` | No system at {0} — nearest: {1} | Aucun système en {0} — le plus proche : {1} | Coordonnées sans système : le plus proche est proposé au pupitre |
 
+## À intégrer — galaxie holo (menu d'une étoile)
+
+| Clé | EN | FR | Contexte |
+|---|---|---|---|
+| `vr.galaxy.zoomHere` | Zoom here | Zoomer ici | Menu d'une étoile cliquée sans vaisseau sélectionné : la vue s'envole sur elle |
+| `vr.galaxy.send` | Send {0} | Envoyer {0} | Même menu : un de nos vaisseaux libres vers cette étoile (`{0}` = nom du vaisseau) |
+
 ## Intégré côté web
 
 - Clés `vr.*`, `crew.*`, `buildingDesc_*`, `colonyLog_*`, `relation_*` dans `assets/langs/{fr,en}.json`.
