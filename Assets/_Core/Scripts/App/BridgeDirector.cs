@@ -129,6 +129,8 @@ namespace Core.App
             var watchLayer = LayerMask.NameToLayer("Watch");
             Core.UI.WristPanel.Build(FindInactive("Left Controller"), FindInactive("Left Hand"), watchLayer);
             Core.UI.QuickMenu.Build(interior.transform, watchLayer);
+            // Off the bridge, the crew's lines follow the captain on a strip high in view.
+            Core.UI.CrewNoticeHud.Build(transform);
             // A running planetary survey, spelled out above the holo table (facing the captain).
             SurveyBanner.Build(interior.transform, _focus, new Vector3(0f, 1.24f, 0.95f),
                 WorldScale.CicCaptainStand + Vector3.up * 1.6f, -1);
