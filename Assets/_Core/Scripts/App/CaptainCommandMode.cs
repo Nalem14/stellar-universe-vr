@@ -126,7 +126,7 @@ namespace Core.App
             CommandModeChanged += _ => RelabelSeatButton();
         }
 
-        Core.UI.PokeButton _seatButton;
+        Core.UI.ArmKey _seatButton;
 
         void RelabelSeatButton()
         {

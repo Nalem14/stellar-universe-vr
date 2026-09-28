@@ -1,78 +1,120 @@
 using Core.Vfx;
+using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace Core.UI
 {
+    /// <summary>A touch key on a captain's arm panel (poke with a finger, or ray + trigger).</summary>
+    public sealed class ArmKey : MonoBehaviour
+    {
+        public Button Button;
+        public TMP_Text Label;
+
+        /// <summary>Lit and pressable, or greyed out (e.g. the watch when nothing long is running).</summary>
+        public bool Interactive
+        {
+            get => Button != null && Button.interactable;
+            set
+            {
+                if (Button != null)
+                    Button.interactable = value;
+                if (Label != null)
+                    Label.alpha = value ? 1f : 0.45f;
+            }
+        }
+    }
+
     /// <summary>
-    /// The captain's arm consoles: a tilted panel on each armrest (turned 20° toward the seat, so it is read and
-    /// poked from the chair without craning), a dark bezel plate with a lit edge, and a tidy 2 × 2 grid of
-    /// real-size buttons. Left = the view (ship list, watch, forward view, auto direction); right = the post
-    /// (stand up, guide, glow). One socket per pad; callers ask for a slot.
+    /// The captain's arm panels: on each armrest a short arm rises to a tilted holo tablet, turned toward the
+    /// seated captain's eyes and within a finger's reach — a column of touch keys on a world-space canvas,
+    /// pressed by poking or by the ray. Left = the view (ship list, watch, forward view, auto direction);
+    /// right = the post (sit / stand, guide). One panel per armrest, built on first use; callers ask a slot.
     /// </summary>
     public static class ArmConsole
     {
-        /// <summary>Button cap face (m): big enough to poke with a hand, labels readable seated.</summary>
-        public static readonly Vector2 ButtonSize = new(0.086f, 0.058f);
+        const int Slots = 4;
+        /// <summary>Canvas: 1 px = 0.5 mm → a 14 × 21 cm tablet.</summary>
+        const float MetersPerPixel = 0.0005f;
+        static readonly Vector2 Px = new(280f, 420f);
+        static readonly Vector2 KeyPx = new(248f, 80f);
 
-        const float Tilt = 20f;
-        const float PlateY = 0.05f;
-        /// <summary>One type size for every label (m, cap height), two lines allowed: no giant "Auto" beside a cut-off label.</summary>
-        const float LabelHeight = 0.0105f;
-
-        /// <summary>The panel over <paramref name="pad"/> (built once); <paramref name="side"/> −1 left, +1 right.</summary>
-        public static Transform Socket(Transform pad, int side, Color accent)
+        /// <summary>The panel's canvas over <paramref name="pad"/> (built once); <paramref name="side"/> −1 left, +1 right.</summary>
+        public static RectTransform Panel(Transform pad, int side, Color accent)
         {
             if (pad == null)
                 return null;
-            var existing = pad.Find("ArmConsole");
+            var existing = pad.Find("ArmPanel_Socket/ArmPanel");
             if (existing != null)
-                return existing;
-            // The console replaces the flat pad: a wedge housing whose top is tilted toward the seat (the captain
-            // sits between the pads), its low edge sitting on the armrest, a lit rim on the inner edge.
-            var r = pad.GetComponent<MeshRenderer>();
-            if (r != null)
-                r.enabled = false;
-            var socket = ScreenMount.Socket(pad, "ArmConsole", new Vector3(0f, PlateY, 0.01f), Quaternion.Euler(0f, 0f, side * Tilt));
-            UiKit.MeshPiece(socket, "Housing", UiMeshes.RoundedBox(new Vector3(0.2f, 0.07f, 0.2f), 0.014f), UiKit.Chassis,
-                new Vector3(0f, -0.036f, 0f));
-            UiKit.MeshPiece(socket, "Plate", UiMeshes.RoundedBox(new Vector3(0.186f, 0.006f, 0.186f), 0.006f), UiKit.Bezel,
-                Vector3.zero);
-            var edge = UiKit.MeshPiece(socket, "Edge", UiMeshes.RoundedBox(new Vector3(0.006f, 0.008f, 0.18f), 0.003f), UiKit.Cap,
-                new Vector3(-side * 0.1f, -0.002f, 0f));
+                return existing.GetComponentInChildren<Canvas>(true).transform.GetChild(0) as RectTransform;
+
+            // The arm: from the front of the armrest, up and a little outward, to the tablet.
+            var socket = ScreenMount.Socket(pad, "ArmPanel", new Vector3(side * 0.03f, 0.02f, 0.1f), Quaternion.identity);
+            var room = pad.parent;
+            var eye = room != null
+                ? room.TransformPoint(new Vector3(0f, 1.17f, WorldScale.CicCaptainChairZ - 0.05f))
+                : socket.position + Vector3.up * 0.4f;
+            var head = new GameObject("Tablet").transform;
+            head.SetParent(socket, false);
+            head.localPosition = new Vector3(side * 0.028f, 0.24f, 0f);
+            ScreenMount.FaceViewer(head, eye, 0.85f, 6f);
+
+            // The arm runs up behind the tablet (away from the captain), into the middle of its back.
+            var back = socket.InverseTransformPoint(head.TransformPoint(new Vector3(0f, -0.02f, 0.03f)));
+            var foot = new Vector3(0f, 0f, back.z);
+            var stalk = UiKit.MeshPiece(socket, "Stalk",
+                UiMeshes.RoundedBox(new Vector3(0.026f, (back - foot).magnitude, 0.026f), 0.011f), UiKit.Chassis,
+                (back + foot) * 0.5f);
+            stalk.transform.localRotation = Quaternion.FromToRotation(Vector3.up, back - foot);
+
+            // Housing: a dark rounded slab, a lit rim on the side toward the captain.
+            UiKit.MeshPiece(head, "Housing", UiMeshes.RoundedBox(new Vector3(0.158f, 0.232f, 0.014f), 0.012f), UiKit.Chassis,
+                new Vector3(0f, 0f, 0.009f));
+            var rim = UiKit.MeshPiece(head, "Rim", UiMeshes.RoundedBox(new Vector3(0.004f, 0.2f, 0.006f), 0.002f), UiKit.Cap,
+                new Vector3(-side * 0.08f, 0f, 0.001f));
             var block = new MaterialPropertyBlock();
             block.SetColor(UiKit.AccentId, accent);
             block.SetFloat(UiKit.AccentMulId, 2.4f);
-            edge.GetComponent<MeshRenderer>().SetPropertyBlock(block);
-            return socket;
+            rim.GetComponent<MeshRenderer>().SetPropertyBlock(block);
+
+            var canvas = DiegeticUi.WorldCanvas(head, "Canvas", Px, new Vector3(0f, 0f, -0.0015f), Quaternion.identity, MetersPerPixel);
+            var frame = DiegeticUi.HoloFrame(canvas.transform, Px);
+            var img = frame.GetComponent<Image>();
+            img.raycastTarget = false;
+            img.color = new Color(accent.r * 0.6f + 0.4f, accent.g * 0.6f + 0.4f, accent.b * 0.6f + 0.4f, 0.85f);
+
+            // A thin lit header line, the panel's colour.
+            var line = new GameObject("Header", typeof(RectTransform), typeof(Image)).GetComponent<Image>();
+            line.transform.SetParent(frame, false);
+            line.rectTransform.sizeDelta = new Vector2(Px.x - 60f, 4f);
+            line.rectTransform.anchoredPosition = new Vector2(0f, Px.y * 0.5f - 22f);
+            line.color = accent;
+            line.raycastTarget = false;
+            return frame;
         }
 
-        /// <summary>Slot <paramref name="index"/> of the 2 × 2 grid (row by row, nearest the knee first).</summary>
-        public static Vector3 Slot(int index)
-        {
-            var col = index % 2;
-            var row = index / 2;
-            return new Vector3(col == 0 ? -0.045f : 0.045f, 0.006f, 0.042f - row * 0.084f);
-        }
+        /// <summary>Centre of slot <paramref name="index"/> (top to bottom) on the tablet canvas.</summary>
+        static Vector2 Slot(int index) => new(0f, 138f - Mathf.Clamp(index, 0, Slots - 1) * 94f);
 
-        /// <summary>A button in slot <paramref name="index"/> of the console on <paramref name="pad"/>.</summary>
-        public static PokeButton Button(Transform pad, int side, int index, string name, string label, Color accent, System.Action onPress)
+        /// <summary>A key in slot <paramref name="index"/> of the panel on <paramref name="pad"/>.</summary>
+        public static ArmKey Button(Transform pad, int side, int index, string name, string label, Color accent, System.Action onPress)
         {
-            var socket = Socket(pad, side, side < 0 ? CicArtKit.Cyan : CicArtKit.Amber);
-            if (socket == null)
+            var frame = Panel(pad, side, side < 0 ? CicArtKit.Cyan : CicArtKit.Amber);
+            if (frame == null)
                 return null;
-            var b = PokeButton.Create(socket, name, label, Slot(index), Quaternion.Euler(90f, 0f, 0f), ButtonSize, accent, onPress);
-            var t = b.Label;
-            if (t != null)
-            {
-                t.enableAutoSizing = false;
-                t.fontSize = LabelHeight * 100f * 14f;
-                t.textWrappingMode = TMPro.TextWrappingModes.Normal;
-                t.overflowMode = TMPro.TextOverflowModes.Ellipsis;
-                t.rectTransform.sizeDelta = new Vector2(ButtonSize.x * 90f, ButtonSize.y * 85f);
-                t.lineSpacing = -18f;
-            }
-
-            return b;
+            var style = accent == CicArtKit.Amber ? DiegeticUi.BtnStyle.Amber : DiegeticUi.BtnStyle.Cyan;
+            var b = DiegeticUi.HoloButton(frame, label, Slot(index), KeyPx, () => onPress?.Invoke(), style);
+            b.name = name;
+            b.navigation = new Navigation { mode = Navigation.Mode.None };
+            var t = b.GetComponentInChildren<TMP_Text>();
+            t.enableAutoSizing = true;
+            t.fontSizeMin = 16f;
+            t.fontSizeMax = 26f;
+            t.textWrappingMode = TextWrappingModes.Normal;
+            var key = b.gameObject.AddComponent<ArmKey>();
+            key.Button = b;
+            key.Label = t;
+            return key;
         }
     }
 }

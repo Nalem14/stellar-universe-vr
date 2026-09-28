@@ -58,7 +58,7 @@ namespace Core.App
         FocusContext _focus;
         Transform _deck;
         WatchCluster _cluster;
-        Core.UI.PokeButton _offer;
+        Core.UI.ArmKey _offer;
         readonly List<WatchAffair> _affairs = new();
         readonly Dictionary<int, long> _transitSeen = new();
         float _nextScan;
@@ -95,7 +95,7 @@ namespace Core.App
         }
 
         /// <summary>The left arm pad button: lit only when a watch is worth it.</summary>
-        public void BindOffer(Core.UI.PokeButton button)
+        public void BindOffer(Core.UI.ArmKey button)
         {
             _offer = button;
             RefreshOffer();

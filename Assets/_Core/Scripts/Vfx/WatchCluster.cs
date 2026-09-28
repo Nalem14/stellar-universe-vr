@@ -276,6 +276,8 @@ namespace Core.Vfx
             _board = DiegeticUi.HoloButton(frame, Trans.Get("vr.watch.board"), new Vector2(0f, -146f), new Vector2(190f, 40f),
                 () => _onBoard?.Invoke(), DiegeticUi.BtnStyle.Amber);
             _boardImage = _board.GetComponent<Image>();
+            // The ray must reach it from afar (trigger), not only a finger touching it.
+            Core.UI.RayPress.Add(_board);
         }
 
         static TMP_Text Label(Transform parent, Vector2 pos, Vector2 size, float fontSize, Color color, FontStyles style,
