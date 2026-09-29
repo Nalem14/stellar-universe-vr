@@ -104,7 +104,7 @@ Appelées par le client web : 140/159. « Appelée » ≠ « finie » : voir la 
 
 | Action | R/W | Params | VR | Web | Station | Phase | Statut | Notes |
 |---|---|---|---|---|---|---|---|---|
-| `AddShip` | W | type, planet | `Stations/ShipyardPanel.cs` | `objects/fleet.js` | Engineering | P5 | Branché | Onglet Chantier de la cale : catalogue par famille (shipstats), prérequis `requiert`, Construire / + File ; réponse texte ou JSON `queued` |
+| `AddShip` | W | type, planet | `Stations/ShipyardPanel.cs` | `objects/fleet.js` | Engineering | P5 | Branché | Onglet Chantier de la cale : catalogue par famille (shipstats), prérequis `requiert`, Construire / + File ; ou bloc holographique du fabricateur déclenché deux fois (mêmes gardes) ; réponse texte ou JSON `queued` |
 | `AddToFleet` | W | fleet, ship, planet? | `Stations/DryDock.cs` | `objects/fleet.js` | Engineering | P5 | Branché | `fleet=0` + ShipCore → JSON `{ok,fleet}` (systemid=planète) ; refuse notYourShip sans supprimer |
 | `ApplyShipTemplate` | W | fleet, template | `Stations/BlueprintPanel.cs` | `ui/ShipBuilderUI.js` | Engineering | P5 | Branché |  |
 | `CancelQueuedShip` | W | id, queue_id | `Stations/ShipyardPanel.cs` | `scenes/planet.js` | Engineering | P5 | Branché | Param `id` (ligne planet_ship_queue) |
@@ -113,7 +113,7 @@ Appelées par le client web : 140/159. « Appelée » ≠ « finie » : voir la 
 | `DeleteShipTemplate` | W | id | `Stations/BlueprintPanel.cs` | `ui/ShipBuilderUI.js` | Engineering | P5 | Branché |  |
 | `GetShipLayout` | R | fleet | `Stations/DryDock.cs` +1 | `ui/ShipBuilderUI.js` | Engineering | P5 | Branché | Coque 1:1 dans la cale + hublots (`ShipHullBuilder`) |
 | `GetShipTemplates` | R | — | `Stations/BlueprintPanel.cs` | `ui/ShipBuilderUI.js` | Engineering | P5 | Branché |  |
-| `PlaceShipModule` | W | ship, fleet, gx, gy | `Stations/DryDock.cs` | `ui/ShipBuilderUI.js` | Engineering | P5 | Branché | Cale sèche : caisse posée à la main (ou case visée) ; serveur + VR : adjacence 4-voisins, cœur, planète, cache fleet_stats_ ; plus de plafond de taille (web `81f4c17`) : seule la grille 9×9 limite |
+| `PlaceShipModule` | W | ship, fleet, gx, gy | `Stations/DryDock.cs` | `ui/ShipBuilderUI.js` | Engineering | P5 | Branché | Cale sèche : caisse posée à la main (ou case visée), ou bloc pris sur les étagères du fabricateur (un par type, pages tournées par le portique) ; serveur + VR : adjacence 4-voisins, cœur, planète, cache fleet_stats_ ; plus de plafond de taille (web `81f4c17`) : seule la grille 9×9 limite |
 | `RemoveShipModule` | W | ship | `Stations/DryDock.cs` | `ui/ShipBuilderUI.js` | Engineering | P5 | Branché | Cale sèche : en deux temps ; refusé si le retrait couperait le vaisseau du cœur |
 | `SaveShipTemplate` | W | fleet, name | `Stations/BlueprintPanel.cs` | `ui/ShipBuilderUI.js` | Engineering | P5 | Branché |  |
 | `SpeedupShipyard` | W | planet, ship? | `Stations/ShipyardPanel.cs` | `scenes/planet.js` | Engineering | P5 | Branché | Coût Nova affiché (gratuit ≤ 60 s) |
@@ -131,7 +131,7 @@ Appelées par le client web : 140/159. « Appelée » ≠ « finie » : voir la 
 | `CheckShipQueue` | R | planet | `App/ServerTimers.cs` | `view/game.php` | Engineering | P5 | Branché | Idem pour le module en cours de la cale sèche (onglet Chantier) |
 | `DowngradeBuilding` | W | buildingtype, planet | `Stations/OpsConsole.cs` | `objects/planet.js` | Ops | P5 | Branché | Immédiat, sans remboursement : confirmation en deux temps |
 | `GetPlanetDecisions` | R | planet | `Stations/OpsConsole.cs` | `objects/planet.js` | Ops | P5 | Branché | 10 décisions / planète / heure, `nextRefreshAt` → compte à rebours ; titres via `decision_*` / `decisionDesc_*` |
-| `GetResource` | R | planet, raw? | `App/EconomyService.cs` | `objects/planet.js` | Ops (poll global) | P0 | Branché | `EconomyService` : `raw=1` sur **toutes** les planètes (csv ≤ 50) toutes les 10 s — accumule la production et fait avancer les files. `user` = PublicUser (id/username) seulement |
+| `GetResource` | R | planet, raw? | `App/EconomyService.cs` +1 | `objects/planet.js` | Ops (poll global) | P0 | Branché | `EconomyService` : `raw=1` sur **toutes** les planètes (csv ≤ 50) toutes les 10 s — accumule la production et fait avancer les files. `user` = PublicUser (id/username) seulement |
 | `ImproveResearch` | W | research, planet | `Crew/CrewLines.cs` +1 | `objects/research.js` | Science | P5 | Branché | Labo Science : cristal de la constellation → synthétiseur (ou bouton) ; `planet` = meilleur researchLab ; corps vide = lancé, JSON `{queued,targetLevel}` = en file ; prérequis `GetConfigs.researchs.requiert` |
 | `RecruitTroop` | W | planet, type, qty | `Crew/CrewLines.cs` +1 | `objects/planet.js` | Tactical | P5 | Branché | Console Armurerie (Tactique) : lot 1–500, coût × qty, durée time×qty×(100−(computer+1))/100, un lot par planète (`troopWorking`) |
 | `RefreshStats` | W | planet | `Stations/OpsConsole.cs` | `objects/planet.js` | Ops | P5 | Branché | Onglet Rapport de la console Ops : rendement des mines par jour et énergie produite (page Stats du web), relu toutes les 30 s ; voir écarts (bonus ignorés) |
@@ -297,6 +297,11 @@ Corrigés dans `stellar-universe` (`7580501`, 2026-09-25) — le client VR ne co
 | Bandeau d'analyse planétaire (`vr.survey.active` / `done` / `gained`) **dans les dix langues**, dans la famille `vr.survey.*` existante | Fait |
 | Charge des bâtiments (`vr.ops.loadEnergy` / `loadPower` / `loadJobs` : valeur actuelle → niveau suivant) et invitation du râtelier (`vr.dock.pickShipFirst`) **dans les dix langues** | Fait |
 | Aller à des coordonnées (`vr.coords.go` / `title` / `none`) et menu d'une étoile de la galaxie (`vr.galaxy.zoomHere` / `send`) **dans les dix langues** | Fait |
+| Stock de la planète au chantier (`vr.yard.planetStock`) **dans les dix langues** | Fait |
+| Fabricateur de modules de la cale sèche (`vr.dock.shelf.*` : enseigne, stock, pose, fabrication et mise en file à double déclenchement, production, filtres) **dans les dix langues** | Fait |
+| Bilan par bâtiment de la console Ops (`vr.ops.loadWorkforce` : emplois face à la population) **dans les dix langues** | Fait |
+| Minage (`vr.mining.*`), soute (`vr.cargo.step` / `max`), chantier et laboratoire au poignet (`vr.watch.shipyard` / `researchWhere`) et retour à la base (`vr.helm.returnHome`) **dans les dix langues** | Fait |
+| File d'ordres (`vr.queue.busyHint` / `chainHint` / `hint`) **dans les dix langues** | Fait |
 | Répliques de voyage de la barre (`crew.helm.transitSublight` / `transitHyperspace` ×2 / `transitBond` / `transitGate` / `dropOut` ×2 / `approach`) en fr/en | Fait |
 
 ### Restants
