@@ -1,3 +1,4 @@
+using Core.UI;
 using UnityEngine;
 
 namespace Core.Vfx
@@ -86,7 +87,9 @@ namespace Core.Vfx
 
         static void BuildCaptainStation(CicEnvironment host, CicArtKit art)
         {
-            // Aft of table, facing +Z (hublots + table). Not a cinema seat.
+            // Aft of the table, facing +Z (hublots + table). A command chair at human size: seat top 0.46 m
+            // above its dais (0.62 m above the deck), a raked back with headrest, armrests at elbow height,
+            // and at the front of each armrest a short arm lifting a tablet toward the seated captain.
             var chairZ = WorldScale.CicCaptainChairZ;
             var station = new GameObject("CaptainStation");
             station.transform.SetParent(host.transform, false);
@@ -94,33 +97,62 @@ namespace Core.Vfx
 
             host.Box("CaptainDais", new Vector3(0f, 0.08f, chairZ),
                 new Vector3(1.6f, 0.16f, 1.3f), art.MetalPanel(0.1f), keepCollider: true);
-            host.Box("CaptainRailL", new Vector3(-0.75f, 0.55f, chairZ - 0.15f),
-                new Vector3(0.08f, 0.7f, 0.08f), art.DarkPanel(0.08f), keepCollider: false);
-            host.Box("CaptainRailR", new Vector3(0.75f, 0.55f, chairZ - 0.15f),
-                new Vector3(0.08f, 0.7f, 0.08f), art.DarkPanel(0.08f), keepCollider: false);
-            host.Box("CaptainRailBar", new Vector3(0f, 0.9f, chairZ - 0.15f),
-                new Vector3(1.55f, 0.06f, 0.06f), art.CyanEmit(2.0f), keepCollider: false);
+            // Lit edge of the dais, the step one sees walking up to the chair.
+            host.Box("CaptainDaisEdge", new Vector3(0f, 0.163f, chairZ + 0.645f),
+                new Vector3(1.56f, 0.008f, 0.012f), art.CyanEmit(1.6f), keepCollider: false);
+            host.Box("CaptainRailL", new Vector3(-0.75f, 0.55f, chairZ - 0.5f),
+                new Vector3(0.08f, 0.78f, 0.08f), art.DarkPanel(0.08f), keepCollider: false);
+            host.Box("CaptainRailR", new Vector3(0.75f, 0.55f, chairZ - 0.5f),
+                new Vector3(0.08f, 0.78f, 0.08f), art.DarkPanel(0.08f), keepCollider: false);
+            host.Box("CaptainRailBar", new Vector3(0f, 0.94f, chairZ - 0.5f),
+                new Vector3(1.55f, 0.05f, 0.05f), art.CyanEmit(2.0f), keepCollider: false);
 
-            // Seat shell.
-            host.Box("CaptainSeat", new Vector3(0f, 0.52f, chairZ + 0.05f),
-                new Vector3(0.7f, 0.12f, 0.65f), art.DarkPanel(0.12f), keepCollider: true);
-            host.Box("CaptainBack", new Vector3(0f, 0.95f, chairZ - 0.28f),
-                new Vector3(0.7f, 0.85f, 0.12f), art.DarkPanel(0.1f), keepCollider: true);
-            host.Box("CaptainArmL", new Vector3(-0.42f, 0.62f, chairZ + 0.05f),
-                new Vector3(0.1f, 0.18f, 0.55f), art.SoftPanel(0.15f), keepCollider: false);
-            host.Box("CaptainArmR", new Vector3(0.42f, 0.62f, chairZ + 0.05f),
-                new Vector3(0.1f, 0.18f, 0.55f), art.SoftPanel(0.15f), keepCollider: false);
-            host.Box("CaptainHeadrest", new Vector3(0f, 1.35f, chairZ - 0.28f),
-                new Vector3(0.45f, 0.18f, 0.1f), art.MetalPanel(0.2f), keepCollider: false);
+            var shell = art.DarkPanel(0.12f);
+            var cushion = art.SoftPanel(0.14f);
+            var metal = art.MetalPanel(0.22f);
+            // Swivel column and foot on the dais.
+            host.Cylinder("CaptainFoot", new Vector3(0f, 0.18f, chairZ), new Vector3(0.52f, 0.02f, 0.52f), metal);
+            host.Cylinder("CaptainColumn", new Vector3(0f, 0.34f, chairZ), new Vector3(0.14f, 0.16f, 0.14f), shell);
+            // Seat: a shell and its cushion (collider = the seat you point at to sit).
+            Rounded(host, "CaptainSeatShell", new Vector3(0f, 0.53f, chairZ + 0.02f), new Vector3(0.62f, 0.08f, 0.56f), 0.03f, shell);
+            var seat = Rounded(host, "CaptainSeat", new Vector3(0f, 0.595f, chairZ + 0.03f), new Vector3(0.54f, 0.07f, 0.5f), 0.03f, cushion);
+            // One box over seat and back: what the ray points at to sit (CaptainCommandMode).
+            var sitBox = seat.AddComponent<BoxCollider>();
+            sitBox.size = new Vector3(0.64f, 0.95f, 0.62f);
+            sitBox.center = new Vector3(0f, 0.43f, -0.1f);
+            // Back, raked 12°: shell, cushion, headrest.
+            var back = new GameObject("CaptainBackFrame").transform;
+            back.SetParent(host.transform, false);
+            back.localPosition = new Vector3(0f, 0.6f, chairZ - 0.25f);
+            back.localRotation = Quaternion.Euler(-12f, 0f, 0f);
+            UiKit.MeshPiece(back, "CaptainBack", UiMeshes.RoundedBox(new Vector3(0.6f, 0.78f, 0.09f), 0.035f), shell,
+                new Vector3(0f, 0.39f, -0.02f));
+            UiKit.MeshPiece(back, "CaptainBackCushion", UiMeshes.RoundedBox(new Vector3(0.48f, 0.56f, 0.05f), 0.025f), cushion,
+                new Vector3(0f, 0.34f, 0.045f));
+            UiKit.MeshPiece(back, "CaptainHeadrest", UiMeshes.RoundedBox(new Vector3(0.34f, 0.15f, 0.09f), 0.04f), metal,
+                new Vector3(0f, 0.86f, 0.02f));
+            UiKit.MeshPiece(back, "CaptainBackLight", UiMeshes.RoundedBox(new Vector3(0.012f, 0.6f, 0.012f), 0.005f), art.AmberEmit(2.2f),
+                new Vector3(0f, 0.38f, -0.07f));
+            // Armrests: an upright under each, the rest at elbow height (0.2 m above the cushion).
+            foreach (var side in new[] { -1f, 1f })
+            {
+                var n = side < 0f ? "L" : "R";
+                Rounded(host, "CaptainArmPost" + n, new Vector3(side * 0.33f, 0.66f, chairZ + 0.02f), new Vector3(0.05f, 0.14f, 0.05f), 0.02f, metal);
+                Rounded(host, "CaptainArm" + n, new Vector3(side * 0.34f, 0.77f, chairZ + 0.02f), new Vector3(0.09f, 0.05f, 0.5f), 0.022f, cushion);
+            }
 
-            // Arm consoles: true-size rounded hardware (unscaled) so buttons sit on their top face.
-            host.Rounded("ArmPadL", new Vector3(-0.42f, 0.74f, chairZ + 0.15f),
-                new Vector3(0.18f, 0.03f, 0.28f), 0.01f, CicArtKit.Cyan, 0.4f);
-            host.Rounded("ArmPadR", new Vector3(0.42f, 0.74f, chairZ + 0.15f),
-                new Vector3(0.18f, 0.03f, 0.28f), 0.01f, CicArtKit.Amber, 0.4f);
+            // Arm consoles at the front end of each armrest: true-size rounded hardware (unscaled); the tablets
+            // rise from here (ArmConsole) toward the seated captain's eyes.
+            host.Rounded("ArmPadL", new Vector3(-0.34f, 0.81f, chairZ + 0.24f),
+                new Vector3(0.12f, 0.03f, 0.1f), 0.01f, CicArtKit.Cyan, 0.4f);
+            host.Rounded("ArmPadR", new Vector3(0.34f, 0.81f, chairZ + 0.24f),
+                new Vector3(0.12f, 0.03f, 0.1f), 0.01f, CicArtKit.Amber, 0.4f);
 
             host.KeyLight("CaptainLamp", new Vector3(0f, 2.15f, chairZ), CicArtKit.Amber, 1.05f, 4f);
         }
+
+        static GameObject Rounded(CicEnvironment host, string name, Vector3 pos, Vector3 size, float radius, Material mat) =>
+            UiKit.MeshPiece(host.transform, name, UiMeshes.RoundedBox(size, radius), mat, pos);
 
         static HoloZoneMap BuildHoloTable(CicEnvironment host, CicArtKit art)
         {

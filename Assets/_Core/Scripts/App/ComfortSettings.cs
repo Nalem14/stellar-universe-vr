@@ -16,8 +16,8 @@ namespace Core.App
     /// <item>moving: smooth (left stick walks) or teleport (left stick forward aims an arc onto the floor);</item>
     /// <item>turning: smooth or snap (right stick; its forward push stays the holo map's zoom, never a teleport);</item>
     /// <item>the tunnelling vignette (the dark ring while moving) on or off;</item>
-    /// <item>seated play: the view is lifted to standing height, except in the captain's chair where the
-    /// player sits anyway.</item>
+    /// <item>seated play: the view is lifted to standing height, except in the captain's chair, which sets
+    /// its own (see <see cref="CaptainCommandMode.ViewLift"/>).</item>
     /// </list>
     /// Teleport areas are laid on the room floors the first time the arc comes out in each room.
     /// </summary>
@@ -38,6 +38,9 @@ namespace Core.App
         };
 
         static ComfortSettings s_Instance;
+
+        /// <summary>The view lift off the captain's chair (m): seated play lifts the view to standing height.</summary>
+        public static float StandingLift => Seated ? SeatedLift : 0f;
 
         /// <summary>The view lift applied right now (m): seated play, out of the captain's chair.</summary>
         public static float CurrentLift { get; private set; }
@@ -170,6 +173,10 @@ namespace Core.App
             // Stick back on the right is the holo map's zoom out, never a 180° turn.
             foreach (var snap in _rig.GetComponentsInChildren<UnityEngine.XR.Interaction.Toolkit.Locomotion.Turning.SnapTurnProvider>(true))
                 snap.enableTurnAround = false;
+            // The smooth turn has its own "stick back = instant 180°" too: a sideways push read as a pull-back
+            // spun the captain round.
+            foreach (var smooth in _rig.GetComponentsInChildren<UnityEngine.XR.Interaction.Toolkit.Locomotion.Turning.ContinuousTurnProvider>(true))
+                smooth.enableTurnAround = false;
             _vignette = _rig.GetComponentInChildren<TunnelingVignetteController>(true);
             _arcWasOut = false;
             return true;
@@ -207,9 +214,10 @@ namespace Core.App
             var offset = _rig.CameraFloorOffsetObject;
             if (offset == null)
                 return;
-            var chair = CaptainCommandMode.Instance != null && CaptainCommandMode.Instance.IsCommandMode;
+            // In the captain's chair the chair sets the lift (eyes at seated height over the cushion).
+            var chairLift = CaptainCommandMode.Instance != null ? CaptainCommandMode.Instance.ViewLift : null;
             var baseY = _rig.CurrentTrackingOriginMode == UnityEngine.XR.TrackingOriginModeFlags.Floor ? 0f : _rig.CameraYOffset;
-            CurrentLift = Seated && !chair ? SeatedLift : 0f;
+            CurrentLift = chairLift ?? StandingLift;
             var y = baseY + CurrentLift;
             var p = offset.transform.localPosition;
             if (Mathf.Abs(p.y - y) > 0.001f)

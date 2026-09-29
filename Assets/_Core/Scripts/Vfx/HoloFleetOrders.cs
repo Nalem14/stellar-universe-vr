@@ -180,25 +180,16 @@ namespace Core.Vfx
 
             foreach (var token in _map.Tokens)
             {
-                if (token == null || token.Kind != HoloTokenKind.Fleet || !token.Owned || token.Busy)
+                if (token == null || token.Kind != HoloTokenKind.Fleet || !token.Owned)
                     continue;
                 if (_mapCtrl != null && _mapCtrl.MovesLocked)
                     continue;
-                if (_focus != null)
-                {
-                    var locked = false;
-                    foreach (var fleet in _focus.Fleets)
-                    {
-                        if (fleet.Id == token.Id && !fleet.CanIssueMove(UnixNow()))
-                        {
-                            locked = true;
-                            break;
-                        }
-                    }
-
-                    if (locked)
-                        continue;
-                }
+                // A ship at work (mining, surveying, sieging) stays in hand: its drop queues the next orders.
+                // Under way or in battle it is not grabbed (its token glides / the hex fight owns it) — a
+                // point → point pick on the table queues for it instead (TacticalCommand).
+                var ship = _focus?.FindFleet(token.Id);
+                if (ship == null ? token.Busy : ship.IsMoving(UnixNow()) || ship.IsInBattle)
+                    continue;
 
                 var col = EnsureGrabVolume(token.gameObject);
                 var grab = token.GetComponent<XRGrabInteractable>();
@@ -418,7 +409,7 @@ namespace Core.Vfx
         /// <summary>Follow-up read after an order sent from elsewhere on the table (speedup…).</summary>
         public Task PollNow() => _poller != null ? _poller.PollNow() : Task.CompletedTask;
 
-        public async Task Command(HoloToken fleetToken, HoloToken target, bool dragged)
+        public async Task<bool> Command(HoloToken fleetToken, HoloToken target, bool dragged)
         {
             var nested = _ordering && dragged;
             _ordering = true;
@@ -431,22 +422,24 @@ namespace Core.Vfx
                     RestoreSpin(fleetToken);
                     CicCue.Fail(fleetToken.transform.position);
                     _map?.SetReadout(Trans.Get("error_not_logged_in"));
-                    return;
+                    return false;
                 }
 
                 if (target.Kind == HoloTokenKind.Anomaly)
                 {
                     await ScanDrop(fleetToken, target);
-                    return;
+                    return false;
                 }
 
-                // The world (or rock field) the ship is already at: what it can do there, not a move.
+                // Busy (mining, surveying, sieging, under way): nothing flies now, but every target still takes
+                // queued steps — the server runs them in order once the ship is idle (ProcessFleetQueue).
                 var here = _focus.FindFleet(fleetToken.Id);
+                if (here != null && !here.CanIssueMove(UnixNow()))
+                    return await QueueOrders(fleetToken, here, target);
+
+                // The world (or rock field) the ship is already at: what it can do there, not a move.
                 if (here != null && IsAt(here, target))
-                {
-                    await HereOrders(fleetToken, here, target);
-                    return;
-                }
+                    return await HereOrders(fleetToken, here, target);
 
                 string action;
                 var query = new Dictionary<string, string>
@@ -479,7 +472,7 @@ namespace Core.Vfx
                     RestoreSpin(fleetToken);
                     CicCue.Fail(fleetToken.transform.position);
                     _map?.SetReadout(Trans.Get("CommandBridge"));
-                    return;
+                    return false;
                 }
 
                 var dest = string.IsNullOrEmpty(target.DisplayName)
@@ -498,7 +491,7 @@ namespace Core.Vfx
                     fleetToken.SnapHome();
                     RestoreSpin(fleetToken);
                     _map?.SetReadout(Trans.Get("galaxy"));
-                    return;
+                    return false;
                 }
 
                 var mode = Core.Holo.TravelMode.Sublight;
@@ -507,7 +500,7 @@ namespace Core.Vfx
                 {
                     if (dragged)
                         fleetToken.transform.localPosition = target.HomeLocalPos + Vector3.up * 0.04f;
-                    var options = BuildOptions(fleet, target, action);
+                    var options = BuildOptions(fleet, target, action, _focus);
                     await PrependGateOptions(fleet, target, options);
                     var choice = await _console.AskAt(target.transform.position,
                         fleetToken.DisplayName.Replace('\n', ' ') + "  →  " + destHeader, options);
@@ -516,7 +509,7 @@ namespace Core.Vfx
                         fleetToken.SnapHome();
                         RestoreSpin(fleetToken);
                         _map?.SetReadout(Trans.Get("cancel"));
-                        return;
+                        return false;
                     }
 
                     if (choice is QueueChoice queued)
@@ -524,7 +517,7 @@ namespace Core.Vfx
                         // Queued, not flown now: the token goes home; the queue path shows the plan.
                         fleetToken.SnapHome();
                         RestoreSpin(fleetToken);
-                        var added = await AddQueueStep(fleet, target, queued.Type);
+                        var added = await AddQueueStep(fleet, target, queued);
                         if (added.Ok)
                             CicCue.Ok(target.transform.position);
                         else
@@ -532,7 +525,7 @@ namespace Core.Vfx
                         _map?.SetReadout(added.Ok ? Trans.Get("stepAdded") : FormatError("AddFleetOrderStep", added.Error));
                         if (added.Ok && _poller != null)
                             await _poller.PollNow();
-                        return;
+                        return added.Ok;
                     }
 
                     if (choice is Core.Holo.TravelMode chosen)
@@ -567,7 +560,7 @@ namespace Core.Vfx
                     RestoreSpin(fleetToken);
                     CicCue.Fail(fleetToken.transform.position);
                     _map?.SetReadout(FormatError(action, result.Error));
-                    return;
+                    return false;
                 }
 
                 // Back to where the ship really is: the next poll lays the course and the token glides there
@@ -584,6 +577,7 @@ namespace Core.Vfx
 
                 if (_poller != null)
                     await _poller.PollNow();
+                return true;
             }
             finally
             {
@@ -793,7 +787,7 @@ namespace Core.Vfx
             return options;
         }
 
-        async Task HereOrders(HoloToken fleetToken, FocusFleet fleet, HoloToken target)
+        async Task<bool> HereOrders(HoloToken fleetToken, FocusFleet fleet, HoloToken target)
         {
             fleetToken.SnapHome();
             RestoreSpin(fleetToken);
@@ -803,7 +797,7 @@ namespace Core.Vfx
             {
                 CicCue.Fail(target.transform.position);
                 _map?.SetReadout(dest + "  ·  " + Trans.Get("vr.table.alreadyThere"));
-                return;
+                return false;
             }
 
             var choice = await _console.AskAt(target.transform.position,
@@ -811,7 +805,7 @@ namespace Core.Vfx
             if (!(choice is string action))
             {
                 _map?.SetReadout(Trans.Get("cancel"));
-                return;
+                return false;
             }
 
             var query = new Dictionary<string, string>();
@@ -831,6 +825,19 @@ namespace Core.Vfx
                     break;
             }
 
+            // Cargo: which resources and how much, on the transfer pad (the web's three-field popup).
+            if (action == "DepositCargo" || action == "WithdrawCargo")
+            {
+                var amounts = await Core.Holo.CargoPad.Ask(fleet, fleet.PlanetId, dest, action == "WithdrawCargo");
+                if (amounts == null)
+                {
+                    _map?.SetReadout(Trans.Get("cancel"));
+                    return false;
+                }
+
+                amounts.Value.AddTo(query);
+            }
+
             _map?.SetReadout(Trans.Get("Loading"));
             var result = await ActionJs.Get(action, query);
             var role = action == "ExplorePlanet" ? CrewDialogue.Role.Science
@@ -842,32 +849,37 @@ namespace Core.Vfx
             {
                 CicCue.Fail(target.transform.position);
                 _map?.SetReadout(FormatError(action, result.Error));
-                return;
+                return false;
             }
 
             if (action == "ExplorePlanet")
                 SurveyBanner.Record(fleet.Id, result.Body);
-            if (action == "HarvestAsteroid" && AsteroidService.Instance != null)
-                AsyncTap.Run(AsteroidService.Instance.Refresh());
+            if (action == "HarvestAsteroid")
+            {
+                SurveyBanner.RecordHarvest(fleet.Id, result.Body);
+                if (AsteroidService.Instance != null)
+                    AsyncTap.Run(AsteroidService.Instance.Refresh());
+            }
+
             CicCue.Ok(target.transform.position);
             _map?.SetReadout(fleetToken.DisplayName + "  ·  " + Trans.Get(result.NoticeKey ?? "vr.common.ok"));
             if (_poller != null)
                 await _poller.PollNow();
+            return true;
         }
 
         /// <summary>
         /// Lectern choices: interstellar drops offer every travel mode the ship can use (quoted like the web's
         /// star menu); in-system drops are a single move with the intra-system ETA (server: 1200 / speed).
         /// </summary>
-        static List<Core.Holo.OrderConsole.Option> BuildOptions(FocusFleet fleet, HoloToken target, string action)
+        static List<Core.Holo.OrderConsole.Option> BuildOptions(FocusFleet fleet, HoloToken target, string action,
+            FocusContext focus)
         {
-            var queue = Trans.Get("addToQueue") + "  :  ";
             if (target.Kind == HoloTokenKind.System)
             {
                 var jump = Core.Holo.TravelPlanner.SystemOptions(fleet, target.GalaxyX, target.GalaxyY);
-                if (jump.Count < 4)
-                    jump.Add(new Core.Holo.OrderConsole.Option(queue + Trans.Get("stepMoveToSystem"), true,
-                        UiKit.Amber, new QueueChoice("moveToSystem")));
+                if (jump.Count < 5)
+                    jump.Add(QueueOption("moveToSystem"));
                 return jump;
             }
 
@@ -875,29 +887,17 @@ namespace Core.Vfx
             var verb = Trans.Get(action == "MoveFleetToAsteroid" ? "moveToAsteroidField" : "moveToPlanet");
             var eta = Core.Holo.TravelPlanner.TimeText(1200f / Mathf.Max(1f, fleet.Speed));
             options.Add(new Core.Holo.OrderConsole.Option(verb + "  ·  " + eta, true, UiKit.Cyan, "go"));
-            // Automation, as the web right-click "Add to queue" entries (server runs them in order).
-            if (action == "MoveFleetToAsteroid")
-            {
-                options.Add(new Core.Holo.OrderConsole.Option(queue + Trans.Get("stepMoveToAsteroid"), true,
-                    UiKit.Amber, new QueueChoice("moveToAsteroid")));
-                options.Add(new Core.Holo.OrderConsole.Option(queue + Trans.Get("stepHarvestAsteroid"), true,
-                    UiKit.Amber, new QueueChoice("harvestAsteroid")));
-            }
-            else
-            {
-                options.Add(new Core.Holo.OrderConsole.Option(queue + Trans.Get("stepMoveToPlanet"), true,
-                    UiKit.Amber, new QueueChoice("moveToPlanet")));
-                if (fleet.HasScienceModule)
-                    options.Add(new Core.Holo.OrderConsole.Option(queue + Trans.Get("stepExplorePlanet"), true,
-                        UiKit.Amber, new QueueChoice("explorePlanet")));
-            }
-
+            // Automation, as the web right-click "Add to queue" entries (server runs them in order; an idle ship
+            // starts the first at once): the go-and-work chains in one press, then the plain queued move.
+            options.AddRange(QueueOptions(fleet, target, focus));
+            if (options.Count > 5)
+                options.RemoveRange(5, options.Count - 5);
             return options;
         }
 
         /// <summary>
         /// Docked at one of our Jumpgate worlds: every gate world matching the target (that planet, or ours
-        /// in that system) goes first on the lectern; travel options fill what is left of its four slots.
+        /// in that system) goes first on the lectern; travel options fill what is left of its five slots.
         /// </summary>
         static async Task PrependGateOptions(FocusFleet fleet, HoloToken target, List<Core.Holo.OrderConsole.Option> options)
         {
@@ -909,22 +909,118 @@ namespace Core.Vfx
             Core.Holo.JumpgateNetwork.Matching(all, target, matches);
             for (var i = matches.Count - 1; i >= 0; i--)
                 options.Insert(0, Core.Holo.JumpgateNetwork.Option(fleet, origin, matches[i]));
-            if (options.Count > 4)
-                options.RemoveRange(4, options.Count - 4);
+            if (options.Count > 5)
+                options.RemoveRange(5, options.Count - 5);
         }
 
+        /// <summary>A queued order: one step, or the move followed by <see cref="Then"/> (a work step on arrival).</summary>
         sealed class QueueChoice
         {
             public readonly string Type;
-            public QueueChoice(string type) => Type = type;
+            public readonly string Then;
+
+            public QueueChoice(string type, string then = null)
+            {
+                Type = type;
+                Then = then;
+            }
         }
 
-        static Task<ApiResult> AddQueueStep(FocusFleet fleet, HoloToken target, string type) => target.Kind switch
+        static Core.Holo.OrderConsole.Option QueueOption(string type, string then = null) =>
+            new(Core.Holo.OrderQueue.ChainLabel(type, then), true, UiKit.Amber, new QueueChoice(type, then));
+
+        static Task<ApiResult> AddQueueStep(FocusFleet fleet, HoloToken target, QueueChoice q)
         {
-            HoloTokenKind.System => Core.Holo.OrderQueue.AddSystemStep(fleet, target.GalaxyX, target.GalaxyY, target.Id),
-            HoloTokenKind.Asteroid => Core.Holo.OrderQueue.AddAsteroidStep(fleet, type, target.Id),
-            _ => Core.Holo.OrderQueue.AddPlanetStep(fleet, type, target.Id)
-        };
+            switch (target.Kind)
+            {
+                case HoloTokenKind.System:
+                    return Core.Holo.OrderQueue.AddSystemStep(fleet, target.GalaxyX, target.GalaxyY, target.Id);
+                case HoloTokenKind.Asteroid:
+                    return q.Type == "moveToAsteroid"
+                        ? Core.Holo.OrderQueue.AddAsteroidChain(fleet, target.Id, q.Then == "harvestAsteroid")
+                        : Core.Holo.OrderQueue.AddAsteroidStep(fleet, q.Type, target.Id);
+                default:
+                    return q.Type == "moveToPlanet"
+                        ? Core.Holo.OrderQueue.AddPlanetChain(fleet, target.Id, q.Then)
+                        : Core.Holo.OrderQueue.AddPlanetStep(fleet, q.Type, target.Id);
+            }
+        }
+
+        /// <summary>
+        /// Queued orders on a target, as the web's right-click "Add to queue" entries — offered to a busy ship
+        /// (nothing flies now) and, after the direct move, to an idle one. The chains come first: one press
+        /// builds "go to the rocks → harvest", "go home → deposit", "go there → survey".
+        /// </summary>
+        public static List<Core.Holo.OrderConsole.Option> QueueOptions(FocusFleet fleet, HoloToken target, FocusContext focus)
+        {
+            var options = new List<Core.Holo.OrderConsole.Option>();
+            if (fleet == null || target == null)
+                return options;
+            switch (target.Kind)
+            {
+                case HoloTokenKind.System:
+                    if (target.Slot >= 0)
+                        options.Add(QueueOption("moveToSystem"));
+                    break;
+                case HoloTokenKind.Asteroid:
+                    if (focus?.FindAsteroid(target.Id) is { Gone: true })
+                        break;
+                    options.Add(QueueOption("moveToAsteroid", "harvestAsteroid"));
+                    options.Add(QueueOption("moveToAsteroid"));
+                    break;
+                case HoloTokenKind.Planet:
+                    var planet = focus?.FindPlanet(target.Id);
+                    var me = FocusContext.OwnedUserId();
+                    var ours = planet != null && me > 0 && planet.UserId == me;
+                    if (ours)
+                        options.Add(QueueOption("moveToPlanet", "depositCargo"));
+                    options.Add(QueueOption("moveToPlanet"));
+                    if (ours)
+                        options.Add(QueueOption("moveToPlanet", "withdrawCargo"));
+                    if (fleet.HasScienceModule)
+                        options.Add(QueueOption("moveToPlanet", "explorePlanet"));
+                    break;
+            }
+
+            return options;
+        }
+
+        /// <summary>
+        /// A busy ship given a target: the lectern quotes only queued steps (the header says why), and the
+        /// chosen chain is appended to its server queue.
+        /// </summary>
+        async Task<bool> QueueOrders(HoloToken fleetToken, FocusFleet fleet, HoloToken target)
+        {
+            fleetToken.SnapHome();
+            RestoreSpin(fleetToken);
+            var dest = string.IsNullOrEmpty(target.DisplayName) ? target.Kind.ToString() : target.DisplayName;
+            var options = QueueOptions(fleet, target, _focus);
+            if (options.Count == 0 || _console == null)
+            {
+                CicCue.Fail(target.transform.position);
+                _map?.SetReadout(dest + "  ·  " + Trans.Get("vr.table.notATarget"));
+                return false;
+            }
+
+            var choice = await _console.AskAt(target.transform.position,
+                fleetToken.DisplayName.Replace('\n', ' ') + "  →  " + dest + "  ·  " + Trans.Get(FleetOrderGate.BusyKey(fleet)),
+                options);
+            if (!(choice is QueueChoice queued))
+            {
+                _map?.SetReadout(Trans.Get("cancel"));
+                return false;
+            }
+
+            var added = await AddQueueStep(fleet, target, queued);
+            if (added.Ok)
+                CicCue.Ok(target.transform.position);
+            else
+                CicCue.Fail(target.transform.position);
+            _map?.SetReadout(added.Ok ? Trans.Get("stepAdded") : FormatError("AddFleetOrderStep", added.Error));
+            if (added.Ok && _poller != null)
+                await _poller.PollNow();
+            return added.Ok;
+        }
 
         static string FormatError(string action, string error)
         {

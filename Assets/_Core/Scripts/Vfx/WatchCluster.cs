@@ -163,6 +163,7 @@ namespace Core.Vfx
             WatchKind.Harvest => "vr.watch.harvest",
             WatchKind.Explore => "vr.watch.explore",
             WatchKind.Building => "vr.watch.building",
+            WatchKind.Shipyard => "vr.watch.shipyard",
             _ => "vr.watch.research"
         };
 

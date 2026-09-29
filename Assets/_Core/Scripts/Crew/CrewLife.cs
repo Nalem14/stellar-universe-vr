@@ -61,8 +61,8 @@ namespace Core.Crew
             var ring = new[]
             {
                 S(-4.9f, -2.0f, Vector3.left, true), S(-4.9f, -2.85f, Vector3.left, true),
-                S(-4.25f, -4.55f, new Vector3(-1f, 0f, -1f), true), S(-2.35f, -5.2f, Vector3.back, true),
-                S(2.35f, -5.2f, Vector3.back, true), S(4.25f, -4.55f, new Vector3(1f, 0f, -1f), true),
+                S(-4.25f, -4.55f, new Vector3(-1f, 0f, -1f), true), S(-Core.Vfx.BridgeShell.AftBayX, -5.2f, Vector3.back, true),
+                S(Core.Vfx.BridgeShell.AftBayX, -5.2f, Vector3.back, true), S(4.25f, -4.55f, new Vector3(1f, 0f, -1f), true),
                 S(4.9f, -2.85f, Vector3.right, true), S(4.9f, -2.0f, Vector3.right, true)
             };
             life.Walk(bridge, "DeckHandOps", ring, 1, Ops, family, false);

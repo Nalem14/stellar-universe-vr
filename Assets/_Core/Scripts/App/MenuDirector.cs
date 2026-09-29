@@ -19,6 +19,11 @@ namespace Core.App
             var console = gameObject.AddComponent<MainMenuConsole>();
             console.Bind(env);
             console.Build();
+            // Head on the sas spot the scene's rig marks, whatever the headset's offset in the real play space
+            // (a late tracking start is absorbed by the fall guard).
+            var rig = FindFirstObjectByType<Unity.XR.CoreUtils.XROrigin>();
+            if (rig != null)
+                XrPlacement.PlaceHead(rig, rig.transform.position, rig.transform.forward);
             FallGuard.Ensure();
             Core.Audio.AmbienceDirector.Ensure();
         }

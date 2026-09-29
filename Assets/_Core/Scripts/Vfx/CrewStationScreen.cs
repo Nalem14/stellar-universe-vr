@@ -120,6 +120,7 @@ namespace Core.Vfx
             var now = FleetOrderGate.UnixNow();
             for (var i = 0; i < _lines.Length; i++)
                 _lines[i].text = string.Empty;
+            _primary.color = UiKit.TextBright;
             _bar.SetActive(false);
 
             switch (_role)
@@ -225,11 +226,26 @@ namespace Core.Vfx
             var fleet = _focus.FindViewFleet();
             if (fleet != null)
             {
-                _primary.text = Trans.Get("modules") + " · " + fleet.Modules.Count;
-                _lines[0].text = Trans.Get("cargo") + " · " + fleet.CrystalCargo.ToString("N0", Fr) + " " + Trans.Get("vr.res.crystal");
-                if (fleet.TroopsAboard > 0)
-                    _lines[1].text = Trans.Format("vr.armory.aboard", fleet.TroopsAboard);
-                _lines[2].text = Name(fleet);
+                // Mining: the extraction under way first (the hold fills as it runs), then the hold itself.
+                if (fleet.IsHarvesting(now))
+                {
+                    _primary.text = Trans.Get("vr.mining.active");
+                    _primary.color = UiKit.Amber;
+                    var rock = _focus.FindAsteroid(fleet.AsteroidId);
+                    _lines[0].text = Trans.Get("asteroidField") + " #" + (rock != null && rock.Slot > 0 ? rock.Slot : fleet.AsteroidId) +
+                                     " · " + Trans.Format("vr.screen.remaining", Core.Holo.TravelPlanner.TimeText(fleet.HarvestEndTime - now));
+                    var haul = SurveyBanner.Harvest(fleet.Id, fleet.HarvestEndTime);
+                    if (haul.start > 0)
+                        Bar(haul.start, fleet.HarvestEndTime, now);
+                }
+                else
+                {
+                    _primary.text = Trans.Get("modules") + " · " + fleet.Modules.Count;
+                    _lines[0].text = HoldLine(fleet);
+                }
+
+                _lines[1].text = HoldContents(fleet);
+                _lines[2].text = fleet.TroopsAboard > 0 ? Trans.Format("vr.armory.aboard", fleet.TroopsAboard) : Name(fleet);
                 return;
             }
 
@@ -241,6 +257,16 @@ namespace Core.Vfx
             _lines[0].text = string.IsNullOrEmpty(p.Name) ? "#" + p.Id : p.Name;
             Working(p, now, 1);
         }
+
+        /// <summary>"Hold 1 200 / 3 000" — what is aboard over the capacity.</summary>
+        internal static string HoldLine(FocusFleet f) =>
+            Trans.Get("cargo") + " · " + f.CargoUsed.ToString("N0", Fr) + " / " + f.Cargo.ToString("N0", Fr);
+
+        /// <summary>"Mineral 800 · Crystal 400 · Biomass 0".</summary>
+        internal static string HoldContents(FocusFleet f) =>
+            Trans.Get("vr.res.mineral") + " " + f.MineralCargo.ToString("N0", Fr) + "  ·  " +
+            Trans.Get("vr.res.crystal") + " " + f.CrystalCargo.ToString("N0", Fr) + "  ·  " +
+            Trans.Get("vr.res.biomass") + " " + f.BiomassCargo.ToString("N0", Fr);
 
         void Science(long now)
         {

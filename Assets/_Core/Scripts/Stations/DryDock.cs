@@ -20,7 +20,9 @@ namespace Core.Stations
     /// selected ship sits in its cradle at 1:1 (the real procedural hull, <see cref="ShipHullBuilder"/>) and is
     /// rebuilt, with welding sparks, each time a module goes on. The assembly table in the room carries the
     /// 9×9 grid: pick a module on the hangar rack, a holo crate appears on the dispenser — grab it and set it
-    /// on a free cell touching the structure (or point at the cell) → PlaceShipModule. Point twice at a placed
+    /// on a free cell touching the structure (or point at the cell) → PlaceShipModule. The same blocks stand on
+    /// the module fabricator along the starboard wall (<see cref="ModuleShelves"/>): take one off its shelf and
+    /// set it on the grid, or trigger a missing one twice to have the shipyard build it. Point twice at a placed
     /// module to take it off (RemoveShipModule). Ships docked at the planet are listed; a ShipCore in the
     /// hangar founds a new one (AddToFleet fleet=0). The dock lives far below the bridge; entering moves the
     /// XR origin here, leaving puts it back on deck.
@@ -36,6 +38,10 @@ namespace Core.Stations
         /// <summary>The ship lies broadside to the window, bow to the right; the table grid turns the same way.</summary>
         static readonly Quaternion Broadside = Quaternion.Euler(0f, 90f, 0f);
         static readonly Vector3 Dispenser = new(1.15f, 0f, -1.75f);
+        /// <summary>Control room extents: side walls at ±RoomWidth/2, bay window at RoomNorth, exit door in RoomSouth.</summary>
+        const float RoomWidth = 11f;
+        const float RoomNorth = 3.5f;
+        const float RoomSouth = -6f;
         const float Cell = 0.2f;
         const float GridHeight = 0.92f;
         const int RackPerPage = 7;
@@ -103,6 +109,7 @@ namespace Core.Stations
             dock.BuildRoom();
             dock.BuildGrid();
             dock.BuildScreens();
+            dock.BuildShelves();
             go.SetActive(false);
             return dock;
         }
@@ -121,7 +128,10 @@ namespace Core.Stations
         // ── Room ──────────────────────────────────────────────────────────────────
 
         /// <summary>Walkable / solid pieces keep their collider (XR locomotion has gravity).</summary>
-        static readonly HashSet<string> Solid = new() { "Floor", "WallS", "WallE", "WallW", "Sill", "BayWindow" };
+        static readonly HashSet<string> Solid = new()
+        {
+            "Floor", "WallS", "WallE", "WallW", "Sill", "BayWindow", "Locker0", "Locker1", "Bench"
+        };
 
         GameObject Box(string name, Vector3 pos, Vector3 size, Material mat, Transform parent = null)
         {
@@ -146,24 +156,27 @@ namespace Core.Stations
             var cyan = _art.CyanEmit(2.4f);
             var amber = _art.AmberEmit(2f);
 
-            // Control room: 9 × 7 m, north side open on the bay through a wide window.
-            const float w = 9f, d = 7f, h = 3.4f;
-            Box("Floor", new Vector3(0f, -0.05f, 0f), new Vector3(w, 0.1f, d), deck);
-            Box("Ceiling", new Vector3(0f, h, 0f), new Vector3(w, 0.1f, d), dark);
-            Box("WallS", new Vector3(0f, h * 0.5f, -d * 0.5f), new Vector3(w, h, 0.12f), wall);
-            Box("WallE", new Vector3(w * 0.5f, h * 0.5f, 0f), new Vector3(0.12f, h, d), wall);
-            Box("WallW", new Vector3(-w * 0.5f, h * 0.5f, 0f), new Vector3(0.12f, h, d), wall);
-            Box("Sill", new Vector3(0f, 0.45f, d * 0.5f), new Vector3(w, 0.9f, 0.3f), wall);
-            Box("SillLight", new Vector3(0f, 0.905f, d * 0.5f - 0.16f), new Vector3(w * 0.96f, 0.02f, 0.03f), cyan);
-            Box("Header", new Vector3(0f, h - 0.15f, d * 0.5f), new Vector3(w, 0.3f, 0.3f), dark);
+            // Control room: 11 × 9.5 m, north side open on the bay through a wide window. The aft half is a
+            // work bay (lockers, parts rack, bench) so the exit door sits well behind the stand: ≥ 3 m of floor
+            // between the assembly table and the doorway.
+            const float w = RoomWidth, h = 3.4f;
+            const float d = RoomNorth - RoomSouth, cz = (RoomNorth + RoomSouth) * 0.5f;
+            Box("Floor", new Vector3(0f, -0.05f, cz), new Vector3(w, 0.1f, d), deck);
+            Box("Ceiling", new Vector3(0f, h, cz), new Vector3(w, 0.1f, d), dark);
+            Box("WallS", new Vector3(0f, h * 0.5f, RoomSouth), new Vector3(w, h, 0.12f), wall);
+            Box("WallE", new Vector3(w * 0.5f, h * 0.5f, cz), new Vector3(0.12f, h, d), wall);
+            Box("WallW", new Vector3(-w * 0.5f, h * 0.5f, cz), new Vector3(0.12f, h, d), wall);
+            Box("Sill", new Vector3(0f, 0.45f, RoomNorth), new Vector3(w, 0.9f, 0.3f), wall);
+            Box("SillLight", new Vector3(0f, 0.905f, RoomNorth - 0.16f), new Vector3(w * 0.96f, 0.02f, 0.03f), cyan);
+            Box("Header", new Vector3(0f, h - 0.15f, RoomNorth), new Vector3(w, 0.3f, 0.3f), dark);
             for (var i = -2; i <= 2; i++)
-                Box("Mullion" + i, new Vector3(i * 2.1f, (0.9f + h - 0.3f) * 0.5f, d * 0.5f),
+                Box("Mullion" + i, new Vector3(i * 2.2f, (0.9f + h - 0.3f) * 0.5f, RoomNorth),
                     new Vector3(0.12f, h - 1.2f, 0.18f), dark);
             var glass = GameObject.CreatePrimitive(PrimitiveType.Quad);
             glass.name = "BayWindow";
             Destroy(glass.GetComponent<Collider>());
             glass.transform.SetParent(transform, false);
-            glass.transform.localPosition = new Vector3(0f, (0.9f + h - 0.3f) * 0.5f, d * 0.5f + 0.02f);
+            glass.transform.localPosition = new Vector3(0f, (0.9f + h - 0.3f) * 0.5f, RoomNorth + 0.02f);
             glass.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
             glass.transform.localScale = new Vector3(w, h - 1.2f, 1f);
             glass.GetComponent<MeshRenderer>().sharedMaterial = _art.Holo(Texture2D.whiteTexture, new Color(0.6f, 0.9f, 1f, 0.015f));
@@ -171,8 +184,8 @@ namespace Core.Stations
             pane.size = new Vector3(1f, 1f, 0.1f);
 
             for (var i = -1; i <= 1; i++)
-                Box("RibLight" + i, new Vector3(i * 2.8f, h - 0.06f, 0f), new Vector3(0.05f, 0.03f, d * 0.9f), cyan);
-            Box("FloorStrip", new Vector3(0f, 0.005f, -d * 0.5f + 0.3f), new Vector3(w * 0.9f, 0.01f, 0.05f), amber);
+                Box("RibLight" + i, new Vector3(i * 3.2f, h - 0.06f, cz), new Vector3(0.05f, 0.03f, d * 0.92f), cyan);
+            BuildWorkBay(wall, dark, cyan, amber, w, h);
 
             // Assembly table (the "computer"): the grid sits on it, lit rim.
             var ped = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
@@ -208,7 +221,83 @@ namespace Core.Stations
                 _art.Lit(Texture2D.whiteTexture, Accent, 2.2f));
 
             Light("KeyOverhead", new Vector3(0f, h - 0.5f, -0.5f), new Color(0.75f, 0.95f, 1f), 1.4f, 7f);
+            Light("AftOverhead", new Vector3(0f, h - 0.5f, RoomSouth + 2.3f), new Color(0.95f, 0.92f, 0.85f), 1.1f, 6.5f);
             BuildBay(dark, cyan, amber);
+            // The shelf blocks (SU/ModuleBlock) take the room's own lights, as the bridge shells do.
+            RoomLightRig.Attach(transform, "KeyOverhead", "AftOverhead", "BayFill").Radius = 12f;
+        }
+
+        /// <summary>
+        /// Aft half of the control room: wall pilasters, tool lockers (west), the module fabricator (east, built
+        /// by <see cref="BuildShelves"/>), a bench and coolant tanks either side of the door, and a hazard apron
+        /// marking the doorway.
+        /// </summary>
+        void BuildWorkBay(Material wall, Material dark, Material cyan, Material amber, float w, float h)
+        {
+            var xw = w * 0.5f;
+            var cz = (RoomNorth + RoomSouth) * 0.5f;
+
+            // Structural pilasters along both side walls (forward of the lockers / fabricator), a thin cyan seam on
+            // each; the fabricator's control column stands where the aft starboard one would.
+            for (var i = 0; i < 3; i++)
+            {
+                var z = -1.6f + i * 2.1f;
+                foreach (var side in new[] { -1f, 1f })
+                {
+                    if (i == 0 && side > 0f)
+                        continue;
+                    Box("Pilaster" + i + side, new Vector3(side * (xw - 0.1f), h * 0.5f, z), new Vector3(0.16f, h, 0.34f), dark);
+                    Box("PilasterSeam" + i + side, new Vector3(side * (xw - 0.185f), h * 0.5f, z),
+                        new Vector3(0.012f, h * 0.7f, 0.04f), cyan);
+                }
+            }
+
+            // Skirting light down both walls, the length of the room.
+            Box("SkirtW", new Vector3(-xw + 0.07f, 0.08f, cz), new Vector3(0.02f, 0.03f, (RoomNorth - RoomSouth) * 0.96f), cyan);
+            Box("SkirtE", new Vector3(xw - 0.07f, 0.08f, cz), new Vector3(0.02f, 0.03f, (RoomNorth - RoomSouth) * 0.96f), cyan);
+
+            // West: two tool lockers, lit handles and status lamps.
+            for (var i = 0; i < 2; i++)
+            {
+                var z = RoomSouth + 1.5f + i * 1.45f;
+                Box("Locker" + i, new Vector3(-xw + 0.33f, 1.05f, z), new Vector3(0.5f, 2.1f, 1.3f), wall);
+                Box("LockerSplit" + i, new Vector3(-xw + 0.585f, 1.05f, z), new Vector3(0.01f, 1.95f, 0.02f), dark);
+                Box("LockerHandleA" + i, new Vector3(-xw + 0.6f, 1.1f, z - 0.12f), new Vector3(0.02f, 0.4f, 0.03f), cyan);
+                Box("LockerHandleB" + i, new Vector3(-xw + 0.6f, 1.1f, z + 0.12f), new Vector3(0.02f, 0.4f, 0.03f), cyan);
+                Box("LockerLamp" + i, new Vector3(-xw + 0.6f, 1.9f, z), new Vector3(0.02f, 0.05f, 0.5f), i == 0 ? amber : cyan);
+            }
+
+            // Aft wall, either side of the door: a work bench (west) and coolant tanks (east).
+            Box("Bench", new Vector3(-2.6f, 0.45f, RoomSouth + 0.42f), new Vector3(2.2f, 0.9f, 0.7f), dark);
+            Box("BenchTop", new Vector3(-2.6f, 0.915f, RoomSouth + 0.42f), new Vector3(2.26f, 0.03f, 0.76f), wall);
+            Box("BenchEdge", new Vector3(-2.6f, 0.9f, RoomSouth + 0.805f), new Vector3(2.2f, 0.02f, 0.01f), cyan);
+            Box("ToolBoard", new Vector3(-2.6f, 1.75f, RoomSouth + 0.08f), new Vector3(2.0f, 1.1f, 0.04f), wall);
+            for (var i = 0; i < 5; i++)
+                Box("Tool" + i, new Vector3(-3.4f + i * 0.4f, 1.72f + (i % 2) * 0.12f, RoomSouth + 0.12f),
+                    new Vector3(0.05f, 0.5f - (i % 3) * 0.08f, 0.03f), dark);
+            Box("ToolBoardLight", new Vector3(-2.6f, 2.33f, RoomSouth + 0.12f), new Vector3(1.9f, 0.02f, 0.03f), amber);
+            for (var i = 0; i < 2; i++)
+            {
+                var tank = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                tank.name = "CoolantTank" + i;
+                Destroy(tank.GetComponent<Collider>());
+                tank.transform.SetParent(transform, false);
+                tank.transform.localPosition = new Vector3(2.3f + i * 0.75f, 0.9f, RoomSouth + 0.45f);
+                tank.transform.localScale = new Vector3(0.55f, 0.9f, 0.55f);
+                var tr = tank.GetComponent<MeshRenderer>();
+                tr.sharedMaterial = wall;
+                tr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                Box("TankBand" + i, new Vector3(2.3f + i * 0.75f, 1.35f, RoomSouth + 0.45f), new Vector3(0.57f, 0.05f, 0.57f), cyan);
+                Box("TankValve" + i, new Vector3(2.3f + i * 0.75f, 0.55f, RoomSouth + 0.74f), new Vector3(0.1f, 0.1f, 0.06f), amber);
+            }
+
+            Box("TankPipe", new Vector3(2.675f, 2.2f, RoomSouth + 0.2f), new Vector3(1.2f, 0.08f, 0.08f), dark);
+
+            // Hazard apron at the doorway: the one place on this floor that takes you out.
+            Box("DoorApron", new Vector3(0f, 0.004f, RoomSouth + 0.7f), new Vector3(1.9f, 0.008f, 1.2f), dark);
+            Box("ApronEdgeN", new Vector3(0f, 0.01f, RoomSouth + 1.3f), new Vector3(1.9f, 0.01f, 0.05f), amber);
+            Box("ApronEdgeW", new Vector3(-0.95f, 0.01f, RoomSouth + 0.7f), new Vector3(0.05f, 0.01f, 1.2f), amber);
+            Box("ApronEdgeE", new Vector3(0.95f, 0.01f, RoomSouth + 0.7f), new Vector3(0.05f, 0.01f, 1.2f), amber);
         }
 
         /// <summary>Hangar bay beyond the window: cradle, floodlights, the ship at 1:1.</summary>
@@ -572,12 +661,70 @@ namespace Core.Stations
                     new Vector2(280f, 44f), () => SetTab(2), DiegeticUi.BtnStyle.Ghost)
             };
 
-            // Way back: the door in the aft wall, behind the stand (walk through it or use its panel).
-            RoomDoor.Build(transform, "DoorToBridge", new Vector3(0f, 0f, -3.44f), 0f, Trans.Get("vr.dock.leave"),
-                UiKit.Amber, _art, () => Inside, () => AsyncTap.Run(Leave()));
+            // Way back: the door in the aft wall, well behind the stand (walk through it facing it, or use its
+            // panel). Deliberate: you work here with your back to it, so backing off the table never exits.
+            RoomDoor.Build(transform, "DoorToBridge", new Vector3(0f, 0f, RoomSouth + 0.06f), 0f, Trans.Get("vr.dock.leave"),
+                UiKit.Amber, _art, () => Inside, () => AsyncTap.Run(Leave()), deliberate: true);
         }
 
         UnityEngine.UI.Button[] _rackTabs;
+
+        /// <summary>
+        /// Module fabricator on the starboard wall, aft of the table: its face is 4.9 m out from the centreline,
+        /// 3.5 m clear of the table's rim, and ends 1.4 m before the aft wall (door walkway untouched).
+        /// </summary>
+        void BuildShelves()
+        {
+            _shelves = ModuleShelves.Build(transform, _art, new Vector3(RoomWidth * 0.5f - 0.06f, 0f, -3.2f),
+                Quaternion.Euler(0f, 90f, 0f), _yard, ShelfStock, () => _fleetId > 0 && _preview == null,
+                () => _selectedType, OnShelfPick, OnShelfDrop, (t, e) => SetStatus(t, e));
+        }
+
+        ModuleShelves _shelves;
+
+        Dictionary<string, int> ShelfStock()
+        {
+            var d = new Dictionary<string, int>();
+            foreach (var (type, count) in HangarGroups())
+                d[type] = count;
+            return d;
+        }
+
+        /// <summary>A block taken off the fabricator: it becomes the module being fitted (green cells light up).</summary>
+        void OnShelfPick(string type)
+        {
+            _selectedType = type;
+            _armedRemove = null;
+            RenderRack();
+            PaintGrid();
+            RefreshCrate();
+            SetStatus(Trans.Get(ModuleCatalog.NameKey(type)) + " — " + Trans.Get(ModuleCatalog.DescKey(type)));
+        }
+
+        /// <summary>
+        /// A fabricator block let go: over a free cell that touches the structure = the dock's PlaceShipModule
+        /// (true: the block stays there and dissolves); anywhere else it goes back on its shelf.
+        /// </summary>
+        bool OnShelfDrop(string type, Vector3 world)
+        {
+            _hover = null;
+            var cell = Inside ? NearestCell(world) : null;
+            if (!cell.HasValue)
+            {
+                PaintGrid();
+                RefreshCrate();
+                return false;
+            }
+
+            var (x, y) = cell.Value;
+            _selectedType = type;
+            var fits = _fleetId > 0 && _preview == null && !_busy && At(x, y) == null &&
+                       ModuleCatalog.CanPlace(Occupancy(), x, y) && HangarRow(type) != null;
+            // Same path as a ray tap on the cell: it places, or says why not.
+            OnCell(x, y);
+            PaintGrid();
+            return fits;
+        }
 
         static RectTransform Sub(RectTransform parent, string name, float y)
         {
@@ -739,6 +886,7 @@ namespace Core.Stations
 
         void RenderRack()
         {
+            RefreshShelves();
             Clear(_rackList);
             Clear(_yardBody);
             _rackList.gameObject.SetActive(_tab == 0);
@@ -807,6 +955,9 @@ namespace Core.Stations
                 Text(_rackList, Trans.Format("vr.dock.placing", Trans.Get(_selectedType)), 0f, -355f, 880f, 16f,
                     UiKit.Ok, TextAlignmentOptions.Center);
         }
+
+        /// <summary>Every rack re-render (stock, selection, ship) reaches the fabricator shelves too.</summary>
+        void RefreshShelves() => _shelves?.Refresh();
 
         // ── Data ──────────────────────────────────────────────────────────────────
 
@@ -912,6 +1063,7 @@ namespace Core.Stations
             _planetId = planetId;
             _fleetId = 0;
             _selectedType = null;
+            _shelves?.ResetAll();
 
             var fade = ViewFade.Ensure();
             await fade.FadeOut();
@@ -946,6 +1098,7 @@ namespace Core.Stations
             var fade = ViewFade.Ensure();
             await fade.FadeOut();
             Inside = false;
+            _shelves?.DropHeld();
             _blueprints?.Deselect();
             if (_crate != null)
                 Destroy(_crate);
@@ -1016,7 +1169,9 @@ namespace Core.Stations
         {
             if (_crateHeld)
                 return;
-            if (_selectedType == null || _fleetId <= 0 || HangarRow(_selectedType) == null)
+            // A block in hand from the fabricator is the part being fitted: no second one on the dispenser.
+            if (_selectedType == null || _fleetId <= 0 || HangarRow(_selectedType) == null ||
+                (_shelves != null && _shelves.Holding))
             {
                 if (_crate != null)
                     Destroy(_crate);
@@ -1382,10 +1537,11 @@ namespace Core.Stations
                 PaintGrid();
             }
 
-            // Held crate: preview the cell it would land on.
-            if (_crateHeld && _crate != null)
+            // Held crate / fabricator block: preview the cell it would land on.
+            var holding = _shelves != null && _shelves.Holding;
+            if ((_crateHeld && _crate != null) || holding)
             {
-                var cell = NearestCell(_crate.transform.position);
+                var cell = NearestCell(holding ? _shelves.HeldPosition : _crate.transform.position);
                 var h = cell.HasValue ? cell : null;
                 if (h != _hover)
                 {

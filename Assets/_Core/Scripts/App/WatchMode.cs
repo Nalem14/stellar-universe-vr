@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Newtonsoft.Json.Linq;
 using System.Threading.Tasks;
 using Core.Utils;
 using Core.Vfx;
@@ -18,13 +19,16 @@ namespace Core.App
         Harvest,
         Explore,
         Building,
+        Shipyard,
         Research
     }
 
     public sealed class WatchAffair
     {
         public WatchKind Kind;
+        /// <summary>Whose affair it is: the ship, the world, or the research itself.</summary>
         public string Title = string.Empty;
+        /// <summary>What exactly and where: the route, the world surveyed, the field mined, the building or module.</summary>
         public string Detail = string.Empty;
         public long Start;
         public long End;
@@ -196,9 +200,10 @@ namespace Core.App
                         _transitSeen.Remove(f.Id);
                     }
 
-                    AddTimer(WatchKind.Siege, name, f.AttackEndTime, now);
-                    AddTimer(WatchKind.Harvest, name, f.HarvestEndTime, now);
-                    AddTimer(WatchKind.Explore, name, f.ExploreEndTime, now);
+                    var where = GalaxyCatalog.Label(f.SystemId);
+                    AddTimer(WatchKind.Siege, name, PlanetName(f.PlanetId) + " · " + where, f.AttackEndTime, now);
+                    AddTimer(WatchKind.Harvest, name, Trans.Get("asteroidField") + " #" + f.AsteroidId + " · " + where, f.HarvestEndTime, now);
+                    AddTimer(WatchKind.Explore, name, PlanetName(f.PlanetId) + " · " + where, f.ExploreEndTime, now);
                 }
             }
 
@@ -207,17 +212,41 @@ namespace Core.App
             {
                 foreach (var p in eco.Planets.Values)
                 {
+                    var world = string.IsNullOrEmpty(p.Name) ? "#" + p.Id : p.Name;
                     var end = FocusContext.AsLong(p.Raw?["working"]);
-                    if (end <= now)
-                        continue;
-                    _affairs.Add(new WatchAffair
+                    if (end > now)
                     {
-                        Kind = WatchKind.Building,
-                        Title = Trans.Get(FocusContext.AsString(p.Raw["workingtype"])),
-                        Detail = string.IsNullOrEmpty(p.Name) ? "#" + p.Id : p.Name,
-                        Start = FocusContext.AsLong(p.Raw["workingStart"]),
-                        End = end
-                    });
+                        var type = FocusContext.AsString(p.Raw["workingtype"]);
+                        // The server raises the level when the work starts: this is the level being built.
+                        var level = p.Level(type);
+                        _affairs.Add(new WatchAffair
+                        {
+                            Kind = WatchKind.Building,
+                            Title = world,
+                            Detail = Trans.Get(type) + (level > 0 ? " · " + Trans.Get("level") + " " + level : string.Empty),
+                            Start = FocusContext.AsLong(p.Raw["workingStart"]),
+                            End = end
+                        });
+                    }
+
+                    // The dry dock's module under construction (GetResource shipQueue).
+                    if (p.Raw?["shipQueue"] is JObject ship)
+                    {
+                        var shipEnd = FocusContext.AsLong(ship["endTime"]);
+                        if (shipEnd > now)
+                        {
+                            var type = FocusContext.AsString(ship["type"]);
+                            var total = (long)FocusContext.AsFloat(Core.Stations.ModuleCatalog.Stats(type)?["time"]);
+                            _affairs.Add(new WatchAffair
+                            {
+                                Kind = WatchKind.Shipyard,
+                                Title = world,
+                                Detail = Trans.Get(type),
+                                Start = total > 0 ? shipEnd - total : 0,
+                                End = shipEnd
+                            });
+                        }
+                    }
                 }
 
                 var rEnd = FocusContext.AsLong(eco.Empire?["working"]);
@@ -226,7 +255,7 @@ namespace Core.App
                     {
                         Kind = WatchKind.Research,
                         Title = Trans.Get(FocusContext.AsString(eco.Empire["workingtype"])),
-                        Detail = Trans.Get("vr.watch.research"),
+                        Detail = Trans.Get("vr.watch.researchWhere"),
                         Start = FocusContext.AsLong(eco.Empire["workingStart"]),
                         End = rEnd
                     });
@@ -236,7 +265,7 @@ namespace Core.App
             _affairs.Sort((a, b) => a.Kind != b.Kind ? a.Kind.CompareTo(b.Kind) : a.End.CompareTo(b.End));
         }
 
-        void AddTimer(WatchKind kind, string name, long end, long now)
+        void AddTimer(WatchKind kind, string name, string detail, long end, long now)
         {
             if (end <= now)
                 return;
@@ -244,15 +273,22 @@ namespace Core.App
             {
                 Kind = kind,
                 Title = name,
-                Detail = Trans.Get(kind switch
-                {
-                    WatchKind.Siege => "vr.watch.siege",
-                    WatchKind.Harvest => "vr.watch.harvest",
-                    _ => "vr.watch.explore"
-                }),
+                Detail = detail,
                 Start = 0,
                 End = end
             });
+        }
+
+        /// <summary>A world's name: the system on the table, else our worlds, else its number.</summary>
+        string PlanetName(int planetId)
+        {
+            var p = _focus?.FindPlanet(planetId);
+            if (p != null && !string.IsNullOrEmpty(p.Name))
+                return p.Name;
+            var eco = EconomyService.Instance;
+            if (eco != null && eco.Planets.TryGetValue(planetId, out var mine) && !string.IsNullOrEmpty(mine.Name))
+                return mine.Name;
+            return "#" + planetId;
         }
 
         // ── Enter / leave ───────────────────────────────────────────────────────

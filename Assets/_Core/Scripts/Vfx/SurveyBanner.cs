@@ -9,12 +9,13 @@ using UnityEngine.UI;
 namespace Core.Vfx
 {
     /// <summary>
-    /// What the planetary survey is doing, spelled out above the holo table while one of our ships is busy
-    /// exploring (ExplorePlanet, by hand or by auto-exploration) — the inhabited ship, or one of ours in the
-    /// system on the table (a survey elsewhere is on the wrist readout): "Survey in progress", which ship on which
-    /// world, the time left with a progress bar, and the research points it brings in (the server banks them
-    /// at the start; the VR knows the amount when the order came from here). When the survey ends the banner
-    /// says so for a few seconds, then folds away. Refreshed twice a second while shown.
+    /// What our ship in orbit is doing, spelled out above the holo table while one of ours is busy surveying a
+    /// world (ExplorePlanet, by hand or by auto-exploration) or mining an asteroid field (HarvestAsteroid) — the
+    /// inhabited ship, or one of ours in the system on the table (elsewhere it is on the wrist readout): "Survey
+    /// in progress" / "Mining in progress", which ship on which world or field, the time left with a progress
+    /// bar, and what it brings in (research points, or the haul of mineral and crystal — the server credits
+    /// both at the start; the VR knows the amounts when the order came from here). When it ends the banner says
+    /// so for a few seconds, then folds away. Refreshed twice a second while shown.
     /// </summary>
     public sealed class SurveyBanner : MonoBehaviour
     {
@@ -24,6 +25,9 @@ namespace Core.Vfx
         /// <summary>Surveys ordered from this headset: fleet → (research points, start, end).</summary>
         static readonly Dictionary<int, (int points, long start, long end)> Ordered = new();
 
+        /// <summary>Harvests ordered from this headset: fleet → (mineral, crystal, start, end).</summary>
+        static readonly Dictionary<int, (int mineral, int crystal, long start, long end)> Hauls = new();
+
         FocusContext _focus;
         CanvasGroup _group;
         TMP_Text _title;
@@ -31,10 +35,11 @@ namespace Core.Vfx
         TMP_Text _left;
         TMP_Text _points;
         RectTransform _fill;
+        Image _fillImage;
         readonly Dictionary<int, long> _firstSeen = new();
         int _fleet;
+        bool _mining;
         string _lastWhat = string.Empty;
-        int _lastPoints;
         float _doneUntil;
         float _alpha;
         float _next;
@@ -53,6 +58,31 @@ namespace Core.Vfx
             {
                 // Not JSON (older server): the banner still shows the timer.
             }
+        }
+
+        /// <summary>A HarvestAsteroid answered ({mineral, crystal, duration}): remember the haul for the banner.</summary>
+        public static void RecordHarvest(int fleetId, string body)
+        {
+            try
+            {
+                var o = Newtonsoft.Json.Linq.JObject.Parse(body);
+                var now = FleetOrderGate.UnixNow();
+                Hauls[fleetId] = (FocusContext.AsInt(o["mineral"]), FocusContext.AsInt(o["crystal"]), now,
+                    now + FocusContext.AsLong(o["duration"]));
+            }
+            catch
+            {
+                // Not JSON: the banner still shows the timer.
+            }
+        }
+
+        /// <summary>The haul of a harvest ending at <paramref name="end"/>, when it was ordered here (else start 0).</summary>
+        public static (int mineral, int crystal, long start) Harvest(int fleetId, long end)
+        {
+            // Local clock vs the server's end stamp: a few seconds apart at most.
+            if (Hauls.TryGetValue(fleetId, out var h) && System.Math.Abs(h.end - end) <= 5)
+                return (h.mineral, h.crystal, h.start);
+            return (0, 0, 0);
         }
 
         public static SurveyBanner Build(Transform room, FocusContext focus, Vector3 local, Vector3 faceLocal, int layer)
@@ -97,6 +127,7 @@ namespace Core.Vfx
             fill.color = UiKit.Cyan;
             fill.raycastTarget = false;
             b._fill = fill.rectTransform;
+            b._fillImage = fill;
 
             if (layer >= 0)
                 foreach (var t in go.GetComponentsInChildren<Transform>(true))
@@ -131,29 +162,37 @@ namespace Core.Vfx
             var now = FleetOrderGate.UnixNow();
             var me = FocusContext.OwnedUserId();
             FocusFleet best = null;
+            var bestMining = false;
             if (_focus != null && me > 0)
                 foreach (var f in _focus.Fleets)
                 {
-                    if (f == null || f.UserId != me || !f.IsExploring(now))
+                    if (f == null || f.UserId != me)
+                        continue;
+                    var exploring = f.IsExploring(now);
+                    var mining = !exploring && f.IsHarvesting(now);
+                    if (!exploring && !mining)
                         continue;
                     // What the bridge is looking at: the inhabited ship, or ours in the system on the table.
-                    // A survey elsewhere belongs on the wrist (every affair with a timer), not on this bridge.
+                    // Elsewhere it belongs on the wrist (every affair with a timer), not on this bridge.
                     if (f.Id != _focus.ViewFleetId && f.SystemId != _focus.SystemId)
                         continue;
                     // The inhabited ship first, then the one finishing soonest.
                     if (best == null || f.Id == _focus.ViewFleetId ||
-                        (best.Id != _focus.ViewFleetId && f.ExploreEndTime < best.ExploreEndTime))
+                        (best.Id != _focus.ViewFleetId && End(f, mining) < End(best, bestMining)))
+                    {
                         best = f;
+                        bestMining = mining;
+                    }
                 }
 
             if (best == null)
             {
                 if (_fleet > 0)
                 {
-                    // Just finished: say so, keep the last line and the points a moment.
+                    // Just finished: say so, keep the last line and what it brought a moment.
                     _fleet = 0;
                     _doneUntil = Time.unscaledTime + DoneHold;
-                    _title.text = Trans.Get("vr.survey.done");
+                    _title.text = Trans.Get(_mining ? "vr.mining.done" : "vr.survey.done");
                     _left.text = string.Empty;
                     _fill.sizeDelta = new Vector2(760f, 0f);
                     CicCue.Success(transform.position);
@@ -162,34 +201,55 @@ namespace Core.Vfx
                 return;
             }
 
-            if (_fleet != best.Id)
+            if (_fleet != best.Id || _mining != bestMining)
             {
                 _fleet = best.Id;
+                _mining = bestMining;
+                _fillImage.color = _mining ? UiKit.Amber : UiKit.Cyan;
                 CicCue.Ok(transform.position);
             }
 
-            if (!_firstSeen.TryGetValue(best.Id, out var seen) || seen > now || seen >= best.ExploreEndTime)
+            var end = End(best, _mining);
+            if (!_firstSeen.TryGetValue(best.Id, out var seen) || seen > now || seen >= end)
                 _firstSeen[best.Id] = seen = now;
             var start = seen;
-            var points = 0;
-            if (Ordered.TryGetValue(best.Id, out var o) && o.end == best.ExploreEndTime)
+            var ship = string.IsNullOrEmpty(best.Name) ? "#" + best.Id : best.Name;
+            string where;
+            if (_mining)
             {
-                start = o.start;
-                points = o.points;
+                var haul = Harvest(best.Id, end);
+                if (haul.start > 0)
+                    start = haul.start;
+                var rock = _focus.FindAsteroid(best.AsteroidId);
+                where = Trans.Get("asteroidField") + " #" + (rock != null && rock.Slot > 0 ? rock.Slot : best.AsteroidId);
+                _points.text = haul.mineral + haul.crystal > 0
+                    ? Trans.Format("vr.mining.haul", haul.mineral.ToString("N0"), haul.crystal.ToString("N0"))
+                    : CrewStationScreen.HoldLine(best);
+                _title.text = Trans.Get("vr.mining.active");
+            }
+            else
+            {
+                var points = 0;
+                if (Ordered.TryGetValue(best.Id, out var o) && o.end == end)
+                {
+                    start = o.start;
+                    points = o.points;
+                }
+
+                var planet = _focus.FindPlanet(best.PlanetId);
+                where = planet != null && !string.IsNullOrEmpty(planet.Name) ? planet.Name : "#" + best.PlanetId;
+                _points.text = points > 0 ? Trans.Format("vr.survey.gained", points.ToString("N0")) : string.Empty;
+                _title.text = Trans.Get("vr.survey.active");
             }
 
-            var ship = string.IsNullOrEmpty(best.Name) ? "#" + best.Id : best.Name;
-            var planet = _focus.FindPlanet(best.PlanetId);
-            var world = planet != null && !string.IsNullOrEmpty(planet.Name) ? planet.Name : "#" + best.PlanetId;
-            _title.text = Trans.Get("vr.survey.active");
-            _lastWhat = ship + "  →  " + world;
+            _lastWhat = ship + "  →  " + where;
             _what.text = _lastWhat;
-            _left.text = Core.Holo.TravelPlanner.TimeText(best.ExploreEndTime - now);
-            _lastPoints = points;
-            _points.text = points > 0 ? Trans.Format("vr.survey.gained", points.ToString("N0")) : string.Empty;
-            var span = best.ExploreEndTime - start;
+            _left.text = Core.Holo.TravelPlanner.TimeText(end - now);
+            var span = end - start;
             var p = span > 0 ? Mathf.Clamp01((now - start) / (float)span) : 0f;
             _fill.sizeDelta = new Vector2(760f * p, 0f);
         }
+
+        static long End(FocusFleet f, bool mining) => mining ? f.HarvestEndTime : f.ExploreEndTime;
     }
 }

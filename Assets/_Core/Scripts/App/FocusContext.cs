@@ -56,6 +56,12 @@ namespace Core.App
         public bool EnoughHyperdrive;
         public bool EnoughPrlBond;
         public int CrystalCargo;
+        /// <summary>The hold (stats.cargo / mineralCargo / biomassCargo): capacity and what is aboard.</summary>
+        public int Cargo;
+        public int MineralCargo;
+        public int BiomassCargo;
+        public int CargoUsed => MineralCargo + CrystalCargo + BiomassCargo;
+        public int CargoFree => Math.Max(0, Cargo - CargoUsed);
         /// <summary>Unix seconds when Bond PRL is ready again; 0 = ready.</summary>
         public long PrlBondReadyAt;
         public bool HasScienceModule;
@@ -302,6 +308,8 @@ namespace Core.App
                     h = h * 31 + (f.IsInBattle ? 1 : 0);
                     h = h * 31 + f.PrlBondReadyAt.GetHashCode();
                     h = h * 31 + f.CrystalCargo;
+                    h = h * 31 + f.MineralCargo;
+                    h = h * 31 + f.BiomassCargo;
                     h = h * 31 + f.TroopsAboard;
                     h = h * 31 + (f.DefendPosition != null ? f.DefendPosition.GetHashCode() : 0);
                     h = h * 31 + f.QueueIndex;
@@ -603,6 +611,9 @@ namespace Core.App
                         row.HasHyperdrive = AsBool(stats["hasHyperdrive"]);
                         row.HasPrlBond = AsBool(stats["hasPrlBond"]);
                         row.CrystalCargo = AsInt(stats["crystalCargo"]);
+                        row.Cargo = AsInt(stats["cargo"]);
+                        row.MineralCargo = AsInt(stats["mineralCargo"]);
+                        row.BiomassCargo = AsInt(stats["biomassCargo"]);
                         row.EnoughHyperdrive = AsBool(stats["hasEnoughHyperdrive"]);
                         row.EnoughPrlBond = AsBool(stats["hasEnoughPrlBond"]);
                         row.HasScienceModule = AsBool(stats["hasScienceModule"]);

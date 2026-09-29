@@ -10,8 +10,8 @@ namespace Core.UI
     /// <summary>
     /// A holo readout on the left wrist, the captain's watch: bring either side of the wrist to your face and it
     /// fades in, always upright toward the eyes. Ship time, the alert state, Nova, unread transmissions, and
-    /// the three nearest affairs with a timer (a trip, a survey, a siege, a harvest, a build, a research, a
-    /// battle) — each with what it is, where, a countdown and a progress bar. Follows the left controller or
+    /// the three nearest affairs with a timer (a trip, a survey, a siege, a harvest, a build, a module in the
+    /// dry dock, a research, a battle) — each with what it is, where, a countdown and a progress bar. Follows the left controller or
     /// the tracked left hand; refreshed once a second while shown, nothing otherwise. On the Watch layer, so it
     /// stays with the captain on watch too.
     /// </summary>
@@ -182,6 +182,7 @@ namespace Core.UI
             WatchKind.Harvest => "vr.watch.harvest",
             WatchKind.Explore => "vr.watch.explore",
             WatchKind.Building => "vr.watch.building",
+            WatchKind.Shipyard => "vr.watch.shipyard",
             _ => "vr.watch.research"
         });
 
@@ -212,10 +213,9 @@ namespace Core.UI
                 var a = watch.Affairs[i];
                 if (!row.Root.activeSelf)
                     row.Root.SetActive(true);
-                // What it is (and whose), then where / what exactly, and how long is left.
-                var kind = KindLabel(a.Kind);
-                row.Title.text = a.Kind == WatchKind.Building || a.Kind == WatchKind.Research ? a.Title : kind + " · " + a.Title;
-                row.Detail.text = a.Kind == WatchKind.Building ? kind + " · " + a.Detail : a.Detail;
+                // What it is and whose (the ship, the world), then what exactly and where, and how long is left.
+                row.Title.text = KindLabel(a.Kind) + " · " + a.Title;
+                row.Detail.text = a.Detail;
                 row.Left.text = a.End > now ? Core.Holo.TravelPlanner.TimeText(a.End - now) : string.Empty;
                 var p = a.Start > 0 ? a.Progress(now) : 0f;
                 row.Fill.sizeDelta = new Vector2(270f * p, 0f);

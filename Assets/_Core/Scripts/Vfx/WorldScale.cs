@@ -20,8 +20,8 @@ namespace Core.Vfx
 
         /// <summary>Holo table centre on the deck (Z).</summary>
         public const float CicTableCenterZ = 0.6f;
-        /// <summary>Captain chair centre (Z), on its dais aft of the table.</summary>
-        public const float CicCaptainChairZ = -1.35f;
+        /// <summary>Captain chair centre (Z), on its dais aft of the table: 1.4 m of deck between seat and rim, so standing at the table never lands in it.</summary>
+        public const float CicCaptainChairZ = -2.0f;
         /// <summary>Standing captain spot: just aft of the table rim, in front of the chair.</summary>
         public static readonly Vector3 CicCaptainStand = new(0f, 0f, -0.75f);
         /// <summary>Crew stations horseshoe: radius from the table centre.</summary>

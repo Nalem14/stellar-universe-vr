@@ -25,6 +25,8 @@ namespace Core.Holo
         const float RayLength = 4f;
         const float PokeRadius = 0.025f;
         static readonly Color Valid = new(0.45f, 1f, 0.6f, 1f);
+        static readonly Color Queued = new(1f, 0.72f, 0.32f, 1f);
+        bool _offering;
 
         HoloZoneMap _map;
         FocusContext _focus;
@@ -145,7 +147,9 @@ namespace Core.Holo
             }
 
             var console = OrderConsole.Instance;
-            var busy = (_orders != null && _orders.Busy) || (console != null && console.IsOpen);
+            // The Nova-finish offer that pops on picking a ship under way does not hold the table: pointing at a
+            // target dismisses it and queues the next order instead.
+            var busy = (_orders != null && _orders.Busy) || (console != null && console.IsOpen && !_offering);
 
             // Aim: the first ray that points at a token (ignoring rays already on a UI panel).
             HoloToken aimed = null;
@@ -358,7 +362,8 @@ namespace Core.Holo
             CicCue.Ok(token.transform.position);
             var fleet = SelectedFleet;
             if (fleet != null && !fleet.CanIssueMove(FleetOrderGate.UnixNow()))
-                Readout(token.DisplayName + "  ·  " + Trans.Get(FleetOrderGate.BusyKey(fleet)));
+                Readout(token.DisplayName + "  ·  " + Trans.Get(FleetOrderGate.BusyKey(fleet)) + "  ·  " +
+                        Trans.Get("vr.queue.busyHint"));
             else
                 Readout(Trans.Format("vr.table.selected", token.DisplayName));
             ShowCues();
@@ -371,7 +376,18 @@ namespace Core.Holo
         /// <summary>Under way: the lectern opens beside the ship with the Nova finish (Cancel = keep flying).</summary>
         async Task OfferSpeedup(HoloToken token, FocusFleet fleet)
         {
-            var (sent, result) = await TravelSpeedup.AskAndSend(fleet, token != null ? token.transform.position : null);
+            _offering = true;
+            bool sent;
+            ApiResult result;
+            try
+            {
+                (sent, result) = await TravelSpeedup.AskAndSend(fleet, token != null ? token.transform.position : null);
+            }
+            finally
+            {
+                _offering = false;
+            }
+
             if (!sent)
                 return;
             var name = string.IsNullOrEmpty(fleet.Name) ? "#" + fleet.Id : fleet.Name;
@@ -470,7 +486,16 @@ namespace Core.Holo
                 return;
             _arc.enabled = false;
             _arcLabelRoot.gameObject.SetActive(false);
-            await _orders.Command(ship, target, dragged: false);
+            var sent = await _orders.Command(ship, target, dragged: false);
+            // Chaining: the ship stays picked after an order, so the next target pointed at is its next queued
+            // step (asteroid → harvest, then home → deposit…) without picking it again.
+            if (sent && SelectedFleet is { } still && _focus.IsMine(still))
+            {
+                ShowCues();
+                Readout(ship.DisplayName.Replace('\n', ' ') + "  ·  " + Trans.Get("vr.queue.chainHint"));
+                return;
+            }
+
             Deselect();
         }
 
@@ -491,8 +516,11 @@ namespace Core.Holo
                     return null;
                 case HoloTokenKind.Planet:
                 case HoloTokenKind.Asteroid:
+                    if (target.Kind == HoloTokenKind.Asteroid && _focus?.FindAsteroid(target.Id) is { Gone: true })
+                        return Trans.Get("asteroidDepleted");
+                    // Busy: valid — the order joins its queue (HoloFleetOrders.QueueOrders).
                     if (!fleet.CanIssueMove(now))
-                        return Trans.Get(FleetOrderGate.BusyKey(fleet));
+                        return null;
                     // Where the ship already is: valid when there is something to do on the spot.
                     if ((target.Kind == HoloTokenKind.Planet && fleet.PlanetId == target.Id) ||
                         (target.Kind == HoloTokenKind.Asteroid && fleet.AsteroidId == target.Id))
@@ -505,7 +533,8 @@ namespace Core.Holo
                 case HoloTokenKind.System:
                     if (target.Slot < 0 || target.Id == fleet.SystemId)
                         return Trans.Get("vr.table.alreadyThere");
-                    return fleet.CanIssueMove(now) ? null : Trans.Get(FleetOrderGate.BusyKey(fleet));
+                    // Busy: a queued moveToSystem step.
+                    return null;
                 default:
                     return Trans.Get("vr.table.notATarget");
             }
@@ -520,7 +549,9 @@ namespace Core.Holo
             if (fleet == null)
                 return;
             var tex = _art.OrbitRing != null ? _art.OrbitRing : Texture2D.whiteTexture;
-            var mat = _art.RadarIcon(tex, new Color(Valid.r, Valid.g, Valid.b, 0.85f));
+            // Busy ship: its targets take queued steps — amber rings (the queue's colour) instead of green.
+            var tint = fleet.CanIssueMove(FleetOrderGate.UnixNow()) ? Valid : Queued;
+            var mat = _art.RadarIcon(tex, new Color(tint.r, tint.g, tint.b, 0.85f));
             foreach (var t in _map.Tokens)
             {
                 if (t == null || t.Kind == HoloTokenKind.Fleet || Invalid(fleet, t) != null)
@@ -659,6 +690,9 @@ namespace Core.Holo
         static string Quote(FocusFleet fleet, HoloToken target)
         {
             var name = string.IsNullOrEmpty(target.DisplayName) ? target.Kind.ToString() : target.DisplayName;
+            // Busy: the pick is a queued step, not a flight — say so instead of an ETA.
+            if (target.Kind != HoloTokenKind.Anomaly && !fleet.CanIssueMove(FleetOrderGate.UnixNow()))
+                return name + "  <color=#ffb866>" + Trans.Get("addToQueue") + "</color>";
             switch (target.Kind)
             {
                 case HoloTokenKind.Anomaly:

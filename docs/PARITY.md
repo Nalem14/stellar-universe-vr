@@ -456,3 +456,8 @@ Dix langues : `fr`, `en`, `de`, `es`, `it`, `pt`, `ru`, `ko`, `ja`, `zh`.
 ### Spec livrée — `CreateEmpire`
 
 Miroir de `controller/create-empire.php` via `CreateEmpireForUser` : mêmes validations / effets. Auth token. Requis : `empireName`. Optionnels : drapeau, `authority`, `ethics` (csv), espèce / traits, `planetName`, profil lore (`leaderTraits` csv ≤ 3 via `GetLeaderTraits`). Retour = JSON enrichi type `GetMeEmpire`, ou `error:<clé>`.
+
+### À corriger côté web (relevés en reprenant la file d'ordres, 2026-09-29)
+
+- **Étapes `depositCargo` / `withdrawCargo` sans contrôle de position** : `ProcessFleetQueue` (`model/fleet_queue.php`) transfère la cargaison sans vérifier que le vaisseau orbite la planète visée, alors que `DepositCargo` / `WithdrawCargo` exigent `planetid` = planète. Une étape seule (ou après un déplacement échoué) transfère donc depuis n'importe où. La VR met toujours le déplacement en tête de chaîne ; le serveur doit refuser ou sauter l'étape hors orbite.
+- **`SetFleetOrderQueue` avec boucle compte `trade_routes` à chaque appel** : chaque réordonnancement (tableau de la file, balise déplacée sur la table) d'une file en boucle rejoue l'incrément du succès. À ne compter qu'au passage de la boucle à 1.

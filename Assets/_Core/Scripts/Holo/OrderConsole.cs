@@ -4,15 +4,17 @@ using System.Threading.Tasks;
 using Core.UI;
 using Core.Utils;
 using Core.Vfx;
+using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace Core.Holo
 {
     /// <summary>
     /// Captain's order lectern on the near rim of the holo table: after a fleet token is dropped, the order
-    /// is quoted here (destination + one physical button per travel option, with ETA / crystal / refusal
+    /// is quoted here (destination + one flat holo touch button per option, with ETA / crystal / refusal
     /// reason) and only leaves on Confirm. Cancel — or 20 s without an answer — puts the token back.
-    /// Hidden when idle; reachable standing (poke) or seated (ray).
+    /// Hidden when idle; reachable standing (poke) or seated (ray), both through the world canvas.
     /// </summary>
     public sealed class OrderConsole : MonoBehaviour
     {
@@ -32,7 +34,7 @@ namespace Core.Holo
             }
         }
 
-        const int MaxOptions = 4;
+        const int MaxOptions = 5;
         const float Timeout = 20f;
         /// <summary>
         /// A plate that opens under the hand must not take the press that was already there: options arm
@@ -40,13 +42,16 @@ namespace Core.Holo
         /// </summary>
         const float ArmDelay = 0.6f;
         float _armAt;
-        static readonly Vector2 Size = new(0.62f, 0.42f);
+        static readonly Vector2 Size = new(0.64f, 0.46f);
+        const float OptionH = 48f;
+        const float OptionStep = 54f;
 
         GameObject _screenGo;
         HoloScreen _screen;
         TMPro.TMP_Text _dest;
-        readonly PokeButton[] _options = new PokeButton[MaxOptions];
-        PokeButton _cancel;
+        readonly Button[] _options = new Button[MaxOptions];
+        readonly TMP_Text[] _optionLabels = new TMP_Text[MaxOptions];
+        Button _cancel;
         TaskCompletionSource<object> _pending;
         float _deadline;
 
@@ -74,21 +79,31 @@ namespace Core.Holo
             console._screenGo = console._screen.gameObject;
 
             var px = console._screen.PixelSize;
-            console._dest = DiegeticUi.HoloLabel(console._screen.Content, string.Empty,
-                new Vector2(0f, px.y * 0.32f), new Vector2(px.x * 0.9f, 36f), 28f, UiKit.TextBright);
+            var content = console._screen.Content;
+            console._dest = DiegeticUi.HoloLabel(content, string.Empty,
+                new Vector2(0f, px.y * 0.3f), new Vector2(px.x * 0.9f, 40f), 26f, UiKit.TextBright);
+            console._dest.enableAutoSizing = true;
+            console._dest.fontSizeMin = 16f;
+            console._dest.fontSizeMax = 26f;
 
-            var t = console._screen.transform;
+            // Flat holo touch buttons on the glass (poke through the canvas, or ray): one per option.
+            var top = px.y * 0.3f - 52f;
             for (var i = 0; i < MaxOptions; i++)
             {
                 var index = i;
-                console._options[i] = PokeButton.Create(t, "Option" + i, string.Empty,
-                    new Vector3(0f, 0.09f - i * 0.062f, -0.014f), Quaternion.identity, new Vector2(0.54f, 0.05f),
-                    UiKit.Cyan, () => console.Choose(index));
+                var b = DiegeticUi.HoloButton(content, string.Empty, new Vector2(0f, top - i * OptionStep),
+                    new Vector2(px.x - 60f, OptionH), () => console.Choose(index), DiegeticUi.BtnStyle.Cyan);
+                b.name = "Option" + i;
+                console._options[i] = b;
+                console._optionLabels[i] = b.GetComponentInChildren<TMP_Text>();
+                console._optionLabels[i].enableAutoSizing = true;
+                console._optionLabels[i].fontSizeMin = 14f;
+                console._optionLabels[i].fontSizeMax = 21f;
             }
 
-            console._cancel = PokeButton.Create(t, "Cancel", Trans.Get("cancel"),
-                new Vector3(0.17f, -0.172f, -0.014f), Quaternion.identity, new Vector2(0.2f, 0.04f),
-                UiKit.Danger, () => console.Resolve(null));
+            console._cancel = DiegeticUi.HoloButton(content, Trans.Get("cancel"),
+                new Vector2(px.x * 0.5f - 130f, -px.y * 0.5f + 34f), new Vector2(200f, 42f),
+                () => console.Resolve(null), DiegeticUi.BtnStyle.Danger);
 
             console._screenGo.SetActive(false);
             console.enabled = false;
@@ -181,20 +196,30 @@ namespace Core.Holo
                 b.gameObject.SetActive(has);
                 if (!has)
                     continue;
-                b.SetLabel(_current[i].Label);
-                b.SetAccent(_current[i].Accent);
-                b.Interactive = _current[i].Enabled;
+                _optionLabels[i].text = _current[i].Label ?? string.Empty;
+                DiegeticUi.Restyle(b, StyleOf(_current[i].Accent));
+                b.interactable = _current[i].Enabled;
+                _optionLabels[i].color = _current[i].Enabled ? Color.white : UiKit.TextDim * 0.8f;
             }
 
             _pending = new TaskCompletionSource<object>();
             _deadline = Time.unscaledTime + Timeout;
+            // Presses land only once armed (Choose checks the clock): the buttons keep their look meanwhile.
             _armAt = Time.unscaledTime + ArmDelay;
-            for (var i = 0; i < _current.Count; i++)
-                _options[i].Interactive = false;
             _screenGo.SetActive(true);
             enabled = true;
             CicCue.Hover(_screen.transform.position);
             return _pending.Task;
+        }
+
+        /// <summary>Option accents → the three holo button skins (warm red = danger, warm = amber, else cyan).</summary>
+        static DiegeticUi.BtnStyle StyleOf(Color c)
+        {
+            if (c.r > 0.8f && c.g < 0.5f)
+                return DiegeticUi.BtnStyle.Danger;
+            if (c.r > 0.8f && c.b < 0.6f)
+                return DiegeticUi.BtnStyle.Amber;
+            return DiegeticUi.BtnStyle.Cyan;
         }
 
         void Choose(int index)
@@ -218,13 +243,6 @@ namespace Core.Holo
 
         void Update()
         {
-            if (_pending != null && _armAt > 0f && Time.unscaledTime >= _armAt)
-            {
-                _armAt = 0f;
-                for (var i = 0; i < _current.Count; i++)
-                    _options[i].Interactive = _current[i].Enabled;
-            }
-
             if (_pending != null && Time.unscaledTime > _deadline)
                 Resolve(null);
         }

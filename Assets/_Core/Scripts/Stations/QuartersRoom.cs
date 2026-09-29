@@ -16,7 +16,8 @@ namespace Core.Stations
 {
     /// <summary>
     /// The captain's quarters — web EmpireHubUI + ProgressionWindowUI + ShopWindowUI + ActivityWindowUI as a
-    /// place: a cabin over our ship with a panoramic bay. The desk console runs the empire: identity
+    /// place: a cabin over our ship with a panoramic bay, laid out as one (QuartersDecor: the working wall by the
+    /// door, the bedroom on the far side, a lounge before the bay). The desk console runs the empire: identity
     /// (RenameEmpire with a rename token, UpdateEmpireFlag), government (SetAuthority, a reconfiguration token
     /// to change it; AddEmpirePolicy up to the limit), politics (GetPolitics / SetPolitics, free), species
     /// (UpdateSpecy — name free, type or traits one token; traits always sent whole) and the captain's log
@@ -33,7 +34,8 @@ namespace Core.Stations
         enum ShopTab { Boosters, Consumables, Cosmetics, Titles, Nova }
 
         static readonly Vector3 WorldOrigin = new(160f, -3000f, -200f);
-        static readonly Vector3 Stand = Vector3.zero;
+        // Just inside the corridor door, facing the bay (the desk at the right hand).
+        static readonly Vector3 Stand = QuartersDecor.Entry;
         public static readonly Color Accent = new(0.95f, 0.64f, 0.32f, 1f);
         static readonly Vector2 ScreenSize = new(1.1f, 0.7f);
         const float DeskRecline = 52f;
@@ -153,15 +155,17 @@ namespace Core.Stations
         {
             var fill = new GameObject("CabinLight").AddComponent<Light>();
             fill.transform.SetParent(transform, false);
-            fill.transform.localPosition = new Vector3(0f, QuartersDecor.Height - 0.4f, 1.2f);
+            // One warm fill for the whole cabin (no extra lights: lamps and night glows are emissive).
+            fill.transform.localPosition = new Vector3(0f, QuartersDecor.Height - 0.4f, 1.0f);
             fill.type = LightType.Point;
-            fill.range = 9f;
-            fill.intensity = 1.2f;
+            fill.range = 11.5f;
+            fill.intensity = 1.8f;
             fill.color = new Color(1f, 0.88f, 0.72f);
             fill.shadows = LightShadows.None;
 
-            RoomDoor.Build(transform, "DoorToBridge", new Vector3(2.4f, 0f, QuartersDecor.Back + 0.12f), 0f,
-                Trans.Get("vr.quarters.leave"), UiKit.Amber, _art, () => Inside, () => AsyncTap.Run(Leave()));
+            // Deliberate: the captain arrives with his back to it, and backing away never walks him out.
+            RoomDoor.Build(transform, "DoorToBridge", new Vector3(QuartersDecor.DoorX, 0f, QuartersDecor.DoorZ), 0f,
+                Trans.Get("vr.quarters.leave"), UiKit.Amber, _art, () => Inside, () => AsyncTap.Run(Leave()), deliberate: true);
 
             _commsWake = PokeButton.Create(_decor.CommsWakeMount, "CommsWake", Trans.Get("vr.comms.title"), Vector3.zero,
                 Quaternion.identity, new Vector2(0.28f, 0.07f), new Color(0.55f, 0.85f, 0.45f), () =>
@@ -173,7 +177,7 @@ namespace Core.Stations
 
         void BuildScreens()
         {
-            // Desk: the empire, low and reclined so the bay stays free above it.
+            // Desk (by the door, against the starboard wall): the empire, low and reclined under the eye line.
             _empire = HoloScreen.Create(transform, "EmpireConsole", ScreenSize, Vector3.zero, Quaternion.identity,
                 Trans.Get("vr.quarters.empire"));
             _empire.SetAccent(Accent, 0.5f);

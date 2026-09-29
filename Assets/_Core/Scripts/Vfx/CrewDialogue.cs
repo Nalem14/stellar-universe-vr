@@ -332,11 +332,14 @@ namespace Core.Vfx
 
                 if (!FleetOrderGate.CanMove(fleet) && _role == Role.Helm)
                 {
-                    // Under way: no new move, but the travel can be finished for Nova and the queue stays editable.
+                    // Busy (under way, mining, surveying…): no new move now, but the travel can be finished for
+                    // Nova and the next orders still go on the queue (the server runs it once the ship is idle).
                     AddStatus(Trans.Get(FleetOrderGate.BusyKey(fleet)));
                     if (Core.Holo.TravelSpeedup.Offered(fleet))
                         AddAction(Core.Holo.TravelSpeedup.Label(fleet), () => SpeedupTravel(fleet),
                             DiegeticUi.BtnStyle.Amber);
+                    if (_dropOpen != DropGroup.Queue)
+                        await BuildQueueAdds(focus, fleet);
                     BuildQueue(focus, fleet);
                     return;
                 }
@@ -445,6 +448,53 @@ namespace Core.Vfx
                     DiegeticUi.BtnStyle.Danger);
         }
 
+        /// <summary>
+        /// Helm, ship busy: the usual follow-ups as queued chains in one tap — back to the nearest world of ours
+        /// to unload, or out to one of this system's rock fields to mine. Any other target: the holo table
+        /// (pointing at it with the ship picked queues it too).
+        /// </summary>
+        async Task BuildQueueAdds(FocusContext focus, FocusFleet fleet)
+        {
+            await OwnedPlanets.EnsureLoaded();
+            await GalaxyCatalog.EnsureLoaded();
+            if (NearestOwned(fleet, out var home))
+            {
+                var homeLabel = string.IsNullOrEmpty(home.Name) ? "#" + home.Id : home.Name;
+                var homeId = home.Id;
+                AddAction(Core.Holo.OrderQueue.ChainLabel("moveToPlanet", "depositCargo") + "  ·  " + homeLabel,
+                    () => QueueCall(Core.Holo.OrderQueue.AddPlanetChain(fleet, homeId, "depositCargo"), "stepAdded"),
+                    DiegeticUi.BtnStyle.Amber);
+            }
+
+            var rocks = new List<FocusAsteroid>();
+            foreach (var rock in focus.Asteroids)
+                if (!rock.Gone && !rocks.Exists(r => r.Id == rock.Id))
+                    rocks.Add(rock);
+            if (rocks.Count == 1)
+            {
+                var aid = rocks[0].Id;
+                AddAction(Core.Holo.OrderQueue.ChainLabel("moveToAsteroid", "harvestAsteroid") + "  ·  " + RockLabel(rocks[0]),
+                    () => QueueCall(Core.Holo.OrderQueue.AddAsteroidChain(fleet, aid, true), "stepAdded"),
+                    DiegeticUi.BtnStyle.Amber);
+            }
+            else if (rocks.Count > 1)
+            {
+                AddDropdown(Core.Holo.OrderQueue.ChainLabel("moveToAsteroid", "harvestAsteroid"), rocks.Count,
+                    DropGroup.Asteroids);
+                if (_dropOpen == DropGroup.Asteroids)
+                {
+                    BeginDropTray(rocks.Count);
+                    foreach (var rock in rocks)
+                    {
+                        var aid = rock.Id;
+                        AddDropOption(DestLabel(RockLabel(rock)),
+                            () => QueueCall(Core.Holo.OrderQueue.AddAsteroidChain(fleet, aid, true), "stepAdded"),
+                            DiegeticUi.BtnStyle.Amber);
+                    }
+                }
+            }
+        }
+
         async Task QueueCall(Task<ApiResult> call, string okKey)
         {
             var result = await call;
@@ -537,6 +587,19 @@ namespace Core.Vfx
             }
 
             await AddGates(fleet);
+
+            // Home: the nearest of our worlds in one tap (no hunting for the base on the table).
+            if (FleetOrderGate.CanMove(fleet))
+            {
+                await OwnedPlanets.EnsureLoaded();
+                await GalaxyCatalog.EnsureLoaded();
+                if (NearestOwned(fleet, out var home) && home.Id != fleet.PlanetId)
+                {
+                    var homeLabel = string.IsNullOrEmpty(home.Name) ? "#" + home.Id : home.Name;
+                    AddAction(Trans.Format("vr.helm.returnHome", homeLabel), () => ReturnHome(fleet.Id, home),
+                        DiegeticUi.BtnStyle.Amber, refreshAfter: false);
+                }
+            }
 
             // Any star by its coordinates, typed on a pad (no hunting for it on the table).
             if (FleetOrderGate.CanJumpSystem(fleet))
@@ -816,19 +879,24 @@ namespace Core.Vfx
             if (FleetOrderGate.CanCargo(fleet, focus))
             {
                 var planetLabel = PlanetLabel(focus.FindPlanet(fleet.PlanetId), fleet.PlanetId);
-                AddAction(ActionLabel("depositCargo", planetLabel),
-                    () => Issue("DepositCargo", new Dictionary<string, string>
-                    {
-                        { "fleet", fleet.Id.ToString() },
-                        { "planet", fleet.PlanetId.ToString() }
-                    }));
-                AddAction(ActionLabel("withdrawCargo", planetLabel),
-                    () => Issue("WithdrawCargo", new Dictionary<string, string>
-                    {
-                        { "fleet", fleet.Id.ToString() },
-                        { "planet", fleet.PlanetId.ToString() }
-                    }));
+                AddAction(ActionLabel("depositCargo", planetLabel), () => TransferCargo(fleet, planetLabel, false));
+                AddAction(ActionLabel("withdrawCargo", planetLabel), () => TransferCargo(fleet, planetLabel, true));
             }
+        }
+
+        /// <summary>Deposit / withdraw: the amounts on the cargo pad first, then the order.</summary>
+        async Task TransferCargo(FocusFleet fleet, string planetLabel, bool withdraw)
+        {
+            var amounts = await Core.Holo.CargoPad.Ask(fleet, fleet.PlanetId, planetLabel, withdraw);
+            if (amounts == null)
+                return;
+            var query = new Dictionary<string, string>
+            {
+                { "fleet", fleet.Id.ToString() },
+                { "planet", fleet.PlanetId.ToString() }
+            };
+            amounts.Value.AddTo(query);
+            await Issue(withdraw ? "WithdrawCargo" : "DepositCargo", query, planetLabel);
         }
 
         /// <summary>Planet stewardship (Ops console) on the station's planet, else the one in orbit, else the first owned.</summary>
@@ -1131,7 +1199,59 @@ namespace Core.Vfx
             await MoveToSystem(fleet.Id, best.Id, best.X, best.Y, best.Label);
         }
 
-        async Task MoveToSystem(int fleetId, int systemId, float x, float y, string systemLabel)
+        /// <summary>The nearest of our worlds: in this system first, else by galaxy distance.</summary>
+        static bool NearestOwned(FocusFleet fleet, out GalaxyCatalog.PlanetRef home)
+        {
+            home = default;
+            var found = false;
+            var best = float.MaxValue;
+            var fromKnown = GalaxyCatalog.TryGet(fleet.SystemId, out var from);
+            foreach (var p in OwnedPlanets.All)
+            {
+                float d;
+                if (p.SystemId == fleet.SystemId)
+                    d = p.Id == fleet.PlanetId ? -1f : 0f;
+                else if (fromKnown && GalaxyCatalog.TryGet(p.SystemId, out var to))
+                    d = (to.X - from.X) * (to.X - from.X) + (to.Y - from.Y) * (to.Y - from.Y);
+                else
+                    d = float.MaxValue * 0.5f;
+                if (d < best)
+                {
+                    best = d;
+                    home = p;
+                    found = true;
+                }
+            }
+
+            return found;
+        }
+
+        /// <summary>
+        /// Back to a world of ours: in this system a plain move to it; elsewhere the jump to its system (the
+        /// travel modes as usual), then a queued step that puts the ship in its orbit on arrival.
+        /// </summary>
+        async Task ReturnHome(int fleetId, GalaxyCatalog.PlanetRef home)
+        {
+            var fleet = Focus?.FindFleet(fleetId);
+            if (fleet == null)
+                return;
+            if (home.SystemId == fleet.SystemId)
+            {
+                await MoveToPlanet(fleetId, home.Id);
+                await AfterOrder();
+                return;
+            }
+
+            if (!GalaxyCatalog.TryGet(home.SystemId, out var star))
+            {
+                CicCue.Fail(transform.position);
+                return;
+            }
+
+            await MoveToSystem(fleetId, star.Id, star.X, star.Y, star.Label, home.Id);
+        }
+
+        async Task MoveToSystem(int fleetId, int systemId, float x, float y, string systemLabel, int thenPlanet = 0)
         {
             var fleet = Focus?.FindFleet(fleetId);
             if (fleet == null)
@@ -1140,6 +1260,10 @@ namespace Core.Vfx
                 await Core.Holo.TravelPlanner.AskAndSend(fleet, systemId, x, y, systemLabel);
             if (!sent)
                 return;
+            // Then into that world's orbit on arrival (the server runs the queue once the ship is idle there);
+            // an existing queue is the captain's own plan and is never appended to.
+            if (result.Ok && thenPlanet > 0 && fleet.Queue.Count == 0)
+                await Core.Holo.OrderQueue.AddPlanetStep(fleet, "moveToPlanet", thenPlanet);
             if (!result.Ok)
             {
                 CicCue.Fail(transform.position);
@@ -1171,8 +1295,14 @@ namespace Core.Vfx
             if (action == "ExplorePlanet" && query != null && query.TryGetValue("fleet", out var surveyFleet) &&
                 int.TryParse(surveyFleet, out var surveyId))
                 SurveyBanner.Record(surveyId, result.Body);
-            if (action == "HarvestAsteroid" && AsteroidService.Instance != null)
-                AsyncTap.Run(AsteroidService.Instance.Refresh());
+            if (action == "HarvestAsteroid")
+            {
+                if (query != null && query.TryGetValue("fleet", out var minerFleet) && int.TryParse(minerFleet, out var minerId))
+                    SurveyBanner.RecordHarvest(minerId, result.Body);
+                if (AsteroidService.Instance != null)
+                    AsyncTap.Run(AsteroidService.Instance.Refresh());
+            }
+
             var notice = result.NoticeKey;
             _map?.SetReadout(Trans.Get(notice ?? "vr.common.ok"));
             Core.Crew.BarkDirector.Instance?.OrderResult(_role, action, result, target ?? DescribeTarget(query));

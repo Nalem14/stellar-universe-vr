@@ -398,6 +398,7 @@ namespace Core.Stations
             Pager(all.Length, BuildingsPerPage);
             var first = _page * BuildingsPerPage;
             var building = !string.IsNullOrEmpty(BuildingCatalog.ActiveType(planet));
+            var grid = PlanetGrid.Of(planet, _eco);
             for (var i = first; i < all.Length && i < first + BuildingsPerPage; i++)
             {
                 var def = all[i];
@@ -424,10 +425,17 @@ namespace Core.Stations
                     UiKit.TextBright, 340f, TextAlignmentOptions.MidlineLeft);
 
                 var costColor = q.Affordable ? new Color(0.78f, 0.9f, 0.96f, 1f) : UiKit.Danger;
-                var load = LoadText(def.Type, q.Level);
+                var load = LoadText(planet, def.Type, q, grid);
                 Line(CostText(q), 40f, load.Length > 0 ? y + 11f : y, 18f, costColor, 360f, TextAlignmentOptions.MidlineLeft);
                 if (load.Length > 0)
-                    Line(load, 40f, y - 13f, 15f, new Color(0.7f, 0.85f, 0.9f, 1f), 360f, TextAlignmentOptions.MidlineLeft);
+                {
+                    // Planet totals now → after this order: shrink to the column rather than run into the button.
+                    var loadLine = Line(load, 40f, y - 13f, 15f, new Color(0.7f, 0.85f, 0.9f, 1f), 360f, TextAlignmentOptions.MidlineLeft);
+                    loadLine.textWrappingMode = TextWrappingModes.NoWrap;
+                    loadLine.enableAutoSizing = true;
+                    loadLine.fontSizeMin = 10f;
+                    loadLine.fontSizeMax = 15f;
+                }
 
                 string label;
                 DiegeticUi.BtnStyle style;
@@ -485,28 +493,107 @@ namespace Core.Stations
         static readonly HashSet<string> PowerPlants = new() { "orbitSolarPlant", "solarPlant", "nuclearPlant" };
 
         /// <summary>
-        /// What a building weighs on the planet, now → at the next level: the energy it draws (ENERGY.USAGE ×
-        /// level) or produces (factory × level, plus the empire's energy research), and the jobs it opens
-        /// (log(level + 1) × jobsPerLevel) — the server's own formulas, from GetConfigs.
+        /// The planet's grid as GetResource counts it, to project one order onto the server's own totals: the
+        /// multiplier it applied to its plants (energy research × species "power" trait — recovered from its
+        /// reported production, so the trait needs no client copy) and the raw jobs sum (Σ log(level + 1) ×
+        /// jobsPerLevel, before rounding). Levels are the producing ones: the building under construction
+        /// still counts at its old level, as on the server. Computed once per page render.
         /// </summary>
-        string LoadText(string type, int level)
+        readonly struct PlanetGrid
         {
-            var parts = new List<string>(2);
-            var draw = FocusContext.AsFloat(GameConfig.Upgrade?["energy"]?[type]);
-            if (PowerDraw.Contains(type) && draw > 0f)
-                parts.Add("<color=#ffc766>" + Trans.Format("vr.ops.loadEnergy", Num(draw * level), Num(draw * (level + 1))) + "</color>");
-            var make = FocusContext.AsFloat(GameConfig.Factory?[type]);
-            if (PowerPlants.Contains(type) && make > 0f)
+            public readonly float PowerMul;
+            public readonly float JobsRaw;
+
+            PlanetGrid(float powerMul, float jobsRaw)
             {
-                make *= 1f + FocusContext.AsFloat(_eco?.Empire?["energy"]) / 100f;
-                parts.Add("<color=#8dffa8>" + Trans.Format("vr.ops.loadPower", Num(make * level), Num(make * (level + 1))) + "</color>");
+                PowerMul = powerMul;
+                JobsRaw = jobsRaw;
             }
 
-            var jobs = FocusContext.AsFloat(GameConfig.JobsPerLevel?[type]);
-            if (jobs > 0f)
-                parts.Add(Trans.Format("vr.ops.loadJobs",
-                    (Mathf.Log(level + 1f) * jobs).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture),
-                    (Mathf.Log(level + 2f) * jobs).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)));
+            public static PlanetGrid Of(PlanetEconomy planet, EconomyService eco)
+            {
+                if (planet == null)
+                    return new PlanetGrid(1f, 0f);
+                var active = BuildingCatalog.ActiveType(planet);
+                var research = 1f + FocusContext.AsFloat(eco?.Empire?["energy"]) / 100f;
+                var plain = 0f;
+                foreach (var plant in PowerPlants)
+                    plain += Producing(planet, plant, active) * FocusContext.AsFloat(GameConfig.Factory?[plant]);
+                var mul = plain > 0f && planet.Energy > 0f ? planet.Energy / plain : research;
+
+                var raw = 0f;
+                if (GameConfig.JobsPerLevel != null)
+                {
+                    foreach (var prop in GameConfig.JobsPerLevel.Properties())
+                    {
+                        var l = Producing(planet, prop.Name, active);
+                        if (l > 0)
+                            raw += Mathf.Log(l + 1f) * FocusContext.AsFloat(prop.Value);
+                    }
+                }
+
+                return new PlanetGrid(mul, raw);
+            }
+
+            static int Producing(PlanetEconomy planet, string type, string active)
+            {
+                var l = planet.Level(type);
+                return type == active ? Mathf.Max(0, l - 1) : l;
+            }
+        }
+
+        /// <summary>Server rounding of the jobs total (PHP round: half away from zero; ≥ 1 once any job exists).</summary>
+        static int JobsTotal(float raw) => raw > 0f ? Mathf.Max(1, (int)Math.Round(raw, MidpointRounding.AwayFromZero)) : 0;
+
+        /// <summary>"used / capacity", red once the demand outgrows it (energy deficit, understaffed jobs).</summary>
+        static string Balance(float used, float capacity, bool projected)
+        {
+            var text = Num(used) + " / " + Num(capacity);
+            if (used > capacity)
+                return "<color=#ff5247>" + text + "</color>";
+            return projected ? "<color=#8dffa8>" + text + "</color>" : text;
+        }
+
+        /// <summary>
+        /// Where the planet stands now → once this order lands (the building at the level the button orders,
+        /// everything else as it is): energy used / produced (ENERGY.USAGE × level for the consumers, factory ×
+        /// level × the server's plant multiplier for the plants) and jobs against the population (log(level + 1)
+        /// × jobsPerLevel; housing raises the population). Built on GetResource's own totals; the balance values
+        /// all come from GetConfigs.
+        /// </summary>
+        string LoadText(PlanetEconomy planet, string type, in BuildingQuote q, in PlanetGrid grid)
+        {
+            if (planet == null)
+                return string.Empty;
+            var steps = Mathf.Max(0, q.TargetLevel - q.Level);
+            if (steps == 0)
+                return string.Empty;
+            var parts = new List<string>(2);
+
+            var used = planet.EnergyUsed;
+            var made = planet.Energy;
+            var draw = FocusContext.AsFloat(GameConfig.Upgrade?["energy"]?[type]);
+            var usedNext = PowerDraw.Contains(type) && draw > 0f ? used + draw * steps : used;
+            var make = FocusContext.AsFloat(GameConfig.Factory?[type]);
+            var madeNext = PowerPlants.Contains(type) && make > 0f ? made + make * steps * grid.PowerMul : made;
+            if (!Mathf.Approximately(usedNext, used) || !Mathf.Approximately(madeNext, made))
+                parts.Add(Trans.Format("vr.ops.loadEnergy", Balance(used, made, false), Balance(usedNext, madeNext, true)));
+
+            var perLevel = FocusContext.AsFloat(GameConfig.JobsPerLevel?[type]);
+            var jobsNext = planet.Jobs;
+            if (perLevel > 0f)
+            {
+                // q.Level is the producing level (the one under construction still counts at its old level).
+                var raw = grid.JobsRaw - (q.Level > 0 ? Mathf.Log(q.Level + 1f) * perLevel : 0f) +
+                          Mathf.Log(q.TargetLevel + 1f) * perLevel;
+                jobsNext = JobsTotal(raw);
+            }
+
+            // Citizens are the housing level (GetResource: citizen = home).
+            var citizensNext = type == "home" ? planet.Citizen + steps : planet.Citizen;
+            if (perLevel > 0f || citizensNext != planet.Citizen)
+                parts.Add(Trans.Format("vr.ops.loadWorkforce", Balance(planet.Jobs, planet.Citizen, false),
+                    Balance(jobsNext, citizensNext, true)));
             return string.Join("  ·  ", parts);
         }
 

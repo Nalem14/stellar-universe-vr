@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Threading.Tasks;
 using Core.App;
 using Core.UI;
@@ -16,11 +17,14 @@ namespace Core.Stations
     /// Shipyard tab of the dock's hangar screen (web planet.js "Chantier" card): the module being built with
     /// its Nova finish, the planet_ship_queue with cancel, and the module catalog by family (GetConfigs.shipstats)
     /// with cost, time and requirements — Build, or Add to queue when the yard is busy. One module per order
-    /// (AddShip has no quantity). Finished modules land in the hangar, i.e. on the rack.
+    /// (AddShip has no quantity). Finished modules land in the hangar, i.e. on the rack. The dock's planet pays
+    /// (AddShip planet=): its stock heads the tab, and each cost it cannot cover reads red.
     /// </summary>
     public sealed class ShipyardPanel
     {
         const int PerPage = 4;
+        static readonly CultureInfo Fr = CultureInfo.GetCultureInfo("fr-FR");
+        static readonly string[] BaseResources = { "mineral", "crystal" };
 
         readonly RectTransform _body;
         readonly EconomyService _eco;
@@ -29,6 +33,7 @@ namespace Core.Stations
         readonly Action _changed;
         readonly List<(TMP_Text, Func<string>)> _live = new();
         readonly List<(Image, Func<float>)> _bars = new();
+        readonly List<string> _resources = new();
         ModuleFamily _family = ModuleFamily.Core;
         int _page;
         bool _busy;
@@ -65,9 +70,111 @@ namespace Core.Stations
                 return;
             }
 
-            var y = RenderActive(planet, 250f);
+            var y = RenderStock(250f);
+            y = RenderActive(planet, y);
             y = RenderQueue(planet, y);
             RenderCatalog(planet, y - 8f);
+        }
+
+        // ── Planet stock ──────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// What the dock's planet holds of every resource a module can cost (GetConfigs.shipstats cost keys),
+        /// read live from the EconomyService cache (its own 10 s poll + a refresh after each order).
+        /// </summary>
+        float RenderStock(float y)
+        {
+            _resources.Clear();
+            _resources.AddRange(BaseResources);
+            foreach (var t in ModuleCatalog.Types())
+            {
+                if (!(ModuleCatalog.Stats(t)?["cost"] is JObject cost))
+                    continue;
+                foreach (var c in cost.Properties())
+                    if (!_resources.Contains(c.Name))
+                        _resources.Add(c.Name);
+            }
+
+            var strip = new GameObject("StockStrip", typeof(RectTransform), typeof(Image));
+            strip.transform.SetParent(_body, false);
+            var srt = strip.GetComponent<RectTransform>();
+            srt.sizeDelta = new Vector2(900f, 34f);
+            srt.anchoredPosition = new Vector2(0f, y);
+            var img = strip.GetComponent<Image>();
+            img.color = new Color(0.1f, 0.35f, 0.22f, 0.35f);
+            img.raycastTarget = false;
+            var edge = new GameObject("StockEdge", typeof(RectTransform), typeof(Image));
+            edge.transform.SetParent(strip.transform, false);
+            var ert = edge.GetComponent<RectTransform>();
+            ert.anchorMin = new Vector2(0f, 0f);
+            ert.anchorMax = new Vector2(0f, 1f);
+            ert.pivot = new Vector2(0f, 0.5f);
+            ert.sizeDelta = new Vector2(5f, 0f);
+            ert.anchoredPosition = Vector2.zero;
+            var eimg = edge.GetComponent<Image>();
+            eimg.color = new Color(0.4f, 0.95f, 0.55f, 0.9f);
+            eimg.raycastTarget = false;
+
+            var line = Text(string.Empty, -430f, y, 870f, 16f, UiKit.TextBright);
+            line.text = StockLine();
+            _live.Add((line, () => StockLine()));
+            return y - 36f;
+        }
+
+        string StockLine()
+        {
+            if (!_eco.TryGet(_planet(), out var p))
+                return Trans.Get("Loading");
+            var name = !string.IsNullOrEmpty(p.Name) ? p.Name : "#" + p.Id;
+            var line = "<color=#7fd8ff>" + Trans.Format("vr.yard.planetStock", name) + "</color>   ";
+            for (var i = 0; i < _resources.Count; i++)
+            {
+                if (i > 0)
+                    line += "  ·  ";
+                line += Trans.Get("vr.res." + _resources[i]) + " <b>" + Num(Have(p, _resources[i])) + "</b>";
+            }
+
+            return line;
+        }
+
+        /// <summary>Planet stock of a cost key (AddShip compares planet[key] with the cost).</summary>
+        static float Have(PlanetEconomy p, string key) => key switch
+        {
+            "mineral" => p.Mineral,
+            "crystal" => p.Crystal,
+            "biomass" => p.Biomass,
+            _ => FocusContext.AsFloat(p.Raw?[key])
+        };
+
+        static string Num(float v) => Mathf.FloorToInt(v).ToString("N0", Fr);
+
+        static bool Affordable(PlanetEconomy p, JObject st)
+        {
+            if (!(st?["cost"] is JObject cost))
+                return true;
+            foreach (var c in cost.Properties())
+                if (Have(p, c.Name) < FocusContext.AsFloat(c.Value))
+                    return false;
+            return true;
+        }
+
+        /// <summary>"Mineral 1 800 · Crystal 600 · 2 min", each cost the planet lacks in red.</summary>
+        string CostLine(JObject st, float time)
+        {
+            var line = string.Empty;
+            _eco.TryGet(_planet(), out var p);
+            if (st?["cost"] is JObject cost)
+                foreach (var c in cost.Properties())
+                {
+                    var need = FocusContext.AsFloat(c.Value);
+                    if (need <= 0f)
+                        continue;
+                    var ok = p != null && Have(p, c.Name) >= need;
+                    line += (ok ? "<color=#c7e6f5>" : "<color=#ff6a5a>") + Trans.Get("vr.res." + c.Name) + " " + Num(need) +
+                            "</color>  ·  ";
+                }
+
+            return line + "<color=#c7e6f5>" + Core.Holo.TravelPlanner.TimeText(time) + "</color>";
         }
 
         // ── Active build + queue ──────────────────────────────────────────────────
@@ -174,15 +281,13 @@ namespace Core.Stations
             {
                 var type = types[i];
                 var st = ModuleCatalog.Stats(type);
-                var mineral = FocusContext.AsInt(st?["cost"]?["mineral"]);
-                var crystal = FocusContext.AsInt(st?["cost"]?["crystal"]);
                 var time = FocusContext.AsFloat(st?["time"]);
                 var lockKey = Locked(p, st, out var lockLevel, out var lockOn);
-                var afford = p.Mineral >= mineral && p.Crystal >= crystal;
+                var afford = Affordable(p, st);
                 Text("<b>" + Trans.Get(type) + "</b>", -440f, y + 9f, 470f, 18f, UiKit.TextBright);
-                Text(Trans.Get("vr.res.mineral") + " " + mineral + "  ·  " + Trans.Get("vr.res.crystal") + " " + crystal +
-                     "  ·  " + Core.Holo.TravelPlanner.TimeText(time), -440f, y - 13f, 470f, 14f,
-                    afford ? new Color(0.78f, 0.9f, 0.96f, 1f) : UiKit.Danger);
+                // Live: the planet keeps producing between renders (EconomyService poll), costs turn back to white.
+                var costText = Text(CostLine(st, time), -440f, y - 13f, 470f, 14f, Color.white);
+                _live.Add((costText, () => CostLine(st, time)));
 
                 string label;
                 var style = DiegeticUi.BtnStyle.Cyan;
@@ -224,9 +329,9 @@ namespace Core.Stations
 
             if (pages > 1)
             {
-                Btn("‹", -80f, -300f, 70f, 42f, () => { _page = (_page - 1 + pages) % pages; Render(); }, DiegeticUi.BtnStyle.Ghost);
-                Text((_page + 1) + " / " + pages, 0f, -300f, 90f, 17f, DiegeticUi.CyanDim, TextAlignmentOptions.Center);
-                Btn("›", 80f, -300f, 70f, 42f, () => { _page = (_page + 1) % pages; Render(); }, DiegeticUi.BtnStyle.Ghost);
+                Btn("‹", -80f, -322f, 70f, 42f, () => { _page = (_page - 1 + pages) % pages; Render(); }, DiegeticUi.BtnStyle.Ghost);
+                Text((_page + 1) + " / " + pages, 0f, -322f, 90f, 17f, DiegeticUi.CyanDim, TextAlignmentOptions.Center);
+                Btn("›", 80f, -322f, 70f, 42f, () => { _page = (_page + 1) % pages; Render(); }, DiegeticUi.BtnStyle.Ghost);
             }
         }
 
@@ -253,6 +358,57 @@ namespace Core.Stations
 
             return null;
         }
+
+        // ── Shelf fabricator (the dock's module wall reads and orders through the same rules) ──────────
+
+        /// <summary>The dock planet's cost line for one module (each cost it cannot cover in red) + build time.</summary>
+        public string CostText(string type)
+        {
+            var st = ModuleCatalog.Stats(type);
+            return CostLine(st, FocusContext.AsFloat(st?["time"]));
+        }
+
+        /// <summary>True when the dock's planet holds every resource the module costs right now.</summary>
+        public bool CanAfford(string type) => _eco.TryGet(_planet(), out var p) && Affordable(p, ModuleCatalog.Stats(type));
+
+        /// <summary>The module is being built or waits in the planet's shipyard queue.</summary>
+        public bool InProduction(string type)
+        {
+            if (string.IsNullOrEmpty(type) || !_eco.TryGet(_planet(), out var p))
+                return false;
+            if (Active(p) is { } a && FocusContext.AsString(a["type"]) == type)
+                return true;
+            if (Queued(p) is { } rows)
+                foreach (var row in rows)
+                    if (FocusContext.AsString(row["ship_type"]) == type)
+                        return true;
+            return false;
+        }
+
+        /// <summary>
+        /// Why AddShip would refuse this module on the dock's planet (localised, same order as the catalog's
+        /// button: requirement, full queue, resources), or null when it can go.
+        /// </summary>
+        public string BuildBlocker(string type)
+        {
+            if (!_eco.TryGet(_planet(), out var p))
+                return Trans.Get("Loading");
+            var st = ModuleCatalog.Stats(type);
+            if (st == null)
+                return Trans.Get("vr.common.error");
+            if (Locked(p, st, out var level, out var on) != null)
+                return Trans.Format("vr.ops.requires", Trans.Get(on), level);
+            if (Occupied(p) >= MaxQueue(p))
+                return Trans.Get("queueFull");
+            return Affordable(p, st) ? null : Trans.Get("notEnoughRessource");
+        }
+
+        /// <summary>The yard is busy: a new order joins the queue (web « Ajouter à la file »).</summary>
+        public bool YardBusy => _eco.TryGet(_planet(), out var p) && Active(p) != null;
+
+        /// <summary>One AddShip for the dock's planet (same order as the catalog's Build button).</summary>
+        public Task Build(string type) => Order("AddShip",
+            new Dictionary<string, string> { { "type", type }, { "planet", _planet().ToString() } }, "shipInBuild");
 
         async Task Order(string action, Dictionary<string, string> q, string okKey)
         {

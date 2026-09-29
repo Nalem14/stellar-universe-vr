@@ -68,6 +68,7 @@ namespace Core.App
             orders.BindConsole(Core.Holo.OrderConsole.Build(interior.transform));
             Core.Holo.QueuePathView.Attach(_zoneMap, _focus, env.Art);
             Core.Holo.TacticalCommand.Build(interior.transform, _zoneMap, _focus, orders, env.Art);
+            Core.Holo.QueueScreen.Build(interior.transform, _focus, _poller);
             if (_zoneMap != null)
                 Core.Holo.MapManipulator.Build(_zoneMap, mapCtrl);
 

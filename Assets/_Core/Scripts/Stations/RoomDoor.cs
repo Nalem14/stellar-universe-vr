@@ -12,6 +12,8 @@ namespace Core.Stations
     /// and you are through (fade + move). A control panel beside it opens it for seated / stationary play.
     /// Door local space: the doorway is the plane z = 0, the room you stand in is +z, the other side −z.
     /// Hidden or shown by its owner (e.g. the dry dock door only exists at an orbital station).
+    /// A <c>deliberate</c> door (a room where you work with your back to it) only wakes and lets you through
+    /// while you face it: backing away from a console into its frame never takes you out.
     /// </summary>
     public sealed class RoomDoor : MonoBehaviour
     {
@@ -31,9 +33,10 @@ namespace Core.Stations
         Func<bool> _canPass;
         Action _onPass;
         TextMeshPro _sign;
+        bool _deliberate;
 
         public static RoomDoor Build(Transform parent, string name, Vector3 localPos, float yaw, string label,
-            Color accent, CicArtKit art, Func<bool> canPass, Action onPass)
+            Color accent, CicArtKit art, Func<bool> canPass, Action onPass, bool deliberate = false)
         {
             var root = new GameObject(name).transform;
             root.SetParent(parent, false);
@@ -42,6 +45,7 @@ namespace Core.Stations
             var door = root.gameObject.AddComponent<RoomDoor>();
             door._canPass = canPass;
             door._onPass = onPass;
+            door._deliberate = deliberate;
 
             var frame = art.DarkPanel(0.35f);
             var leaf = art.MetalPanel(0.45f);
@@ -105,7 +109,9 @@ namespace Core.Stations
             if (cam == null)
                 return;
             var local = transform.InverseTransformPoint(cam.transform.position);
-            var near = local.z > -0.2f && local.z < WakeDistance && Mathf.Abs(local.x) < Width;
+            // Facing the doorway = looking toward its far side (−z in door space).
+            var facing = !_deliberate || transform.InverseTransformDirection(cam.transform.forward).z < -0.35f;
+            var near = facing && local.z > -0.2f && local.z < WakeDistance && Mathf.Abs(local.x) < Width;
             var want = _requested || near;
             var before = _open;
             _open = Mathf.MoveTowards(_open, want ? 1f : 0f, OpenSpeed * Time.deltaTime);
@@ -123,7 +129,7 @@ namespace Core.Stations
                 return;
             }
 
-            var through = local.z < PassDepth && local.z > -1f && Mathf.Abs(local.x) < Width * 0.45f;
+            var through = facing && local.z < PassDepth && local.z > -1f && Mathf.Abs(local.x) < Width * 0.45f;
             if (_open >= 0.98f && (through || _requested))
             {
                 _requested = false;

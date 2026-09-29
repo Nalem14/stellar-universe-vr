@@ -25,6 +25,15 @@ namespace Core.Vfx
         public const int AftWall = 0, AftStarboard = 1, Starboard = 2, BowStarboard = 3, Forward = 4, BowPort = 5,
             Port = 6, AftPort = 7;
 
+        /// <summary>|x| of the two aft-wall ribs either side of the corridor door (door jambs end at 0.83).</summary>
+        public const float AftRibX = 1.35f;
+        /// <summary>
+        /// |x| of the centre of the two aft bays (rib → aft corner): the wall displays and the sideboards under
+        /// them sit here. Bay spans 1.43 (rib face) → 4.06 (corner rib); a 2.34 m display housing leaves ~0.14 m
+        /// either side.
+        /// </summary>
+        public const float AftBayX = 2.75f;
+
         public const float WallTop = 2.9f;
         public const float SoffitY = 3.4f;
         public const float CofferY = 3.8f;
@@ -119,7 +128,8 @@ namespace Core.Vfx
             m = new ShellMesh();
             for (var k = 0; k < Plan.Length; k++)
                 CornerRib(m, k);
-            foreach (var (e, u) in new[] { (AftWall, 2.85f), (AftWall, 5.55f), (Starboard, 2.9f), (Port, 2.9f) })
+            var aftMid = EdgeLength(AftWall) * 0.5f;
+            foreach (var (e, u) in new[] { (AftWall, aftMid - AftRibX), (AftWall, aftMid + AftRibX), (Starboard, 2.9f), (Port, 2.9f) })
                 EdgeRib(m, e, u);
             for (var k = 0; k < Plan.Length; k++)
                 CeilingBeam(m, k);

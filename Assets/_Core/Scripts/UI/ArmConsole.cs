@@ -26,8 +26,8 @@ namespace Core.UI
     }
 
     /// <summary>
-    /// The captain's arm panels: on each armrest a short arm rises to a tilted holo tablet, turned toward the
-    /// seated captain's eyes and within a finger's reach — a column of touch keys on a world-space canvas,
+    /// The captain's arm panels: from each armrest a boom carries a tilted holo tablet out in front of the
+    /// seated captain, where the hands land reaching slightly forward, turned toward the eyes — a column of touch keys on a world-space canvas,
     /// pressed by poking or by the ray. Left = the view (ship list, watch, forward view, auto direction);
     /// right = the post (sit / stand, guide). One panel per armrest, built on first use; callers ask a slot.
     /// </summary>
@@ -48,24 +48,31 @@ namespace Core.UI
             if (existing != null)
                 return existing.GetComponentInChildren<Canvas>(true).transform.GetChild(0) as RectTransform;
 
-            // The arm: from the front of the armrest, up and a little outward, to the tablet.
-            var socket = ScreenMount.Socket(pad, "ArmPanel", new Vector3(side * 0.03f, 0.02f, 0.1f), Quaternion.identity);
+            // Where the hands land reaching slightly forward from the seat (Bridge Crew style): ahead of the
+            // armrest, near elbow-to-chest height, turned up toward the seated captain's eyes.
+            var socket = ScreenMount.Socket(pad, "ArmPanel", Vector3.zero, Quaternion.identity);
             var room = pad.parent;
+            var chairZ = WorldScale.CicCaptainChairZ;
             var eye = room != null
-                ? room.TransformPoint(new Vector3(0f, 1.17f, WorldScale.CicCaptainChairZ - 0.05f))
-                : socket.position + Vector3.up * 0.4f;
+                ? room.TransformPoint(new Vector3(0f, 1.34f, chairZ - 0.13f))
+                : socket.position + Vector3.up * 0.5f;
             var head = new GameObject("Tablet").transform;
             head.SetParent(socket, false);
-            head.localPosition = new Vector3(side * 0.028f, 0.24f, 0f);
+            head.position = room != null
+                ? room.TransformPoint(new Vector3(side * 0.3f, 1.02f, chairZ + 0.46f))
+                : socket.position + new Vector3(0f, 0.2f, 0.22f);
             ScreenMount.FaceViewer(head, eye, 0.85f, 6f);
 
-            // The arm runs up behind the tablet (away from the captain), into the middle of its back.
-            var back = socket.InverseTransformPoint(head.TransformPoint(new Vector3(0f, -0.02f, 0.03f)));
-            var foot = new Vector3(0f, 0f, back.z);
-            var stalk = UiKit.MeshPiece(socket, "Stalk",
-                UiMeshes.RoundedBox(new Vector3(0.026f, (back - foot).magnitude, 0.026f), 0.011f), UiKit.Chassis,
-                (back + foot) * 0.5f);
-            stalk.transform.localRotation = Quaternion.FromToRotation(Vector3.up, back - foot);
+            // The mount, so the tablet is carried and never floats: a boom forward out of the armrest console,
+            // a knuckle, a riser into a cradle on the tablet's back.
+            var back = socket.InverseTransformPoint(head.TransformPoint(new Vector3(0f, -0.04f, 0.04f)));
+            var foot = new Vector3(0f, 0.012f, 0.02f);
+            var elbow = new Vector3(back.x, foot.y, back.z);
+            Bar(socket, "Boom", foot, elbow, 0.034f);
+            UiKit.MeshPiece(socket, "Knuckle", UiMeshes.RoundedBox(new Vector3(0.05f, 0.05f, 0.05f), 0.022f), UiKit.Chassis, elbow);
+            Bar(socket, "Riser", elbow, back, 0.028f);
+            UiKit.MeshPiece(head, "Cradle", UiMeshes.RoundedBox(new Vector3(0.1f, 0.12f, 0.03f), 0.012f), UiKit.Chassis,
+                new Vector3(0f, -0.03f, 0.028f));
 
             // Housing: a dark rounded slab, a lit rim on the side toward the captain.
             UiKit.MeshPiece(head, "Housing", UiMeshes.RoundedBox(new Vector3(0.158f, 0.232f, 0.014f), 0.012f), UiKit.Chassis,
@@ -91,6 +98,18 @@ namespace Core.UI
             line.color = accent;
             line.raycastTarget = false;
             return frame;
+        }
+
+        /// <summary>A rounded bar of <paramref name="thickness"/> from <paramref name="a"/> to <paramref name="b"/> (parent space).</summary>
+        static void Bar(Transform parent, string name, Vector3 a, Vector3 b, float thickness)
+        {
+            var d = b - a;
+            if (d.sqrMagnitude < 1e-6f)
+                return;
+            var bar = UiKit.MeshPiece(parent, name,
+                UiMeshes.RoundedBox(new Vector3(thickness, d.magnitude + thickness, thickness), thickness * 0.45f), UiKit.Chassis,
+                (a + b) * 0.5f);
+            bar.transform.localRotation = Quaternion.FromToRotation(Vector3.up, d);
         }
 
         /// <summary>Centre of slot <paramref name="index"/> (top to bottom) on the tablet canvas.</summary>

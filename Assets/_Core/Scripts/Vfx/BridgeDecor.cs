@@ -134,10 +134,11 @@ namespace Core.Vfx
                 Rack(k, mats, root, WallFrame(edge, l * 0.5f + 0.36f), edge * 7 + 2);
             }
 
-            // Aft wall: low sideboards under the two displays, either side of the corridor door.
+            // Aft wall: low sideboards under the two displays, centred in the bays between the door ribs and the
+            // corners (2 m wide in a 2.63 m bay: clear of both ribs).
             var aft = BridgeShell.EdgeLength(BridgeShell.AftWall);
-            Sideboard(k, mats, root, WallFrame(BridgeShell.AftWall, aft * 0.5f - 2.35f), 11);
-            Sideboard(k, mats, root, WallFrame(BridgeShell.AftWall, aft * 0.5f + 2.35f), 13);
+            Sideboard(k, mats, root, WallFrame(BridgeShell.AftWall, aft * 0.5f - BridgeShell.AftBayX), 11);
+            Sideboard(k, mats, root, WallFrame(BridgeShell.AftWall, aft * 0.5f + BridgeShell.AftBayX), 13);
 
             k.Bake(root);
         }

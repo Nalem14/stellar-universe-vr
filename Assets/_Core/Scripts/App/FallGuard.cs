@@ -7,7 +7,11 @@ namespace Core.App
     /// Safety net for every room: in room-scale the head can walk through a virtual wall, and past the floor's
     /// edge the character body falls into space. The guard remembers the last spot where the player stood still
     /// on a floor (in the rig's parent space — the bridge flies with its ship) and, if the body drops more than
-    /// a metre under it, puts the head straight back there. Nothing per frame but a few vector ops.
+    /// a metre under it, puts the head straight back there. It also absorbs tracking jumps: when the headset's
+    /// tracking starts late (the first frames of the app report the head at the play-space centre, then its
+    /// real spot) or the player recenters, the head leaps in tracking space in one frame — no body moves that
+    /// fast — and the rig is shifted so the head stays where it was in the room, instead of outside it.
+    /// Nothing per frame but a few vector ops.
     /// </summary>
     public sealed class FallGuard : MonoBehaviour
     {
@@ -22,6 +26,12 @@ namespace Core.App
         bool _hasSafe;
         float _still;
         float _lastY;
+        Vector3 _lastCamLocal;
+        Vector3 _lastHead;
+        bool _tracked;
+
+        /// <summary>Head travel in tracking space in one frame (m) that only a tracking jump can make.</summary>
+        const float TrackingJump = 0.3f;
 
         public static void Ensure()
         {
@@ -48,6 +58,8 @@ namespace Core.App
                 _hasSafe = false;
                 _still = 0f;
             }
+
+            AbsorbTrackingJump();
 
             var local = Local(t.position);
             if (_hasSafe && local.y < _safeLocal.y - DropLimit)
@@ -76,6 +88,34 @@ namespace Core.App
             var fwd = Vector3.ProjectOnPlane(_rig.Camera.transform.forward, Vector3.up);
             _safeForward = fwd.sqrMagnitude > 1e-4f ? LocalDir(fwd.normalized) : _safeForward;
             _hasSafe = true;
+        }
+
+        void AbsorbTrackingJump()
+        {
+            var cam = _rig.Camera.transform;
+            var camLocal = cam.localPosition;
+            var head = cam.position;
+            if (_tracked)
+            {
+                var d = camLocal - _lastCamLocal;
+                d.y = 0f;
+                if (d.magnitude > TrackingJump)
+                {
+                    // Keep the head where it was in the room: slide the play space under it (horizontal only).
+                    var body = _rig.GetComponentInChildren<CharacterController>();
+                    if (body != null)
+                        body.enabled = false;
+                    _rig.transform.position += new Vector3(_lastHead.x - head.x, 0f, _lastHead.z - head.z);
+                    if (body != null)
+                        body.enabled = true;
+                    head = cam.position;
+                    _still = 0f;
+                }
+            }
+
+            _tracked = true;
+            _lastCamLocal = camLocal;
+            _lastHead = head;
         }
 
         Vector3 Local(Vector3 world) => _parent != null ? _parent.InverseTransformPoint(world) : world;

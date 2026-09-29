@@ -192,38 +192,13 @@ namespace Core.Vfx
             rt.sizeDelta = size;
             rt.anchoredPosition = anchoredPos;
 
-            Sprite idle = s_Btn, hover = s_BtnHover, pressed = s_BtnPressed;
-            switch (style)
-            {
-                case BtnStyle.Amber:
-                    idle = s_BtnAmber ?? s_Btn;
-                    hover = s_BtnAmberHover ?? idle;
-                    pressed = s_BtnAmberPressed ?? hover;
-                    break;
-                case BtnStyle.Danger:
-                    idle = s_BtnDanger ?? s_Btn;
-                    hover = s_BtnDangerHover ?? idle;
-                    pressed = hover;
-                    break;
-                case BtnStyle.Ghost:
-                    idle = s_BtnGhost ?? s_Btn;
-                    hover = s_BtnGhostHover ?? idle;
-                    pressed = hover;
-                    break;
-            }
-
             var img = go.GetComponent<Image>();
-            img.sprite = idle;
             img.type = Image.Type.Sliced;
             img.color = Color.white;
 
             var btn = go.GetComponent<Button>();
             btn.transition = Selectable.Transition.SpriteSwap;
-            var spriteState = btn.spriteState;
-            spriteState.highlightedSprite = hover;
-            spriteState.pressedSprite = pressed;
-            spriteState.disabledSprite = s_BtnDisabled ?? idle;
-            btn.spriteState = spriteState;
+            Restyle(btn, style);
             var colors = btn.colors;
             colors.fadeDuration = 0.06f;
             btn.colors = colors;
@@ -246,6 +221,40 @@ namespace Core.Vfx
             tmp.color = Color.white;
             tmp.raycastTarget = false;
             return btn;
+        }
+
+        /// <summary>Re-skin a <see cref="HoloButton"/> (a pooled button whose role changes: option lists, toggles).</summary>
+        public static void Restyle(Button btn, BtnStyle style)
+        {
+            EnsureSprites();
+            Sprite idle = s_Btn, hover = s_BtnHover, pressed = s_BtnPressed;
+            switch (style)
+            {
+                case BtnStyle.Amber:
+                    idle = s_BtnAmber ?? s_Btn;
+                    hover = s_BtnAmberHover ?? idle;
+                    pressed = s_BtnAmberPressed ?? hover;
+                    break;
+                case BtnStyle.Danger:
+                    idle = s_BtnDanger ?? s_Btn;
+                    hover = s_BtnDangerHover ?? idle;
+                    pressed = hover;
+                    break;
+                case BtnStyle.Ghost:
+                    idle = s_BtnGhost ?? s_Btn;
+                    hover = s_BtnGhostHover ?? idle;
+                    pressed = hover;
+                    break;
+            }
+
+            var img = btn.GetComponent<Image>();
+            if (img != null)
+                img.sprite = idle;
+            var spriteState = btn.spriteState;
+            spriteState.highlightedSprite = hover;
+            spriteState.pressedSprite = pressed;
+            spriteState.disabledSprite = s_BtnDisabled ?? idle;
+            btn.spriteState = spriteState;
         }
 
         /// <summary>

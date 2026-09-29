@@ -42,8 +42,8 @@ namespace Core.Vfx
             d._focus = focus;
             var yaw = Quaternion.Euler(0f, BridgeShell.EdgeYaw(BridgeShell.AftWall) + 180f, 0f);
             var len = BridgeShell.EdgeLength(BridgeShell.AftWall);
-            d._msd = Panel(go.transform, "ShipDisplay", BridgeShell.EdgePoint(BridgeShell.AftWall, len * 0.5f - 2.35f, 0.07f, 1.72f), yaw);
-            d._plot = Panel(go.transform, "SystemDisplay", BridgeShell.EdgePoint(BridgeShell.AftWall, len * 0.5f + 2.35f, 0.07f, 1.72f), yaw);
+            d._msd = Panel(go.transform, "ShipDisplay", BridgeShell.EdgePoint(BridgeShell.AftWall, len * 0.5f - BridgeShell.AftBayX, 0.07f, 1.72f), yaw);
+            d._plot = Panel(go.transform, "SystemDisplay", BridgeShell.EdgePoint(BridgeShell.AftWall, len * 0.5f + BridgeShell.AftBayX, 0.07f, 1.72f), yaw);
             d._msdTex = NewTex("SU_ShipDisplay");
             d._plotTex = NewTex("SU_SystemDisplay");
             Layout(d._msd, d._msdTex, out d._msdTitle, out d._msdBody);

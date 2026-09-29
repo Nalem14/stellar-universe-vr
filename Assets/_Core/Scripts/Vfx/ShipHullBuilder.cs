@@ -114,6 +114,107 @@ namespace Core.Vfx
             return mesh;
         }
 
+        static readonly Dictionary<string, Mesh> ModuleMeshes = new();
+
+        /// <summary>
+        /// One module alone, exactly as it sits on a deck cell (same silhouette parts), flattened into ONE mesh in
+        /// ship metres: vertex colour rgb = the part's surface tone, a = how self-lit it is (glow, glass, engine
+        /// core). Footprint centred on the origin, base at y = 0. For the dry dock's shelf blocks (one draw each
+        /// under SU/ModuleBlock). Cached per module type; engine plumes, spinners and pulses are left out.
+        /// </summary>
+        public static Mesh ModuleMesh(string type)
+        {
+            type ??= string.Empty;
+            if (ModuleMeshes.TryGetValue(type, out var cached) && cached != null)
+                return cached;
+            var pal = CachePalette(true);
+            var tones = new Dictionary<Material, Color>
+            {
+                { pal.Hull, new Color(0.74f, 0.77f, 0.82f, 0f) },
+                { pal.Dark, new Color(0.3f, 0.33f, 0.38f, 0f) },
+                { pal.Armor, new Color(0.52f, 0.56f, 0.6f, 0f) },
+                { pal.Brass, new Color(0.86f, 0.64f, 0.34f, 0f) },
+                { pal.Cargo, new Color(0.62f, 0.56f, 0.4f, 0f) },
+                { pal.Weapon, new Color(0.46f, 0.49f, 0.54f, 0f) },
+                { pal.EngineBody, new Color(0.6f, 0.48f, 0.38f, 0f) },
+                { pal.Glow, new Color(_ownAccent.r, _ownAccent.g, _ownAccent.b, 1f) },
+                { pal.Glass, new Color(0.45f, 0.78f, 1f, 0.75f) },
+                { pal.AmberDim, new Color(Amber.r, Amber.g, Amber.b, 0.85f) },
+                { pal.Engine, new Color(Amber.r, Amber.g, Amber.b, 1f) },
+                { pal.EngineCore, new Color(1f, 0.82f, 0.55f, 1f) },
+                { pal.EngineCoreHot, new Color(0.55f, 0.95f, 1f, 1f) },
+                { pal.EngineFlame, new Color(1f, 0.6f, 0.25f, 1f) },
+                { pal.WepLaser, new Color(Cyan.r, Cyan.g, Cyan.b, 1f) },
+                { pal.WepIon, new Color(0.35f, 0.65f, 1f, 1f) },
+                { pal.WepPlasma, new Color(0.9f, 0.3f, 1f, 1f) },
+                { pal.WepMissile, new Color(Amber.r, Amber.g, Amber.b, 1f) },
+                { pal.WepIem, new Color(0.72f, 0.45f, 1f, 1f) },
+                { pal.NavRed, new Color(1f, 0.18f, 0.12f, 1f) }
+            };
+
+            var tmp = new GameObject("ModuleBake");
+            var verts = new List<Vector3>();
+            var normals = new List<Vector3>();
+            var colors = new List<Color>();
+            var tris = new List<int>();
+            try
+            {
+                var kit = new Kit(tmp.transform, 1f, pal);
+                BuildModule(kit, new FocusShipModule { Type = type, GridX = WorldScale.ShipCoreCell, GridY = WorldScale.ShipCoreCell });
+                var root = tmp.transform.worldToLocalMatrix;
+                foreach (var mf in tmp.GetComponentsInChildren<MeshFilter>(true))
+                {
+                    // The long exhaust wash reads as a stray droplet at shelf scale.
+                    if (mf.sharedMesh == null || mf.name == "Wash")
+                        continue;
+                    var r = mf.GetComponent<MeshRenderer>();
+                    var tone = r != null && r.sharedMaterial != null && tones.TryGetValue(r.sharedMaterial, out var t)
+                        ? t
+                        : new Color(0.6f, 0.63f, 0.68f, 0f);
+                    var m = root * mf.transform.localToWorldMatrix;
+                    var nm = m.inverse.transpose;
+                    var src = mf.sharedMesh;
+                    var sv = src.vertices;
+                    var sn = src.normals;
+                    var st = src.triangles;
+                    var baseIndex = verts.Count;
+                    for (var i = 0; i < sv.Length; i++)
+                    {
+                        verts.Add(m.MultiplyPoint3x4(sv[i]));
+                        normals.Add(i < sn.Length ? nm.MultiplyVector(sn[i]).normalized : Vector3.up);
+                        colors.Add(tone);
+                    }
+
+                    for (var i = 0; i < st.Length; i++)
+                        tris.Add(baseIndex + st[i]);
+                }
+            }
+            finally
+            {
+                Object.DestroyImmediate(tmp);
+            }
+
+            if (verts.Count == 0)
+                return null;
+            // Footprint centred, base on y = 0 (the parts float at deck height on a real hull).
+            var b = new Bounds(verts[0], Vector3.zero);
+            foreach (var v in verts)
+                b.Encapsulate(v);
+            var shift = new Vector3(-b.center.x, -b.min.y, -b.center.z);
+            for (var i = 0; i < verts.Count; i++)
+                verts[i] += shift;
+            var mesh = new Mesh { name = "ModuleMini_" + type };
+            if (verts.Count > 65000)
+                mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+            mesh.SetVertices(verts);
+            mesh.SetNormals(normals);
+            mesh.SetColors(colors);
+            mesh.SetTriangles(tris, 0);
+            mesh.RecalculateBounds();
+            ModuleMeshes[type] = mesh;
+            return mesh;
+        }
+
         static Color _ownAccent = Cyan;
         static string _ownHex = string.Empty;
 
