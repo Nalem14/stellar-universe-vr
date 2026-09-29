@@ -457,6 +457,16 @@ Dix langues : `fr`, `en`, `de`, `es`, `it`, `pt`, `ru`, `ko`, `ja`, `zh`.
 
 Miroir de `controller/create-empire.php` via `CreateEmpireForUser` : mêmes validations / effets. Auth token. Requis : `empireName`. Optionnels : drapeau, `authority`, `ethics` (csv), espèce / traits, `planetName`, profil lore (`leaderTraits` csv ≤ 3 via `GetLeaderTraits`). Retour = JSON enrichi type `GetMeEmpire`, ou `error:<clé>`.
 
+### File d'ordres (corrigés, 2026-09-29)
+
+- **Étapes `depositCargo` / `withdrawCargo` sans contrôle de position** : ✅ `ProcessFleetQueue` (`model/fleet_queue.php`) saute désormais l'étape quand `fleet.planetid` n'est pas la planète visée — exactement la garde que `explorePlanet` avait déjà, avec la même conséquence (l'index avance, la chaîne continue). `DepositCargo` / `WithdrawCargo` exigeaient l'orbite, les étapes de la file non : une étape seule, ou atteinte après un déplacement qui n'a pas eu lieu, transférait la cargaison depuis n'importe où. 6 cas vérifiés par exécution (bonne orbite → transfert ; autre planète → pas de transfert ; `planetid` 0 → pas de transfert, pour chaque étape).
+- **Côté web — l'étape visait la planète actuelle** : le panneau construisait l'étape cargo avec `fleet.planetid`, donc « aller en Y puis déposer » produisait `[move@Y, deposit@X]` — que le serveur refuse maintenant (et qui déposait sur X depuis Y avant). Le client vise la planète où le vaisseau **sera** : destination du dernier `moveToPlanet` de la file, sinon la planète courante (`targetPlanetFor`, appliqué aussi à `explorePlanet`). C'est ce que fait déjà la VR (`OrderQueue.AddPlanetChain` : le déplacement puis l'étape sur la même planète).
+- **`trade_routes` compté à chaque réordonnancement** : ✅ le succès (`automated_logistics`) n'est plus incrémenté qu'au passage de la boucle **0 → 1**, dans `SetFleetQueue` comme dans `ToggleFleetQueueLoop`. Avant, la moindre réécriture de la file d'une file déjà en boucle (tableau du panneau, balise déplacée sur la table holo) recomptait, **et** l'action dédiée `ToggleFleetQueueLoop` — celle qu'utilisent le panneau web et le répéteur VR pour activer la boucle — ne comptait jamais : un joueur qui bouclait sa route par le bouton ne débloquait pas le succès. 11 cas vérifiés par exécution (activation, réécriture, désactivation, réactivation, bascule sans argument).
+
+### Spec livrée — `CreateEmpire`
+
+Miroir de `controller/create-empire.php` via `CreateEmpireForUser` : mêmes validations / effets. Auth token. Requis : `empireName`. Optionnels : drapeau, `authority`, `ethics` (csv), espèce / traits, `planetName`, profil lore (`leaderTraits` csv ≤ 3 via `GetLeaderTraits`). Retour = JSON enrichi type `GetMeEmpire`, ou `error:<clé>`.
+
 ### À corriger côté web (relevés en reprenant la file d'ordres, 2026-09-29)
 
 - **Étapes `depositCargo` / `withdrawCargo` sans contrôle de position** : `ProcessFleetQueue` (`model/fleet_queue.php`) transfère la cargaison sans vérifier que le vaisseau orbite la planète visée, alors que `DepositCargo` / `WithdrawCargo` exigent `planetid` = planète. Une étape seule (ou après un déplacement échoué) transfère donc depuis n'importe où. La VR met toujours le déplacement en tête de chaîne ; le serveur doit refuser ou sauter l'étape hors orbite.
