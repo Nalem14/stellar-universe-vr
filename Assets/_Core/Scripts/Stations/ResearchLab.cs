@@ -109,6 +109,7 @@ namespace Core.Stations
 
         JObject _empire;
         string _selected;
+        int _detailPage = 1;
         string _hover;
         bool _busy;
         float _nextTick;
@@ -661,6 +662,8 @@ namespace Core.Stations
         {
             if (_busy)
                 return;
+            if (_selected != tech)
+                _detailPage = 1;
             _selected = tech;
             CicCue.Ok(_nodes[tech].Root.position);
             PaintTree();
@@ -1100,47 +1103,37 @@ namespace Core.Stations
             var lvlLine = Trans.Get("level") + " <b>" + level + "</b>" + (max > 0 ? " / " + max : string.Empty);
             if (running)
                 lvlLine += "   <color=#e8c040>▲ " + Trans.Get("lvl") + " " + (level + 1) + "</color>";
-            Text(_detailBody, lvlLine, -445f, 200f, 880f, 22f, UiKit.TextBright);
+            Text(_detailBody, lvlLine, -445f, 200f, 530f, 22f, UiKit.TextBright);
 
-            var desc = DiegeticUi.HoloLabel(_detailBody, Trans.Get(ResearchCatalog.DescKey(id)), new Vector2(0f, 128f),
-                new Vector2(890f, 100f), 19f, new Color(0.78f, 0.86f, 0.95f, 1f), TextAlignmentOptions.TopLeft);
-            desc.textWrappingMode = TextWrappingModes.Normal;
-            desc.overflowMode = TextOverflowModes.Ellipsis;
-
-            // Prerequisites (researchLab = best planet lab; the rest empire techs).
-            var y = 58f;
-            Text(_detailBody, Trans.Get("vr.research.requires"), -445f, y, 400f, 17f, DiegeticUi.CyanDim);
-            y -= 36f;
-            var i = 0;
-            foreach (var (key, need) in ResearchCatalog.Requirements(id))
+            // Effect, prerequisites and the full unlock list in one paged text block: built here (on
+            // selection / refresh), never per frame; the page buttons only flip TMP's pageToDisplay.
+            var info = DiegeticUi.HoloLabel(_detailBody, DetailText(id, level, lab), new Vector2(0f, -36f),
+                new Vector2(890f, 428f), 18f, new Color(0.78f, 0.86f, 0.95f, 1f), TextAlignmentOptions.TopLeft);
+            info.richText = true;
+            info.textWrappingMode = TextWrappingModes.Normal;
+            info.overflowMode = TextOverflowModes.Page;
+            info.ForceMeshUpdate(true);
+            var pages = Mathf.Max(1, info.textInfo.pageCount);
+            _detailPage = Mathf.Clamp(_detailPage, 1, pages);
+            info.pageToDisplay = _detailPage;
+            if (pages > 1)
             {
-                var have = key == ResearchCatalog.Lab ? lab : Level(key);
-                var ok = have >= need;
-                Text(_detailBody, Tone("●", ok) + " " + Trans.Get(key) + "  <size=85%>" + Trans.Get("lvl") + " " +
-                                  need + "</size>", -445f + (i % 2) * 450f, y - (i / 2) * 34f, 430f, 22f, UiKit.TextBright);
-                i++;
-            }
-
-            if (i == 0)
-                Text(_detailBody, Tone("●", true) + " —", -445f, y, 430f, 19f, UiKit.TextBright);
-            y -= Mathf.Max(1, Mathf.CeilToInt(i / 2f)) * 34f + 12f;
-
-            // What it opens, straight from the server configs.
-            var unlocks = ResearchCatalog.Unlocks(id);
-            if (unlocks.Count > 0)
-            {
-                Text(_detailBody, Trans.Get("vr.research.unlocks"), -445f, y, 400f, 17f, DiegeticUi.CyanDim);
-                y -= 36f;
-                for (var u = 0; u < unlocks.Count && u < 6; u++)
+                var pageLabel = Text(_detailBody, _detailPage + " / " + pages, 270f, 200f, 90f, 18f, DiegeticUi.CyanDim,
+                    TextAlignmentOptions.Center);
+                Button prev = null, next = null;
+                void Turn(int d)
                 {
-                    var (key, need, kind) = unlocks[u];
-                    var ok = level >= need;
-                    Text(_detailBody, "<size=80%><color=#b9a4ff>" + Trans.Get(kind) + "</color></size>  " + Trans.Get(key) +
-                                      "  <size=80%>" + Tone(Trans.Get("lvl") + " " + need, ok) + "</size>",
-                        -445f + (u % 2) * 450f, y - (u / 2) * 32f, 430f, 20f, UiKit.TextBright);
+                    _detailPage = Mathf.Clamp(_detailPage + d, 1, pages);
+                    info.pageToDisplay = _detailPage;
+                    pageLabel.text = _detailPage + " / " + pages;
+                    prev.interactable = _detailPage > 1;
+                    next.interactable = _detailPage < pages;
                 }
 
-                y -= Mathf.CeilToInt(Mathf.Min(unlocks.Count, 6) / 2f) * 28f + 8f;
+                prev = Btn(_detailBody, "‹ " + Trans.Get("previous"), 160f, 200f, 120f, 40f, () => Turn(-1),
+                    DiegeticUi.BtnStyle.Ghost, _detailPage > 1);
+                next = Btn(_detailBody, Trans.Get("next") + " ›", 380f, 200f, 120f, 40f, () => Turn(1),
+                    DiegeticUi.BtnStyle.Ghost, _detailPage < pages);
             }
 
             // Cost and duration of the next level, then the order.
@@ -1180,6 +1173,48 @@ namespace Core.Stations
             if (enabled)
                 Text(_detailBody, Trans.Get("vr.research.insertHint"), 30f, -350f, 415f, 16f, DiegeticUi.CyanDim);
         }
+
+        /// <summary>
+        /// The analysis text of a tech: its effect (desc&lt;Tech&gt;), prerequisites, then every unlock by level
+        /// with its kind, green once our level reaches it. Rich text for one paged TMP block.
+        /// </summary>
+        string DetailText(string id, int level, int lab)
+        {
+            var sb = new System.Text.StringBuilder(1024);
+            Section(sb, "vr.research.effect");
+            sb.Append(Trans.Get(ResearchCatalog.DescKey(id))).Append("\n\n");
+
+            // Prerequisites (researchLab = best planet lab; the rest empire techs).
+            Section(sb, "vr.research.requires");
+            var any = false;
+            foreach (var (key, need) in ResearchCatalog.Requirements(id))
+            {
+                var have = key == ResearchCatalog.Lab ? lab : Level(key);
+                if (any)
+                    sb.Append("     ");
+                sb.Append("<nobr>").Append(Tone("●", have >= need)).Append(' ').Append(Trans.Get(key))
+                    .Append("  <size=85%>").Append(Trans.Get("lvl")).Append(' ').Append(need).Append("</size></nobr>");
+                any = true;
+            }
+
+            if (!any)
+                sb.Append(Tone("●", true)).Append(" —");
+            sb.Append("\n\n");
+
+            // What it opens, straight from the server configs.
+            var unlocks = ResearchCatalog.Unlocks(id);
+            if (unlocks.Count == 0)
+                return sb.ToString();
+            Section(sb, "vr.research.unlocks");
+            foreach (var u in unlocks)
+                sb.Append("<size=85%>").Append(Tone(Trans.Get("lvl") + " " + u.Level, level >= u.Level))
+                    .Append("</size><pos=11%><size=80%><color=#b9a4ff>").Append(Trans.Get(u.KindKey))
+                    .Append("</color></size><indent=30%>").Append(u.Label).Append("</indent>\n");
+            return sb.ToString();
+        }
+
+        static void Section(System.Text.StringBuilder sb, string key) =>
+            sb.Append("<size=85%><color=#7fd8ff><b>").Append(Trans.Get(key)).Append("</b></color></size>\n");
 
         void RenderCoreScreen()
         {

@@ -30,7 +30,8 @@ namespace Core.App
     /// Anomalies of the system in view. GetSystemAnomalies seeds one (45 %) whenever the system has none, so it
     /// is read once per system visit (web StarWindowUI: once per star window), never on a timer.
     /// ScanAnomaly needs one of our ships in that system carrying ScienceModule / SensorArray / DeepSpaceScanner;
-    /// rewards go to the empire (research points) and the first planet (minerals, crystals).
+    /// rewards go to the empire (research points) and our colony in that system, else the capital (minerals,
+    /// crystals). The scan keeps the ship exploring for difficulty × 15 s (exploreEndTime).
     /// </summary>
     public sealed class AnomalyService : MonoBehaviour
     {
@@ -105,16 +106,25 @@ namespace Core.App
             var me = FocusContext.OwnedUserId();
             var now = FleetOrderGate.UnixNow();
             FocusFleet best = null;
+            FocusFleet busy = null;
             foreach (var f in focus.Fleets)
             {
                 if (f.UserId != me || f.SystemId != systemId || f.IsMoving(now) || !HasScanner(f))
                     continue;
+                // Server ScanAnomaly refuses a busy fleet (IsFleetBusy) and keeps it exploring for the scan.
+                if (!f.CanIssueMove(now))
+                {
+                    busy ??= f;
+                    continue;
+                }
+
                 if (f.Id == focus.ViewFleetId)
                     return f;
                 best ??= f;
             }
 
-            return best;
+            // A busy scanner is still returned so the order reads "busy", not "no science module".
+            return best ?? busy;
         }
 
         void OnFocusChanged()
@@ -199,14 +209,32 @@ namespace Core.App
         /// <summary>ScanAnomaly; on success the anomaly leaves the list and the economy / empire are re-read.</summary>
         public async Task<ApiResult> Scan(Anomaly anomaly, FocusFleet fleet)
         {
+            var bark = Core.Crew.BarkDirector.Instance;
+            if (fleet != null && !fleet.CanIssueMove(FleetOrderGate.UnixNow()))
+            {
+                bark?.Say(CrewDialogue.Role.Science, "fail", 3);
+                return ApiResult.Fail(Trans.Get(FleetOrderGate.BusyKey(fleet)));
+            }
+
             var r = await ActionJs.Get("ScanAnomaly", new Dictionary<string, string>
             {
                 { "anomaly", anomaly.Id.ToString() },
                 { "fleet", fleet.Id.ToString() }
             });
-            var bark = Core.Crew.BarkDirector.Instance;
             if (r.Ok)
             {
+                // The scan now occupies the ship (exploreEndTime) until the next GetAllFleets poll confirms it.
+                try
+                {
+                    var end = FocusContext.AsLong(JObject.Parse(r.Body)["exploreEndTime"]);
+                    if (end > fleet.ExploreEndTime)
+                        fleet.ExploreEndTime = end;
+                }
+                catch
+                {
+                    // Older server reply without exploreEndTime: the poll will catch up.
+                }
+
                 if (_bySystem.TryGetValue(anomaly.SystemId, out var list))
                     list.RemoveAll(a => a.Id == anomaly.Id);
                 bark?.Say(CrewDialogue.Role.Science, "scan", 2, Trans.Get(anomaly.NameKey));
@@ -229,9 +257,17 @@ namespace Core.App
             try
             {
                 var o = JObject.Parse(body);
-                return Trans.Format("vr.anomaly.rewards", FocusContext.AsInt(o["reward_research"]),
+                var text = Trans.Format("vr.anomaly.rewards", FocusContext.AsInt(o["reward_research"]),
                     FocusContext.AsInt(o["reward_minerals"]), FocusContext.AsInt(o["reward_crystals"]),
                     FocusContext.AsInt(o["reward_xp"]));
+                // Web StarWindowUI: resources land on the colony of that system (else the capital) — " → planet (Ns)".
+                var planet = FocusContext.AsString(o["planet_name"]);
+                if (!string.IsNullOrEmpty(planet))
+                    text += "  →  " + planet;
+                var duration = FocusContext.AsInt(o["duration"]);
+                if (duration > 0)
+                    text += "  (" + duration + "s)";
+                return text;
             }
             catch
             {

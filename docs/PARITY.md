@@ -1,6 +1,6 @@
 # PARITY — Stellar Universe VR ↔ `actionjs.php`
 
-Généré depuis `action-api.json` (159 actions), `actionjs.php` et un grep des deux clients. Référence web : `/Users/thommy/Websites/stellar-universe`. Roadmap : [`ROADMAP.md`](ROADMAP.md).
+Généré depuis `action-api.json` (164 actions), `actionjs.php` et un grep des deux clients. Référence web : `/Users/thommy/Websites/stellar-universe`. Roadmap : [`ROADMAP.md`](ROADMAP.md).
 
 **Règle** : chaque feature livrée met à jour sa ligne. Avant de coder, lire l'implémentation web (colonne *Web*) + `model/*.php`. On adapte la jouabilité au pont VR ; le contrat serveur reste strict. La VR ne renvoie **jamais** au web.
 
@@ -29,9 +29,10 @@ Généré depuis `action-api.json` (159 actions), `actionjs.php` et un grep des 
 | Guerre | 9 | 9 | 100 % |
 | Alliance | 17 | 17 | 100 % |
 | Empire / progression / shop | 24 | 27 | 89 % |
-| **Total** | **151** | **159** | **95 %** |
+| Saisons de suprématie | 5 | 5 | 100 % |
+| **Total** | **156** | **164** | **95 %** |
 
-Appelées par le client web : 140/159. « Appelée » ≠ « finie » : voir la colonne *Statut*.
+Appelées par le client web : 145/164. « Appelée » ≠ « finie » : voir la colonne *Statut*.
 
 ## Auth
 
@@ -47,7 +48,7 @@ Appelées par le client web : 140/159. « Appelée » ≠ « finie » : voir la 
 |---|---|---|---|---|---|---|---|---|
 | `GetConfigs` | R | — | `App/DiplomacyIndex.cs` +4 | `scripts/configs.js` | Système (boot) | P0 | Branché |  |
 | `GetEventData` | R | — | `Stations/QuartersRoom.cs` | `ui/ProgressionWindowUI.js` | Quartiers du commandant | P0 | Branché | Onglet Événement : objectifs, boss mondial (PV, nos dégâts, tête du classement) |
-| `GetGameAnnouncements` | R | — | `UI/SasTransmissions.cs` | `scenes/ui.js` | Sas (Menu) | P6 | Branché | Panneau Transmissions du sas après connexion : événements en cours (fin, faction, boss mondial) et actualités (date, version, image serveur, corps HTML converti, paginé), textes `_en` selon la langue ; actualité non lue (`latest_id` ≠ dernière lue sur le casque) = panneau ambre ouvert dessus, comme l'overlay web |
+| `GetGameAnnouncements` | R | — | `UI/SasTransmissions.cs` | `scenes/ui.js` | Sas (Menu) | P6 | Branché | Panneau Transmissions du sas après connexion : événements en cours (fin, faction, boss mondial ; la saison active `season` en tête, comme le hub web) et actualités (date, version, image serveur, corps HTML converti, paginé), textes `_en` selon la langue ; actualité non lue (`latest_id` ≠ dernière lue sur le casque) = panneau ambre ouvert dessus, comme l'overlay web ; le même lecteur d'actualités sert l'onglet Actualité du tableau de saison (bureau du capitaine) |
 | `GetLatestNews` | R | — | `UI/MainMenuConsole.cs` | — | Sas (Menu) | P6 | Branché | Titre de la dernière actualité sous le nom du commandant, sur le terminal d'accueil du sas |
 | `GetTranslations` | R | — | `Utils/Trans.cs` | — | Système (boot) | P0 | Branché |  |
 
@@ -69,7 +70,7 @@ Appelées par le client web : 140/159. « Appelée » ≠ « finie » : voir la 
 | `GetPlanet` | R | id | `Stations/PlanetSurvey.cs` | `objects/planet.js` | Relevé planétaire Science (répéteur → écran face au captain), planètes du système en vue ; `user` jamais gardé | P5 | Branché |  |
 | `GetSystemAnomalies` | R | systemid | `App/AnomalyService.cs` | `ui/StarWindowUI.js` | `AnomalyService` : une lecture par système visité (le serveur fait apparaître une anomalie à 45 % quand il n'y en a pas) ; titres par type (`anomaly_<type>`), pas le texte FR stocké | P5 | Branché |  |
 | `GetSystems` | R | — | `App/BridgeSystemLoader.cs` +2 | `scenes/galaxy.js` | Holo table | P4 | Branché | Galaxie complète sur la table (LOD, territoires par détenteur) ; dessin sur `visual_x/visual_y` (repli (x+50)×100), coordonnées et trajets sur la grille `x/y` — alignées depuis la migration serveur `MigrateSystemsGridFromMap` |
-| `ScanAnomaly` | W | anomaly, fleet | `App/AnomalyService.cs` +1 | `ui/StarWindowUI.js` | Vaisseau scanneur (ScienceModule / SensorArray / DeepSpaceScanner) déposé sur le jeton, devis des gains au pupitre ; ou répéteur Science | P5 | Branché |  |
+| `ScanAnomaly` | W | anomaly, fleet | `App/AnomalyService.cs` +1 | `ui/StarWindowUI.js` | Science | P5 | Branché | Vaisseau scanneur (ScienceModule / SensorArray / DeepSpaceScanner) déposé sur le jeton, devis des gains au pupitre ; ou répéteur Science. Vaisseau à module scientifique **inactif** dans le système (le serveur refuse `fleetBusy` et occupe le vaisseau `difficulté × 15 s` via `exploreEndTime`, reporté localement jusqu'au poll) ; récompenses + planète créditée (`planet_name`, colonie du système sinon capitale) + durée |
 
 ## Flotte
 
@@ -237,7 +238,7 @@ Appelées par le client web : 140/159. « Appelée » ≠ « finie » : voir la 
 | `AddEmpirePolicy` | W | policy | `Stations/QuartersRoom.cs` | `objects/policy.js` | Quartiers du commandant | P6 | Branché | Éthiques du bureau, jusqu'à `maxPolicies` (+1 au niveau 10), en deux temps (pas de retrait serveur) ; doublons filtrés par `policy_id` |
 | `BuyShopItem` | W | item | `Stations/QuartersRoom.cs` | `ui/ShopWindowUI.js` | Quartiers du commandant | P6 | Branché | Deux temps ; montée de niveau annoncée |
 | `CreateEmpire` | W | empireName, bgColor, shape1, shape2, shape3, color1, color2, color3, authority, ethics, speciesName, speciesType, traitPos1, traitPos2, traitNeg1, traitNeg2, planetName, empireBio, leaderName, leaderSex, leaderTitle, heirTitle, leaderTraits, shipPrefix | `UI/EmpireCreationWizard.cs` | — | Quartiers du commandant | P3 | Branché | Compte sans empire → SAS ; miroir create-empire.php ; `GetMeEmpire` renvoie `error:noEmpire` |
-| `EquipShopItem` | W | item | `Stations/QuartersRoom.cs` | `ui/ShopWindowUI.js` | Quartiers du commandant | P6 | Branché | Titre → plaque du bureau + vitrine ; couleur de flotte → anneau de la vitrine et **nos coques dehors** (`ShipHullBuilder.SetOwnAccent`) |
+| `EquipShopItem` | W | item | `Stations/QuartersRoom.cs` | `ui/ShopWindowUI.js` | Quartiers du commandant | P6 | Branché | Titre → plaque du bureau + vitrine (clé boutique traduite ; un titre de saison `equippedTitle` = libellé serveur, affiché tel quel) ; couleur de flotte → anneau de la vitrine et **nos coques dehors** (`ShipHullBuilder.SetOwnAccent`) |
 | `GetAchievements` | R | — | `Stations/QuartersRoom.cs` | `scenes/galaxy.js` | Quartiers du commandant | P6 | Branché | Console Progression (filtres par catégorie) + mur des trophées de la cabine (18 plaques, débloqués en premier) |
 | `GetActivity` | R | lastid | `Stations/QuartersRoom.cs` | `objects/activity.js` | Quartiers du commandant | P6 | Branché | Journal de bord du bureau : `lastid`, relu toutes les 10 s à l'écran |
 | `GetAuthorities` | R | — | `Stations/QuartersRoom.cs` +1 | `ui/EmpireHubUI.js` | Quartiers du commandant | P6 | Branché |  |
@@ -261,6 +262,16 @@ Appelées par le client web : 140/159. « Appelée » ≠ « finie » : voir la 
 | `SetPolitics` | W | category, option | `Stations/QuartersRoom.cs` | `ui/EmpireHubUI.js` | Quartiers du commandant | P6 | Branché | Option choisie = appliquée (gratuit) ; testé aller-retour sur le compte propriétaire |
 | `UpdateEmpireFlag` | W | flag | `Stations/QuartersRoom.cs` | `ui/EmpireHubUI.js` | Quartiers du commandant | P6 | Branché | Éditeur de drapeau du bureau (fond + 3 calques), JSON web empireFlag.js |
 | `UpdateSpecy` | W | empire, name?, type_id?, traits? | `Stations/QuartersRoom.cs` | `objects/specy.js` | Quartiers du commandant | P6 | Branché | Nom seul gratuit ; type ou traits = un jeton ; **toujours** `name` + `type_id` + `traits` complets (le serveur réécrit les traits omis) |
+
+## Saisons de suprématie
+
+| Action | R/W | Params | VR | Web | Station | Phase | Statut | Notes |
+|---|---|---|---|---|---|---|---|---|
+| `EquipEmpireTitle` | W | accolade_id | `Stations/SeasonBoard.cs` | `ui/ProgressionWindowUI.js` | Quartiers du commandant | P6 | Branché | Onglet Honneurs : Porter ce titre (`accolade_id`) → un seul porté, plaque du bureau et vitrine relues (`GetMeEmpire.equippedTitle`) |
+| `GetActiveSeason` | R | — | `Stations/SeasonBoard.cs` | `ui/ProgressionWindowUI.js` | Quartiers du commandant | P6 | Branché | Tableau de saison au-dessus du bureau du capitaine (onglet Saison) : nom, temps restant, jauge du cycle, notre palier / rang / points et leur décomposition, palier suivant, objectifs de saison (sources de points) et échelle des paliers avec leur bonus Nova ; lu à l'entrée dans la cabine puis toutes les 2 min |
+| `GetEmpireAccolades` | R | — | `Stations/SeasonBoard.cs` | `ui/ProgressionWindowUI.js` | Quartiers du commandant | P6 | Branché | Onglet Honneurs : nos titres impériaux (libellés serveur tels quels) sous les récompenses de fin de saison |
+| `GetSeasonLeaderboard` | R | category, limit, page | `Stations/SeasonBoard.cs` | `ui/ProgressionWindowUI.js` | Quartiers du commandant | P6 | Branché | Onglets Classement (`category=empires`, `limit=20` : rang, empire + titre porté, alliance, palier, score ; notre ligne surlignée) et Alliances (`category=alliances`) du tableau de saison, mêmes cadences |
+| `GetSeasonPantheon` | R | season_number | `Stations/SeasonBoard.cs` | `ui/ProgressionWindowUI.js` | Quartiers du commandant | P6 | Branché | Onglet Panthéon : une saison close par page (empires et alliances, honneur, récompense) ; lu une fois par visite |
 
 ## Écarts serveur à traiter côté web
 
@@ -471,3 +482,12 @@ Miroir de `controller/create-empire.php` via `CreateEmpireForUser` : mêmes vali
 
 - **Étapes `depositCargo` / `withdrawCargo` sans contrôle de position** : `ProcessFleetQueue` (`model/fleet_queue.php`) transfère la cargaison sans vérifier que le vaisseau orbite la planète visée, alors que `DepositCargo` / `WithdrawCargo` exigent `planetid` = planète. Une étape seule (ou après un déplacement échoué) transfère donc depuis n'importe où. La VR met toujours le déplacement en tête de chaîne ; le serveur doit refuser ou sauter l'étape hors orbite.
 - **`SetFleetOrderQueue` avec boucle compte `trade_routes` à chaque appel** : chaque réordonnancement (tableau de la file, balise déplacée sur la table) d'une file en boucle rejoue l'incrément du succès. À ne compter qu'au passage de la boucle à 1.
+
+### À corriger côté web (relevés en lisant les saisons, `df38c0f..cd68e3b`, 2026-10-01)
+
+- **`ScanAnomaly` sur un vaisseau occupé renvoie `error:fleetBusy` brut** : la nouvelle garde `IsFleetBusy` (`model/anomaly.php`) répond `Lang('fleetBusy')`, clé absente des dix langues — le joueur lit « fleetBusy » (web comme VR). Ajouter la clé, ou réutiliser `fleetIsExploring` / `fleetIsMoving`. La VR filtre le cas avant l'appel (`FleetOrderGate.BusyKey`).
+- **Deux sortes de titres dans `empires.equippedTitle`** : `EquipShopItem` y écrit une clé de boutique (`title_*`, traduite par `shopItemName_<clé>`), `EquipEmpireTitle` le **libellé anglais** d'un honneur (`title_label`). Un client ne peut pas savoir lequel il lit (la VR teste la présence dans le catalogue). Et équiper un titre de boutique ne remet pas `empire_accolades.is_equipped` à 0 : le classement (`active_title`) continue d'afficher l'honneur que l'empire ne porte plus. Proposition : `equippedTitle` = clé (`shop:<clé>` / `accolade:<id>`) et un champ résolu à côté ; désactiver les honneurs à l'équipement d'un titre de boutique.
+- **`season_alliance_scores.member_count` reste à 1** : `AddEmpireSupremacyScore` l'insère à 1 et le `ON DUPLICATE KEY` ne met à jour que `total_score` ; la colonne « Membres » du classement des alliances est donc fausse.
+- **`GetActiveSeason` n'expose ni l'échelle des paliers ni le barème** : `tier_info` ne donne que le palier courant et le suivant ; seuils, bonus Nova par palier (`SEASON_TIERS`), points par exploit (`AddEmpireSupremacyScore` : bataille 30, conquête 100, défense 60, capture Stargate 50, colonie Stargate 40, anomalie 15, contrat 25, objectifs 10 / 30 / 100) et récompenses de fin de saison (`RunSeasonCheckCycle`) sont recopiés en dur par le web (`progression-window.hbs`, `AnnouncementsModalUI.js`) et par la VR (`SeasonBoard`). Ajouter `tiers`, `scoring` et `end_rewards` à la réponse ; la VR les lira dès qu'ils existent.
+- **Textes de saison non localisables** : paliers (`SEASON_TIERS.name`), noms et descriptions de saison, `title_label` / `badge_title` / `reward_desc` sont stockés en anglais (pas de `name_en` / clé) ; l'onglet Saison du web est en français en dur. La VR passe par `seasonTier_<clé>` (missing-keys) et affiche le reste tel quel. `EquipEmpireTitle` lève aussi `"Title not found or not owned"` en dur.
+- **Contrat `auth: false` faux** : `GetActiveSeason`, `GetSeasonLeaderboard` et `GetSeasonPantheon` sont déclarés publics dans `action-api.json` mais répondent `error:You must be logged in` sans session.

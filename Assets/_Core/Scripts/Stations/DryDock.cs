@@ -931,9 +931,19 @@ namespace Core.Stations
                 var t = type;
                 var selected = _selectedType == type;
                 // Fitting needs a ship first (left screen): until then the stock reads, but is not pickable.
-                var pick = Btn(_rackList, Trans.Get(ModuleCatalog.NameKey(type)) + "  ×" + count, -115f, y, 620f, 56f,
+                // Name and stock, then what the module brings to the hull (non-zero shipstats, tinted by kind).
+                var stats = ModuleCatalog.StatsLine(type);
+                var label = Trans.Get(ModuleCatalog.NameKey(type)) + "  ×" + count;
+                if (stats.Length > 0)
+                    label += "\n<size=62%>" + stats + "</size>";
+                var pick = Btn(_rackList, label, -115f, y, 620f, 56f,
                     () => SelectModule(t), selected ? DiegeticUi.BtnStyle.Cyan : DiegeticUi.BtnStyle.Ghost);
                 pick.interactable = _fleetId > 0;
+                if (stats.Length > 0)
+                {
+                    var tmp = pick.GetComponentInChildren<TMP_Text>();
+                    tmp.lineSpacing = -18f;
+                }
                 if (type != ModuleCatalog.Core || count > 0)
                     Btn(_rackList, "×", 380f, y, 70f, 56f, () => AsyncTap.Run(Scrap(t)), DiegeticUi.BtnStyle.Danger);
             }

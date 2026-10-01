@@ -7,6 +7,7 @@ using Core.Vfx;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.XR.Interaction.Toolkit.Interactables;
 using UnityEngine.XR.Interaction.Toolkit.Interactors;
 
 namespace Core.Holo
@@ -81,6 +82,7 @@ namespace Core.Holo
             c._orders = orders;
             c._art = art;
             c.BuildVisuals();
+            c._reticle = HoloAimReticle.Build(go.transform, art);
             Instance = c;
             if (map != null)
                 map.TokensRebuilt += c.OnTokensRebuilt;
@@ -135,6 +137,31 @@ namespace Core.Holo
 
         // ── Loop ──────────────────────────────────────────────────────────────────
 
+        // Aim assist (all angles in degrees, from the steadied ray): the target is the token / star with the
+        // smallest angle to the ray once its own angular radius is counted, within a small cone around it.
+        /// <summary>Assist cone past a target's edge.</summary>
+        const float ConeDeg = 2.2f;
+        /// <summary>Smallest angular radius a target gets (tiny tokens at zoom-out, far side of the table).</summary>
+        const float MinAngleDeg = 0.75f;
+        /// <summary>The target held keeps its score × this (hysteresis: no flicker between neighbours).</summary>
+        const float Sticky = 0.7f;
+        /// <summary>Aim slipping off for this long keeps the target (s).</summary>
+        const float LoseGrace = 0.09f;
+        /// <summary>Trigger dip: a target held ≥ <see cref="ClickSteady"/> s and left &lt; this (s) before the click wins.</summary>
+        const float ClickMemory = 0.1f;
+        const float ClickSteady = 0.25f;
+        /// <summary>Grip assist (grab a ship the ray only skims): tighter than the hover assist.</summary>
+        const float GripScore = 0.55f;
+        static readonly Color AimNeutral = new(0.35f, 0.95f, 1f, 1f);
+        static readonly Color AimInvalid = new(1f, 0.38f, 0.32f, 1f);
+
+        readonly List<HoloAimRay> _aims = new();
+        HoloAimReticle _reticle;
+        HoloAimRay _primary;
+        int _tintKey = -1;
+        int _tintSel = -1;
+        Color _tint = AimNeutral;
+
         void Update()
         {
             if (_map == null)
@@ -144,36 +171,69 @@ namespace Core.Holo
                 _nextScan = Time.unscaledTime + 2f;
                 _rays = FindObjectsByType<NearFarInteractor>(FindObjectsSortMode.None);
                 _pokes = FindObjectsByType<XRPokeInteractor>(FindObjectsSortMode.None);
+                SyncAims();
             }
 
             var console = OrderConsole.Instance;
             // The Nova-finish offer that pops on picking a ship under way does not hold the table: pointing at a
             // target dismisses it and queues the next order instead.
             var busy = (_orders != null && _orders.Busy) || (console != null && console.IsOpen && !_offering);
+            var now = Time.unscaledTime;
+            var live = _map.ContentRoot != null && _map.ContentRoot.gameObject.activeInHierarchy;
 
-            // Aim: the first ray that points at a token (ignoring rays already on a UI panel).
-            HoloToken aimed = null;
-            NearFarInteractor clicker = null;
-            foreach (var ray in _rays)
+            // Aim: every ray steadied and snapped; the hover is the best-snapped one (the one already hovering
+            // wins ties, so two hands on the table do not fight).
+            // Stars the rays hold keep their pooled tokens (another ray's pick never recycles them).
+            _map.HoldGalaxyTokens(_aims.Count > 0 ? _aims[0].Target : null, _aims.Count > 1 ? _aims[1].Target : null);
+            HoloAimRay best = null;
+            var bestScore = float.MaxValue;
+            HoloAimRay clicker = null;
+            HoloToken clicked = null;
+            for (var i = 0; i < _aims.Count; i++)
             {
-                if (ray == null || !ray.isActiveAndEnabled)
-                    continue;
-                var t = RayToken(ray, out var onUi);
-                if (onUi)
-                    continue;
-                if (t != null && aimed == null)
-                    aimed = t;
-                if (!busy && ray.activateInput.ReadWasPerformedThisFrame())
+                var aim = _aims[i];
+                var ray = aim.Ray;
+                if (ray == null || !ray.isActiveAndEnabled || !live)
                 {
-                    clicker = ray;
-                    Click(t);
-                    break;
+                    aim.SetTarget(null, 0f, now);
+                    aim.HasPoint = false;
+                    aim.OnUi = false;
+                    continue;
                 }
+
+                aim.Trigger = ray.activateInput.ReadValue();
+                aim.Filter(ray.transform.position, ray.transform.forward, now);
+                AimRay(aim, ray, now);
+                if (aim.OnUi)
+                    continue;
+                if (aim.Target != null)
+                {
+                    var sc = aim.Score * (aim == _primary ? 0.8f : 1f);
+                    if (sc < bestScore)
+                    {
+                        bestScore = sc;
+                        best = aim;
+                    }
+                }
+
+                if (busy)
+                    continue;
+                if (clicker == null && ray.activateInput.ReadWasPerformedThisFrame())
+                {
+                    clicker = aim;
+                    clicked = aim.ClickTarget(now, ClickMemory, ClickSteady);
+                }
+
+                AssistGrab(aim, ray);
             }
 
-            if (clicker == null && !busy)
+            _primary = best;
+            if (clicker != null)
+                Click(clicked);
+            else if (!busy)
                 PokeClicks();
 
+            var aimed = best != null ? best.Target : null;
 #if UNITY_EDITOR
             // Editor checks (no headset): aim forced from a test script.
             if (EditorAim != null)
@@ -182,17 +242,54 @@ namespace Core.Holo
             SetHover(busy ? null : aimed);
             UpdateArc();
             FollowSelection();
+            UpdateReticle(busy || !live, best);
         }
 
-        HoloToken RayToken(NearFarInteractor ray, out bool onUi)
+        /// <summary>One aim state per ray, kept across scans (the find order is not stable).</summary>
+        void SyncAims()
         {
-            onUi = false;
-            var origin = ray.transform.position;
-            var dir = ray.transform.forward;
+            for (var i = 0; i < _aims.Count; i++)
+            {
+                if (_aims[i].Ray != null && System.Array.IndexOf(_rays, _aims[i].Ray) < 0)
+                    _aims[i].Bind(null, Time.unscaledTime);
+            }
+
+            for (var r = 0; r < _rays.Length; r++)
+            {
+                var ray = _rays[r];
+                HoloAimRay free = null;
+                var known = false;
+                for (var i = 0; i < _aims.Count && !known; i++)
+                {
+                    if (_aims[i].Ray == ray)
+                        known = true;
+                    else if (free == null && _aims[i].Ray == null)
+                        free = _aims[i];
+                }
+
+                if (known)
+                    continue;
+                if (free == null)
+                {
+                    free = new HoloAimRay();
+                    _aims.Add(free);
+                }
+
+                free.Bind(ray, Time.unscaledTime);
+            }
+        }
+
+        /// <summary>
+        /// Snap one steadied ray: room geometry, a lectern / panel or a queue waypoint in front win; else the
+        /// token or galaxy star nearest the ray in angle inside the assist cone; and the map-plane point under it.
+        /// </summary>
+        void AimRay(HoloAimRay aim, NearFarInteractor ray, float now)
+        {
+            aim.OnUi = false;
+            var origin = aim.Origin;
+            var dir = aim.Dir;
             var n = Physics.RaycastNonAlloc(origin, dir, _hits, RayLength, ~0, QueryTriggerInteraction.Collide);
-            var best = float.MaxValue;
-            HoloToken token = null;
-            var blocker = float.MaxValue;
+            var blocker = RayLength;
             var nodeDist = float.MaxValue;
             for (var i = 0; i < n; i++)
             {
@@ -203,52 +300,200 @@ namespace Core.Holo
                     continue;
                 }
 
-                var t = h.collider.GetComponentInParent<HoloToken>();
-                if (t == null)
-                {
-                    // Solid room geometry in front stops the aim; triggers (sit zones…) don't.
-                    if (!h.collider.isTrigger)
-                        blocker = Mathf.Min(blocker, h.distance);
+                // Solid room geometry in front stops the aim; triggers (sit zones…) and tokens don't.
+                if (!h.collider.isTrigger && h.collider.GetComponentInParent<HoloToken>() == null)
+                    blocker = Mathf.Min(blocker, h.distance);
+            }
+
+            // A target may sit a little behind the surface the ray grazes (a ship over the plate rim).
+            var reach = Mathf.Min(RayLength, blocker + 0.03f);
+            var galaxy = _map.ShowingGalaxy;
+            // Zoomed out, the galaxy's stars are pin-points: a wider cone (nearest-in-angle still decides).
+            var cone = galaxy ? ConeDeg * Mathf.Lerp(1.45f, 1f, _map.GalaxyZoom01) : ConeDeg;
+            var stickyKey = aim.TargetKey;
+            var noPick = _selectedId <= 0;
+
+            HoloToken token = null;
+            var score = float.MaxValue;
+            var along = 0f;
+            var tokens = _map.Tokens;
+            for (var i = 0; i < tokens.Count; i++)
+            {
+                var t = tokens[i];
+                // Galaxy stars come from the star grid below (the pooled tokens are only a few of them).
+                if (t == null || (galaxy && t.Kind == HoloTokenKind.System) || !t.gameObject.activeInHierarchy)
                     continue;
-                }
-
-                if (h.distance < best)
+                var v = t.transform.position - origin;
+                var a = Vector3.Dot(v, dir);
+                if (a <= 0.02f || a > reach)
+                    continue;
+                var perp = (v - dir * a).magnitude;
+                var ang = Mathf.Atan2(perp, a) * Mathf.Rad2Deg;
+                var radius = _map.AimRadiusOf(t) * t.transform.lossyScale.x;
+                var angR = Mathf.Max(Mathf.Atan2(radius, a) * Mathf.Rad2Deg, MinAngleDeg);
+                var sc = ang / (angR + cone);
+                if (sc >= 1.5f)
+                    continue;
+                if (HoloAimRay.KeyOf(t) == stickyKey)
+                    sc *= Sticky;
+                // Nothing picked yet: our own ships are what the captain reaches for first.
+                if (noPick && t.Kind == HoloTokenKind.Fleet && t.Owned)
+                    sc *= 0.9f;
+                if (sc < 1f && sc < score)
                 {
-                    best = h.distance;
+                    score = sc;
                     token = t;
+                    along = a;
                 }
             }
 
-            if (token != null && blocker < best)
-                token = null;
-
-            // A queue waypoint in front of the aim: that trigger belongs to the waypoint (QueuePathView).
-            if (nodeDist < blocker && (token == null || nodeDist < best))
+            if (galaxy)
             {
-                onUi = true;
-                return null;
-            }
-
-            // Galaxy: the aim meets the star layer; the nearest star there is the target (not only pooled tokens).
-            if (token == null && _map.ShowingGalaxy && _map.ContentRoot != null)
-            {
-                var c = _map.ContentRoot;
-                var planeY = c.TransformPoint(new Vector3(0f, HoloZoneMap.DioramaLift + 0.03f, 0f)).y;
-                if (Mathf.Abs(dir.y) > 1e-3f)
+                const int sysTag = (int)HoloTokenKind.System + 1;
+                var stickyStar = (stickyKey >> 24) == sysTag ? stickyKey ^ (sysTag << 24) : 0;
+                var idx = _map.GalaxyPickRay(origin, dir, reach, cone, MinAngleDeg, stickyStar, Sticky, out var sc,
+                    out var starWorld);
+                if (idx >= 0 && sc < score)
                 {
-                    var t = (planeY - origin.y) / dir.y;
-                    if (t > 0f && t < RayLength && t < blocker)
+                    var star = _map.GalaxyTokenForStar(idx);
+                    if (star != null)
                     {
-                        var hit = origin + dir * t;
-                        token = _map.GalaxyTargetNear(hit, 0.035f);
-                        best = t;
+                        token = star;
+                        score = sc;
+                        along = Vector3.Dot(starWorld - origin, dir);
                     }
                 }
             }
-            if (ray.TryGetCurrentUIRaycastResult(out RaycastResult ui) && ui.isValid &&
-                (token == null || ui.distance < best))
-                onUi = true;
-            return onUi ? null : token;
+
+            // Slipped off for a moment: hold the target (a tremor, a token bobbing out of the cone).
+            if (token == null && aim.Target != null && aim.Target.isActiveAndEnabled &&
+                HoloAimRay.KeyOf(aim.Target) == aim.TargetKey && now - aim.LastSeen < LoseGrace)
+            {
+                aim.HasPoint = _map.AimPlanePoint(origin, dir, reach, out aim.Point, out aim.PointLocal);
+                return;
+            }
+
+            var front = token != null ? along : reach;
+            // A queue waypoint in front of the aim: that trigger belongs to the waypoint (QueuePathView).
+            if (nodeDist < blocker && nodeDist < front)
+                aim.OnUi = true;
+            // A lectern / panel canvas in front (the XRI UI ray).
+            if (ray.TryGetCurrentUIRaycastResult(out RaycastResult ui) && ui.isValid && ui.distance < front)
+                aim.OnUi = true;
+            if (aim.OnUi)
+            {
+                aim.SetTarget(null, 0f, now);
+                aim.HasPoint = false;
+                return;
+            }
+
+            aim.SetTarget(token, score, now);
+            aim.HasPoint = _map.AimPlanePoint(origin, dir, reach, out aim.Point, out aim.PointLocal);
+        }
+
+        /// <summary>
+        /// Grip while the assist holds one of our ships the XRI ray only skims: grab it as if the ray were on it
+        /// (HoloFleetOrders takes the drag from there). A grip that already hovers something is left to XRI.
+        /// </summary>
+        void AssistGrab(HoloAimRay aim, NearFarInteractor ray)
+        {
+            var t = aim.Target;
+            if (t == null || t.Kind != HoloTokenKind.Fleet || !t.Owned || aim.Score > GripScore || ray.hasSelection ||
+                !ray.selectInput.ReadWasPerformedThisFrame() || ray.interactablesHovered.Count > 0 ||
+                _map.InteractionLocked || ray.interactionManager == null)
+                return;
+            var grab = t.GetComponent<XRGrabInteractable>();
+            if (grab == null || !grab.isActiveAndEnabled || grab.isSelected)
+                return;
+            ray.interactionManager.SelectEnter((IXRSelectInteractor)ray, (IXRSelectInteractable)grab);
+        }
+
+        /// <summary>Lock ring on the hover, a crosshair under each ray on the plate, galaxy coordinates.</summary>
+        void UpdateReticle(bool hidden, HoloAimRay primary)
+        {
+            if (_reticle == null)
+                return;
+            if (hidden || _map.InteractionLocked)
+            {
+                _reticle.HideAll();
+                return;
+            }
+
+            var cam = Camera.main;
+            var eye = cam != null ? cam.transform.position : transform.position + Vector3.up;
+            var target = _hover;
+            var flat = _map.ContentRoot != null ? _map.ContentRoot.rotation : Quaternion.identity;
+
+            if (target != null)
+            {
+                var key = HoloAimRay.KeyOf(target);
+                if (key != _tintKey || _selectedId != _tintSel)
+                {
+                    _tintKey = key;
+                    _tintSel = _selectedId;
+                    _tint = AimTint(target);
+                }
+
+                var pos = target.transform.position;
+                var dist = Vector3.Distance(eye, pos);
+                var radius = Mathf.Max(_map.AimRadiusOf(target) * target.transform.lossyScale.x,
+                    dist * Mathf.Tan(1.1f * Mathf.Deg2Rad));
+                var snapped = primary != null && primary.Target == target && primary.ChangedAt >= Time.unscaledTime;
+                _reticle.ShowRing(pos, radius, _tint, snapped, eye);
+            }
+            else
+            {
+                _tintKey = -1;
+                _reticle.HideRing();
+            }
+
+            var slot = 0;
+            var coordsShown = false;
+            for (var i = 0; i < _aims.Count && slot < 2; i++)
+            {
+                var aim = _aims[i];
+                if (aim.Ray == null || !aim.HasPoint || aim.OnUi)
+                    continue;
+                var dist = Vector3.Distance(eye, aim.Point);
+                var size = Mathf.Max(0.009f, dist * Mathf.Tan(0.9f * Mathf.Deg2Rad));
+                var mine = aim == primary && target != null;
+                _reticle.ShowPoint(slot, aim.Point, flat, size, mine ? _tint : AimNeutral);
+                if (mine && aim.Target != null)
+                {
+                    var to = aim.Target.transform.position;
+                    if ((to - aim.Point).sqrMagnitude > size * size)
+                        _reticle.ShowTether(aim.Point, to, _tint);
+                    else
+                        _reticle.HideTether();
+                }
+
+                // Galaxy, nothing snapped under this ray: where it points, in grid coordinates.
+                if (!coordsShown && _map.ShowingGalaxy && aim.Target == null)
+                {
+                    _reticle.ShowCoords(aim.Point, _map.GalaxyGridAt(aim.PointLocal), size * 1.6f);
+                    coordsShown = true;
+                }
+
+                slot++;
+            }
+
+            for (var i = slot; i < 2; i++)
+                _reticle.HidePoint(i);
+            if (target == null || primary == null || !primary.HasPoint)
+                _reticle.HideTether();
+            if (!coordsShown)
+                _reticle.HideCoords();
+        }
+
+        /// <summary>Ring colour: cyan to inspect / pick, green (amber when it queues) for a valid order, red for a refusal.</summary>
+        Color AimTint(HoloToken target)
+        {
+            var fleet = SelectedFleet;
+            if (fleet == null || target.Kind == HoloTokenKind.Fleet)
+                return AimNeutral;
+            if (Invalid(fleet, target) != null)
+                return AimInvalid;
+            return target.Kind != HoloTokenKind.Anomaly && !fleet.CanIssueMove(FleetOrderGate.UnixNow()) ? Queued : Valid;
         }
 
         void PokeClicks()

@@ -806,6 +806,9 @@ namespace Core.Vfx
                 var on = fleet.AutoExplore;
                 AddAction(Trans.Get("autoExploreMode") + "  ·  " + Trans.Get(on ? "autoExploreActive" : "autoExploreDisabled"),
                     () => ToggleAutoExplore(fleet, !on), on ? DiegeticUi.BtnStyle.Amber : DiegeticUi.BtnStyle.Cyan);
+                // Server pauses auto-exploration while the player is offline (last_online < 5 min): say so.
+                if (on)
+                    AddStatus(Trans.Get("autoExploreDesc"));
             }
         }
 

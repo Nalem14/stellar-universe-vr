@@ -604,6 +604,8 @@ namespace Core.Vfx
                 block = Trans.Get("fleet_lacks_science_module");
             else if (fleet.SystemId != anomaly.SystemId || fleet.IsMoving(FleetOrderGate.UnixNow()))
                 block = Trans.Get("fleet_not_in_system");
+            else if (!FleetOrderGate.CanMove(fleet))
+                block = Trans.Get(FleetOrderGate.BusyKey(fleet)); // server IsFleetBusy (exploring / mining / siege)
 
             fleetToken.SnapHome();
             RestoreSpin(fleetToken);

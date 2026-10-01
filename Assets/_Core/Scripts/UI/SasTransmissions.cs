@@ -20,7 +20,9 @@ namespace Core.UI
     /// left, the reader on the right (picture from the server, body converted from its HTML, paged). Unread
     /// news (latest_id vs the last one read on this headset) opens the board on it with an amber header, like
     /// the web opening its overlay once per new item. Titles and bodies follow the player's language
-    /// (<c>_en</c> fields).
+    /// (<c>_en</c> fields). The active competitive season (GetGameAnnouncements <c>season</c>) heads the Events
+    /// list, as the web hub unshifts it. <see cref="Embed"/> reuses the news reader on another screen (the
+    /// captain's season board) without its own tabs or header.
     /// </summary>
     public sealed class SasTransmissions : MonoBehaviour
     {
@@ -50,6 +52,7 @@ namespace Core.UI
         readonly Dictionary<string, Texture2D> _images = new();
         string _wantImage;
         RawImage _picture;
+        bool _embedded;
 
         public static SasTransmissions Build(Transform room, CicArtKit art)
         {
@@ -69,18 +72,46 @@ namespace Core.UI
             return board;
         }
 
+        /// <summary>
+        /// The news reader on someone else's screen: its own body under <paramref name="screen"/>'s frame (the
+        /// host keeps its tabs), news only, hidden until <see cref="SetVisible"/>. The header stays the host's.
+        /// </summary>
+        public static SasTransmissions Embed(HoloScreen screen)
+        {
+            var board = screen.gameObject.AddComponent<SasTransmissions>();
+            board._screen = screen;
+            board._embedded = true;
+            board._tab = Tab.News;
+            board._body = ScreenKit.Body(screen.Content);
+            board._body.gameObject.SetActive(false);
+            return board;
+        }
+
+        /// <summary>Embedded: show or hide the reader (shown = the open news counts as read).</summary>
+        public void SetVisible(bool on)
+        {
+            if (_body == null)
+                return;
+            _body.gameObject.SetActive(on);
+            if (on && _loaded)
+                Render();
+        }
+
         /// <summary>Signed in: read the announcements and light the board.</summary>
         public void Show() => AsyncTap.Run(Load());
 
         public void Hide()
         {
-            if (_screen != null)
+            if (_embedded)
+                SetVisible(false);
+            else if (_screen != null)
                 _screen.gameObject.SetActive(false);
         }
 
         async Task Load()
         {
-            _screen.gameObject.SetActive(true);
+            if (!_embedded)
+                _screen.gameObject.SetActive(true);
             if (!_loaded)
             {
                 ScreenKit.Clear(_body);
@@ -103,6 +134,16 @@ namespace Core.UI
             _news = root["news"] as JArray ?? new JArray();
             _latestId = FocusContext.AsInt(root["latest_id"]);
             _loaded = true;
+            if (_embedded)
+            {
+                _selected = 0;
+                SetTab(Tab.News);
+                return;
+            }
+
+            // Web AnnouncementsModalUI: the active season heads the events (shown while active).
+            if (root["season"] is JObject season && FocusContext.AsInt(season["season_number"]) > 0)
+                _events.Insert(0, SeasonEvent(season));
 
             var unread = _latestId > 0 && PlayerPrefs.GetInt(ReadKey, 0) != _latestId;
             _screen.SetAccent(unread ? UiKit.Amber : UiKit.Cyan, unread ? 0.9f : 0.45f);
@@ -118,7 +159,8 @@ namespace Core.UI
             _tab = tab;
             _selected = Mathf.Clamp(_selected, 0, Math.Max(0, Items.Count - 1));
             _page = 1;
-            ScreenKit.LightTabs(_tabs, (int)tab);
+            if (_tabs != null)
+                ScreenKit.LightTabs(_tabs, (int)tab);
             Render();
         }
 
@@ -151,7 +193,8 @@ namespace Core.UI
                 var index = i;
                 var it = items[i];
                 var title = ScreenKit.Verbatim(HtmlText.StripGlyphs(ScreenKit.Localized(it, "title")));
-                var when = _tab == Tab.News ? Date(it["date"]) : Remaining(it["end_at"]);
+                var when = _tab == Tab.News ? Date(it["date"])
+                    : FocusContext.AsBool(it["is_season"]) ? SeasonLeft(it) : Remaining(it["end_at"]);
                 ScreenKit.Btn(_body, title + "\n<size=70%><color=#7fb7c4>" + when + "</color></size>", -365f, 180f - i * 64f,
                     320f, 58f, () => Select(index), i == _selected ? DiegeticUi.BtnStyle.Cyan : DiegeticUi.BtnStyle.Ghost);
             }
@@ -182,6 +225,12 @@ namespace Core.UI
 
         void RenderEvent(JToken e)
         {
+            if (FocusContext.AsBool(e["is_season"]))
+            {
+                RenderSeason(e);
+                return;
+            }
+
             ScreenKit.Line(_body, "<b>" + ScreenKit.Verbatim(HtmlText.StripGlyphs(ScreenKit.Localized(e, "title"))) + "</b>", 175f, 190f, 26f,
                 UiKit.TextBright, 680f);
             var faction = FocusContext.AsString(e["enemy_faction_name"]);
@@ -207,6 +256,32 @@ namespace Core.UI
             Reader(text, FocusContext.AsString(e["image"]), e["world_boss"] is JObject ? -140f : -178f);
         }
 
+        /// <summary>The season of supremacy: name, time left, its pitch; standings live in the captain's quarters.</summary>
+        void RenderSeason(JToken e)
+        {
+            var gold = new Color(1f, 0.84f, 0.3f, 1f);
+            ScreenKit.Line(_body, "<b>" + ScreenKit.Verbatim(FocusContext.AsString(e["title"])) + "</b>", 175f, 190f, 26f, gold, 680f);
+            ScreenKit.Line(_body, "<color=#ffd24d>" + Trans.Get("seasonSupremacy") + "</color>  ·  " + SeasonLeft(e), 175f, 158f, 17f,
+                UiKit.TextDim, 680f);
+            var text = ScreenKit.Verbatim(FocusContext.AsString(e["description"])) + "\n\n<color=#ffd24d>" +
+                       Trans.Get("vr.season.seeQuarters") + "</color>";
+            Reader(text, FocusContext.AsString(e["image"]), -178f);
+        }
+
+        /// <summary>GetGameAnnouncements.season as an Events row (end kept as a unix time from remaining_seconds).</summary>
+        static JObject SeasonEvent(JObject season) => new()
+        {
+            ["is_season"] = true,
+            ["id"] = "season_" + FocusContext.AsInt(season["season_number"]),
+            ["title"] = FocusContext.AsString(season["name"]),
+            ["description"] = FocusContext.AsString(season["description"]),
+            ["image"] = FocusContext.AsString(season["image"]),
+            ["end_unix"] = FleetOrderGate.UnixNow() + FocusContext.AsLong(season["remaining_seconds"])
+        };
+
+        static string SeasonLeft(JToken e) =>
+            Trans.Format("vr.quarters.endsIn", ScreenKit.Remaining(FocusContext.AsLong(e["end_unix"]) - FleetOrderGate.UnixNow()));
+
         /// <summary>Picture band on top (when the server gives one), the body under it, paged.</summary>
         void Reader(string text, string imageUrl, float bottom)
         {
@@ -228,7 +303,8 @@ namespace Core.UI
             _reader = ScreenKit.Para(_body, text, 175f, (top + bottom) * 0.5f, 18f, UiKit.TextBright, 680f, top - bottom);
             _reader.overflowMode = TextOverflowModes.Page;
             _reader.pageToDisplay = _page;
-            _reader.ForceMeshUpdate();
+            // Embedded readers lay out while hidden too.
+            _reader.ForceMeshUpdate(true);
             var pages = Mathf.Max(1, _reader.textInfo.pageCount);
             if (pages <= 1)
                 return;
@@ -250,8 +326,13 @@ namespace Core.UI
         {
             if (PlayerPrefs.GetInt(ReadKey, 0) == _latestId)
                 return;
+            // Embedded and hidden: not read yet.
+            if (_embedded && !_body.gameObject.activeInHierarchy)
+                return;
             PlayerPrefs.SetInt(ReadKey, _latestId);
             PlayerPrefs.Save();
+            if (_embedded)
+                return;
             _screen.SetAccent(UiKit.Cyan, 0.45f);
             _screen.SetHeader(Trans.Get("vr.sas.transmissions"));
         }

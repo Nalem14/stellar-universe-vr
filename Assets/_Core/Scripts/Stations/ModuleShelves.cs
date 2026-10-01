@@ -18,7 +18,7 @@ namespace Core.Stations
     /// assembly table = the dock's usual PlaceShipModule. A block the hangar lacks is a hologram: trigger it
     /// twice to have the planet's shipyard fabricate one (AddShip, same rules as the Shipyard tab).
     /// The catalogue is larger than the wall: a robot gantry runs along the shelves and swaps the page, block
-    /// by block, with a replicator sweep (SU/ModuleBlock). Hovering a block shows its name, stock and cost
+    /// by block, with a replicator sweep (SU/ModuleBlock). Hovering a block shows its name, stock, stats, description and cost
     /// (red where the planet falls short) on one shared card. Quest budget: one shared material and one draw
     /// per block, the frame merged by static batching, four text rows for the shelf lips, one card.
     /// Local frame: origin on the floor at the wall face, centre of the rack; the room lies toward -Z.
@@ -486,16 +486,17 @@ namespace Core.Stations
         {
             _card = new GameObject("HoverCard").transform;
             _card.SetParent(transform, false);
-            var back = UiKit.MeshPiece(_card, "Back", UiMeshes.RoundedBox(new Vector3(0.5f, 0.15f, 0.012f), 0.012f),
+            // Name · status · stats · description · cost: tall enough for a two-line description.
+            var back = UiKit.MeshPiece(_card, "Back", UiMeshes.RoundedBox(new Vector3(0.52f, 0.25f, 0.012f), 0.012f),
                 UiKit.Chassis, new Vector3(0f, 0f, 0.008f));
             _cardBack = back.GetComponent<MeshRenderer>();
-            _cardText = UiKit.Label(_card, "Text", string.Empty, new Vector3(0f, 0f, -0.001f), 0.47f, 0.018f,
+            _cardText = UiKit.Label(_card, "Text", string.Empty, new Vector3(0f, 0f, -0.001f), 0.49f, 0.018f,
                 UiKit.TextBright, TextAlignmentOptions.MidlineLeft, wrap: true);
             _cardText.richText = true;
             _cardText.enableAutoSizing = true;
-            _cardText.fontSizeMin = 0.012f * 1400f;
+            _cardText.fontSizeMin = 0.011f * 1400f;
             _cardText.fontSizeMax = 0.018f * 1400f;
-            _cardText.rectTransform.sizeDelta = new Vector2(47f, 14f);
+            _cardText.rectTransform.sizeDelta = new Vector2(49f, 23f);
             _card.gameObject.SetActive(false);
         }
 
@@ -506,7 +507,7 @@ namespace Core.Stations
             _cardSlot = s;
             CicCue.Hover(s.Home.position);
             // In front of the block, above it, clear of the shelf lip.
-            _card.localPosition = s.Home.localPosition + new Vector3(0f, 0.31f, -Depth * 0.5f - 0.06f);
+            _card.localPosition = s.Home.localPosition + new Vector3(0f, 0.36f, -Depth * 0.5f - 0.06f);
             _card.gameObject.SetActive(true);
             RenderCard();
             ApplyAll();
@@ -554,7 +555,12 @@ namespace Core.Stations
                     _sb.Append(Trans.Get("vr.dock.shelf.fabricate"));
             }
 
-            _sb.Append("</size>\n<size=80%>").Append(_yard.CostText(s.Type)).Append("</size>");
+            _sb.Append("</size>");
+            var stats = ModuleCatalog.StatsLine(s.Type);
+            if (stats.Length > 0)
+                _sb.Append("\n<size=80%>").Append(stats).Append("</size>");
+            _sb.Append("\n<size=70%><color=#9fc4d6>").Append(ModuleCatalog.Description(s.Type)).Append("</color></size>");
+            _sb.Append("\n<size=80%>").Append(_yard.CostText(s.Type)).Append("</size>");
             _cardText.text = _sb.ToString();
             _cardBack.GetPropertyBlock(_mpb);
             _mpb.SetColor(UiKit.AccentId, afford ? ModuleCatalog.Accent(fam) : UiKit.Danger);

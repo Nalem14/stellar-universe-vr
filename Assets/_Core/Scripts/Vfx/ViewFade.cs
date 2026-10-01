@@ -17,7 +17,7 @@ namespace Core.Vfx
         static ViewFade _instance;
         MeshRenderer _renderer;
         Material _material;
-        bool _busy;
+        int _ticket;
 
         public static ViewFade Ensure()
         {
@@ -69,35 +69,31 @@ namespace Core.Vfx
             }
         }
 
-        public async Task FadeOut(float duration = 0.35f)
-        {
-            if (_busy)
-                return;
-            _busy = true;
-            await Animate(0f, 1f, duration);
-            _busy = false;
-        }
+        public Task FadeOut(float duration = 0.35f) => Animate(1f, duration);
 
-        public async Task FadeIn(float duration = 0.4f)
-        {
-            if (_busy)
-                return;
-            _busy = true;
-            await Animate(1f, 0f, duration);
-            _busy = false;
-        }
+        public Task FadeIn(float duration = 0.4f) => Animate(0f, duration);
 
-        async Task Animate(float from, float to, float duration)
+        /// <summary>
+        /// Ease the veil from where it is now to <paramref name="to"/>. The latest request wins: an older fade still
+        /// running stops where it is and its caller resumes. Never dropped (a dropped fade-in left the view black)
+        /// and never restarted from a fixed end (a fade-out over an already black view flashed the scene).
+        /// </summary>
+        async Task Animate(float to, float duration)
         {
             if (_material == null)
                 return;
+            var ticket = ++_ticket;
             LateUpdate();
+            var from = Alpha;
+            var span = duration * Mathf.Abs(to - from);
             var t = 0f;
-            while (t < duration)
+            while (t < span)
             {
                 t += Time.unscaledDeltaTime;
-                SetAlpha(Mathf.Lerp(from, to, MotionEase.SmoothInOut(t / duration)));
+                SetAlpha(Mathf.Lerp(from, to, MotionEase.SmoothInOut(t / span)));
                 await Task.Yield();
+                if (ticket != _ticket)
+                    return;
             }
 
             SetAlpha(to);

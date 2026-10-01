@@ -44,9 +44,11 @@ namespace Core.App
     /// <summary>
     /// The watch ("quart"): passthrough on, the bridge put away, a small holo cluster in the player's real room
     /// for the one long affair that justifies it (a jump, a siege, a survey, a build, a research, a battle
-    /// waiting on the other side). Offered from the left arm pad when something runs longer than two minutes
+    /// waiting on the other side), plus the station consoles the player sets out in the room
+    /// (<see cref="WatchConsoles"/>). Offered from the left arm pad when something runs longer than two minutes
     /// and the headset has passthrough; "Aboard" brings the captain back to the chair. Not a second client:
-    /// nothing is ordered from here. The bridge keeps running (polls, crew, services); the camera simply
+    /// the only orders given from here go through the bridge's own Comms / Ops consoles, borrowed. The bridge
+    /// keeps running (polls, crew, services); the camera simply
     /// renders the Watch layer alone over a transparent background, with the Meta passthrough behind.
     /// </summary>
     public sealed class WatchMode : MonoBehaviour
@@ -62,6 +64,7 @@ namespace Core.App
         FocusContext _focus;
         Transform _deck;
         WatchCluster _cluster;
+        WatchConsoles _consoles;
         Core.UI.ArmKey _offer;
         readonly List<WatchAffair> _affairs = new();
         readonly Dictionary<int, long> _transitSeen = new();
@@ -335,6 +338,8 @@ namespace Core.App
                 Scan();
                 _cluster.Place(cam != null ? cam.transform : _deck);
                 _cluster.Show(_affairs);
+                // The station consoles the captain set out in the room last time.
+                _consoles.Restore(rig != null ? rig.transform : _deck, cam != null ? cam.transform : _deck);
                 await fade.FadeIn(0.5f);
                 CicCue.Ok(_cluster.transform.position);
             }
@@ -352,6 +357,8 @@ namespace Core.App
             {
                 var fade = ViewFade.Ensure();
                 await fade.FadeOut(0.5f);
+                // Layout kept, Comms / Ops consoles handed back to the bridge.
+                _consoles.Stash();
                 var rig = FindFirstObjectByType<XROrigin>();
                 var cam = rig != null ? rig.Camera : Camera.main;
                 if (cam != null)
@@ -433,6 +440,7 @@ namespace Core.App
             floor.transform.localPosition = new Vector3(0f, -0.1f, 0f);
             floor.AddComponent<BoxCollider>().size = new Vector3(30f, 0.2f, 30f);
             _cluster = WatchCluster.Build(_deck, _watchLayer, Leave);
+            _consoles = WatchConsoles.Build(_deck, _cluster.transform, _watchLayer, _focus);
         }
     }
 }

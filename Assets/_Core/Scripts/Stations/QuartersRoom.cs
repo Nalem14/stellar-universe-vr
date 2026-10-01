@@ -25,7 +25,9 @@ namespace Core.Stations
     /// GetEventData), mirrored by the trophy wall; the starboard console is the Nova shop (GetShopData,
     /// BuyShopItem in two presses, EquipShopItem, packs and history). The equipped title is on the desk
     /// nameplate and the showcase, the equipped fleet colour on the showcase ring and on our hulls outside.
-    /// The Comms console sits on the starboard wall while the captain is here.
+    /// The Comms console sits on the starboard wall while the captain is here. Over the desk, the season board
+    /// (<see cref="SeasonBoard"/>): the season of supremacy, its objectives, leaderboards, pantheon, honours
+    /// (EquipEmpireTitle) and the latest news.
     /// </summary>
     public sealed class QuartersRoom : MonoBehaviour
     {
@@ -77,6 +79,8 @@ namespace Core.Stations
         RectTransform _shopBody;
         TMP_Text _shopStatus;
         Button[] _shopTabs;
+
+        SeasonBoard _seasonBoard;
 
         TwoPress _empireConfirm;
         TwoPress _shopConfirm;
@@ -224,6 +228,8 @@ namespace Core.Stations
             _shopStatus = DiegeticUi.HoloLabel(_shop.Content, string.Empty, new Vector2(-190f, -305f), new Vector2(660f, 40f), 18f,
                 DiegeticUi.CyanDim, TextAlignmentOptions.MidlineLeft);
 
+            _seasonBoard = SeasonBoard.Build(_decor.SeasonMount, _decor.SeasonHeader, () => AsyncTap.Run(TitleChanged()));
+
             _flagTex = FlagPainter.Paint(_flag);
             _flagMat = new Material(_art.Lit(_flagTex, Color.white, 0f)) { name = "SU_QuartersFlag" };
             _flagMat.mainTexture = _flagTex;
@@ -291,6 +297,7 @@ namespace Core.Stations
 
         async Task LoadAll()
         {
+            var season = _seasonBoard.Open();
             var me = AuthManager.Ensure().FetchMe();
             var au = ActionJs.Get("GetAuthorities");
             var st = ActionJs.Get("GetSpeciesTypes");
@@ -322,7 +329,18 @@ namespace Core.Stations
             _log.Clear();
             _logLast = 0;
             await LoadLog();
+            await season;
             RenderAll();
+        }
+
+        /// <summary>A season title was equipped on the board: the nameplate, the showcase and the shop follow.</summary>
+        async Task TitleChanged()
+        {
+            await AuthManager.Ensure().FetchMe();
+            AdoptEmpire();
+            await RefreshShop();
+            if (Inside)
+                RenderShop();
         }
 
         /// <summary>Copy the fresh GetMeEmpire into the edit state (flag, authority, species) and the decor.</summary>
@@ -546,16 +564,29 @@ namespace Core.Stations
                 return;
             var title = FocusContext.AsString(_me["equippedTitle"]);
             var leader = (FocusContext.AsString(_me["leaderTitle"]) + " " + FocusContext.AsString(_me["leaderName"])).Trim();
-            _decor.Nameplate.text = (title.Length > 0 ? "<color=#ffd27a>" + Trans.Get("shopItemName_" + title) + "</color>  ·  " : string.Empty) +
+            _decor.Nameplate.text = (title.Length > 0 ? "<color=#ffd27a>" + TitleText(title) + "</color>  ·  " : string.Empty) +
                                     ScreenKit.Verbatim(leader.Length > 0 ? leader : FocusContext.AsString(_me["name"]));
             _decor.ShowcaseTitle.text = title.Length > 0
-                ? Trans.Get("shopItemName_" + title)
+                ? TitleText(title)
                 : ScreenKit.Verbatim(FocusContext.AsString(_me["name"]));
             var colour = FlagPainter.Hex("#" + FocusContext.AsString(_me["fleetColor"]), Accent);
             var block = new MaterialPropertyBlock();
             block.SetColor("_Color", colour);
             block.SetColor("_Emission", colour);
             _decor.ShowcaseRing.SetPropertyBlock(block);
+        }
+
+        /// <summary>
+        /// equippedTitle is a shop title key (EquipShopItem) or, since the seasons, the label of an imperial
+        /// honour as the server wrote it (EquipEmpireTitle stores title_label): the key is translated, the label
+        /// shown verbatim.
+        /// </summary>
+        string TitleText(string title)
+        {
+            var catalog = _shopData?["catalog"] as JObject;
+            if (catalog?[title] != null || (catalog == null && title.IndexOf(' ') < 0))
+                return Trans.Get("shopItemName_" + title);
+            return ScreenKit.Verbatim(title);
         }
 
         void SyncTrophies()
@@ -1316,6 +1347,7 @@ namespace Core.Stations
                 return;
             _empireConfirm.Tick();
             _shopConfirm.Tick();
+            _seasonBoard.Tick();
             if (_busy)
                 return;
             var now = Time.unscaledTime;

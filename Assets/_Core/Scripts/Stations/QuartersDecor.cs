@@ -10,7 +10,7 @@ namespace Core.Stations
     /// like a real one around a panoramic bay on space ahead (open like the bridge hublots; the room stands over
     /// our ship). In from the corridor door (aft wall, starboard), the working wall is at the right hand: the
     /// captain's desk in dark wood against the starboard wall (low reclined Empire screen, nameplate, the
-    /// capital's hologram), its chair pulled out, the Comms wall terminal, then the Nova shop console and the
+    /// capital's hologram, the season board on the wall over it), its chair pulled out, the Comms wall terminal, then the Nova shop console and the
     /// showcase by the bay. The far (port) side is the bedroom: a double bed, headboard to the wall, between two
     /// nightstands with reading lamps and night glows, a star chart over it; forward of it the progression
     /// console beside the trophy wall. The aft wall carries the data-crystal shelves by the door, the wardrobe
@@ -46,7 +46,8 @@ namespace Core.Stations
         const float DeskOff = 0.65f;
         // Wall ribs, between the wall-mounted pieces (never behind a board, a terminal or the headboard).
         static readonly float[] PortRibs = { -3.1f, 0.3f, 1.65f, 5.35f };
-        static readonly float[] StbdRibs = { -3.1f, -0.75f, 1.2f, 2.95f, 5.35f };
+        // (−1.7: aft of the season board over the desk, clear of its frame.)
+        static readonly float[] StbdRibs = { -3.1f, -1.7f, 1.2f, 2.95f, 5.35f };
 
         static Texture2D _wood;
         static Texture2D _carpet;
@@ -58,6 +59,8 @@ namespace Core.Stations
             public Transform ShopMount;
             public Transform CommsMount;
             public Transform CommsWakeMount;
+            public Transform SeasonMount;
+            public TextMeshPro SeasonHeader;
             public readonly MeshRenderer[] Plaques = new MeshRenderer[Trophies];
             public readonly MeshRenderer[] Emblems = new MeshRenderer[Trophies];
             public readonly TextMeshPro[] TrophyNames = new TextMeshPro[Trophies];
@@ -203,6 +206,8 @@ namespace Core.Stations
             spin.BobMeters = 0.006f;
             refs.Globe = globe.transform;
 
+            BuildSeasonBoard(room, art, refs, metal, wood, brass);
+
             // Captain's chair, pulled out from the desk's forward end and turned toward it: the spot in front
             // of the screen stays free for a standing captain.
             var chair = new GameObject("CaptainChair").transform;
@@ -260,6 +265,49 @@ namespace Core.Stations
                 new Color(1f, 0.85f, 0.6f));
             refs.ShowcaseTitle.richText = true;
             refs.ShowcaseTitle.gameObject.AddComponent<BillboardFace>();
+        }
+
+        /// <summary>
+        /// The season board, on the starboard wall over the captain's desk: a dark-wood backplate in a brass
+        /// frame, gold under-glow, a crown emblem and the season's name over it; the screen stands off the wall
+        /// on two brackets, its top tipped toward a standing captain (read over the reclined Empire screen,
+        /// pointed at with the ray). Spans room z −1.52 … 0.02, between the ribs at −1.7 and 1.2.
+        /// </summary>
+        static void BuildSeasonBoard(Transform room, CicArtKit art, Refs refs, Material metal, Material wood, Material brass)
+        {
+            var gold = new Color(1f, 0.82f, 0.32f);
+            var glow = art.Lit(Texture2D.whiteTexture, gold, 2.4f);
+            var board = new GameObject("SeasonBoard").transform;
+            board.SetParent(room, false);
+            board.localPosition = new Vector3(HalfWidth - 0.13f, 0f, -0.75f);
+            // Yaw 90°: back (local +z) to the starboard wall, face (local −z) to the room.
+            board.localRotation = Quaternion.Euler(0f, 90f, 0f);
+            GateRoomDecor.Box(board, "Backplate", new Vector3(0f, 1.96f, 0.03f), new Vector3(1.48f, 1.04f, 0.04f), wood);
+            GateRoomDecor.Box(board, "FrameTop", new Vector3(0f, 2.49f, 0f), new Vector3(1.54f, 0.035f, 0.07f), brass);
+            GateRoomDecor.Box(board, "FrameBottom", new Vector3(0f, 1.43f, 0f), new Vector3(1.54f, 0.035f, 0.07f), brass);
+            for (var side = -1; side <= 1; side += 2)
+            {
+                GateRoomDecor.Box(board, "FrameSide", new Vector3(side * 0.755f, 1.96f, 0f), new Vector3(0.03f, 1.06f, 0.07f), brass);
+                GateRoomDecor.Box(board, "Bracket", new Vector3(side * 0.42f, 1.96f, -0.04f), new Vector3(0.05f, 0.5f, 0.1f), metal);
+            }
+
+            GateRoomDecor.Box(board, "UnderGlow", new Vector3(0f, 1.405f, -0.035f), new Vector3(1.32f, 0.012f, 0.01f), glow);
+            var ring = art.OrbitRing != null ? art.OrbitRing : Texture2D.whiteTexture;
+            var crown = GateRoomDecor.Quad(board, "Emblem", new Vector3(-0.62f, 2.66f, -0.02f), new Vector3(0.16f, 0.16f, 1f),
+                art.RadarIcon(ring, new Color(gold.r, gold.g, gold.b, 0.95f)));
+            var spin = crown.AddComponent<HoloSpin>();
+            spin.DegreesPerSecond = 18f;
+            spin.BobMeters = 0.004f;
+            refs.SeasonHeader = UiKit.Label(board, "SeasonName", string.Empty, new Vector3(0.08f, 2.66f, -0.02f), 1.2f, 0.06f, gold);
+            refs.SeasonHeader.richText = true;
+            refs.SeasonHeader.fontStyle = FontStyles.Bold;
+
+            // Stand-off from the wall, top tipped 8° toward the room.
+            refs.SeasonMount = new GameObject("SeasonMount").transform;
+            refs.SeasonMount.SetParent(board, false);
+            // Far enough out that the tipped screen's lower edge stays in front of the brackets (−0.09).
+            refs.SeasonMount.localPosition = new Vector3(0f, 1.96f, -0.16f);
+            refs.SeasonMount.localRotation = Quaternion.Euler(-8f, 0f, 0f);
         }
 
         /// <summary>Port wall, forward of the bed: the progression console, and beside it the trophy wall it mirrors.</summary>

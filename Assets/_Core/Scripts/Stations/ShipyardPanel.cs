@@ -284,9 +284,23 @@ namespace Core.Stations
                 var time = FocusContext.AsFloat(st?["time"]);
                 var lockKey = Locked(p, st, out var lockLevel, out var lockOn);
                 var afford = Affordable(p, st);
-                Text("<b>" + Trans.Get(type) + "</b>", -440f, y + 9f, 470f, 18f, UiKit.TextBright);
+                // Family tick, name, what the module brings (non-zero shipstats), then what it costs.
+                var tick = new GameObject("Tick", typeof(RectTransform), typeof(Image));
+                tick.transform.SetParent(_body, false);
+                var trt = tick.GetComponent<RectTransform>();
+                trt.sizeDelta = new Vector2(5f, 50f);
+                trt.anchoredPosition = new Vector2(-448f, y);
+                var timg = tick.GetComponent<Image>();
+                timg.color = ModuleCatalog.Accent(ModuleCatalog.Family(type));
+                timg.raycastTarget = false;
+                Text("<b>" + Trans.Get(type) + "</b>", -440f, y + 17f, 470f, 17f, UiKit.TextBright);
+                var stats = Text(ModuleCatalog.StatsLine(type), -440f, y, 470f, 13f, UiKit.TextBright);
+                stats.enableAutoSizing = true;
+                stats.fontSizeMin = 10f;
+                stats.fontSizeMax = 13f;
+                stats.textWrappingMode = TextWrappingModes.NoWrap;
                 // Live: the planet keeps producing between renders (EconomyService poll), costs turn back to white.
-                var costText = Text(CostLine(st, time), -440f, y - 13f, 470f, 14f, Color.white);
+                var costText = Text(CostLine(st, time), -440f, y - 17f, 470f, 13f, Color.white);
                 _live.Add((costText, () => CostLine(st, time)));
 
                 string label;

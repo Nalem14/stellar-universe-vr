@@ -54,8 +54,8 @@ namespace Core.Holo
     /// another system, the loop's closing leg dimmer.
     /// Trigger on a waypoint → plate beside it: remove that step, loop on / off, clear the queue. Grip a
     /// waypoint and drop it on another world or rock field → that step now goes there (SetFleetOrderQueue
-    /// with the steps still to do). The same route is raised for the real system outside
-    /// (<see cref="RouteChanged"/> → ExteriorRouteFx).
+    /// with the steps still to do). The route lives on the table only: drawn in the real system outside, it ran
+    /// through our own (hidden) hull and across the bridge.
     /// </summary>
     public sealed class QueuePathView : MonoBehaviour
     {
@@ -67,7 +67,6 @@ namespace Core.Holo
         static readonly Color Now = new(0.35f, 1f, 1f, 1f);
 
         /// <summary>fleet id, stops (in run order), loop — empty stops = no route.</summary>
-        public static event Action<int, IReadOnlyList<RouteStop>, bool> RouteChanged;
 
         HoloZoneMap _map;
         FocusContext _focus;
@@ -274,7 +273,6 @@ namespace Core.Holo
                     Paint(n, ship);
 
             DrawLines(ship != null && ship.QueueLoop);
-            RouteChanged?.Invoke(_fleetId, _stops, ship != null && ship.QueueLoop);
         }
 
         Node NodeAt(int index, Vector3 pos, HoloTokenKind kind, int targetId, int step, bool current)

@@ -97,6 +97,8 @@ namespace Core.Stations
         string _confirm;
         float _confirmUntil;
         bool _busy;
+        /// <summary>Entering or leaving (behind the veil): a second door / comms press waits its turn.</summary>
+        bool _transit;
 
         // ── Build ─────────────────────────────────────────────────────────────────
 
@@ -133,8 +135,9 @@ namespace Core.Stations
             fill.transform.SetParent(transform, false);
             fill.transform.localPosition = Centre + new Vector3(0f, Height - 0.8f, 0f);
             fill.type = LightType.Point;
-            fill.range = 14f;
-            fill.intensity = 1.4f;
+            // One light for the whole hall (Quest): strong enough to reach the benches 8 m off, under the dome.
+            fill.range = 16f;
+            fill.intensity = 2.4f;
             fill.color = new Color(1f, 0.9f, 0.75f);
             fill.shadows = LightShadows.None;
             _light = fill;
@@ -229,52 +232,72 @@ namespace Core.Stations
 
         public async Task Enter()
         {
-            if (InRoomBeyondCorridor)
+            if (InRoomBeyondCorridor || _transit)
                 return;
+            _transit = true;
             var fade = ViewFade.Ensure();
-            await fade.FadeOut();
-            if (CorridorRoom.Inside)
-                CorridorRoom.Instance.Depart();
-            // Over our ship, the star in the middle of the right-hand windows seen from the stand.
-            RoomPlacement.OverShip(transform, DiplomacyDecor.RightWindowCentre(Centre, Radius) - Stand);
-            gameObject.SetActive(true);
-            var rig = FindFirstObjectByType<XROrigin>();
-            if (rig != null)
+            try
             {
-                rig.transform.SetParent(transform, false);
-                rig.transform.localPosition = Stand;
-                rig.transform.localRotation = Quaternion.identity;
-                XrPlacement.PlaceHead(rig, transform.TransformPoint(Stand), transform.forward);
+                await fade.FadeOut();
+                if (CorridorRoom.Inside)
+                    CorridorRoom.Instance.Depart();
+                // Over our ship, the star in the middle of the right-hand windows seen from the stand.
+                RoomPlacement.OverShip(transform, DiplomacyDecor.RightWindowCentre(Centre, Radius) - Stand);
+                gameObject.SetActive(true);
+                var rig = FindFirstObjectByType<XROrigin>();
+                if (rig != null)
+                {
+                    rig.transform.SetParent(transform, false);
+                    rig.transform.localPosition = Stand;
+                    rig.transform.localRotation = Quaternion.identity;
+                    XrPlacement.PlaceHead(rig, transform.TransformPoint(Stand), transform.forward);
+                }
+
+                Inside = true;
+                _composing = false;
+                _confirm = null;
+                if (DiplomacyService.Instance != null)
+                {
+                    DiplomacyService.Instance.Changed -= OnDiplomacyChanged;
+                    DiplomacyService.Instance.Changed += OnDiplomacyChanged;
+                }
+
+                // The hall shows at once, its screens on "Loading": the reads (two waves, GetConfigs among them) are
+                // never waited for in the dark.
+                RenderAll();
+            }
+            finally
+            {
+                // Whatever happened above, the veil lifts: never leave the player blind in the hall.
+                await fade.FadeIn();
+                _transit = false;
             }
 
-            Inside = true;
-            _composing = false;
-            _confirm = null;
-            if (DiplomacyService.Instance != null)
-            {
-                DiplomacyService.Instance.Changed -= OnDiplomacyChanged;
-                DiplomacyService.Instance.Changed += OnDiplomacyChanged;
-            }
-
-            await Load();
-            await fade.FadeIn();
             CicCue.Ok(transform.position + Vector3.up);
+            await Load();
         }
 
         async Task Leave()
         {
-            if (!Inside)
+            if (!Inside || _transit)
                 return;
+            _transit = true;
             var fade = ViewFade.Ensure();
-            await fade.FadeOut();
-            Inside = false;
-            if (DiplomacyService.Instance != null)
-                DiplomacyService.Instance.Changed -= OnDiplomacyChanged;
-            // Out into the corridor, in front of this room's door.
-            CorridorRoom.ReturnPlayer(CorridorRoom.Slot.DiplomacyPort);
-
-            gameObject.SetActive(false);
-            await fade.FadeIn();
+            try
+            {
+                await fade.FadeOut();
+                Inside = false;
+                if (DiplomacyService.Instance != null)
+                    DiplomacyService.Instance.Changed -= OnDiplomacyChanged;
+                // Out into the corridor, in front of this room's door.
+                CorridorRoom.ReturnPlayer(CorridorRoom.Slot.DiplomacyPort);
+                gameObject.SetActive(false);
+            }
+            finally
+            {
+                await fade.FadeIn();
+                _transit = false;
+            }
         }
 
         void OnDiplomacyChanged()

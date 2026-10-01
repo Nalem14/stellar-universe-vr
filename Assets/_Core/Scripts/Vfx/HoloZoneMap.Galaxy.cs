@@ -110,6 +110,7 @@ namespace Core.Vfx
             _gHasSelection = false;
 
             EnsureGalaxyField();
+            BuildStarGrid();
             BuildTerritories();
             EnsureGalaxyPool();
             RebuildGalaxyView(true);
@@ -488,7 +489,12 @@ namespace Core.Vfx
             if (best < 0)
                 return null;
             _gLastPick = stars[best].Id;
-            var star = stars[best];
+            return TokenForStar(stars[best], local);
+        }
+
+        /// <summary>The pooled token holding <paramref name="star"/>, or the one farthest from <paramref name="local"/> moved onto it.</summary>
+        HoloToken TokenForStar(in GalaxyCatalog.Star star, Vector3 local)
+        {
             for (var i = 0; i < _gPool.Count; i++)
             {
                 if (_gSlotUsed[i] && _gSlot[i].Id == star.Id)
@@ -508,7 +514,7 @@ namespace Core.Vfx
                     break;
                 }
 
-                if (_gSlot[i].Id == hereId)
+                if (_gSlot[i].Id == hereId || AimHeld(_gPool[i]))
                     continue;
                 var p = _gPool[i].transform.localPosition;
                 var d = (p.x - local.x) * (p.x - local.x) + (p.z - local.z) * (p.z - local.z);

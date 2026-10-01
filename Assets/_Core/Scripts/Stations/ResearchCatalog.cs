@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Core.App;
+using Core.Utils;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
 
@@ -123,8 +124,14 @@ namespace Core.Stations
 
         public static JObject Config(string tech) => GameConfig.Research?[tech] as JObject;
 
+        /// <summary>
+        /// The effect text key, "desc" + Tech. The native dump spells one differently from the tech id
+        /// (colonisation → descColonization): that native key is used as is rather than a duplicate.
+        /// </summary>
         public static string DescKey(string tech) =>
-            string.IsNullOrEmpty(tech) ? string.Empty : "desc" + char.ToUpperInvariant(tech[0]) + tech.Substring(1);
+            string.IsNullOrEmpty(tech) ? string.Empty
+            : tech == "colonisation" ? "descColonization"
+            : "desc" + char.ToUpperInvariant(tech[0]) + tech.Substring(1);
 
         public static bool TryNode(string tech, out TechNode node)
         {
@@ -213,23 +220,132 @@ namespace Core.Stations
             return q;
         }
 
+        public const string KindBuilding = "vr.research.kind.building";
+        public const string KindFeature = "vr.research.kind.feature";
+        public const string KindModule = "vr.research.kind.module";
+        public const string KindDefense = "vr.research.kind.defense";
+        public const string KindTroop = "vr.research.kind.troop";
+        public const string KindResearch = "vr.research.kind.research";
+
         /// <summary>
-        /// What the tech opens, read from the server configs instead of the web's hard-coded list: ship modules,
-        /// troops and defenses whose requiert names it, and buildings gated on it (UpgradeBuilding).
+        /// What a module or a building lets you do, as the server decides it: the fleet order or planet
+        /// action that checks for it (actionjs.php / Helper.php GetFleetStats has* flags). Names stay native keys.
+        /// Explore is left out: the ScienceModule has no research gate, every empire starts with it.
         /// </summary>
-        public static List<(string key, int level, string kindKey)> Unlocks(string tech)
+        static readonly (string source, string featureKey)[] FeatureOf =
         {
-            var list = new List<(string, int, string)>();
+            ("HyperspaceDrive", "hyperspaceJump"), // hyperspace moves (hasEnoughHyperdrive)
+            ("BondPRLModule", "bondPrlJump"), // PrlBondFleetToSystem (hasPrlBond)
+            ("colonyShip", "colonizePlanet"), // Colonize
+            ("StealthFieldGenerator", "battleSkill_stealth_veil"), // hasStealth
+            ("AdvancedHackingMatrix", "battleSkill_hack"), // hasHacking
+            ("HackingModule", "battleSkill_hack"),
+            ("stargate", "stargateFeature"), // DispatchStargateMission
+            ("jumpgate", "vr.research.feature.jumpgate"), // SendFleetToJumpgate
+            ("academy", "vr.research.feature.troops"), // RecruitTroop (troopstats requiert academy)
+            ("defenseFactory", "vr.research.feature.defenses") // BuildDefenseUnit (defensestats requiert defenseFactory)
+        };
+
+        static readonly Dictionary<string, List<ResearchUnlock>> UnlockCache = new();
+        static JObject _unlocksResearch;
+        static JObject _unlocksShips;
+        static JObject _unlocksDefenses;
+        static JObject _unlocksTroops;
+
+        /// <summary>
+        /// Everything the tech opens, level by level, read from the server configs (web research.js
+        /// unlocksForTech): buildings gated on it (UpgradeBuilding), ship modules / defenses / troops whose
+        /// requiert names it, techs it leads to, and the features those unlocks bring (hyperspace, PRL bond,
+        /// colonisation, gates…). Cached per configs read; the lab builds its text on selection only.
+        /// </summary>
+        public static IReadOnlyList<ResearchUnlock> Unlocks(string tech)
+        {
+            if (string.IsNullOrEmpty(tech))
+                return System.Array.Empty<ResearchUnlock>();
+            if (_unlocksResearch != GameConfig.Research || _unlocksShips != GameConfig.ShipStats ||
+                _unlocksDefenses != GameConfig.DefenseStats || _unlocksTroops != GameConfig.TroopStats)
+            {
+                UnlockCache.Clear();
+                _unlocksResearch = GameConfig.Research;
+                _unlocksShips = GameConfig.ShipStats;
+                _unlocksDefenses = GameConfig.DefenseStats;
+                _unlocksTroops = GameConfig.TroopStats;
+            }
+
+            if (UnlockCache.TryGetValue(tech, out var cached))
+                return cached;
+
+            var list = new List<ResearchUnlock>();
             foreach (var def in BuildingCatalog.All)
                 if (def.ResearchKey == tech)
-                    list.Add((def.Type, def.ResearchLevel, "vr.research.kind.building"));
-            Collect(GameConfig.ShipStats, tech, "vr.research.kind.module", list);
-            Collect(GameConfig.DefenseStats, tech, "vr.research.kind.defense", list);
-            Collect(GameConfig.TroopStats, tech, "vr.research.kind.troop", list);
+                {
+                    list.Add(new ResearchUnlock(def.Type, def.ResearchLevel, KindBuilding));
+                    AddFeature(def.Type, def.ResearchLevel, list);
+                }
+
+            Collect(GameConfig.ShipStats, tech, KindModule, list, true);
+            Collect(GameConfig.DefenseStats, tech, KindDefense, list, false);
+            Collect(GameConfig.TroopStats, tech, KindTroop, list, false);
+
+            // Effects the server scales on the level itself.
+            if (tech == "prlBond" && GameConfig.PrlBaseRange > 0f && GameConfig.PrlRangePerLevel > 0f)
+                list.Add(new ResearchUnlock("vr.research.feature.prlRange", 1, KindFeature,
+                    Mathf.RoundToInt(GameConfig.PrlRangePerLevel / GameConfig.PrlBaseRange * 100f).ToString()));
+            if (tech == "stargateTriangulation") // ImproveResearch → GrantStargateTriangulationDiscovery
+                list.Add(new ResearchUnlock("vr.research.feature.triangulation", 1, KindFeature));
+
+            Collect(GameConfig.Research, tech, KindResearch, list, false);
+
+            // By level, then kind (what you can do first, then what you can build, then where it leads).
+            var order = new List<(ResearchUnlock u, int i)>(list.Count);
+            for (var i = 0; i < list.Count; i++)
+                order.Add((list[i], i));
+            order.Sort((a, b) =>
+            {
+                var c = a.u.Level.CompareTo(b.u.Level);
+                if (c == 0)
+                    c = KindRank(a.u.KindKey).CompareTo(KindRank(b.u.KindKey));
+                return c != 0 ? c : a.i.CompareTo(b.i);
+            });
+            list.Clear();
+            foreach (var (u, _) in order)
+                list.Add(u);
+
+            UnlockCache[tech] = list;
             return list;
         }
 
-        static void Collect(JObject stats, string tech, string kindKey, List<(string, int, string)> into)
+        static int KindRank(string kind) => kind switch
+        {
+            KindFeature => 0,
+            KindBuilding => 1,
+            KindModule => 2,
+            KindDefense => 3,
+            KindTroop => 4,
+            _ => 5
+        };
+
+        static void AddFeature(string source, int level, List<ResearchUnlock> into)
+        {
+            foreach (var (src, key) in FeatureOf)
+            {
+                if (!string.Equals(src, source, System.StringComparison.OrdinalIgnoreCase))
+                    continue;
+                // Two modules bringing the same feature (hacking): keep the earliest level.
+                for (var i = 0; i < into.Count; i++)
+                    if (into[i].KindKey == KindFeature && into[i].Key == key)
+                    {
+                        if (level < into[i].Level)
+                            into[i] = new ResearchUnlock(key, level, KindFeature);
+                        return;
+                    }
+
+                into.Add(new ResearchUnlock(key, level, KindFeature));
+                return;
+            }
+        }
+
+        static void Collect(JObject stats, string tech, string kindKey, List<ResearchUnlock> into, bool features)
         {
             if (stats == null)
                 return;
@@ -237,8 +353,31 @@ namespace Core.Stations
             {
                 if (!(p.Value?["requiert"] is JObject req) || req[tech] == null)
                     continue;
-                into.Add((p.Name, FocusContext.AsInt(req[tech]), kindKey));
+                var level = FocusContext.AsInt(req[tech]);
+                into.Add(new ResearchUnlock(p.Name, level, kindKey));
+                if (features)
+                    AddFeature(p.Name, level, into);
             }
         }
+    }
+
+    /// <summary>One thing a tech opens: a name key (or a feature text key with its argument) at a level.</summary>
+    public readonly struct ResearchUnlock
+    {
+        public readonly string Key;
+        public readonly int Level;
+        public readonly string KindKey;
+        /// <summary>Format argument for a feature text ({0}); null for a plain name.</summary>
+        public readonly string Arg;
+
+        public ResearchUnlock(string key, int level, string kindKey, string arg = null)
+        {
+            Key = key;
+            Level = level;
+            KindKey = kindKey;
+            Arg = arg;
+        }
+
+        public string Label => Arg != null ? Trans.Format(Key, Arg) : Trans.Get(Key);
     }
 }

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Core.App;
+using Core.Utils;
 using Newtonsoft.Json.Linq;
 using UnityEngine;
 
@@ -102,6 +103,91 @@ namespace Core.Stations
         };
 
         public static string FamilyKey(ModuleFamily f) => "vr.module.family." + f.ToString().ToLowerInvariant();
+
+        // ── Per-module stats (web ShipBuilderUI _statsLine: only the non-zero ones) ─────────────────
+
+        /// <summary>
+        /// shipstats field → label key (native web keys: armor / shield / damage / speed / cargo / crystalUsage;
+        /// the dock's own vr.dock.troops / vr.dock.size), colour (combat warm, defence cool, logistics earthy)
+        /// and whether the value adds to the hull (speed reads "+n", as the web builder shows it).
+        /// </summary>
+        static readonly (string Field, string Key, string Hex, bool Plus)[] StatFields =
+        {
+            ("damage", "damage", "ff6a5a", false),
+            ("armor", "armor", "ffb04a", false),
+            ("shield", "shield", "5ad8ff", false),
+            ("speed", "speed", "8fb4ff", true),
+            ("cargo", "cargo", "e0b070", false),
+            ("troopCargo", "vr.dock.troops", "9aa4ff", false),
+            ("crystalUsage", "crystalUsage", "d78cff", false),
+            ("size", "vr.dock.size", "b4c8d6", false)
+        };
+
+        static readonly Dictionary<string, string> StatsCache = new();
+        static readonly System.Text.StringBuilder StatsSb = new(160);
+        static JObject _statsSource;
+        static string _statsLang;
+        static bool _statsReady;
+
+        /// <summary>
+        /// "Dégâts 2 000 · Taille de coque 5 · Cristal utilisé 12": every non-zero shipstats figure of one module
+        /// (raw config values, no research bonus — like the web builder), each tinted by its kind. Empty when the
+        /// module has none. Cached per type; rebuilt when the config, the language or the dump changes.
+        /// </summary>
+        public static string StatsLine(string type)
+        {
+            if (string.IsNullOrEmpty(type))
+                return string.Empty;
+            if (!ReferenceEquals(_statsSource, GameConfig.ShipStats) || _statsLang != Trans.Lang ||
+                _statsReady != Trans.IsReady)
+            {
+                StatsCache.Clear();
+                _statsSource = GameConfig.ShipStats;
+                _statsLang = Trans.Lang;
+                _statsReady = Trans.IsReady;
+            }
+
+            if (StatsCache.TryGetValue(type, out var hit))
+                return hit;
+            var st = Stats(type);
+            StatsSb.Clear();
+            if (st != null)
+            {
+                var culture = StatCulture();
+                foreach (var (field, key, hex, plus) in StatFields)
+                {
+                    var v = FocusContext.AsFloat(st[field]);
+                    if (Mathf.Approximately(v, 0f))
+                        continue;
+                    if (StatsSb.Length > 0)
+                        StatsSb.Append("  <color=#5d7c8c>·</color>  ");
+                    StatsSb.Append("<color=#").Append(hex).Append('>').Append(Trans.Get(key)).Append(" <b>");
+                    if (plus && v > 0f)
+                        StatsSb.Append('+');
+                    StatsSb.Append(Mathf.Abs(v - Mathf.Round(v)) < 0.01f ? Mathf.RoundToInt(v).ToString("N0", culture)
+                        : v.ToString("0.##", culture)).Append("</b></color>");
+                }
+            }
+
+            var line = StatsSb.ToString();
+            StatsCache[type] = line;
+            return line;
+        }
+
+        /// <summary>Description of one module (fr.json descShipCore…), as the dock's status line shows it.</summary>
+        public static string Description(string type) => Trans.Get(DescKey(type));
+
+        static System.Globalization.CultureInfo StatCulture()
+        {
+            try
+            {
+                return System.Globalization.CultureInfo.GetCultureInfo(Trans.Lang);
+            }
+            catch (System.Globalization.CultureNotFoundException)
+            {
+                return System.Globalization.CultureInfo.InvariantCulture;
+            }
+        }
 
         /// <summary>4-neighbour adjacency to an occupied cell (the web builder's placement rule).</summary>
         public static bool CanPlace(bool[,] occupied, int x, int y)

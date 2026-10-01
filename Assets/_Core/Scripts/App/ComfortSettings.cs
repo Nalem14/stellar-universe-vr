@@ -177,9 +177,29 @@ namespace Core.App
             // spun the captain round.
             foreach (var smooth in _rig.GetComponentsInChildren<UnityEngine.XR.Interaction.Toolkit.Locomotion.Turning.ContinuousTurnProvider>(true))
                 smooth.enableTurnAround = false;
+            // Straight rays: the curve visual bends toward a hit point it smooths in world space, so aboard a moving
+            // ship the end lagged behind and the ray flexed as if dragged. The teleport arc keeps its parabola,
+            // without the world-space smoothing either.
+            foreach (var curve in _rig.GetComponentsInChildren<UnityEngine.XR.Interaction.Toolkit.Interactors.Visuals.CurveVisualController>(true))
+            {
+                Straight(curve.noValidHitProperties);
+                Straight(curve.uiHitProperties);
+                Straight(curve.uiPressHitProperties);
+                Straight(curve.selectHitProperties);
+                Straight(curve.hoverHitProperties);
+            }
+
+            foreach (var line in _rig.GetComponentsInChildren<UnityEngine.XR.Interaction.Toolkit.Interactors.Visuals.XRInteractorLineVisual>(true))
+                line.smoothMovement = false;
             _vignette = _rig.GetComponentInChildren<TunnelingVignetteController>(true);
             _arcWasOut = false;
             return true;
+        }
+
+        static void Straight(UnityEngine.XR.Interaction.Toolkit.Interactors.Visuals.LineProperties p)
+        {
+            if (p != null)
+                p.smoothlyCurveLine = false;
         }
 
         void ApplyNow()
