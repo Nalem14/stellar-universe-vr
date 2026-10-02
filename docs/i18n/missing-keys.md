@@ -17,33 +17,6 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 - **Paramètres** : `{0}`, `{1}`… (`Trans.Format`, `string.Format` en culture invariante).
 - Pour les répliques, les ordres et les échecs, le ton reprend celui du journal de colonisation web : l'équipage s'adresse au joueur en « Commandant ».
 
-## À intégrer — courrier, porte, boutique, world boss, imprimante de modules
-
-| Clé | EN | FR | Contexte |
-|---|---|---|---|
-| `vr.comms.readAll` | Read all | Tout lire | Bouton d'en-tête de la console Comms |
-| `vr.comms.readAllDone` | {0} messages marked as read. | {0} messages marqués comme lus. | Fin de « Tout lire » |
-| `vr.comms.readAllPartial` | {0} messages read — {1} still unread, tap again. | {0} messages lus — {1} encore non lus, relancez. | « Tout lire » limité à 50 par dossier |
-| `vr.gate.ownAddress` | Our gate: {0} | Notre porte : {0} | En-tête de la console de la salle de la porte |
-| `vr.gate.thisGate` | Address of this gate | Adresse de cette porte | Sous l'anneau quand la porte est au repos |
-| `vr.shop.perk.queues` | Longer queues (buildings, shipyard, research) | Files d'attente agrandies (bâtiments, chantier, recherche) | Avantage Pass Nova (boutique) |
-| `vr.shop.perk.xp_multiplier` | XP ×{0} | XP ×{0} | Bonus booster |
-| `vr.shop.perk.move_speed` | Ships ×{0} faster | Vaisseaux ×{0} plus rapides | Bonus booster |
-| `vr.shop.perk.explore_speed` | Surveys ×{0} faster | Explorations ×{0} plus rapides | Bonus booster |
-| `vr.shop.perk.mining_speed` | Mining ×{0} faster | Minage ×{0} plus rapide | Bonus booster |
-| `vr.shop.perk.research_speed` | Research −{0} % time | Recherche −{0} % de temps | Bonus booster |
-| `vr.shop.perk.production_multiplier` | Production +{0} % | Production +{0} % | Bonus booster |
-| `vr.quarters.bossWhere` | Location: {0} | Position : {0} | Événement world boss (quartiers) |
-| `vr.quarters.bossHow` | Send a ship there, then attack it from the Tactical station — every hit counts. | Envoyez-y un vaisseau, puis attaquez-le depuis le poste Tactique — chaque coup compte. | Événement world boss |
-| `vr.quarters.bossGo` | Set course | Mettre le cap | Bouton : le vaisseau habité part vers le boss |
-| `vr.quarters.bossNoShip` | Board one of your ships to set course for the boss. | Montez à bord d'un de vos vaisseaux pour mettre le cap sur le boss. | Vue station : aucun vaisseau à envoyer |
-| `vr.quarters.bossHere` | Your ship is already in the boss's system: Tactical station. | Votre vaisseau est déjà dans le système du boss : poste Tactique. | Déjà sur place |
-| `vr.dock.printer.title` | Module printer | Imprimante de modules | Enseigne de l'imprimante (cale sèche) |
-| `vr.dock.printer.idle` | Printer idle | Imprimante au repos | Aucune fabrication en cours |
-| `vr.dock.printer.queued` | {0} queued | {0} en file | Commandes en attente derrière le module imprimé |
-| `vr.dock.printer.done` | Done — sent to the hangar | Terminé — envoyé au hangar | Fin d'impression |
-| `vr.dock.printer.left` | {0} left | Reste {0} | Temps restant de la fabrication |
-
 ## Intégré côté web
 
 - Clés `vr.*`, `crew.*`, `buildingDesc_*`, `colonyLog_*`, `relation_*` dans `assets/langs/{fr,en}.json`.
@@ -68,6 +41,7 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 - `vr.coords.go`, `vr.coords.none`, `vr.coords.title`, `vr.galaxy.send`, `vr.galaxy.zoomHere` dans **les dix langues**.
 - `vr.cargo.max`, `vr.cargo.step`, `vr.dock.shelf.confirmBuild`, `vr.dock.shelf.confirmQueue`, `vr.dock.shelf.fabricate`, `vr.dock.shelf.grab`, `vr.dock.shelf.inProduction`, `vr.dock.shelf.inStock`, `vr.dock.shelf.showAll`, `vr.dock.shelf.showStock`, `vr.dock.shelf.title`, `vr.helm.returnHome`, `vr.mining.active`, `vr.mining.done`, `vr.mining.haul`, `vr.ops.loadWorkforce`, `vr.queue.busyHint`, `vr.queue.chainHint`, `vr.queue.hint`, `vr.watch.researchWhere`, `vr.watch.shipyard`, `vr.yard.planetStock` dans **les dix langues**.
 - `descCloneBay`, `descCommandBridge`, `descCommunicationArray`, `descCorridor`, `descCrewQuarters`, `descDroneBay`, `descEnergyBattery`, `descEnergyReactor`, `descGunTurret`, `descHatchCorridor`, `descHeatCannon`, `descHydroponicBay`, `descKitchen`, `descLuxuryQuarters`, `descMedicalBay`, `descMindControlModule`, `descOpenBay`, `descOxygenSystem`, `descPrlBond`, `descResearchLab`, `descRestArea`, `descShower`, `descSolarPanel`, `descStargateTriangulation`, `descStasisPod`, `descToilet`, `seasonTier_bronze`, `seasonTier_diamond`, `seasonTier_gold`, `seasonTier_grandmaster`, `seasonTier_master`, `seasonTier_platinum`, `seasonTier_silver`, `vr.research.effect`, `vr.research.feature.defenses`, `vr.research.feature.jumpgate`, `vr.research.feature.prlRange`, `vr.research.feature.triangulation`, `vr.research.feature.troops`, `vr.research.kind.feature`, `vr.research.kind.research`, `vr.season.allianceHint`, `vr.season.breakdown`, `vr.season.cycle`, `vr.season.endRewards`, `vr.season.maxTier`, `vr.season.members`, `vr.season.nextTier`, `vr.season.noAccolades`, `vr.season.noAlliances`, `vr.season.noScores`, `vr.season.none`, `vr.season.novaClaimed`, `vr.season.objectives`, `vr.season.pantheonEmpty`, `vr.season.podium.first`, `vr.season.podium.second`, `vr.season.podium.third`, `vr.season.podium.top10`, `vr.season.podium.top20`, `vr.season.points`, `vr.season.rank`, `vr.season.rankPoints`, `vr.season.score`, `vr.season.score.anomaly`, `vr.season.score.battleWon`, `vr.season.score.bounty`, `vr.season.score.daily`, `vr.season.score.defenseHeld`, `vr.season.score.monthly`, `vr.season.score.planetConquered`, `vr.season.score.stargateCapture`, `vr.season.score.stargateColony`, `vr.season.score.weekly`, `vr.season.seeQuarters`, `vr.season.standing`, `vr.season.tier`, `vr.season.titleHint`, `vr.watch.console.comms`, `vr.watch.console.ops`, `vr.watch.consoles` dans **les dix langues**.
+- `vr.comms.readAll`, `vr.comms.readAllDone`, `vr.comms.readAllPartial`, `vr.dock.printer.done`, `vr.dock.printer.idle`, `vr.dock.printer.left`, `vr.dock.printer.queued`, `vr.dock.printer.title`, `vr.gate.ownAddress`, `vr.gate.thisGate`, `vr.quarters.bossGo`, `vr.quarters.bossHere`, `vr.quarters.bossHow`, `vr.quarters.bossNoShip`, `vr.quarters.bossWhere`, `vr.shop.perk.explore_speed`, `vr.shop.perk.mining_speed`, `vr.shop.perk.move_speed`, `vr.shop.perk.production_multiplier`, `vr.shop.perk.queues`, `vr.shop.perk.research_speed`, `vr.shop.perk.xp_multiplier` dans **les dix langues**.
 
 ---
 
