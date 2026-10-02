@@ -34,6 +34,14 @@ namespace Core.Vfx
         public const float CicHublotHeight = 1.1f;
         public const float CicHublotCenterY = 1.65f;
 
+        /// <summary>Orbital station command hall: a rotunda centred on the holo table (the ship bridge is a 12 m octagon).</summary>
+        public const float StationHallRadius = 8.6f;
+        /// <summary>The station's habitat ring around its hub: centre-line radius and drop of its plane under the command deck.</summary>
+        public const float StationRingRadius = 46f;
+        public const float StationRingDrop = 6f;
+        /// <summary>Ring cross-section (width across, height): the concourse runs inside it.</summary>
+        public static readonly Vector2 StationRingSection = new(12f, 8f);
+
         public const int ShipGrid = 9;
         public const int ShipCoreCell = 4;
         public const float ShipCell = 2.2f;
@@ -86,6 +94,12 @@ namespace Core.Vfx
         public static float FleetStandoff(float bodyRadius)
         {
             return bodyRadius + CicDeck * 0.5f + FleetParkPadding;
+        }
+
+        /// <summary>Hub of our orbital station from the world's centre: the whole ring clears the planet and the parked ships.</summary>
+        public static float StationStandoff(float bodyRadius)
+        {
+            return bodyRadius + StationRingRadius + StationRingSection.x * 0.5f + FleetParkPadding * 2.4f;
         }
 
         public static float OrbitRadius(int slot)

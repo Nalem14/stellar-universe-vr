@@ -118,7 +118,7 @@ Priorité :
 | Mode | Quand | Intérieur 1:1 | Hublots | API (vue, pas mouvement) |
 |---|---|---|---|---|
 | **Pont vaisseau** | Token d’une de tes flottes, ou reprise de session sur l’amiral | Skin pont (Synty plus tard) | Système de **cette** flotte ; jump si busy | `changesystem(fleet.systemid)` ; `changeplanet` si `planetid > 0` |
-| **Fausse station** | Pas de flotte, ou drop sur une planète | Skin station orbitale (même kit, autre dressing) | Orbite de **cette** planète | `changeplanet(planet.id)` + `changesystem(planet.systemid)` |
+| **Fausse station** | Pas de flotte, ou drop sur une planète | **Centre de commandement** rond (rotonde Ø 17 m, dôme à anneaux lumineux, murs de données, monolithe du viewscreen) ; coursive = **hall** dans l'anneau habité (baie vitrée sur le hub, bancs, jardins de lumière, portes en baies de 3 m dont 2 libres pour de futures salles) | Orbite de **cette** planète + **la station elle-même** : hub, 4 rayons, anneau Ø 92 m | `changeplanet(planet.id)` + `changesystem(planet.systemid)` |
 | **Défaut boot** | Login | Amiral si une flotte existe, sinon station sur une planète possédée, sinon première planète connue | Comme ci-dessus | Boot API déjà prévu (`changesystem` vers un système possédé) |
 
 Même locomotion (room-scale **dans** la pièce). Changer de vaisseau / de planète = fade court + hublots / skybox d’orbite, **pas** une nouvelle scène « surface ».

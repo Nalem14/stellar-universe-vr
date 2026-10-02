@@ -67,6 +67,8 @@ namespace Core.Crew
             };
             life.Walk(bridge, "DeckHandOps", ring, 1, Ops, family, false);
             life.Walk(bridge, "DeckHandTactical", ring, 6, Tactical, family, false);
+            life._shipRing = ring;
+            life._stationRing = StationRing();
 
             if (corridor != null)
             {
@@ -78,6 +80,11 @@ namespace Core.Crew
                     S(1.0f, 13.55f, Vector3.right, true)
                 };
                 life.Walk(corridor, "CorridorHand", hall, 0, Comms, family, true);
+                life._hallShip = hall;
+                var spots = Core.Stations.StationConcourse.CrewSpots;
+                life._hallStation = new Spot[spots.Length];
+                for (var i = 0; i < spots.Length; i++)
+                    life._hallStation[i] = new Spot { At = spots[i].at, Facing = spots[i].facing.normalized, Post = spots[i].post };
             }
 
             AlertState.Changed += life.OnAlert;
@@ -86,6 +93,52 @@ namespace Core.Crew
         }
 
         void OnDestroy() => AlertState.Changed -= OnAlert;
+
+        Spot[] _shipRing;
+        Spot[] _stationRing;
+        Spot[] _hallShip;
+        Spot[] _hallStation;
+
+        /// <summary>
+        /// The station's command hall: round the wall from the starboard bow bay to the port one by the aft door
+        /// — bay sills (looking out), the data walls behind their desks, the credenzas under the displays.
+        /// </summary>
+        static Spot[] StationRing()
+        {
+            Spot At(float deg, float r, bool post)
+            {
+                var d = Core.Vfx.LatheMesh.Dir(deg);
+                return new Spot { At = Core.Vfx.StationCommandShell.Centre + d * r, Facing = d, Post = post };
+            }
+
+            return new[]
+            {
+                At(45f, 7.7f, false), At(90f, 7.3f, true), At(131f, 7.7f, false), At(160f, 7.5f, true),
+                At(200f, 7.5f, true), At(229f, 7.7f, false), At(270f, 7.3f, true), At(315f, 7.7f, false)
+            };
+        }
+
+        /// <summary>Swap the deck hands' round between the ship bridge and the station hall (behind the view's fade).</summary>
+        public void SetStationLayout(bool station)
+        {
+            Swap(station ? _shipRing : _stationRing, station ? _stationRing : _shipRing);
+            Swap(station ? _hallShip : _hallStation, station ? _hallStation : _hallShip);
+        }
+
+        void Swap(Spot[] from, Spot[] to)
+        {
+            if (to == null || from == null)
+                return;
+            foreach (var w in _walkers)
+            {
+                if (w.Ring != from)
+                    continue;
+                w.Ring = to;
+                w.Index = Mathf.Clamp(w.Index, 0, to.Length - 1);
+                w.Moving = false;
+                w.Body.transform.SetLocalPositionAndRotation(to[w.Index].At, Quaternion.LookRotation(to[w.Index].Facing, Vector3.up));
+            }
+        }
 
         static Spot S(float x, float z, Vector3 facing, bool post) =>
             new() { At = new Vector3(x, 0f, z), Facing = facing.normalized, Post = post };

@@ -46,9 +46,24 @@ namespace Core.Stations
         FocusContext _focus;
         MeshRenderer[] _accents;
         bool _station;
+        Transform _shipHall;
+        Transform _concourse;
+        Light[] _lights;
+        RoomLightRig _rig;
+        bool _layoutStation;
+        bool _layoutSet;
+
+        static readonly (string door, Slot slot)[] Doors =
+        {
+            ("LabDoor", Slot.LabPort), ("DockDoor", Slot.DockStarboard), ("DiplomacyDoor", Slot.DiplomacyPort),
+            ("QuartersDoor", Slot.QuartersStarboard), ("GateDoor", Slot.GateEnd)
+        };
 
         /// <summary>Where a room's door stands in the corridor (door local +z faces into the corridor).</summary>
-        public static (Vector3 pos, float yaw) DoorPose(Slot slot) => slot switch
+        public static (Vector3 pos, float yaw) DoorPose(Slot slot) =>
+            Instance != null && Instance._layoutStation ? StationConcourse.DoorPose(slot) : ShipDoorPose(slot);
+
+        static (Vector3 pos, float yaw) ShipDoorPose(Slot slot) => slot switch
         {
             Slot.LabPort => (new Vector3(-HalfWidth + 0.12f, 0f, 4.6f), 90f),
             Slot.DockStarboard => (new Vector3(HalfWidth - 0.12f, 0f, 4.6f), -90f),
@@ -65,6 +80,17 @@ namespace Core.Stations
             room._art = art;
             room._focus = focus;
             room.BuildShell();
+            // Everything built so far is the ship's passage; the station's concourse is the other body.
+            room._shipHall = new GameObject("ShipHall").transform;
+            room._shipHall.SetParent(go.transform, false);
+            for (var i = go.transform.childCount - 1; i >= 0; i--)
+            {
+                var child = go.transform.GetChild(i);
+                if (child != room._shipHall)
+                    child.SetParent(room._shipHall, false);
+            }
+
+            room._concourse = StationConcourse.Build(go.transform, art);
             room.BuildLights();
             RoomDoor.Build(go.transform, "DoorToBridge", new Vector3(0f, 0f, 0.12f), 0f, Trans.Get("CommandBridge"), CicArtKit.Cyan,
                 art, () => Inside, () => AsyncTap.Run(room.LeaveToBridge()));
@@ -334,33 +360,78 @@ namespace Core.Stations
         void BuildLights()
         {
             var names = new[] { "CorridorA", "CorridorB", "CorridorC", "CorridorD" };
+            _lights = new Light[names.Length];
             for (var i = 0; i < names.Length; i++)
             {
                 var go = new GameObject(names[i]);
                 go.transform.SetParent(transform, false);
-                go.transform.localPosition = new Vector3(0f, 2.9f, 1.6f + i * 4f);
                 var l = go.AddComponent<Light>();
                 l.type = LightType.Point;
-                l.color = new Color(0.72f, 0.86f, 1f);
-                l.intensity = 1.05f;
-                l.range = 5.5f;
                 l.shadows = LightShadows.None;
+                _lights[i] = l;
             }
 
-            RoomLightRig.Attach(transform, names).Radius = Length;
+            _rig = RoomLightRig.Attach(transform, names);
+            ApplyLayout(false);
         }
 
-        /// <summary>Ship corridor = cyan, station corridor = amber (like the bridge dressing).</summary>
+        /// <summary>
+        /// Ship passage (cool, narrow, portholes) or station concourse (warm hall on the ring, a bay window on the
+        /// hub): swaps the body, moves the doors to their bays and the lights to the hall's cove.
+        /// </summary>
+        void ApplyLayout(bool station)
+        {
+            if (_layoutSet && station == _layoutStation)
+                return;
+            _layoutSet = true;
+            _layoutStation = station;
+            if (_shipHall != null)
+                _shipHall.gameObject.SetActive(!station);
+            if (_concourse != null)
+                _concourse.gameObject.SetActive(station);
+            foreach (var (name, slot) in Doors)
+            {
+                var door = transform.Find(name);
+                if (door == null)
+                    continue;
+                var (pos, yaw) = DoorPose(slot);
+                door.SetLocalPositionAndRotation(pos, Quaternion.Euler(0f, yaw, 0f));
+            }
+
+            for (var i = 0; i < _lights.Length; i++)
+            {
+                var l = _lights[i];
+                if (station)
+                {
+                    l.transform.localPosition = new Vector3(1.1f, 3.5f, 3f + i * 6f);
+                    l.color = StationConcourse.Warm;
+                    l.intensity = 1.7f;
+                    l.range = 10f;
+                }
+                else
+                {
+                    l.transform.localPosition = new Vector3(0f, 2.9f, 1.6f + i * 4f);
+                    l.color = new Color(0.72f, 0.86f, 1f);
+                    l.intensity = 1.05f;
+                    l.range = 5.5f;
+                }
+            }
+
+            if (_rig != null)
+                _rig.Radius = station ? StationConcourse.Length : Length;
+        }
+
+        /// <summary>Ship corridor = cyan passage; station = the concourse (its own lights and colours).</summary>
         void ApplyDressing()
         {
             var station = _focus == null || _focus.ViewFleetId <= 0;
+            ApplyLayout(station);
             if (_accents == null || station == _station && _accents[0].sharedMaterial != null && _dressed)
                 return;
             _station = station;
             _dressed = true;
-            var accent = station ? CicArtKit.Amber : CicArtKit.Cyan;
-            _accents[0].sharedMaterial = _art.Lit(Texture2D.whiteTexture, accent, station ? 1.1f : 1.2f);
-            _accents[1].sharedMaterial = _art.Lit(Texture2D.whiteTexture, accent, 1f);
+            _accents[0].sharedMaterial = _art.Lit(Texture2D.whiteTexture, CicArtKit.Cyan, 1.2f);
+            _accents[1].sharedMaterial = _art.Lit(Texture2D.whiteTexture, CicArtKit.Cyan, 1f);
         }
 
         bool _dressed;
@@ -385,6 +456,7 @@ namespace Core.Stations
         /// </summary>
         public void ReturnFrom(Slot slot)
         {
+            ApplyDressing();
             var (pos, yaw) = DoorPose(slot);
             var forward = Quaternion.Euler(0f, yaw, 0f) * Vector3.forward;
             Arrive(pos + forward * 0.95f, forward);
@@ -420,7 +492,14 @@ namespace Core.Stations
             Inside = true;
         }
 
-        void PlaceOverShip() => RoomPlacement.OverShip(transform, Vector3.right);
+        /// <summary>A ship's passage is a wing over the bridge; the station's concourse lies in its ring.</summary>
+        void PlaceOverShip()
+        {
+            if (_focus == null || _focus.ViewFleetId <= 0)
+                RoomPlacement.OnMount(transform, StationConcourse.MountPose());
+            else
+                RoomPlacement.OverShip(transform, Vector3.right);
+        }
 
         async Task LeaveToBridge()
         {
@@ -436,8 +515,10 @@ namespace Core.Stations
                 rig.transform.SetParent(bridge.BridgeMount, false);
                 bridge.PutPlayerOnDeck();
                 // In through the aft door, not teleported to the chair.
-                XrPlacement.PlaceHead(rig, bridge.BridgeMount.TransformPoint(new Vector3(0f, 0f, -WorldScale.CicDeck * 0.5f + 1.1f)),
-                    bridge.BridgeMount.forward);
+                var inside = _layoutStation
+                    ? StationCommandShell.OnWall(180f, 1.1f, 0f)
+                    : new Vector3(0f, 0f, -WorldScale.CicDeck * 0.5f + 1.1f);
+                XrPlacement.PlaceHead(rig, bridge.BridgeMount.TransformPoint(inside), bridge.BridgeMount.forward);
             }
 
             await fade.FadeIn();

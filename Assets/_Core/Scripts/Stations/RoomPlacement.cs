@@ -40,6 +40,20 @@ namespace Core.Stations
             var ride = room.GetComponent<RideShip>() ?? room.gameObject.AddComponent<RideShip>();
             ride.Latch(bridge.BridgeMount);
         }
+
+        /// <summary>Put <paramref name="room"/> at a fixed pose in the bridge mount's frame (a hall inside the station's ring), riding it.</summary>
+        public static void OnMount(Transform room, Pose local)
+        {
+            var bridge = Object.FindFirstObjectByType<BridgeViewRig>();
+            if (bridge == null || bridge.BridgeMount == null)
+                return;
+            var mount = bridge.BridgeMount;
+            room.SetPositionAndRotation(mount.TransformPoint(local.position), mount.rotation * local.rotation);
+            var ride = room.GetComponent<RideShip>();
+            if (ride == null)
+                ride = room.gameObject.AddComponent<RideShip>();
+            ride.Latch(mount);
+        }
     }
 
     /// <summary>Keeps a room at a fixed pose relative to the ship it was placed over (after the ship moved this frame).</summary>

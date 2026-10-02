@@ -98,6 +98,23 @@ namespace Core.App
                 WorldScale.EclipticHeight, 0f);
         }
 
+        StationExterior _station;
+        bool _stationLayout;
+
+        /// <summary>
+        /// The view is our orbital station (no ship to stand on): its hub, spokes and ring round the command
+        /// hall, built on first use and hidden aboard a ship.
+        /// </summary>
+        public void SetStationLayout(bool station)
+        {
+            _stationLayout = station;
+            EnsureViewShip();
+            if (station && _station == null)
+                _station = StationExterior.Build(_bridgeMount);
+            if (_station != null && _station.gameObject.activeSelf != station)
+                _station.gameObject.SetActive(station);
+        }
+
         void ParentPlayer()
         {
             if (_bridgeMount == null)
@@ -208,6 +225,9 @@ namespace Core.App
             else
             {
                 lookDir = star - target;
+                // A station's bow is its viewscreen monolith: turn so the world it orbits fills a starboard bay.
+                if (_stationLayout && fleetMot == null)
+                    lookDir = Quaternion.Euler(0f, -StationPlanetBearing, 0f) * lookDir;
             }
 
             lookDir.y = 0f;
@@ -247,6 +267,9 @@ namespace Core.App
         static long UnixNow() =>
             (long)(System.DateTime.UtcNow - new System.DateTime(1970, 1, 1)).TotalSeconds;
 
+        /// <summary>Degrees from the station's bow to the planet it orbits (inside the 24°–66° bay).</summary>
+        const float StationPlanetBearing = 42f;
+
         Vector3 FallbackStationPosition()
         {
             var owned = AuthManager.Ensure().User != null ? AuthManager.Ensure().User.id : 0;
@@ -274,7 +297,7 @@ namespace Core.App
                 var orbit = SystemExterior.OrbitPosition(Mathf.Max(1, pick.Slot), pick.Id);
                 var radial = orbit.sqrMagnitude > 0.01f ? orbit.normalized : Vector3.right;
                 return _exterior.transform.position + orbit
-                    + radial * WorldScale.FleetStandoff(WorldScale.PlanetRadius(pick.Slot));
+                    + radial * WorldScale.StationStandoff(WorldScale.PlanetRadius(pick.Slot));
             }
 
             return _exterior.transform.position + new Vector3(SystemExterior.OrbitBase * 0.55f,

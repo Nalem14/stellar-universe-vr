@@ -13,6 +13,8 @@ namespace Core.Vfx
         {
             BridgeShell.Build(host.transform, art);
             BuildDeckInlays(host, art);
+            // At an orbital station the same crew posts stand in a round command hall (BridgeDressing swaps them).
+            StationCommandShell.Build(host.transform, art);
             BuildCaptainStation(host, art);
             var map = BuildHoloTable(host, art);
             Core.Audio.AmbienceDirector.Ensure();

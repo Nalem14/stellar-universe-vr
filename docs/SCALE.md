@@ -136,3 +136,18 @@ Constantes : `WorldScale.CicTableCenterZ`, `CicCaptainChairZ`, `CicCaptainStand`
 
 **Vue habitée** : vaisseau réel (`ViewFleetId` > 0 → ordres de flotte ; le pont suit toujours le système **actuel** du vaisseau, y compris après un saut) **ou** fausse station en orbite (`ViewPlanetId` > 0 → la station ne bouge pas ; la table commande toujours les flottes autour ; station Helm retirée, on embarque via le TP).
 
+### Station orbitale (vue planète)
+
+Même repère intérieur, mêmes postes (table, fauteuil, 6 stations, TP, viewscreen) ; seule la coque change (`BridgeDressing` bascule en direct sur `ViewFleetId <= 0`).
+
+| Élément | Valeur | Constante / source |
+|---|---|---|
+| Rotonde de commandement | r = 8.6 m autour de la table `(0, 0, 0.6)`, mur 3.4 m, dôme jusqu'à 6.7 m | `WorldScale.StationHallRadius`, `StationCommandShell` |
+| Baies panoramiques | 24–66°, 114–148°, 212–246°, 294–336° (0° = avant), allège 0.45 m, linteau 2.95 m | `StationCommandShell` |
+| Porte coursive / écrans arrière | porte à 180° sur le mur courbe ; écrans à 160° / 200° | `StationCommandShell.OnWall` |
+| Anneau habité | rayon 46 m, section 12 × 8 m, centré 6 m sous le pont | `StationRingRadius`, `StationRingSection`, `StationRingDrop` |
+| Hub | r ≈ 9.9 m autour de la rotonde, fût et quai d'amarrage jusqu'à −52 m, antenne à +21 m | `StationExterior` |
+| Distance au centre de la planète | `R + 46 + 6 + 2.4 × FleetParkPadding` (anneau hors des vaisseaux garés) | `WorldScale.StationStandoff` |
+| Cap | planète à 42° tribord de l'avant (dans la baie avant tribord, pas derrière le monolithe) | `BridgeViewRig.StationPlanetBearing` |
+| Hall (coursive station) | 24 × 6.8 m, voûte 4.4 m, baie inclinée côté hub, sol 8.4 m sous le pont, à 272° sur l'anneau | `StationConcourse` |
+

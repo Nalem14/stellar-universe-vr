@@ -14,6 +14,7 @@ Shader "SU/HullMetal"
         _Wear ("Wear", Float) = 0.22
         _Windows ("Windows", Float) = 0
         _WindowColor ("Window Color", Color) = (1, 0.78, 0.45, 1)
+        _WindowScale ("Window Scale", Float) = 1
     }
     SubShader
     {
@@ -41,6 +42,7 @@ Shader "SU/HullMetal"
             float _Wear;
             float _Windows;
             float4 _WindowColor;
+            float _WindowScale;
 
             struct appdata
             {
@@ -108,7 +110,7 @@ Shader "SU/HullMetal"
 
                 // Civil hulls: rows of lit portholes on the flanks (seeded per window, some dark), off by default.
                 float side = 1.0 - smoothstep(0.16, 0.34, an.y);
-                float2 wuv = float2(an.x >= an.z ? i.objPos.z : i.objPos.x, i.objPos.y) * float2(1.05, 1.2);
+                float2 wuv = float2(an.x >= an.z ? i.objPos.z : i.objPos.x, i.objPos.y) * float2(1.05, 1.2) * _WindowScale;
                 float2 cell = floor(wuv);
                 float2 wf = abs(frac(wuv) - 0.5);
                 float pane = (1.0 - smoothstep(0.18, 0.24, wf.x)) * (1.0 - smoothstep(0.12, 0.17, wf.y));

@@ -73,6 +73,42 @@ namespace Core.Vfx
 
         void MarkDirty() => _dirty = true;
 
+        Pose _msdShip;
+        Pose _plotShip;
+        bool _posed;
+
+        /// <summary>
+        /// On the aft bulkhead of a ship; on the station's curved wall over the two credenzas, either side of
+        /// the door (port display to port).
+        /// </summary>
+        public void SetStationLayout(bool station)
+        {
+            if (_msd == null || _plot == null)
+                return;
+            if (!_posed)
+            {
+                _msdShip = new Pose(_msd.transform.localPosition, _msd.transform.localRotation);
+                _plotShip = new Pose(_plot.transform.localPosition, _plot.transform.localRotation);
+                _posed = true;
+            }
+
+            Place(_msd.transform, _msdShip, station);
+            Place(_plot.transform, _plotShip, station);
+        }
+
+        static void Place(Transform t, Pose ship, bool station)
+        {
+            if (!station)
+            {
+                t.SetLocalPositionAndRotation(ship.position, ship.rotation);
+                return;
+            }
+
+            var deg = ship.position.x < 0f ? 200f : 160f;
+            t.SetLocalPositionAndRotation(StationCommandShell.OnWall(deg, 0.16f, ship.position.y),
+                Quaternion.Euler(0f, deg - 180f, 0f) * ship.rotation);
+        }
+
         static HoloScreen Panel(Transform parent, string name, Vector3 pos, Quaternion rot)
         {
             // Screen front is its local −z: turn it to face into the room from the aft bulkhead.

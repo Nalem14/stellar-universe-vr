@@ -86,6 +86,8 @@ namespace Core.Vfx
             _stripMat.name = "SU_AlertStrip";
             _strips = new GameObject("RedAlertBars");
             _strips.transform.SetParent(transform, false);
+            _shipStrips = new GameObject("Ship").transform;
+            _shipStrips.SetParent(_strips.transform, false);
             // Along the top of every wall of the shell, over the window heads (visible from the chair and the table).
             for (var e = 0; e < BridgeShell.Plan.Length; e++)
             {
@@ -95,7 +97,36 @@ namespace Core.Vfx
                 bar.localRotation = Quaternion.LookRotation(BridgeShell.EdgeNormal(e), Vector3.up);
             }
 
+            // The station's command hall: one ring under the cornice, all the way round.
+            var ring = new LatheMesh(StationCommandShell.Centre);
+            var r = StationCommandShell.R - 0.06f;
+            ring.Revolve(new[] { new Vector2(r, StationCommandShell.WallTop - 0.12f), new Vector2(r, StationCommandShell.WallTop - 0.04f) },
+                0f, 360f, true);
+            _stationStrips = LatheMesh.Part(_strips.transform, "Station", ring.ToMesh("SU_StationAlertRing"), _stripMat).transform;
+            ApplyLayout();
             _strips.SetActive(false);
+        }
+
+        Transform _shipStrips;
+        Transform _stationStrips;
+        bool _station;
+
+        /// <summary>Ship bridge or station command hall: which room the alert bars run round.</summary>
+        public void SetStationLayout(bool station)
+        {
+            _station = station;
+            ApplyLayout();
+            // The room's lights were just re-dressed for this layout: that is their rest state now.
+            if (_lights != null)
+                CacheLights();
+        }
+
+        void ApplyLayout()
+        {
+            if (_shipStrips != null)
+                _shipStrips.gameObject.SetActive(!_station);
+            if (_stationStrips != null)
+                _stationStrips.gameObject.SetActive(_station);
         }
 
         Transform Strip(Vector3 pos, Vector3 size)
@@ -103,7 +134,7 @@ namespace Core.Vfx
             var go = GameObject.CreatePrimitive(PrimitiveType.Cube);
             go.name = "AlertBar";
             Destroy(go.GetComponent<Collider>());
-            go.transform.SetParent(_strips.transform, false);
+            go.transform.SetParent(_shipStrips, false);
             go.transform.localPosition = pos;
             go.transform.localScale = size;
             var mr = go.GetComponent<MeshRenderer>();
