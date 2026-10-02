@@ -22,7 +22,8 @@ namespace Core.Stations
     /// 9×9 grid: pick a module on the hangar rack, a holo crate appears on the dispenser — grab it and set it
     /// on a free cell touching the structure (or point at the cell) → PlaceShipModule. The same blocks stand on
     /// the module fabricator along the starboard wall (<see cref="ModuleShelves"/>): take one off its shelf and
-    /// set it on the grid, or trigger a missing one twice to have the shipyard build it. Point twice at a placed
+    /// set it on the grid, or trigger a missing one twice to have the shipyard build it — the module printer
+    /// next to it (<see cref="ModulePrinter"/>) then shows the part being printed. Point twice at a placed
     /// module to take it off (RemoveShipModule). Ships docked at the planet are listed; a ShipCore in the
     /// hangar founds a new one (AddToFleet fleet=0). The dock lives far below the bridge; entering moves the
     /// XR origin here, leaving puts it back on deck.
@@ -41,7 +42,8 @@ namespace Core.Stations
         /// <summary>Control room extents: side walls at ±RoomWidth/2, bay window at RoomNorth, exit door in RoomSouth.</summary>
         const float RoomWidth = 11f;
         const float RoomNorth = 3.5f;
-        const float RoomSouth = -6f;
+        const float RoomSouth = -7.6f;
+        const float RoomHeight = 3.4f;
         const float Cell = 0.2f;
         const float GridHeight = 0.92f;
         const int RackPerPage = 7;
@@ -110,6 +112,7 @@ namespace Core.Stations
             dock.BuildGrid();
             dock.BuildScreens();
             dock.BuildShelves();
+            dock.BuildPrinter();
             go.SetActive(false);
             return dock;
         }
@@ -156,10 +159,10 @@ namespace Core.Stations
             var cyan = _art.CyanEmit(2.4f);
             var amber = _art.AmberEmit(2f);
 
-            // Control room: 11 × 9.5 m, north side open on the bay through a wide window. The aft half is a
+            // Control room: 11 × 11.1 m, north side open on the bay through a wide window. The aft half is a
             // work bay (lockers, parts rack, bench) so the exit door sits well behind the stand: ≥ 3 m of floor
             // between the assembly table and the doorway.
-            const float w = RoomWidth, h = 3.4f;
+            const float w = RoomWidth, h = RoomHeight;
             const float d = RoomNorth - RoomSouth, cz = (RoomNorth + RoomSouth) * 0.5f;
             Box("Floor", new Vector3(0f, -0.05f, cz), new Vector3(w, 0.1f, d), deck);
             Box("Ceiling", new Vector3(0f, h, cz), new Vector3(w, 0.1f, d), dark);
@@ -228,9 +231,9 @@ namespace Core.Stations
         }
 
         /// <summary>
-        /// Aft half of the control room: wall pilasters, tool lockers (west), the module fabricator (east, built
-        /// by <see cref="BuildShelves"/>), a bench and coolant tanks either side of the door, and a hazard apron
-        /// marking the doorway.
+        /// Aft half of the control room: wall pilasters, tool lockers (west), the module fabricator and its
+        /// printer (east, built by <see cref="BuildShelves"/> / <see cref="BuildPrinter"/>), a bench and coolant
+        /// tanks either side of the door, and a hazard apron marking the doorway.
         /// </summary>
         void BuildWorkBay(Material wall, Material dark, Material cyan, Material amber, float w, float h)
         {
@@ -671,7 +674,7 @@ namespace Core.Stations
 
         /// <summary>
         /// Module fabricator on the starboard wall, aft of the table: its face is 4.9 m out from the centreline,
-        /// 3.5 m clear of the table's rim, and ends 1.4 m before the aft wall (door walkway untouched).
+        /// 3.5 m clear of the table's rim; the module printer carries on aft of it (door walkway untouched).
         /// </summary>
         void BuildShelves()
         {
@@ -681,6 +684,16 @@ namespace Core.Stations
         }
 
         ModuleShelves _shelves;
+
+        /// <summary>
+        /// Module printer aft of the fabricator on the same wall (the shipyard's build, visualised), joined to
+        /// the shelves by its overhead transfer rail; it ends 0.7 m before the aft wall, clear of the coolant tanks.
+        /// </summary>
+        void BuildPrinter()
+        {
+            ModulePrinter.Build(transform, _art, new Vector3(RoomWidth * 0.5f - 0.06f, 0f, -6.15f),
+                Quaternion.Euler(0f, 90f, 0f), _yard, _shelves.HeaderEndWorld, RoomHeight);
+        }
 
         Dictionary<string, int> ShelfStock()
         {

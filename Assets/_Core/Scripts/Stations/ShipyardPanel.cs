@@ -199,6 +199,7 @@ namespace Core.Stations
         {
             var active = Active(p);
             Text(Trans.Format("vr.ops.queueSlots", Occupied(p), MaxQueue(p)), -440f, y, 300f, 17f, DiegeticUi.CyanDim);
+            Text(Boosters.QueueHint(), -440f, y - 22f, 300f, 13f, DiegeticUi.CyanDim);
             if (active == null)
             {
                 Text(Trans.Get("vr.yard.idle"), -130f, y, 560f, 17f, DiegeticUi.CyanDim);
@@ -415,6 +416,29 @@ namespace Core.Stations
             if (Occupied(p) >= MaxQueue(p))
                 return Trans.Get("queueFull");
             return Affordable(p, st) ? null : Trans.Get("notEnoughRessource");
+        }
+
+        /// <summary>
+        /// The module on the yard's bed right now (shipQueue): its type, end (unix s), progress 0..1 (server
+        /// CheckShipQueue read, else the time left over the module's build time) and how many orders wait behind it.
+        /// </summary>
+        public bool TryActiveJob(out string type, out long end, out float progress, out int queued)
+        {
+            type = null;
+            end = 0;
+            progress = 0f;
+            queued = 0;
+            if (!_eco.TryGet(_planet(), out var p))
+                return false;
+            queued = Queued(p)?.Count ?? 0;
+            if (!(Active(p) is { } a))
+                return false;
+            type = FocusContext.AsString(a["type"]);
+            end = FocusContext.AsLong(a["endTime"]);
+            var total = FocusContext.AsFloat(ModuleCatalog.Stats(type)?["time"]);
+            progress = ServerTimers.Shipyard(p.Id) ??
+                       (total <= 0f ? 0f : 1f - Mathf.Clamp01((end - FleetOrderGate.UnixNow()) / total));
+            return !string.IsNullOrEmpty(type);
         }
 
         /// <summary>The yard is busy: a new order joins the queue (web « Ajouter à la file »).</summary>

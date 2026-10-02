@@ -109,6 +109,9 @@ namespace Core.Stations
         bool _ordering;
 
         public bool Holding => _held != null;
+
+        /// <summary>Top of the header's aft end (gantry side), where the printer's transfer rail docks.</summary>
+        public Vector3 HeaderEndWorld => transform.TransformPoint(new Vector3(Length * 0.5f + 0.08f, Top + 0.24f, -Depth * 0.5f));
         public Vector3 HeldPosition => _held != null ? _held.Block.transform.position : Vector3.zero;
 
         public static ModuleShelves Build(Transform room, CicArtKit art, Vector3 localPos, Quaternion localRot,
@@ -312,7 +315,7 @@ namespace Core.Stations
             }
         }
 
-        static Material BlockMat()
+        internal static Material BlockMat()
         {
             if (_blockMat != null)
                 return _blockMat;
@@ -332,7 +335,7 @@ namespace Core.Stations
         /// The block of one module type: cartridge plinth (dark body, brushed top, family band) and the module's
         /// deck silhouette in miniature on it, one vertex-coloured mesh; uv.x = height 0..1 for the replicator.
         /// </summary>
-        static Mesh BlockMesh(string type)
+        internal static Mesh BlockMesh(string type)
         {
             if (BlockMeshes.TryGetValue(type, out var cached) && cached != null)
                 return cached;

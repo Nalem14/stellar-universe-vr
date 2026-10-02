@@ -5,12 +5,14 @@ Shader "SU/ModuleBlock"
     // Lit like the room shells (hemisphere + the four RoomLightRig lights + a soft key), accent fresnel rim
     // for hover / selection, a holographic "ghost" look for modules the hangar does not hold, and a
     // replicator sweep (uv.x = block height 0..1) that materialises / dissolves the block bottom-up.
+    // _Invert keeps what lies ABOVE the front instead: the module printer's hologram of the part still to print.
     Properties
     {
         _Accent ("Accent (rim / hologram)", Color) = (0.4, 0.95, 0.55, 1)
         _Hover ("Hover rim", Range(0, 2)) = 0
         _Ghost ("Hologram (not in stock)", Range(0, 1)) = 0
         _Reveal ("Materialised (0..1)", Range(0, 1.1)) = 1.1
+        _Invert ("Keep above the front", Range(0, 1)) = 0
         _Sky ("Ambient from above", Color) = (0.82, 0.88, 0.98, 1)
         _Ground ("Ambient from below", Color) = (0.3, 0.32, 0.37, 1)
         _LightGain ("Room light gain", Float) = 1.6
@@ -40,6 +42,7 @@ Shader "SU/ModuleBlock"
                 UNITY_DEFINE_INSTANCED_PROP(float, _Hover)
                 UNITY_DEFINE_INSTANCED_PROP(float, _Ghost)
                 UNITY_DEFINE_INSTANCED_PROP(float, _Reveal)
+                UNITY_DEFINE_INSTANCED_PROP(float, _Invert)
             UNITY_INSTANCING_BUFFER_END(Props)
 
             struct appdata
@@ -94,11 +97,12 @@ Shader "SU/ModuleBlock"
                 float hover = UNITY_ACCESS_INSTANCED_PROP(Props, _Hover);
                 float ghost = UNITY_ACCESS_INSTANCED_PROP(Props, _Ghost);
                 float reveal = UNITY_ACCESS_INSTANCED_PROP(Props, _Reveal);
+                float invert = UNITY_ACCESS_INSTANCED_PROP(Props, _Invert);
 
                 // Replicator front: everything above the sweep is not there yet; a ragged hot band rides it.
                 float grain = Hash(floor(i.objPos * 320.0)) - 0.5;
                 float front = i.height - reveal + grain * 0.05;
-                clip(-front);
+                clip(lerp(-front, front, invert));
 
                 float3 n = normalize(i.worldNormal);
                 float3 v = normalize(_WorldSpaceCameraPos - i.worldPos);

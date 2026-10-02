@@ -54,6 +54,8 @@ namespace Core.Stations
         EconomyService _eco;
         GateRing _gate;
         TextMeshPro _banner;
+        TextMeshPro _bannerCaption;
+        TMP_Text _ownAddress;
         GateRoomDecor.Refs _decor;
         readonly int[] _lampState = { -1, -1, -1, -1, -1, -1 };
         readonly List<Renderer> _alarmStrips = new();
@@ -197,6 +199,12 @@ namespace Core.Stations
             _banner.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
             _banner.fontStyle = FontStyles.Bold;
             _banner.characterSpacing = 12f;
+            // At rest the banner carries this gate's own address, captioned beneath.
+            _bannerCaption = UiKit.Label(transform, "AddressCaption", string.Empty,
+                GatePos + new Vector3(0f, GateRing.Outer + 0.32f, 0.2f), 5f, 0.22f, new Color(0.75f, 0.85f, 1f, 0.85f));
+            _bannerCaption.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
+            _bannerCaption.characterSpacing = 6f;
+            _bannerCaption.richText = false;
 
             var fill = new GameObject("HallLight").AddComponent<Light>();
             fill.transform.SetParent(transform, false);
@@ -230,6 +238,12 @@ namespace Core.Stations
             _planetLabel.richText = true;
             _stepNext = DiegeticUi.HoloButton(frame, "›", new Vector2(115f, 245f), new Vector2(64f, 46f), () => StepPlanet(1),
                 DiegeticUi.BtnStyle.Ghost);
+            _ownAddress = DiegeticUi.HoloLabel(frame, string.Empty, new Vector2(352f, 245f), new Vector2(380f, 46f), 19f,
+                new Color(0.8f, 0.7f, 1f, 1f), TextAlignmentOptions.MidlineRight);
+            _ownAddress.richText = true;
+            _ownAddress.enableAutoSizing = true;
+            _ownAddress.fontSizeMin = 13f;
+            _ownAddress.fontSizeMax = 19f;
 
             _dialGroup = new GameObject("DialBar", typeof(RectTransform));
             _dialGroup.transform.SetParent(frame, false);
@@ -512,6 +526,7 @@ namespace Core.Stations
 
                 SetStatus(Trans.Format("vr.gate.dialing", Name(target)));
                 _banner.text = FocusContext.AsString(target["address"]);
+                _bannerCaption.text = Name(target);
                 _gate.Dial(FocusContext.AsString(target["address"]), () =>
                 {
                     SetStatus(Trans.Format("vr.gate.open", Name(target)));
@@ -546,7 +561,7 @@ namespace Core.Stations
 
                 _gate.Close();
                 _conn = null;
-                _banner.text = string.Empty;
+                SetIdleBanner();
                 SetAlarm(false);
                 SetStatus(Trans.Get("vr.gate.closed"));
             }
@@ -698,14 +713,16 @@ namespace Core.Stations
                 ? Trans.Get("vr.gate.noGate")
                 : (planet != null && !string.IsNullOrEmpty(planet.Name) ? planet.Name : "#" + _planetId) +
                   "   <size=70%><color=#7fd8ff>" + star + "</color></size>";
+            var own = OwnAddress();
+            _ownAddress.text = own.Length == 0 ? string.Empty
+                : Trans.Format("vr.gate.ownAddress", "<b><mspace=0.62em>" + own + "</mspace></b>");
 
             _dialGroup.SetActive(_planetId > 0 && _conn == null);
             if (_planetId <= 0)
             {
                 Line(_consoleBody, Trans.Get("vr.gate.noGateHint"), 0f, 60f, 21f, DiegeticUi.CyanDim, 1000f,
                     TextAlignmentOptions.Center);
-                if (string.IsNullOrEmpty(_banner.text))
-                    _banner.text = string.Empty;
+                SetIdleBanner();
                 return;
             }
 
@@ -717,10 +734,25 @@ namespace Core.Stations
                 RenderIncoming();
         }
 
+        /// <summary>This base's own address (GetKnownAddresses lists the origin gate, flagged isOrigin), or "".</summary>
+        string OwnAddress()
+        {
+            var own = _planetId > 0 ? Target(_planetId) : null;
+            return own != null ? FocusContext.AsString(own["address"]) : string.Empty;
+        }
+
+        /// <summary>No wormhole: the banner over the ring shows the address of this gate.</summary>
+        void SetIdleBanner()
+        {
+            var own = OwnAddress();
+            _banner.text = own;
+            _bannerCaption.text = own.Length > 0 ? Trans.Get("vr.gate.thisGate") : string.Empty;
+        }
+
         void RenderTargets()
         {
             if (!_gate.Busy)
-                _banner.text = string.Empty;
+                SetIdleBanner();
             var list = new List<JToken>();
             if (_composed != null)
                 list.Add(_composed);

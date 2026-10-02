@@ -1157,9 +1157,23 @@ namespace Core.Stations
             if (boss == null || boss.Type == JTokenType.Null)
                 return;
             var hp = FocusContext.AsFloat(boss["hp_percent"]) / 100f;
-            L(_progBody, "<b>" + ScreenKit.Verbatim(ScreenKit.Localized(boss, "name")) + "</b>", -330f, -135f, 16f, UiKit.Danger, 380f);
-            ScreenKit.Gauge(_progBody, 170f, -135f, 600f, hp, new Color(1f, 0.3f, 0.26f, 0.8f),
+            L(_progBody, "<b>" + ScreenKit.Verbatim(ScreenKit.Localized(boss, "name")) + "</b>", -330f, -118f, 16f, UiKit.Danger, 380f);
+            ScreenKit.Gauge(_progBody, 170f, -118f, 600f, hp, new Color(1f, 0.3f, 0.26f, 0.8f),
                 FocusContext.AsString(boss["current_hp_fmt"]) + " / " + FocusContext.AsString(boss["max_hp_fmt"]), 22f);
+
+            // Where it is and how to fight it: a hostile event ship parked in one system (server SpawnWorldBossFleet).
+            // Any ship of ours there engages it from the Tactical station; every hit counts on the damage board.
+            var bossSystem = FocusContext.AsInt(boss["system_id"]);
+            var alive = !FocusContext.AsBool(boss["is_killed"]) && bossSystem > 0;
+            var where = bossSystem > 0 ? Trans.Format("vr.quarters.bossWhere", GalaxyCatalog.Label(bossSystem)) : string.Empty;
+            var how = L(_progBody, "<color=#ff8a7a>" + where + "</color>" + (alive ? "   " + Trans.Get("vr.quarters.bossHow") : string.Empty),
+                -110f, -150f, 13f, UiKit.TextBright, 820f);
+            how.enableAutoSizing = true;
+            how.fontSizeMin = 10f;
+            how.fontSizeMax = 13f;
+            if (alive)
+                ScreenKit.Btn(_progBody, Trans.Get("vr.quarters.bossGo"), 430f, -150f, 200f, 38f,
+                    () => AsyncTap.Run(SetCourseToBoss(bossSystem)), DiegeticUi.BtnStyle.Danger);
             var mine = boss["my_damage"];
             var board = boss["leaderboard"] as JArray;
             var line = mine != null && mine.Type != JTokenType.Null
@@ -1167,9 +1181,56 @@ namespace Core.Stations
                 : Trans.Get("vr.quarters.noDamage");
             if (board != null && board.Count > 0)
                 line += "   ·   #1 " + ScreenKit.Verbatim(FocusContext.AsString(board[0]["empire_name"])) + " " + FocusContext.AsString(board[0]["damage_fmt"]);
-            L(_progBody, line, 0f, -175f, 13f, UiKit.TextDim, 1040f, TextAlignmentOptions.Center);
+            L(_progBody, line, 0f, -180f, 13f, UiKit.TextDim, 1040f, TextAlignmentOptions.Center);
             L(_progBody, Trans.Format("vr.quarters.bossPool", FocusContext.AsString(boss["reward_nova_pool"]), FocusContext.AsString(boss["reward_xp_pool"])),
-                0f, -200f, 12f, UiKit.Amber, 1040f, TextAlignmentOptions.Center);
+                0f, -203f, 12f, UiKit.Amber, 1040f, TextAlignmentOptions.Center);
+        }
+
+        /// <summary>
+        /// The ship we stand aboard sets course for the boss's system (helm travel lectern: sublight / hyperspace /
+        /// Bond PRL, same quotes as the bridge). From a station there is no ship to send: the captain is told so.
+        /// </summary>
+        async Task SetCourseToBoss(int systemId)
+        {
+            var focus = FocusContext.Current;
+            var fleet = focus?.FindViewFleet();
+            if (fleet == null)
+            {
+                SetStatus(_progStatus, Trans.Get("vr.quarters.bossNoShip"), true);
+                CicCue.Fail(_prog.transform.position);
+                return;
+            }
+
+            await GalaxyCatalog.EnsureLoaded();
+            if (!GalaxyCatalog.TryGet(systemId, out var star))
+            {
+                SetStatus(_progStatus, Trans.Get("vr.common.error"), true);
+                return;
+            }
+
+            if (fleet.SystemId == systemId && !fleet.IsMoving(FleetOrderGate.UnixNow()))
+            {
+                SetStatus(_progStatus, Trans.Get("vr.quarters.bossHere"));
+                return;
+            }
+
+            // Busy ship (survey, mining, under way): the trip joins its order queue instead.
+            if (!fleet.CanIssueMove(FleetOrderGate.UnixNow()))
+            {
+                var queued = await Core.Holo.OrderQueue.AddSystemStep(fleet, star.X, star.Y, star.Id);
+                SetStatus(_progStatus, queued.Ok ? Trans.Get("stepAdded") : queued.Error, !queued.Ok);
+                return;
+            }
+
+            var (sent, result, _) = await Core.Holo.TravelPlanner.AskAndSend(fleet, star.Id, star.X, star.Y, star.Label,
+                _prog.transform.position);
+            if (!sent)
+                return;
+            if (result.Ok)
+                CicCue.Ok(_prog.transform.position);
+            else
+                CicCue.Fail(_prog.transform.position);
+            SetStatus(_progStatus, result.Ok ? Trans.Get(result.NoticeKey ?? "vr.common.ok") : result.Error, !result.Ok);
         }
 
         // ── Shop ──────────────────────────────────────────────────────────────────
@@ -1253,6 +1314,10 @@ namespace Core.Stations
                 var bx = 420f;
                 if (category == "booster")
                 {
+                    var perks = L(_shopBody, Perks(key, def), x0, y - 40f, 12f, UiKit.Amber, 760f);
+                    perks.enableAutoSizing = true;
+                    perks.fontSizeMin = 9f;
+                    perks.fontSizeMax = 12f;
                     var active = ActiveBooster(boosters, def);
                     if (active > 0)
                         L(_shopBody, Trans.Get("shopActiveFor") + " " + ScreenKit.Remaining(active), bx, y + 24f, 12f, UiKit.Ok, 200f,
@@ -1281,6 +1346,37 @@ namespace Core.Stations
                     RenderShop();
                 });
         }
+
+        /// <summary>
+        /// Every advantage of a booster, read from its catalogue bonuses (time factors shown as speed, multipliers
+        /// as percent); a Nova Pass also widens the building, shipyard and research queues (server GetMaxQueueCapacity).
+        /// </summary>
+        static string Perks(string key, JToken def)
+        {
+            var parts = new List<string>();
+            if (key.StartsWith("nova_pass", StringComparison.Ordinal))
+                parts.Add(Trans.Get("vr.shop.perk.queues"));
+            if (def["bonuses"] is JObject bonuses)
+                foreach (var b in bonuses.Properties())
+                {
+                    var v = FocusContext.AsFloat(b.Value);
+                    var arg = b.Name switch
+                    {
+                        "move_speed" or "explore_speed" or "mining_speed" => v > 0f ? Factor(1f / v) : Factor(1f),
+                        "research_speed" => Mathf.RoundToInt((1f - v) * 100f).ToString(CultureInfo.InvariantCulture),
+                        "production_multiplier" => Mathf.RoundToInt((v - 1f) * 100f).ToString(CultureInfo.InvariantCulture),
+                        _ => Factor(v)
+                    };
+                    parts.Add(Trans.Format("vr.shop.perk." + b.Name, arg));
+                }
+
+            return string.Join("  ·  ", parts);
+        }
+
+        static string Factor(float v) =>
+            Mathf.Approximately(v, Mathf.Round(v))
+                ? Mathf.RoundToInt(v).ToString(CultureInfo.InvariantCulture)
+                : v.ToString("0.#", CultureInfo.InvariantCulture);
 
         /// <summary>Seconds left on the booster's first bonus (web ShopWindowUI), 0 when inactive.</summary>
         static long ActiveBooster(JArray active, JToken def)

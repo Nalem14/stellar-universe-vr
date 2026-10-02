@@ -1224,9 +1224,8 @@ namespace Core.Stations
             var left = -w * 0.5f + 25f;
             Text(_coreBody, Trans.Format("vr.ops.queueSlots", Occupied(), MaxQueue()), left, 222f, 380f, 28f,
                 DiegeticUi.CyanDim);
-            if (FocusContext.AsBool(_empire?["hasNovaPass"]))
-                Text(_coreBody, "<color=#ffd700>Nova Pass</color>", 100f, 222f, 300f, 26f, UiKit.TextBright,
-                    TextAlignmentOptions.MidlineRight);
+            Text(_coreBody, Boosters.QueueHint(), 100f, 222f, 300f, 22f, UiKit.TextBright,
+                TextAlignmentOptions.MidlineRight);
 
             var y = 160f;
             if (running == null)

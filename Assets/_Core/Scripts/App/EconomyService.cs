@@ -140,7 +140,7 @@ namespace Core.App
 
         public bool TryGet(int planetId, out PlanetEconomy planet) => _planets.TryGetValue(planetId, out planet);
 
-        /// <summary>Owned planets, stable id order (<see cref="OwnedPlanets"/>: fresh DB ownership).</summary>
+        /// <summary>Owned planets, favourites first then id order (<see cref="OwnedPlanets"/>: fresh DB ownership).</summary>
         public void CollectOwned(List<GalaxyCatalog.PlanetRef> into)
         {
             into.Clear();

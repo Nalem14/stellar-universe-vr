@@ -20,6 +20,8 @@ namespace Core.Vfx
         TMP_Text _hint;
         bool _shipsTab = true;
         readonly List<GameObject> _rows = new();
+        /// <summary>List lines laid out so far (a planet line also carries its favourite star).</summary>
+        int _slots;
         CicArtKit _art;
         Button _tabShips;
         Button _tabPlanets;
@@ -258,10 +260,15 @@ namespace Core.Vfx
                 pending.Add((p.Id, p.SystemId, name, star, viewPlanet > 0 && p.Id == viewPlanet));
             }
 
+            // The world in view, then the captain's favourites, then by name.
             pending.Sort((a, b) =>
             {
                 if (a.active != b.active)
                     return a.active ? -1 : 1;
+                var fa = Core.App.PlanetFavorites.Contains(a.id);
+                var fb = Core.App.PlanetFavorites.Contains(b.id);
+                if (fa != fb)
+                    return fa ? -1 : 1;
                 return string.CompareOrdinal(a.name, b.name);
             });
 
@@ -270,22 +277,33 @@ namespace Core.Vfx
             {
                 var id = row.id;
                 var sys = row.sys;
-                AddRow(row.name, row.star, row.active, () => Core.Utils.AsyncTap.Run(ConfirmPlanet(id, sys)));
+                var y = 150f - _slots * 70f;
+                AddRow(row.name, row.star, row.active, () => Core.Utils.AsyncTap.Run(ConfirmPlanet(id, sys)), 700f);
+                if (_listRoot != null)
+                    _rows.Add(DiegeticUi.HoloFavoriteToggle(_listRoot, id, new Vector2(355f, y), new Vector2(64f, 60f),
+                        () => Core.Utils.AsyncTap.Run(Reload())).gameObject);
                 if (++i >= 8)
                     break;
             }
         }
 
-        void AddRow(string primary, string secondary, bool active, System.Action onSelect)
+        async Task Reload()
+        {
+            // Rebuilt after the click handler has returned (the star clicked is one of the rows).
+            await Task.Yield();
+            await RefreshList();
+        }
+
+        void AddRow(string primary, string secondary, bool active, System.Action onSelect, float width = 780f)
         {
             if (_listRoot == null)
                 return;
-            var y = 150f - _rows.Count * 70f;
+            var y = 150f - _slots++ * 70f;
             var mark = active ? "●  " : "";
             var label = string.IsNullOrEmpty(secondary)
                 ? mark + primary
                 : mark + primary + "  ·  " + secondary;
-            var btn = DiegeticUi.HoloButton(_listRoot, label, new Vector2(0f, y), new Vector2(780f, 60f),
+            var btn = DiegeticUi.HoloButton(_listRoot, label, new Vector2((width - 780f) * 0.5f, y), new Vector2(width, 60f),
                 () => onSelect?.Invoke(), amber: false);
             if (active)
             {
@@ -319,6 +337,7 @@ namespace Core.Vfx
             }
 
             _rows.Clear();
+            _slots = 0;
             if (_listRoot == null)
                 return;
             for (var i = _listRoot.childCount - 1; i >= 0; i--)

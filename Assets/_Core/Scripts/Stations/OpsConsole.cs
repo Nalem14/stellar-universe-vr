@@ -50,6 +50,7 @@ namespace Core.Stations
         TMP_InputField _nameField;
         GameObject _renameGroup;
         GameObject _planetGroup;
+        Button _favorite;
         readonly TMP_Text[] _chips = new TMP_Text[5];
         readonly Button[] _tabs = new Button[4];
         readonly List<(TMP_Text Text, Func<string> Value)> _live = new();
@@ -299,6 +300,7 @@ namespace Core.Stations
             _planetLabel.text = _planetId <= 0
                 ? Trans.Get("vr.ops.noPlanet")
                 : name + "   <size=70%><color=#7fd8ff>" + star + "</color></size>";
+            RenderFavorite();
             RenderChips(planet);
 
             if (planet == null)
@@ -322,6 +324,18 @@ namespace Core.Stations
                     RenderReport(planet);
                     break;
             }
+        }
+
+        /// <summary>Star beside the planet name: favourites head the picker (‹ ›) and every planet list.</summary>
+        void RenderFavorite()
+        {
+            if (_favorite != null)
+                DestroyImmediate(_favorite.gameObject);
+            _favorite = null;
+            if (_planetId <= 0)
+                return;
+            _favorite = DiegeticUi.HoloFavoriteToggle(_planetGroup.transform, _planetId, new Vector2(330f, 245f),
+                new Vector2(64f, 46f), () => _eco.CollectOwned(_owned));
         }
 
         static void SetButtonStyle(Button b, bool active)
@@ -692,8 +706,9 @@ namespace Core.Stations
         void RenderQueue(PlanetEconomy planet)
         {
             var active = BuildingCatalog.ActiveType(planet);
-            Line(Trans.Format("vr.ops.queueSlots", BuildingCatalog.Occupied(planet), BuildingCatalog.MaxQueue(planet)),
-                -330f, 75f, 20f, DiegeticUi.CyanDim, 360f, TextAlignmentOptions.MidlineLeft);
+            Line(Trans.Format("vr.ops.queueSlots", BuildingCatalog.Occupied(planet), BuildingCatalog.MaxQueue(planet)) +
+                 "   <size=80%>" + Boosters.QueueHint() + "</size>",
+                -250f, 75f, 20f, DiegeticUi.CyanDim, 520f, TextAlignmentOptions.MidlineLeft);
 
             if (string.IsNullOrEmpty(active))
             {

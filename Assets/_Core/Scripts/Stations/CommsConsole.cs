@@ -56,6 +56,7 @@ namespace Core.Stations
         RectTransform _body;
         TMP_Text _status;
         TMP_Text _chips;
+        Button _readAll;
         readonly Button[] _tabs = new Button[3];
 
         GameObject _sayGroup;
@@ -125,6 +126,8 @@ namespace Core.Stations
             _chips.richText = true;
             DiegeticUi.HoloButton(_frame, Trans.Get("close"), new Vector2(465f, 245f), new Vector2(140f, 46f), Close,
                 DiegeticUi.BtnStyle.Ghost);
+            _readAll = DiegeticUi.HoloButton(_frame, Trans.Get("vr.comms.readAll"), new Vector2(108f, 245f),
+                new Vector2(160f, 46f), () => Run(ReadAll()), DiegeticUi.BtnStyle.Cyan);
             // Wars and alliances have their own room: the officer walks the captain there.
             DiegeticUi.HoloButton(_frame, Trans.Get("vr.diplo.open"), new Vector2(290f, 245f), new Vector2(190f, 46f), () =>
             {
@@ -352,6 +355,8 @@ namespace Core.Stations
             _chips.text = Trans.Format("vr.comms.mailUnread", c.MailUnread) + "     " +
                           Trans.Format("vr.comms.pmUnread", c.PmUnread);
             _chips.color = c.Total > 0 ? UiKit.Amber : DiegeticUi.CyanDim;
+            if (_readAll != null)
+                _readAll.interactable = c.Total > 0 && !_busy;
         }
 
         static void SetButtonStyle(Button b, bool active)
@@ -930,6 +935,70 @@ namespace Core.Stations
             Feedback(res, "vr.comms.mailDeleted");
             if (res.Ok)
                 SetMailView(MailView.Inbox);
+        }
+
+        /// <summary>
+        /// Everything unread marked read, mail and private threads. The server has no bulk action: GetMail marks
+        /// one mail, GetPrivateMessages the messages it returns. GetMails answers the newest 50 per folder, so
+        /// the inbox is read once unfiltered and once per mail type to reach the older unread ones.
+        /// </summary>
+        async Task ReadAll()
+        {
+            if (_busy)
+                return;
+            _busy = true;
+            RenderChips();
+            SetStatus(Trans.Get("Loading"));
+            var read = 0;
+            try
+            {
+                var seen = new HashSet<int>();
+                foreach (var filter in Filters)
+                {
+                    var args = new Dictionary<string, string> { { "folder", "inbox" } };
+                    if (filter.Length > 0)
+                        args["filter"] = filter;
+                    foreach (var m in ParseArray(await ActionJs.Get("GetMails", args)))
+                    {
+                        var id = FocusContext.AsInt(m["id"]);
+                        if (id <= 0 || FocusContext.AsInt(m["is_read"]) != 0 || !seen.Add(id))
+                            continue;
+                        if ((await ActionJs.Get("GetMail", new Dictionary<string, string> { { "id", id.ToString() } })).Ok)
+                            read++;
+                    }
+                }
+
+                foreach (var c in ParseArray(await ActionJs.Get("GetPrivateConversations")))
+                {
+                    var unread = FocusContext.AsInt(c["unread_count"]);
+                    var contact = FocusContext.AsInt(c["contact_id"]);
+                    if (unread <= 0 || contact <= 0)
+                        continue;
+                    var r = await ActionJs.Get("GetPrivateMessages", new Dictionary<string, string>
+                    {
+                        { "contact_id", contact.ToString() },
+                        { "lastid", "0" }
+                    });
+                    if (r.Ok)
+                        read += unread;
+                }
+
+                if (CommsService.Instance != null)
+                    await CommsService.Instance.Refresh();
+            }
+            finally
+            {
+                _busy = false;
+            }
+
+            _mails = null;
+            _conversations = null;
+            _thread.Clear();
+            _threadLast = 0;
+            var left = CommsService.Instance != null ? CommsService.Instance.Total : 0;
+            CicCue.Ok(transform.position);
+            Render();
+            SetStatus(left > 0 ? Trans.Format("vr.comms.readAllPartial", read, left) : Trans.Format("vr.comms.readAllDone", read));
         }
 
         async Task SendMail()

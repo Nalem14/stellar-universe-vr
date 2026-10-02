@@ -47,6 +47,8 @@ namespace Core.Editor
             Configure(Root + "/GlowSoft.png", 0);
             Configure(Root + "/CheckOff.png", 8);
             Configure(Root + "/CheckOn.png", 8);
+            Configure(Root + "/Star.png", 0);
+            Configure(Root + "/StarEmpty.png", 0);
 
             // Legacy CIC root mirrors
             Configure("Assets/_Core/Resources/CIC/HoloPanel.png", 48);

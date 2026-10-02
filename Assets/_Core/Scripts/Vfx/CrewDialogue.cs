@@ -449,9 +449,10 @@ namespace Core.Vfx
         }
 
         /// <summary>
-        /// Helm, ship busy: the usual follow-ups as queued chains in one tap — back to the nearest world of ours
-        /// to unload, or out to one of this system's rock fields to mine. Any other target: the holo table
-        /// (pointing at it with the ship picked queues it too).
+        /// Helm, ship busy (under way, surveying an anomaly or a world, mining, besieging…): every destination the
+        /// idle helm offers goes on the order queue instead — the server holds it until the ship is free
+        /// (ProcessFleetQueue / IsFleetBusy). Back home to unload, any world or rock field of this system, the
+        /// nearest stars, any star by its coordinates. The holo table queues any other target the same way.
         /// </summary>
         async Task BuildQueueAdds(FocusContext focus, FocusFleet fleet)
         {
@@ -466,33 +467,70 @@ namespace Core.Vfx
                     DiegeticUi.BtnStyle.Amber);
             }
 
-            var rocks = new List<FocusAsteroid>();
-            foreach (var rock in focus.Asteroids)
-                if (!rock.Gone && !rocks.Exists(r => r.Id == rock.Id))
-                    rocks.Add(rock);
-            if (rocks.Count == 1)
+            var moving = fleet.IsMoving(FleetOrderGate.UnixNow());
+            var planets = new List<FocusPlanet>();
+            foreach (var planet in focus.Planets)
+                if ((moving || planet.Id != fleet.PlanetId) && !planets.Exists(p => p.Id == planet.Id))
+                    planets.Add(planet);
+            if (planets.Count > 0)
             {
-                var aid = rocks[0].Id;
-                AddAction(Core.Holo.OrderQueue.ChainLabel("moveToAsteroid", "harvestAsteroid") + "  ·  " + RockLabel(rocks[0]),
-                    () => QueueCall(Core.Holo.OrderQueue.AddAsteroidChain(fleet, aid, true), "stepAdded"),
-                    DiegeticUi.BtnStyle.Amber);
-            }
-            else if (rocks.Count > 1)
-            {
-                AddDropdown(Core.Holo.OrderQueue.ChainLabel("moveToAsteroid", "harvestAsteroid"), rocks.Count,
-                    DropGroup.Asteroids);
-                if (_dropOpen == DropGroup.Asteroids)
+                AddDropdown(Core.Holo.OrderQueue.ChainLabel("moveToPlanet"), planets.Count, DropGroup.Planets);
+                if (_dropOpen == DropGroup.Planets)
                 {
-                    BeginDropTray(rocks.Count);
-                    foreach (var rock in rocks)
+                    BeginDropTray(planets.Count);
+                    foreach (var planet in planets)
                     {
-                        var aid = rock.Id;
-                        AddDropOption(DestLabel(RockLabel(rock)),
-                            () => QueueCall(Core.Holo.OrderQueue.AddAsteroidChain(fleet, aid, true), "stepAdded"),
+                        var pid = planet.Id;
+                        AddDropOption(DestLabel(PlanetLabel(planet)),
+                            () => QueueCall(Core.Holo.OrderQueue.AddPlanetChain(fleet, pid), "stepAdded"),
                             DiegeticUi.BtnStyle.Amber);
                     }
                 }
             }
+
+            // Rock fields: each one as "go and mine" or as a plain move.
+            var rocks = new List<FocusAsteroid>();
+            foreach (var rock in focus.Asteroids)
+                if (!rock.Gone && !rocks.Exists(r => r.Id == rock.Id))
+                    rocks.Add(rock);
+            if (rocks.Count > 0)
+            {
+                AddDropdown(Core.Holo.OrderQueue.ChainLabel("moveToAsteroid"), rocks.Count, DropGroup.Asteroids);
+                if (_dropOpen == DropGroup.Asteroids)
+                {
+                    BeginDropTray(rocks.Count * 2);
+                    var mine = Trans.Get(Core.Holo.OrderQueue.StepKey("harvestAsteroid"));
+                    foreach (var rock in rocks)
+                    {
+                        var aid = rock.Id;
+                        AddDropOption(DestLabel(RockLabel(rock)) + "  →  " + mine,
+                            () => QueueCall(Core.Holo.OrderQueue.AddAsteroidChain(fleet, aid, true), "stepAdded"),
+                            DiegeticUi.BtnStyle.Amber);
+                        AddDropOption(DestLabel(RockLabel(rock)),
+                            () => QueueCall(Core.Holo.OrderQueue.AddAsteroidChain(fleet, aid, false), "stepAdded"));
+                    }
+                }
+            }
+
+            GalaxyCatalog.CollectNearest(focus.SystemId, 4, _near);
+            if (_near.Count > 0)
+            {
+                AddDropdown(Core.Holo.OrderQueue.ChainLabel("moveToSystem"), _near.Count, DropGroup.Jumps);
+                if (_dropOpen == DropGroup.Jumps)
+                {
+                    BeginDropTray(_near.Count);
+                    foreach (var s in _near)
+                    {
+                        var star = s;
+                        AddDropOption(DestLabel(star.Label),
+                            () => QueueCall(Core.Holo.OrderQueue.AddSystemStep(fleet, star.X, star.Y, star.Id), "stepAdded"),
+                            DiegeticUi.BtnStyle.Amber);
+                    }
+                }
+            }
+
+            AddAction(Trans.Get("addToQueue") + "  :  " + Trans.Get("vr.coords.go"), () => QueueCoordinates(fleet.Id),
+                DiegeticUi.BtnStyle.Amber, refreshAfter: false);
         }
 
         async Task QueueCall(Task<ApiResult> call, string okKey)
@@ -717,7 +755,14 @@ namespace Core.Vfx
                         { "asteroid", fleet.AsteroidId.ToString() }
                     }));
             }
-
+            else if (!FleetOrderGate.CanMove(fleet) && fleet.AsteroidId > 0 && !fleet.IsHarvesting(FleetOrderGate.UnixNow()) &&
+                     !fleet.IsMoving(FleetOrderGate.UnixNow()))
+            {
+                var aid = fleet.AsteroidId;
+                AddAction(Core.Holo.OrderQueue.ChainLabel("harvestAsteroid") + "  ·  " + Trans.Get("asteroidField") + " #" + aid,
+                    () => QueueCall(Core.Holo.OrderQueue.AddAsteroidStep(fleet, "harvestAsteroid", aid), "stepAdded"),
+                    DiegeticUi.BtnStyle.Amber);
+            }
         }
 
         /// <summary>Planetary survey screen (GetPlanet) on the planet in orbit / the station's world first.</summary>
@@ -797,6 +842,16 @@ namespace Core.Vfx
                         { "fleet", fleet.Id.ToString() },
                         { "planet", fleet.PlanetId.ToString() }
                     }));
+            }
+            else if (!FleetOrderGate.CanMove(fleet) && fleet.PlanetId > 0 && HasScienceModule(fleet) &&
+                     !fleet.IsExploring(FleetOrderGate.UnixNow()) && !fleet.IsMoving(FleetOrderGate.UnixNow()))
+            {
+                // Busy in orbit (anomaly scan, siege…): the survey of this world waits on the queue.
+                var pid = fleet.PlanetId;
+                AddAction(Core.Holo.OrderQueue.ChainLabel("explorePlanet") + "  ·  " +
+                          PlanetLabel(focus.FindPlanet(pid), pid),
+                    () => QueueCall(Core.Holo.OrderQueue.AddPlanetStep(fleet, "explorePlanet", pid), "stepAdded"),
+                    DiegeticUi.BtnStyle.Amber);
             }
 
             // Auto-exploration (ToggleFleetAutoExplore): the ship surveys every planet here, then hops on to
@@ -1168,10 +1223,32 @@ namespace Core.Vfx
             var fleet = Focus?.FindFleet(fleetId);
             if (fleet == null)
                 return;
+            var star = await AskStar(fleet);
+            if (star is { } best)
+                await MoveToSystem(fleet.Id, best.Id, best.X, best.Y, best.Label);
+        }
+
+        /// <summary>Ship busy: the star typed on the pad joins its order queue (moveToSystem by id).</summary>
+        async Task QueueCoordinates(int fleetId)
+        {
+            var fleet = Focus?.FindFleet(fleetId);
+            if (fleet == null)
+                return;
+            var star = await AskStar(fleet);
+            if (star is { } best)
+                await QueueCall(Core.Holo.OrderQueue.AddSystemStep(fleet, best.X, best.Y, best.Id), "stepAdded");
+        }
+
+        /// <summary>
+        /// The star at the coordinates typed on the pad, or the nearest one (said on the table readout); null when
+        /// cancelled or when it is where the ship already lies.
+        /// </summary>
+        async Task<GalaxyCatalog.Star?> AskStar(FocusFleet fleet)
+        {
             var name = string.IsNullOrEmpty(fleet.Name) ? "#" + fleet.Id : fleet.Name;
             var xy = await Core.Holo.CoordPad.Ask(Trans.Get("vr.coords.title") + "  ·  " + name);
             if (xy == null)
-                return;
+                return null;
             await GalaxyCatalog.EnsureLoaded();
             GalaxyCatalog.Star best = default;
             var found = false;
@@ -1188,18 +1265,18 @@ namespace Core.Vfx
             }
 
             if (!found)
-                return;
+                return null;
             var typed = GalaxyCatalog.Coordinates(xy.Value.x, xy.Value.y);
             if (bestD > 0.01f)
                 _map?.SetReadout(Trans.Format("vr.coords.none", typed, best.Label));
-            if (best.Id == fleet.SystemId)
+            if (best.Id == fleet.SystemId && !fleet.IsMoving(FleetOrderGate.UnixNow()))
             {
                 CicCue.Fail(transform.position);
                 _map?.SetReadout(best.Label + "  ·  " + Trans.Get("vr.table.alreadyThere"));
-                return;
+                return null;
             }
 
-            await MoveToSystem(fleet.Id, best.Id, best.X, best.Y, best.Label);
+            return best;
         }
 
         /// <summary>The nearest of our worlds: in this system first, else by galaxy distance.</summary>

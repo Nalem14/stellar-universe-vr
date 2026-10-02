@@ -9,7 +9,7 @@ namespace Core.App
     /// <summary>
     /// The captain's planets, fresh from the database: one GetEmpirePlanets call (uncached, with systemid
     /// since web c94c803), read at boot and after a founding — never on a timer. GetSystems ownership can
-    /// lag a brand-new world; it is only the fallback if the fresh read fails.
+    /// lag a brand-new world; it is only the fallback if the fresh read fails. Favourite worlds come first.
     /// </summary>
     public static class OwnedPlanets
     {
@@ -99,14 +99,34 @@ namespace Core.App
             _forUser = user;
             if (list == null)
                 return;
-            list.Sort((a, b) => a.Id.CompareTo(b.Id));
             foreach (var p in list)
             {
                 Planets.Add(p);
                 Ids.Add(p.Id);
                 Systems.Add(p.SystemId);
             }
+
+            Sort();
         }
+
+        /// <summary>Favourites first (<see cref="PlanetFavorites"/>), then id order.</summary>
+        static void Sort()
+        {
+            if (!_hooked)
+            {
+                _hooked = true;
+                PlanetFavorites.Changed += Sort;
+            }
+
+            Planets.Sort((a, b) =>
+            {
+                var fa = PlanetFavorites.Contains(a.Id);
+                var fb = PlanetFavorites.Contains(b.Id);
+                return fa != fb ? (fa ? -1 : 1) : a.Id.CompareTo(b.Id);
+            });
+        }
+
+        static bool _hooked;
 
         static bool TryArray(string body, out JArray rows)
         {

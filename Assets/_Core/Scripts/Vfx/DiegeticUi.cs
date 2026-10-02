@@ -39,6 +39,8 @@ namespace Core.Vfx
         static Sprite s_Divider;
         static Sprite s_Dot;
         static Sprite s_Ring;
+        static Sprite s_Star;
+        static Sprite s_StarEmpty;
         static bool s_SpritesReady;
 
         public static Sprite SprPanel { get { EnsureSprites(); return s_Panel; } }
@@ -78,6 +80,8 @@ namespace Core.Vfx
             s_Divider = LoadSprite("CIC/Ui/Divider");
             s_Dot = LoadSprite("CIC/Ui/Dot");
             s_Ring = LoadSprite("CIC/Ui/RingButton");
+            s_Star = LoadSprite("CIC/Ui/Star");
+            s_StarEmpty = LoadSprite("CIC/Ui/StarEmpty") ?? s_Star;
             s_SpritesReady = true;
         }
 
@@ -221,6 +225,44 @@ namespace Core.Vfx
             tmp.color = Color.white;
             tmp.raycastTarget = false;
             return btn;
+        }
+
+        /// <summary>
+        /// Favourite star for a planet (<see cref="Core.App.PlanetFavorites"/>): a ghost button carrying a lit amber
+        /// star when starred, a cyan outline otherwise. <paramref name="onChanged"/> runs after the toggle.
+        /// </summary>
+        public static Button HoloFavoriteToggle(Transform parent, int planetId, Vector2 anchoredPos, Vector2 size,
+            System.Action onChanged = null)
+        {
+            EnsureSprites();
+            Image icon = null;
+            var btn = HoloButton(parent, string.Empty, anchoredPos, size, () =>
+            {
+                Core.App.PlanetFavorites.Toggle(planetId);
+                PaintStar(icon, planetId);
+                onChanged?.Invoke();
+            }, BtnStyle.Ghost);
+            btn.name = "Btn_Favorite";
+            var go = new GameObject("Star", typeof(RectTransform), typeof(Image));
+            go.transform.SetParent(btn.transform, false);
+            var rt = go.GetComponent<RectTransform>();
+            var side = Mathf.Min(size.x, size.y) * 0.72f;
+            rt.sizeDelta = new Vector2(side, side);
+            icon = go.GetComponent<Image>();
+            icon.raycastTarget = false;
+            icon.preserveAspect = true;
+            PaintStar(icon, planetId);
+            return btn;
+        }
+
+        static void PaintStar(Image icon, int planetId)
+        {
+            if (icon == null)
+                return;
+            var on = Core.App.PlanetFavorites.Contains(planetId);
+            icon.sprite = on ? s_Star : s_StarEmpty;
+            icon.color = on ? new Color(1f, 0.78f, 0.3f, 1f) : new Color(0.55f, 0.85f, 0.95f, 0.75f);
+            icon.enabled = icon.sprite != null;
         }
 
         /// <summary>Re-skin a <see cref="HoloButton"/> (a pooled button whose role changes: option lists, toggles).</summary>

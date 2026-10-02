@@ -39,6 +39,31 @@ namespace Core.App
         /// <summary>Trip duration factor (move_speed): 0.5 = twice as fast.</summary>
         public static float MoveTimeFactor => Get("move_speed");
 
+        /// <summary>
+        /// Nova Pass running (server HasActiveNovaPass: a nova_pass or production_multiplier booster). Before
+        /// any GetShopData answer, the empire's hasNovaPass flag from login.
+        /// </summary>
+        public static bool NovaPassActive
+        {
+            get
+            {
+                if (!_read)
+                    return FocusContext.AsBool(AuthManager.Ensure().Empire?["hasNovaPass"]);
+                var now = Core.Vfx.FleetOrderGate.UnixNow();
+                return (Active.TryGetValue("nova_pass", out var p) && p.until > now) ||
+                       (Active.TryGetValue("production_multiplier", out var m) && m.until > now);
+            }
+        }
+
+        /// <summary>
+        /// Beside a queue counter (web planet window): "Nova Pass active" in gold, else what the pass would give.
+        /// </summary>
+        public static string QueueHint() => NovaPassActive
+            ? "<color=#ffd700>" + Trans.Get("novaPassActive") + "</color>"
+            : "<color=#8fb0bf>" + Trans.Get("vr.yard.novaPassLimit") + "</color>";
+
+        static bool _read;
+
         static void OnSucceeded(string action, IDictionary<string, string> query, ApiResult result)
         {
             if (action != "GetShopData")
@@ -48,6 +73,7 @@ namespace Core.App
                 if (JToken.Parse(result.Body)["activeBoosters"] is not JArray arr)
                     return;
                 Active.Clear();
+                _read = true;
                 foreach (var b in arr)
                 {
                     var type = FocusContext.AsString(b["type"]);
