@@ -35,6 +35,22 @@ namespace Core.App
 
             if (body != null)
                 body.enabled = true;
+            FallGuard.Of(rig).Placed(floorPoint, flat.sqrMagnitude > 1e-4f ? flat.normalized : rig.transform.forward);
+        }
+
+        /// <summary>Same move without telling the guard (the guard's own corrections).</summary>
+        internal static void Snap(XROrigin rig, Vector3 floorPoint, Vector3 forward)
+        {
+            var body = rig.GetComponentInChildren<CharacterController>();
+            if (body != null)
+                body.enabled = false;
+            var flat = Vector3.ProjectOnPlane(forward, Vector3.up);
+            if (flat.sqrMagnitude > 1e-4f && rig.Camera != null)
+                rig.MatchOriginUpCameraForward(Vector3.up, flat.normalized);
+            var head = rig.Camera != null ? rig.Camera.transform.position : rig.transform.position;
+            rig.transform.position += floorPoint - new Vector3(head.x, rig.transform.position.y, head.z);
+            if (body != null)
+                body.enabled = true;
         }
     }
 }
