@@ -36,6 +36,8 @@ namespace Core.App
         public int ToSystem;
         /// <summary>Battle only: our ship is up (the watch asks the captain back aboard).</summary>
         public bool YourTurn;
+        /// <summary>Building only: the world whose construction this is (the cluster's Build key opens it).</summary>
+        public int PlanetId;
 
         public float Progress(long now) =>
             End <= Start ? 0f : Mathf.Clamp01((now - Start) / (float)(End - Start));
@@ -90,6 +92,7 @@ namespace Core.App
             w._focus = focus;
             w._watchLayer = LayerMask.NameToLayer("Watch");
             w.BuildDeck();
+            ReachWatchLayer(FindFirstObjectByType<XROrigin>(), w._watchLayer);
             Instance = w;
             return w;
         }
@@ -225,6 +228,7 @@ namespace Core.App
                         _affairs.Add(new WatchAffair
                         {
                             Kind = WatchKind.Building,
+                            PlanetId = p.Id,
                             Title = world,
                             Detail = Trans.Get(type) + (level > 0 ? " · " + Trans.Get("level") + " " + level : string.Empty),
                             Start = FocusContext.AsLong(p.Raw["workingStart"]),
@@ -329,6 +333,7 @@ namespace Core.App
                     rig.transform.localRotation = Quaternion.identity;
                     XrPlacement.PlaceHead(rig, _deck.position, _deck.forward);
                     SetLayer(rig.transform, _watchLayer);
+                    ReachWatchLayer(rig, _watchLayer);
                 }
 
                 SetLayer(fade.transform, _watchLayer);
@@ -420,6 +425,29 @@ namespace Core.App
             cam.cullingMask = _mask;
         }
 
+        /// <summary>
+        /// The hands' rays and near casters filter physics and world-canvas hits by layer: without the Watch bit
+        /// the watch cluster, borrowed consoles, wrist panel and quick menu (all on Watch) can't be pointed at.
+        /// Teleport rays keep their mask (a panel must not swallow a teleport). Idempotent.
+        /// </summary>
+        static void ReachWatchLayer(XROrigin rig, int layer)
+        {
+            if (rig == null || layer < 0)
+                return;
+            var bit = 1 << layer;
+            foreach (var c in rig.GetComponentsInChildren<UnityEngine.XR.Interaction.Toolkit.Interactors.Casters.CurveInteractionCaster>(true))
+                c.raycastMask |= bit;
+            foreach (var s in rig.GetComponentsInChildren<UnityEngine.XR.Interaction.Toolkit.Interactors.Casters.SphereInteractionCaster>(true))
+                s.physicsLayerMask |= bit;
+            foreach (var d in rig.GetComponentsInChildren<UnityEngine.XR.Interaction.Toolkit.Interactors.XRDirectInteractor>(true))
+                d.physicsLayerMask |= bit;
+            foreach (var p in rig.GetComponentsInChildren<UnityEngine.XR.Interaction.Toolkit.Interactors.XRPokeInteractor>(true))
+                p.physicsLayerMask |= bit;
+            foreach (var r in rig.GetComponentsInChildren<UnityEngine.XR.Interaction.Toolkit.Interactors.XRRayInteractor>(true))
+                if (r.name.IndexOf("Teleport", System.StringComparison.OrdinalIgnoreCase) < 0)
+                    r.raycastMask |= bit;
+        }
+
         static void SetLayer(Transform t, int layer)
         {
             if (layer < 0 || t == null)
@@ -439,7 +467,7 @@ namespace Core.App
             floor.transform.SetParent(_deck, false);
             floor.transform.localPosition = new Vector3(0f, -0.1f, 0f);
             floor.AddComponent<BoxCollider>().size = new Vector3(30f, 0.2f, 30f);
-            _cluster = WatchCluster.Build(_deck, _watchLayer, Leave);
+            _cluster = WatchCluster.Build(_deck, _watchLayer, Leave, planet => _consoles?.OpenOps(planet));
             _consoles = WatchConsoles.Build(_deck, _cluster.transform, _watchLayer, _focus);
         }
     }

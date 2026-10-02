@@ -122,6 +122,26 @@ namespace Core.App
                 CicCue.Hover(seat.position);
             });
             interact.hoverExited.AddListener(_ => SetHover(false));
+            _seatInteract = interact;
+            _seatColliders = seat.GetComponents<Collider>();
+        }
+
+        XRSimpleInteractable _seatInteract;
+        Collider[] _seatColliders;
+
+        /// <summary>
+        /// The sit box wraps cushion and back, so seated the hands rest in and around it: the near caster would
+        /// hover the chair and the far rays would start inside it. Seated, the chair is no target at all.
+        /// </summary>
+        void SetSeatTarget(bool on)
+        {
+            if (_seatInteract != null)
+                _seatInteract.enabled = on;
+            if (_seatColliders == null)
+                return;
+            foreach (var c in _seatColliders)
+                if (c != null)
+                    c.enabled = on;
         }
 
         void SetHover(bool on)
@@ -212,6 +232,7 @@ namespace Core.App
             _animating = true;
             SetLocomotion(false);
             SetHover(false);
+            SetSeatTarget(false);
 
             // Eyes over the back third of the cushion, facing the table; the view lifted (or lowered) so they sit
             // EyeAboveSeat over it, whatever the player's real posture.
@@ -256,6 +277,7 @@ namespace Core.App
             _command = false;
             _animating = false;
             SetSeatCueVisible(true);
+            SetSeatTarget(true);
             CommandModeChanged?.Invoke(false);
         }
 

@@ -352,8 +352,42 @@ namespace Core.Vfx
             ? RepeaterSize.y * 0.5f * RepeaterScale
             : (ConsoleSize.y * 0.5f + HousingBorder) * ConsoleScale;
 
+        /// <summary>
+        /// The cluster's Build key: the Ops console on that world's buildings, set out in the room or, already
+        /// out, turned to it. <paramref name="planetId"/> 0 = the console's usual pick.
+        /// </summary>
+        public void OpenOps(int planetId)
+        {
+            if (!WatchMode.Inside)
+                return;
+            var def = _defs.Find(d => d.Kind == Kind.Ops);
+            if (def == null || !Available(def))
+                return;
+            _opsPlanet = planetId;
+            if (Find(def) == null)
+            {
+                Spawn(def);
+            }
+            else
+            {
+                var ops = OpsConsole.Instance;
+                var mount = ops.transform.parent;
+                ops.Open(null, PreferredPlanet());
+                ops.transform.SetParent(mount, false);
+                ops.transform.localPosition = Vector3.zero;
+                ops.transform.localRotation = Quaternion.identity;
+            }
+
+            _opsPlanet = 0;
+            RefreshKeys();
+        }
+
+        int _opsPlanet;
+
         int PreferredPlanet()
         {
+            if (_opsPlanet > 0)
+                return _opsPlanet;
             if (_focus == null)
                 return 0;
             return _focus.ViewPlanetId > 0 ? _focus.ViewPlanetId : _focus.FindViewFleet()?.PlanetId ?? 0;
