@@ -60,6 +60,22 @@ Principes non négociables, rappelés ici :
 - **Plaque Communauté** dans le sas (site + Discord, QR vérifiés).
 - Clés à intégrer : [`i18n/missing-keys.md`](i18n/missing-keys.md) (section forteresses / cité).
 
+### À faire — synchronisation web `600347f..0404bf9` (news 40, v4.10.2) : marché galactique, convois, pillage
+
+**Ce que fait le web** (`model/marketplace.php`, `ui/MarketplaceUI.js`, `model/battle.php`) :
+- Marché ouvert entre empires : offres de **ressources** (minerai / cristal / biomasse) ou de **modules du hangar**, payées en ressource, posées depuis une planète (`CreateMarketOffer`, `CancelMarketOffer`), parcourues par catégorie / recherche / tri / page / distance (`GetMarketplaceData`), contexte d'une planète (`GetPlanetTradeStatus` : stocks, modules du hangar, vaisseaux en orbite et soute libre, nos offres, missions en cours).
+- Achat = **convoi physique** (`DispatchMarketConvoy listing_id, origin_planet, fleets[]`) : soute ≥ max(volume, prix), paiement chargé dans les soutes, aller vers la planète du vendeur, échange, retour, déchargement (`ProcessTradeMissions`, aussi en cron) ; colonne `fleets.tradeMissionId`.
+- **Interception** : un convoi détruit en combat perd sa cargaison au vainqueur ; tout vaisseau détruit laisse son fret au vainqueur (`HandleCombatFleetDestruction`), le reste va à sa première planète.
+
+**Plan VR** (même découpage que la synchro précédente : un commit par étape) :
+1. **Modèle** : `FocusFleet.TradeMissionId` (GetAllFleets), `MarketService` (lectures cadencées à l'écran seulement, comme Comms). Réponses `{"status":"error","message":code}` à traiter comme des échecs (pas de préfixe `error:` — un enveloppeur dans le service, codes → clés `market_*` / `vr.market.err.*`).
+2. **Salle des marchés** : nouvelle pièce dans une **baie libre du hall** (bays 2 / 5 de `StationConcourse`, accessible depuis la cité et la station ; depuis un vaisseau, par le couloir comme le labo). Corbeille de bourse : un grand anneau holo des offres (tri prix / distance / récence, filtres catégorie, recherche au clavier Quest), chaque offre = un **caisson holo** (ressource = lingot / cristal / bulbe, module = sa silhouette `ShipHullBuilder.ModuleMesh`), vendeur + distance + prix ; deux pupitres : *Créer une offre* (planète, catégorie, quantité, devise, prix — stock et hangar lus du contexte) et *Mes offres / convois* (annuler en deux temps, missions en cours avec phase et ETA). Écran mural : flux des transactions.
+3. **Achat et convoi** : choisir l'offre → pupitre de convoi : planète d'origine (nos mondes), vaisseaux en orbite cochés (soute libre / requise en jauge, refus miroir du serveur : occupé, soute insuffisante, monnaie), confirmation → `DispatchMarketConvoy`. **Jamais une station** dans la sélection (voir écarts). Réplique Ops / Comms.
+4. **Convois dans le monde** : flotte `tradeMissionId > 0` = livrée marchande (liseré ambre, caisses de fret visibles sur la coque), sur la table : route aller / retour pointillée, jeton « convoi » ; dehors : traversée normale (`SystemExterior`) ; écran principal et hall : arrivée / échange / retour annoncés ; courrier système lu tel quel par Comms.
+5. **Combat et pillage** : à la destruction d'un vaisseau ennemi, la cargaison pillée part vers nos soutes (FX de conteneurs aspirés sur le plateau et dehors, flottant « +N minerai… ») ; convoi intercepté = bandeau + réplique Tactique ; nos convois en route = cible à protéger (alerte si attaqué).
+6. **i18n / docs / parité** : clés natives `market_*` d'abord, le reste en `vr.market.*` dans `missing-keys.md` ; PARITY (les 5 actions ne sont pas dans `action-api.json` → ajouter au script en attendant), SCALE (salle des marchés), VISION (§ alcôves).
+7. **Vérification** : rendus Editor de la salle (scratch scene), Play Mode réel : lecture du marché, création puis annulation d'une offre sur le compte propriétaire (ordres réels autorisés, signalés), un achat seulement si une offre d'un autre joueur est disponible et qu'un vaisseau à soute est à quai.
+
 ### Modèle serveur à respecter
 
 La simulation est **paresseuse** :

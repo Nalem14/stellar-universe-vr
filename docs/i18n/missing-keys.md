@@ -17,40 +17,6 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 - **Paramètres** : `{0}`, `{1}`… (`Trans.Format`, `string.Format` en culture invariante).
 - Pour les répliques, les ordres et les échecs, le ton reprend celui du journal de colonisation web : l'équipage s'adresse au joueur en « Commandant ».
 
-## À intégrer — forteresses orbitales, sièges planétaires, cité, plaque Communauté (web 69d40af / 600347f)
-
-| Clé | EN | FR | Contexte |
-|---|---|---|---|
-| `battleSkill_planetary_battery` | Ground-to-Space Battery | Batterie Sol-Espace | Compétence de la planète en siège (GetSkillsForPlanet, nom serveur en dur) |
-| `battleSkill_flak_barrage` | Planetary Flak Barrage | Barrage Flak Planétaire | idem |
-| `battleSkill_garrison_counter` | Garrison Counter-Offensive | Contre-Offensive de Garnison | idem |
-| `battleSkill_station_command` | Orbital Command | Commandement Orbital | StationCore (BATTLE_SKILL_DEFS) |
-| `battleSkill_orbital_cannonade` | Orbital Cannonade | Canonnière Orbitale | OrbitalDefenseBattery |
-| `battleSkill_aegis_bubble` | Aegis Bubble | Bulle Égide | PlanetaryShieldProjector |
-| `battleSkill_orbital_blackout` | Orbital Blackout | Brouillage Orbital | OrbitalJammingArray |
-| `battleSkill_dock_repair` | Dock Repair | Réparation de Quai | OrbitalGantry |
-| `battleSkill_reactor_overcharge` | Citadel Overcharge | Surcharge de Citadelle | CitadelReactor |
-| `vr.battle.immobile` | Fixed position | Position fixe | Plateau : touche Déplacer d'une planète / station, et refus d'un déplacement |
-| `vr.battle.err.cannot_move` | This unit holds a fixed position. | Cette unité tient une position fixe. | Erreur serveur `cannot_move` (BattleDoAction) |
-| `vr.battle.retreated` | Retreated | Repli effectué | Jeton qui quitte le plateau ; bandeau de fin quand tous nos vaisseaux se sont repliés |
-| `vr.battle.overcharge` | Overcharge! Shields up, EMP purged | Surcharge ! Boucliers rechargés, IEM purgée | Effet de `reactor_overcharge` |
-| `vr.dock.newStation` | + New orbital station | + Nouvelle station orbitale | Cale sèche : AddToFleet avec un StationCore |
-| `vr.dock.needStationCore` | Print a Station Core to found an orbital station | Imprimez un Cœur de Station pour fonder une station orbitale | Sous le bouton grisé |
-| `vr.dock.immobile` | 0 · anchored | 0 · immobile | Vitesse d'une station dans la fiche de la cale |
-| `vr.dock.templateStation` | Blueprints cannot be applied to an orbital station | Les gabarits ne s'appliquent pas à une station orbitale | Refus local (ApplyShipTemplate renverrait le StationCore au hangar, voir PARITY) |
-| `vr.module.compatShip` | SHIP | VAISSEAU | Pastille cyan (web 🚀 SHIP, 600347f) |
-| `vr.module.compatStation` | STATION | STATION | Pastille ambre (web 🛰 STATION) |
-| `vr.module.filterShip` | Ships | Vaisseaux | Filtre du catalogue du chantier |
-| `vr.module.filterStation` | Stations | Stations | Filtre du catalogue du chantier |
-| `vr.helm.stationAnchored` | Anchored in orbit of {0} — an orbital station has no engine. | Ancrée en orbite de {0} — une station orbitale n'a pas de moteur. | Barre à bord d'une station ({0} = planète) |
-| `vr.view.citadelHeader` | Citadel | Citadelle | Plaque et écran mural en vue planète (cité) |
-| `vr.view.city` | Citadel of {0} | Citadelle de {0} | Ligne d'état en vue cité ({0} = planète) |
-| `vr.view.noStation` | No orbital station yet — assemble a Station Core at the dry dock. | Aucune station orbitale — assemblez un Cœur de Station au chantier naval. | Onglet Stations du téléporteur, vide |
-| `vr.menu.community` | Community | Communauté | Plaque du sas (site + Discord) |
-| `vr.menu.website` | Official website | Site officiel | Plaque du sas |
-| `vr.menu.discord` | Discord | Discord | Plaque du sas |
-| `vr.menu.open` | Open in the headset | Ouvrir dans le casque | Plaque du sas : ouvre l'URL dans le navigateur du Quest |
-
 ## Intégré côté web
 
 - Clés `vr.*`, `crew.*`, `buildingDesc_*`, `colonyLog_*`, `relation_*` dans `assets/langs/{fr,en}.json`.
@@ -78,6 +44,7 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 - `vr.comms.readAll`, `vr.comms.readAllDone`, `vr.comms.readAllPartial`, `vr.dock.printer.done`, `vr.dock.printer.idle`, `vr.dock.printer.left`, `vr.dock.printer.queued`, `vr.dock.printer.title`, `vr.gate.ownAddress`, `vr.gate.thisGate`, `vr.quarters.bossGo`, `vr.quarters.bossHere`, `vr.quarters.bossHow`, `vr.quarters.bossNoShip`, `vr.quarters.bossWhere`, `vr.shop.perk.explore_speed`, `vr.shop.perk.mining_speed`, `vr.shop.perk.move_speed`, `vr.shop.perk.production_multiplier`, `vr.shop.perk.queues`, `vr.shop.perk.research_speed`, `vr.shop.perk.xp_multiplier` dans **les dix langues**.
 - `vr.dock.recycler.confirm`, `vr.dock.recycler.go`, `vr.dock.recycler.hint`, `vr.dock.recycler.title`, `vr.dock.store.empty`, `vr.dock.store.title`, `vr.dock.takeFromStore` dans **les dix langues**.
 - `vr.alert.auto`, `vr.alert.manual`, `vr.alert.normal`, `vr.alert.standDown` dans **les dix langues**.
+- `battleSkill_aegis_bubble`, `battleSkill_dock_repair`, `battleSkill_flak_barrage`, `battleSkill_garrison_counter`, `battleSkill_orbital_blackout`, `battleSkill_orbital_cannonade`, `battleSkill_planetary_battery`, `battleSkill_reactor_overcharge`, `battleSkill_station_command`, `vr.battle.err.cannot_move`, `vr.battle.immobile`, `vr.battle.overcharge`, `vr.battle.retreated`, `vr.dock.immobile`, `vr.dock.needStationCore`, `vr.dock.newStation`, `vr.dock.templateStation`, `vr.helm.stationAnchored`, `vr.menu.community`, `vr.menu.discord`, `vr.menu.open`, `vr.menu.website`, `vr.module.compatShip`, `vr.module.compatStation`, `vr.module.filterShip`, `vr.module.filterStation`, `vr.view.citadelHeader`, `vr.view.city`, `vr.view.noStation` dans **les dix langues**.
 
 
 ## Anomalies (intégré web)
