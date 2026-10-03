@@ -15,6 +15,11 @@ namespace Core.App
         // GetConfigs.fleet
         public static float SublightSpeedCap { get; private set; }
         public static float HyperspaceCrystalPerDistance { get; private set; }
+        /// <summary>
+        /// Crystal per distance unit for a faster-than-1 sub-light trip (web f03197d); 0 = not exposed by
+        /// GetConfigs yet — the quote then cannot price it and only the server's fallback notice tells.
+        /// </summary>
+        public static float SublightCrystalPerDistance { get; private set; }
         public static float TravelSecondsPerDistance { get; private set; }
         public static float TravelDurationMin { get; private set; }
         /// <summary>Sum of module <c>size</c> allowed on one hull (FLEET.MAX_SIZE).</summary>
@@ -105,6 +110,7 @@ namespace Core.App
                 {
                     SublightSpeedCap = FocusContext.AsFloat(fleet["sublightSpeedCap"]);
                     HyperspaceCrystalPerDistance = FocusContext.AsFloat(fleet["hyperspaceCrystalCostPerDistance"]);
+                    SublightCrystalPerDistance = FocusContext.AsFloat(fleet["sublightCrystalCostPerDistance"]);
                     TravelSecondsPerDistance = FocusContext.AsFloat(fleet["systemTravelSecondsPerDistance"]);
                     TravelDurationMin = FocusContext.AsFloat(fleet["systemTravelDurationMin"]);
                     MaxFleetSize = FocusContext.AsInt(fleet["maxFleetSize"]);

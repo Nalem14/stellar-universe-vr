@@ -230,6 +230,11 @@ namespace Core.Vfx
             foreach (var f in _focus.Fleets)
                 if (f.IsInBattle && _focus.IsMine(f))
                     return true;
+            // One of our worlds besieged with none of our ships in the fight: we still play its defence.
+            if (SiegeWatch.Instance != null)
+                foreach (var sg in SiegeWatch.Instance.Sieges)
+                    if (sg.Tactical)
+                        return true;
             return false;
         }
 
@@ -266,9 +271,13 @@ namespace Core.Vfx
                 {
                     var id = FocusContext.AsInt(b["id"]);
                     var fleet = FocusContext.AsInt(b["myFleetId"]);
-                    if (id <= 0 || fleet <= 0 || _finished.Contains(id))
+                    // myFleetId 0 = the siege of one of our worlds with no ship of ours in it (web 11adda2).
+                    var planet = FocusContext.AsInt(b["planetid"]);
+                    var defence = fleet == 0 && planet > 0 && OwnedPlanets.Contains(planet);
+                    if (id <= 0 || (fleet <= 0 && !defence) || _finished.Contains(id))
                         continue;
-                    var r = fleet == _focus.ViewFleetId ? 2
+                    var r = fleet > 0 && fleet == _focus.ViewFleetId ? 2
+                        : defence && _focus.Mode == ViewMode.City && planet == _focus.ViewPlanetId ? 2
                         : FocusContext.AsInt(b["systemid"]) == _focus.SystemId ? 1
                         : 0;
                     if (r <= rank)

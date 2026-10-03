@@ -31,6 +31,9 @@ namespace Core.Utils
                     return "notEnoughCrystalForHyperspace";
                 if (Body.StartsWith("ok:sublight_not_enough_modules", System.StringComparison.Ordinal))
                     return "notEnoughHyperspaceModules";
+                // Not enough crystal in the hold for a faster sub-light trip: speed 1, free (web f03197d).
+                if (Body.StartsWith("ok:conventional_drive", System.StringComparison.Ordinal))
+                    return "conventionalDrive";
                 return null;
             }
         }

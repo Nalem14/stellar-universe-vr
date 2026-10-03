@@ -80,6 +80,20 @@ namespace Core.Holo
                 case TravelMode.Sublight:
                     if (GameConfig.SublightSpeedCap > 0f)
                         speed = Mathf.Max(1f, Mathf.Min(speed, GameConfig.SublightSpeedCap));
+                    // Faster than 1 burns crystal from the hold (⌈speed × distance × rate⌉); short of it, the
+                    // server drops to the free conventional drive at speed 1 (web f03197d).
+                    if (speed > 1f && GameConfig.SublightCrystalPerDistance > 0f)
+                    {
+                        var cost = Mathf.CeilToInt(speed * q.Distance * GameConfig.SublightCrystalPerDistance);
+                        if (fleet.CrystalCargo < cost)
+                        {
+                            q.FallbackKey = "conventionalDrive";
+                            speed = 1f;
+                        }
+                        else
+                            q.CrystalCost = cost;
+                    }
+
                     q.EtaSeconds = Eta(q.Distance, speed);
                     break;
 

@@ -390,6 +390,9 @@ namespace Core.Vfx
                     // Busy (under way, mining, surveying…): no new move now, but the travel can be finished for
                     // Nova and the next orders still go on the queue (the server runs it once the ship is idle).
                     AddStatus(Trans.Get(FleetOrderGate.BusyKey(fleet)));
+                    // Crawling at speed 1: the hold had no crystal for a faster sub-light trip (web f03197d).
+                    if (fleet.ConventionalDrive && fleet.IsMoving(FleetOrderGate.UnixNow()))
+                        AddStatus(Trans.Get("conventionalDrive"));
                     if (Core.Holo.TravelSpeedup.Offered(fleet))
                         AddAction(Core.Holo.TravelSpeedup.Label(fleet), () => SpeedupTravel(fleet),
                             DiegeticUi.BtnStyle.Amber);

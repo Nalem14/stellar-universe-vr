@@ -84,6 +84,8 @@ namespace Core.Vfx
         /// <summary>An orbital fortress: never moves, never retreats.</summary>
         public bool IsStation;
         public int PlanetId;
+        /// <summary>The besieged world's name (GetBattleFullState planet_name, web 11adda2); empty for ships.</summary>
+        public string PlanetName = string.Empty;
         /// <summary>Left the arena on a retreat order (alive = 0, hex −999): not a loss.</summary>
         public bool Retreated;
         public bool IsMine;
@@ -121,6 +123,7 @@ namespace Core.Vfx
                 IsPlanet = FocusContext.AsBool(t["is_planet"]),
                 IsStation = FocusContext.AsBool(t["is_station"]),
                 PlanetId = FocusContext.AsInt(t["planet_id"]),
+                PlanetName = FocusContext.AsString(t["planet_name"]),
                 Retreated = FocusContext.AsBool(t["retreated"]),
                 IsMine = FocusContext.AsBool(t["is_mine"]),
                 IsActive = FocusContext.AsBool(t["is_active"]),

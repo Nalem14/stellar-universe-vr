@@ -1,6 +1,6 @@
 # PARITY — Stellar Universe VR ↔ `actionjs.php`
 
-Généré depuis `action-api.json` (169 actions), `actionjs.php` et un grep des deux clients. Référence web : `/Users/thommy/Websites/stellar-universe`. Roadmap : [`ROADMAP.md`](ROADMAP.md).
+Généré depuis `action-api.json` (171 actions), `actionjs.php` et un grep des deux clients. Référence web : `/Users/thommy/Websites/stellar-universe`. Roadmap : [`ROADMAP.md`](ROADMAP.md).
 
 **Règle** : chaque feature livrée met à jour sa ligne. Avant de coder, lire l'implémentation web (colonne *Web*) + `model/*.php`. On adapte la jouabilité au pont VR ; le contrat serveur reste strict. La VR ne renvoie **jamais** au web.
 
@@ -21,19 +21,19 @@ Généré depuis `action-api.json` (169 actions), `actionjs.php` et un grep des 
 | Galaxie | 8 | 8 | 100 % |
 | Flotte | 22 | 24 | 92 % |
 | Vaisseau / chantier | 12 | 13 | 92 % |
-| Planète / bâtiments / recherche | 17 | 17 | 100 % |
+| Planète / bâtiments / recherche | 18 | 18 | 100 % |
 | Combat | 12 | 14 | 86 % |
 | Jumpgate | 2 | 2 | 100 % |
 | Stargate | 7 | 7 | 100 % |
-| Social (chat, mail) | 11 | 11 | 100 % |
+| Social (chat, mail) | 12 | 12 | 100 % |
 | Guerre | 9 | 9 | 100 % |
 | Alliance | 17 | 17 | 100 % |
 | Empire / progression / shop | 24 | 27 | 89 % |
 | Saisons de suprématie | 5 | 5 | 100 % |
 | Marché galactique / convois | 0 | 5 | 0 % |
-| **Total** | **156** | **169** | **92 %** |
+| **Total** | **158** | **171** | **92 %** |
 
-Appelées par le client web : 150/169. « Appelée » ≠ « finie » : voir la colonne *Statut*.
+Appelées par le client web : 150/171. « Appelée » ≠ « finie » : voir la colonne *Statut*.
 
 ## Auth
 
@@ -89,7 +89,7 @@ Appelées par le client web : 150/169. « Appelée » ≠ « finie » : voir la 
 | `LoadTroops` | W | fleet, planet, troops | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Tactical | P5 | Branché | Soute à troupes de l'Armurerie : `{type: qty}` ; réponse = unités déplacées → navettes dehors + étincelle sur la table |
 | `MoveFleetToAsteroid` | W | fleet, asteroid, hyperspace? | `App/VoyageLog.cs` +4 | `objects/fleet.js` | Helm | P4 | Branché | idem hyperspace |
 | `MoveFleetToPlanet` | W | fleet, planet, hyperspace? | `App/VoyageLog.cs` +4 | `objects/fleet.js` | Helm | P4 | Branché | idem hyperspace |
-| `MoveFleetToSystem` | W | fleet, pos, system, hyperspace? | `App/VoyageLog.cs` +4 | `objects/fleet.js` | Helm | P4 | Branché | `system` (id, prioritaire) + `pos` + toujours `hyperspace` explicite (0 sous-lumière / 1 hyperespace) après devis au pupitre (`TravelPlanner`, formules serveur) ; `ok:sublight_*` → `ApiResult.NoticeKey` ; `grid` = époque de la grille (GetConfigs), jointe à chaque requête par `ActionJs`. Station orbitale : refus local `stationCannotMove` (comme tous les `MoveFleet*`, files, portail, PRL) |
+| `MoveFleetToSystem` | W | fleet, pos, system, hyperspace? | `App/VoyageLog.cs` +4 | `objects/fleet.js` | Helm | P4 | Branché | `system` (id, prioritaire) + `pos` + toujours `hyperspace` explicite (0 sous-lumière / 1 hyperespace) après devis au pupitre (`TravelPlanner`, formules serveur) ; sous-lumière plus rapide que 1 = cristal de la soute (⌈vitesse × distance × taux⌉, web f03197d), sinon propulsion conventionnelle à vitesse 1 (devis ambre, `ok:conventional_drive` → `conventionalDrive`, état `stats.conventionalDriveActive` à la barre) ; `ok:sublight_*` → `ApiResult.NoticeKey` ; `grid` = époque de la grille (GetConfigs), jointe à chaque requête par `ActionJs`. Station orbitale : refus local `stationCannotMove` |
 | `PrlBondFleetToSystem` | W | fleet, system?, pos? | `App/VoyageLog.cs` +3 | `objects/fleet.js` | Helm | P4 | Branché | Devis portée / coût / recharge au pupitre (`TravelPlanner`, distance sur la carte — `Star.BondX/BondY`, `SystemMapDistance` serveur), `fleet` + `system` + `pos` ; lâcher sur une étoile de la galaxie |
 | `ProcessFleetOrderQueue` | W | fleet | — | — | Helm | — | Hors scope | Géré par cron + `GetAllFleets` ; pas d'UI |
 | `RemoveFleetOrderStep` | W | fleet, stepIndex | `Holo/OrderQueue.cs` | `objects/fleet.js` | Helm | P4 | Branché | `stepIndex` 0-based : répéteur Helm, ou plaque ouverte sur une balise de la file (table) |
@@ -140,6 +140,7 @@ Appelées par le client web : 150/169. « Appelée » ≠ « finie » : voir la 
 | `RenamePlanet` | W | id, name | `Stations/OpsConsole.cs` | `objects/planet.js` | Ops | P5 | Branché | Serveur : 1–32 chars, lettres/chiffres/espaces/-_. ; `error:invalidPlanetName` |
 | `SpeedupBuilding` | W | planet | `Stations/OpsConsole.cs` | `scenes/planet.js` | Ops | P5 | Branché | Coût Nova affiché avant (gratuit ≤ 60 s, sinon max(10, ⌈6·min^0.82⌉)) |
 | `SpeedupResearch` | W | — | `Stations/ResearchLab.cs` | `scenes/research.js` | Science | P5 | Branché | Écran du synthétiseur ; coût Nova affiché (gratuit ≤ 60 s) ; sans param |
+| `TogglePlanetFavorite` | W | planet | `App/PlanetFavorites.cs` | — | Ops | P5 | Branché |  |
 | `UpgradeBuilding` | W | buildingtype, planet | `Crew/CrewLines.cs` +1 | `objects/planet.js` | Ops | P5 | Branché | Console Ops : devis serveur (coût × niveau cible, temps × computer), « Ajouter à la file » si chantier actif ; réponse texte (niveau) ou JSON `queued` |
 
 ## Combat
@@ -192,6 +193,7 @@ Appelées par le client web : 150/169. « Appelée » ≠ « finie » : voir la 
 | `GetMails` | R | folder | `App/CommsService.cs` +1 | `ui/MailWindowUI.js` | Comms | P5 | Branché | Onglet Courrier : `folder` inbox / sent, `filter` player / system / battle / diplomacy ; expéditeur 0 → libellé `system` (le serveur écrit « SYSTÈME ») |
 | `GetPrivateConversations` | R | — | `App/CommsService.cs` +1 | `ui/PanelChatUI.js` | Comms | P5 | Branché | Colonne gauche de l'onglet Privé (badge non lus) |
 | `GetPrivateMessages` | R | contact_id, lastid | `Stations/CommsConsole.cs` | `ui/PanelChatUI.js` | Comms | P5 | Branché | Fil ouvert, `lastid`, relu toutes les 3 s ; marque lu côté serveur |
+| `MarkAllMailRead` | W | folder, filter, contact_id | `Stations/CommsConsole.cs` | — | Comms | P5 | Branché |  |
 | `SearchPlayers` | R | query | `Stations/CommsConsole.cs` | — | Comms | P5 | Branché | Recherche de commandant pour ouvrir un fil (soi-même exclu) |
 | `SendMail` | W | recipient, subject, content | `Stations/CommsConsole.cs` | `ui/MailWindowUI.js` | Comms | P5 | Branché | `recipient` = nom ou id ; garde client champs requis |
 | `SendPrivateMessage` | W | contact_id, message | `Stations/CommsConsole.cs` | — | Comms | P5 | Branché | Champ du fil |
@@ -518,3 +520,8 @@ Miroir de `controller/create-empire.php` via `CreateEmpireForUser` : mêmes vali
 - **Les vaisseaux d'appoint d'un convoi sont fondus et supprimés** : ✅ chaque coque reste une flotte. Le chef est `fleet_id`, les autres `marketplace_missions.aux_fleet_ids` ; toutes portent `tradeMissionId`, voyagent ensemble et sont rendues au quai. L'ancien nom du chef est dans `cargo_goods.lead_name`.
 - **Contrat de réponse différent du reste de l'API** : ✅ `GetPlanetTradeStatus`, `CreateMarketOffer`, `CancelMarketOffer` et `DispatchMarketConvoy` échouent par `error:` + `Lang(clé)`. Les codes (`planetNotFound`, `stationCannotMove`, `listingAlreadyTakenOrExpired`, …) sont dans les dix langues. Le succès reste du JSON.
 - **Textes français en dur** : ✅ serveur et panneau. Nom `market_convoy_name`, courriers `SendNotificationMail` (`market_mail_*`, langue du lecteur), journal `market_activity_*`, minerais via `mineralResource` / `crystalResource` / `biomassResource`. `MarketplaceUI.js` passe par `Helper.lang` (`market_*`, `close`, `cancel`, `previous`, `next`) — les clés sont dans les dix langues.
+
+### À corriger côté web (sous-lumière payante — `f03197d`, 2026-10-03)
+
+- **`GetConfigs` n'expose pas `FLEET.SUBLIGHT_CRYSTAL_COST_PER_DISTANCE`** : un client ne peut pas chiffrer un trajet sous-lumière ni prévoir le repli en propulsion conventionnelle sans recopier la constante. À ajouter dans `fleet` (`sublightCrystalCostPerDistance`) à côté de `hyperspaceCrystalCostPerDistance` ; la VR la lit déjà si elle est présente (devis du pupitre), sinon elle ne peut qu'annoncer le repli après coup.
+- **`ok:conventional_drive` absent du contrat** : `MoveFleetToSystem`, `MoveFleetToPlanet` et `MoveFleetToAsteroid` peuvent le renvoyer, mais `action-api.json` n'annonce que `ok` / `ok:sublight_no_crystal` (`response.success_forms` et les `success` de chaque action).

@@ -77,6 +77,8 @@ namespace Core.App
         /// <summary>Unix seconds when Bond PRL is ready again; 0 = ready.</summary>
         public long PrlBondReadyAt;
         public bool HasScienceModule;
+        /// <summary>Under way on the free conventional drive (speed 1: not enough crystal for sub-light, web f03197d).</summary>
+        public bool ConventionalDrive;
 
         // Troop Bay (stats.troopCargo, GetAllFleets troops[] = {type, qty}) and siege stance (defendPosition).
         public int TroopCargo;
@@ -694,6 +696,7 @@ namespace Core.App
                         row.EnoughPrlBond = AsBool(stats["hasEnoughPrlBond"]);
                         row.HasScienceModule = AsBool(stats["hasScienceModule"]);
                         row.TroopCargo = AsInt(stats["troopCargo"]);
+                        row.ConventionalDrive = AsBool(stats["conventionalDriveActive"]);
                     }
 
                     row.DefendPosition = AsString(fleet["defendPosition"]);

@@ -490,15 +490,14 @@ namespace Core.Vfx
         }
 
         /// <summary>
-        /// Ship: its fleet name. Planet: its own name from our catalogs — the server's fleet_name for it is French
-        /// text ("… (Planète)"), so it is never shown as is.
+        /// Ship: its fleet name. Planet: the server's planet_name (web 11adda2), else our catalogs.
         /// </summary>
         static string ShipName(BattleShip s)
         {
             if (s.IsPlanet)
             {
                 var id = s.PlanetId;
-                var name = FocusContext.Current?.FindPlanet(id)?.Name;
+                var name = !string.IsNullOrEmpty(s.PlanetName) ? s.PlanetName : FocusContext.Current?.FindPlanet(id)?.Name;
                 if (string.IsNullOrEmpty(name) && GalaxyCatalog.TryGetPlanet(id, out var pr))
                     name = pr.Name;
                 return string.IsNullOrEmpty(name) ? Trans.Get("planet") + " #" + id : name;

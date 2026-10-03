@@ -41,8 +41,8 @@ namespace Core.Stations
         readonly Func<Task> _applied;
 
         /// <summary>
-        /// The picked hull is an orbital fortress: ApplyShipTemplate would send its StationCore back to the
-        /// hangar (server keeps only ShipCore) — refused here until the web fixes it (docs/PARITY.md).
+        /// The picked hull is an orbital fortress. ApplyShipTemplate keeps its StationCore and skips the cells the
+        /// hull refuses (web 11adda2), so blueprints apply to fortresses too; kept for the panel's hints.
         /// </summary>
         public Func<bool> StationHull;
         readonly List<Blueprint> _list = new();
@@ -386,11 +386,7 @@ namespace Core.Stations
             var fleet = _fleet();
             if (fleet <= 0)
                 return;
-            if (StationHull != null && StationHull())
-            {
-                _status(Trans.Get("vr.dock.templateStation"), true);
-                return;
-            }
+
             _busy = true;
             try
             {
