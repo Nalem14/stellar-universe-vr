@@ -76,14 +76,9 @@ namespace Core.App
 
         void Start()
         {
+            // First person everywhere (airlock, bridge, seat, rooms): the mouse looks, the crosshair aims the holo
+            // screens and objects (PcInteractionRaycaster). Tab / Alt free the cursor on demand.
             AdjustCameraHeight(StandingEyeHeight);
-            // The airlock is a form (login, sign-up, community plaque): a free cursor to click its fields. On the
-            // bridge the view is first person (cursor captured, Tab frees it).
-            if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == SceneFlow.Menu)
-            {
-                _manualUnlock = true;
-                SetCursorLock(false);
-            }
         }
 
         public void AdjustCameraHeight(float height)
@@ -148,9 +143,9 @@ namespace Core.App
                 SetCursorLock(!_manualUnlock);
             }
 
-            // Clicking into the window re-locks cursor if not manually unlocked or in seated command mode
+            // A click into the view (not on a screen) captures the cursor again.
             var mouse = Mouse.current;
-            if (!_cursorLocked && !_manualUnlock && !IsInSeatedCommandMode())
+            if (!_cursorLocked && !_manualUnlock)
             {
                 if (mouse != null && mouse.leftButton.wasPressedThisFrame)
                 {

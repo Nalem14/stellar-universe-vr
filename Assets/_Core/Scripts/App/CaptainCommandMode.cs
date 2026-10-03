@@ -313,8 +313,8 @@ namespace Core.App
             _command = true;
             _animating = false;
             SetSeatCueVisible(false);
-            if (PcPlatformBoot.IsPcDesktop)
-                PcDesktopController.Instance?.SetCursorLock(false);
+            // Seated on PC the mouse still looks (up to the dome, round the tiers); the crosshair works the arm
+            // consoles and the table.
             CommandModeChanged?.Invoke(true);
         }
 

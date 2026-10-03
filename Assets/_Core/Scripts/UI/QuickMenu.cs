@@ -89,8 +89,6 @@ namespace Core.UI
             var at = cam.transform.position + f * 0.62f + Vector3.down * 0.1f;
             _panel.transform.SetPositionAndRotation(at, Quaternion.LookRotation(at - cam.transform.position, Vector3.up));
             _panel.SetActive(true);
-            if (PcPlatformBoot.IsPcDesktop)
-                PcDesktopController.Instance?.SetCursorLock(false);
             Refresh();
             CicCue.Ok(at);
         }
