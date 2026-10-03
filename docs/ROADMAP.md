@@ -60,7 +60,13 @@ Principes non négociables, rappelés ici :
 - **Plaque Communauté** dans le sas (site + Discord, QR vérifiés).
 - Clés à intégrer : [`i18n/missing-keys.md`](i18n/missing-keys.md) (section forteresses / cité).
 
-### À faire — synchronisation web `600347f..f03197d` (marché) (news 40, v4.10.2) : marché galactique, convois, pillage
+### Fait — synchronisation web `600347f..f03197d` (marché) — commit `fd7f6a1`
+
+Salle de la Bourse (station / cité seulement) : carrousel de caisses saisissables, berceau d'inspection, carte stellaire des routes et des convois, lancement des cargos par la baie, pad de séquestre, comptoir (vente, annulation en deux temps, composeur de convoi), bandeau des cotations ; convois verrouillés aux ordres, verts sur la table ; barks d'interception, de retour et de pillage (éclat sur le plateau de combat). Hall d'une cité refait de A à Z (`5948ce0`) : la galerie de la citadelle, dans la tour, sans anneau.
+
+#### Plan d'origine (archivé)
+
+### Plan — synchronisation web `600347f..f03197d` (marché) (news 40, v4.10.2) : marché galactique, convois, pillage
 
 **Aussi dans cette plage** : rééquilibrage des modules, propulsions, défenses et modules de vie (`6b42a85`, `MigrateShipStatsRebalance`) — la VR lit tout via `GetConfigs`, rien à coder ; vérifier seulement les devis du chantier et de la cale après déploiement. Wiki et menu du site : hors VR.
 
