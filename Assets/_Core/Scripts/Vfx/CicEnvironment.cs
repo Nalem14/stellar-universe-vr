@@ -211,8 +211,6 @@ namespace Core.Vfx
             go.transform.SetParent(transform, false);
             go.transform.localPosition = pos;
             go.transform.localScale = scale;
-            // A primitive cylinder brings a capsule: on a flat disc (the holo table, its rim) that is an invisible dome
-            // over the plate that stops every pointer and body from outside. Keep the true shape instead.
             DropColliderStatic(go);
             if (keepCollider)
             {
@@ -250,8 +248,17 @@ namespace Core.Vfx
             go.transform.SetParent(transform, false);
             go.transform.localPosition = pos;
             go.transform.localScale = scale;
-            if (!keepCollider)
-                DropColliderStatic(go);
+            // The primitive collider is a capsule. Flattened (the holo plate, its rim) the radius stays the
+            // wide axis, so it inflates into an invisible dome over the diorama and stops every pointer
+            // — and the body — before the tokens. A mesh keeps the disc.
+            DropColliderStatic(go);
+            if (keepCollider)
+            {
+                var shape = go.AddComponent<MeshCollider>();
+                shape.sharedMesh = go.GetComponent<MeshFilter>().sharedMesh;
+                shape.convex = true;
+            }
+
             go.GetComponent<MeshRenderer>().sharedMaterial = mat;
             return go;
         }
