@@ -1,6 +1,6 @@
 # PARITY — Stellar Universe VR ↔ `actionjs.php`
 
-Généré depuis `action-api.json` (164 actions), `actionjs.php` et un grep des deux clients. Référence web : `/Users/thommy/Websites/stellar-universe`. Roadmap : [`ROADMAP.md`](ROADMAP.md).
+Généré depuis `action-api.json` (169 actions), `actionjs.php` et un grep des deux clients. Référence web : `/Users/thommy/Websites/stellar-universe`. Roadmap : [`ROADMAP.md`](ROADMAP.md).
 
 **Règle** : chaque feature livrée met à jour sa ligne. Avant de coder, lire l'implémentation web (colonne *Web*) + `model/*.php`. On adapte la jouabilité au pont VR ; le contrat serveur reste strict. La VR ne renvoie **jamais** au web.
 
@@ -30,9 +30,10 @@ Généré depuis `action-api.json` (164 actions), `actionjs.php` et un grep des 
 | Alliance | 17 | 17 | 100 % |
 | Empire / progression / shop | 24 | 27 | 89 % |
 | Saisons de suprématie | 5 | 5 | 100 % |
-| **Total** | **156** | **164** | **95 %** |
+| Marché galactique / convois | 0 | 5 | 0 % |
+| **Total** | **156** | **169** | **92 %** |
 
-Appelées par le client web : 145/164. « Appelée » ≠ « finie » : voir la colonne *Statut*.
+Appelées par le client web : 150/169. « Appelée » ≠ « finie » : voir la colonne *Statut*.
 
 ## Auth
 
@@ -272,6 +273,16 @@ Appelées par le client web : 145/164. « Appelée » ≠ « finie » : voir la 
 | `GetEmpireAccolades` | R | — | `Stations/SeasonBoard.cs` | `ui/ProgressionWindowUI.js` | Quartiers du commandant | P6 | Branché | Onglet Honneurs : nos titres impériaux (libellés serveur tels quels) sous les récompenses de fin de saison |
 | `GetSeasonLeaderboard` | R | category, limit, page | `Stations/SeasonBoard.cs` | `ui/ProgressionWindowUI.js` | Quartiers du commandant | P6 | Branché | Onglets Classement (`category=empires`, `limit=20` : rang, empire + titre porté, alliance, palier, score ; notre ligne surlignée) et Alliances (`category=alliances`) du tableau de saison, mêmes cadences |
 | `GetSeasonPantheon` | R | season_number | `Stations/SeasonBoard.cs` | `ui/ProgressionWindowUI.js` | Quartiers du commandant | P6 | Branché | Onglet Panthéon : une saison close par page (empires et alliances, honneur, récompense) ; lu une fois par visite |
+
+## Marché galactique / convois
+
+| Action | R/W | Params | VR | Web | Station | Phase | Statut | Notes |
+|---|---|---|---|---|---|---|---|---|
+| `CancelMarketOffer` | W | listing_id, planet | — | `ui/MarketplaceUI.js` | Salle des marchés | P5 | À faire |  |
+| `CreateMarketOffer` | W | planet, listing_type, category, item_key, quantity, price_currency, price_amount | — | `ui/MarketplaceUI.js` | Salle des marchés | P5 | À faire |  |
+| `DispatchMarketConvoy` | W | listing_id, origin_planet, fleet_ids | — | `ui/MarketplaceUI.js` | Salle des marchés | P5 | À faire |  |
+| `GetMarketplaceData` | R | category, search, sort, page, limit, planet | — | `ui/MarketplaceUI.js` | Salle des marchés | P5 | À faire |  |
+| `GetPlanetTradeStatus` | R | planet | — | `ui/MarketplaceUI.js` | Salle des marchés | P5 | À faire |  |
 
 ## Écarts serveur à traiter côté web
 
