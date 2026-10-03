@@ -60,7 +60,7 @@ Principes non négociables, rappelés ici :
 - **Plaque Communauté** dans le sas (site + Discord, QR vérifiés).
 - Clés à intégrer : [`i18n/missing-keys.md`](i18n/missing-keys.md) (section forteresses / cité).
 
-### À faire — synchronisation web `600347f..1ec1ce9` (news 40, v4.10.2) : marché galactique, convois, pillage
+### À faire — synchronisation web `600347f..f03197d` (marché) (news 40, v4.10.2) : marché galactique, convois, pillage
 
 **Aussi dans cette plage** : rééquilibrage des modules, propulsions, défenses et modules de vie (`6b42a85`, `MigrateShipStatsRebalance`) — la VR lit tout via `GetConfigs`, rien à coder ; vérifier seulement les devis du chantier et de la cale après déploiement. Wiki et menu du site : hors VR.
 
@@ -70,7 +70,7 @@ Principes non négociables, rappelés ici :
 - **Interception** : un convoi détruit en combat perd sa cargaison au vainqueur ; tout vaisseau détruit laisse son fret au vainqueur (`HandleCombatFleetDestruction`), le reste va à sa première planète.
 
 **Plan VR** (même découpage que la synchro précédente : un commit par étape) :
-1. **Modèle** : `FocusFleet.TradeMissionId` (GetAllFleets), `MarketService` (lectures cadencées à l'écran seulement, comme Comms). Depuis web `1ec1ce9` : contrat dans `action-api.json`, réponses `{status, success, …}` avec les données aussi à la racine, échec = `success:false` + `error:<code>` (pas de préfixe `error:` — un enveloppeur dans le service, codes → clés `market_*` / `vr.market.err.*`) ; `DispatchMarketConvoy` prend `fleet_ids` en csv ; `GetPlanetTradeStatus` sans `planet` = première planète.
+1. **Modèle** : `FocusFleet.TradeMissionId` (GetAllFleets), `MarketService` (lectures cadencées à l'écran seulement, comme Comms). Contrat dans `action-api.json` ; depuis web `3dfe6c3` les échecs sont des `error:<texte traduit>` comme le reste de l'API (rien de spécial côté `ActionJs`), succès JSON `{status, success, …}` avec les données aussi à la racine ; `DispatchMarketConvoy` prend `fleet_ids` en csv ; jamais une station dans un convoi (refus serveur `stationCannotMove`) ; chaque vaisseau d'un convoi reste une flotte (chef = `fleet_id`).
 2. **Salle des marchés** : nouvelle pièce dans une **baie libre du hall** (bays 2 / 5 de `StationConcourse`, accessible depuis la cité et la station ; depuis un vaisseau, par le couloir comme le labo). Corbeille de bourse : un grand anneau holo des offres (tri prix / distance / récence, filtres catégorie, recherche au clavier Quest), chaque offre = un **caisson holo** (ressource = lingot / cristal / bulbe, module = sa silhouette `ShipHullBuilder.ModuleMesh`), vendeur + distance + prix ; deux pupitres : *Créer une offre* (planète, catégorie, quantité, devise, prix — stock et hangar lus du contexte) et *Mes offres / convois* (annuler en deux temps, missions en cours avec phase et ETA). Écran mural : flux des transactions.
 3. **Achat et convoi** : choisir l'offre → pupitre de convoi : planète d'origine (nos mondes), vaisseaux en orbite cochés (soute libre / requise en jauge, refus miroir du serveur : occupé, soute insuffisante, monnaie), confirmation → `DispatchMarketConvoy`. **Jamais une station** dans la sélection (voir écarts). Réplique Ops / Comms.
 4. **Convois dans le monde** : flotte `tradeMissionId > 0` = livrée marchande (liseré ambre, caisses de fret visibles sur la coque), sur la table : route aller / retour pointillée, jeton « convoi » ; dehors : traversée normale (`SystemExterior`) ; écran principal et hall : arrivée / échange / retour annoncés ; courrier système lu tel quel par Comms.
