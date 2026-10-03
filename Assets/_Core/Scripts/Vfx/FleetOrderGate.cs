@@ -50,6 +50,13 @@ namespace Core.Vfx
         public static bool IsIdle(FocusFleet fleet) =>
             fleet != null && fleet.IsIdle(UnixNow());
 
+        /// <summary>
+        /// Why the server refuses any move / queue / gate / cargo / auto order to this hull before looking further:
+        /// an orbital fortress (stationCannotMove), a marketplace convoy (fleetIsBusy, web 0417693). Null = neither.
+        /// </summary>
+        public static string LockKey(FocusFleet fleet) =>
+            fleet == null ? null : fleet.IsStation ? "stationCannotMove" : fleet.IsTrading ? "fleetIsBusy" : null;
+
         /// <summary>Orbital fortress: every MoveFleet* / queue / gate / PRL order is refused (stationCannotMove).</summary>
         public static bool IsAnchored(FocusFleet fleet) =>
             fleet != null && fleet.IsStation;
@@ -73,7 +80,8 @@ namespace Core.Vfx
 
         public static bool CanCargo(FocusFleet fleet, FocusContext focus)
         {
-            if (fleet == null || fleet.PlanetId <= 0 || focus == null)
+            // A convoy's hold carries the payment or the goods: DepositCargo / WithdrawCargo refuse it (web 0417693).
+            if (fleet == null || fleet.PlanetId <= 0 || focus == null || fleet.IsTrading)
                 return false;
             var planet = focus.FindPlanet(fleet.PlanetId);
             if (planet == null)

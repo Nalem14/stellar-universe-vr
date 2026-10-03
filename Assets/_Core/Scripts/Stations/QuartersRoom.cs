@@ -1202,10 +1202,10 @@ namespace Core.Stations
         {
             var focus = FocusContext.Current;
             var fleet = focus?.FindViewFleet();
-            if (fleet != null && fleet.IsStation)
+            if (FleetOrderGate.LockKey(fleet) is { } locked)
             {
-                // An orbital fortress has no engine: the server refuses every move (stationCannotMove).
-                SetStatus(_progStatus, Trans.Get("stationCannotMove"), true);
+                // An orbital fortress has no engine, a convoy flies the guild's route: the server refuses every move.
+                SetStatus(_progStatus, Trans.Get(locked), true);
                 CicCue.Fail(_prog.transform.position);
                 return;
             }

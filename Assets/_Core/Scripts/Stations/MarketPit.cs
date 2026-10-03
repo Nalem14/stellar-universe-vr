@@ -778,7 +778,7 @@ namespace Core.Stations
                              (string.IsNullOrEmpty(l.EmpireName) ? string.Empty : " · " + ScreenKit.Verbatim(l.EmpireName)) + "\n" +
                              ScreenKit.Verbatim(l.PlanetName) + " · " + ScreenKit.Num(l.Distance, 1) + " " + Trans.Get("market_ly") + "\n" +
                              Trans.Get("market_price") + " : " + PriceText(l) + "   " +
-                             ScreenKit.Num(Mathf.Max(l.CargoVolume, Mathf.Ceil(l.PriceAmount))) + " m³";
+                             ScreenKit.Num(l.RequiredCargo > 0 ? l.RequiredCargo : Mathf.Max(l.CargoVolume, Mathf.Ceil(l.PriceAmount))) + " m³";
             _card.gameObject.SetActive(true);
             _buyKey.gameObject.SetActive(!ours);
             _backKey.gameObject.SetActive(true);

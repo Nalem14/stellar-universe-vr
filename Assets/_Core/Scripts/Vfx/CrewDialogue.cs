@@ -824,7 +824,7 @@ namespace Core.Vfx
             }
 
             // Auto-mining (ToggleFleetAutoMine, web ade97ca): any hull with a hold, never a fortress.
-            if (fleet.Cargo > 0 && !fleet.IsStation)
+            if (fleet.Cargo > 0 && FleetOrderGate.LockKey(fleet) == null)
             {
                 var on = fleet.AutoMine;
                 AddAction(Trans.Get("autoMineMode") + "  ·  " + Trans.Get(on ? "autoMineActive" : "autoMineDisabled"),
@@ -1016,7 +1016,7 @@ namespace Core.Vfx
             // Auto-exploration (ToggleFleetAutoExplore): the ship surveys every planet here, then hops on to
             // unknown stars by itself. Offered to ships with a science module, as on the web order panel — never
             // to an orbital fortress (it would fly off: see PARITY).
-            if (HasScienceModule(fleet) && !fleet.IsStation)
+            if (HasScienceModule(fleet) && FleetOrderGate.LockKey(fleet) == null)
             {
                 var on = fleet.AutoExplore;
                 AddAction(Trans.Get("autoExploreMode") + "  ·  " + Trans.Get(on ? "autoExploreActive" : "autoExploreDisabled"),

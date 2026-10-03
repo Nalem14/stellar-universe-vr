@@ -542,7 +542,8 @@ namespace Core.Stations
         }
 
         /// <summary>The hold the server asks of a convoy: the goods home or the payment out, whichever is larger.</summary>
-        static float RequiredHold(MarketListing l) => Mathf.Max(l.CargoVolume, Mathf.Ceil(l.PriceAmount));
+        static float RequiredHold(MarketListing l) =>
+            l.RequiredCargo > 0 ? l.RequiredCargo : Mathf.Max(l.CargoVolume, Mathf.Ceil(l.PriceAmount));
 
         void BeginPurchase(int id)
         {

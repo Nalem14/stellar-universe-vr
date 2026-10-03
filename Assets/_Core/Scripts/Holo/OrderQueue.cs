@@ -178,9 +178,9 @@ namespace Core.Holo
                 { "loop", loop ? "1" : "0" }
             });
 
-        /// <summary>An orbital fortress has no order queue: the server refuses it (stationCannotMove).</summary>
+        /// <summary>A fortress or a convoy in flight has no order queue: the server refuses it (stationCannotMove / fleetIsBusy).</summary>
         static Task<ApiResult> Anchored(FocusFleet fleet) =>
-            fleet != null && fleet.IsStation ? Task.FromResult(ApiResult.Fail(Trans.Get("stationCannotMove"))) : null;
+            FleetOrderGate.LockKey(fleet) is { } locked ? Task.FromResult(ApiResult.Fail(Trans.Get(locked))) : null;
 
         /// <summary>A step JSON pointing at another target (keeps any extra server fields).</summary>
         public static JObject Retarget(FocusQueueStep step, string type, int targetId)

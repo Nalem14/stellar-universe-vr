@@ -22,6 +22,8 @@ namespace Core.App
         public string PriceCurrency = "crystal";
         public float PriceAmount;
         public int CargoVolume;
+        /// <summary>Hold a buyer's convoy needs: max(goods volume, payment) — sent by the server since web 0417693.</summary>
+        public int RequiredCargo;
         public string SellerName = string.Empty;
         public string EmpireName = string.Empty;
         public string PlanetName = string.Empty;
@@ -43,6 +45,7 @@ namespace Core.App
             PriceCurrency = FocusContext.AsString(t["price_currency"]),
             PriceAmount = FocusContext.AsFloat(t["price_amount"]),
             CargoVolume = FocusContext.AsInt(t["cargo_volume"]),
+            RequiredCargo = FocusContext.AsInt(t["required_cargo"]),
             SellerName = FocusContext.AsString(t["seller_name"]),
             EmpireName = FocusContext.AsString(t["empire_name"]),
             PlanetName = FocusContext.AsString(t["planet_name"]),

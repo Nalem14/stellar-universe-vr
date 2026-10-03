@@ -148,8 +148,8 @@ namespace Core.Holo
 
         public static Task<ApiResult> Send(FocusFleet fleet, int systemId, float tx, float ty, TravelMode mode)
         {
-            if (fleet != null && fleet.IsStation)
-                return Task.FromResult(ApiResult.Fail(Trans.Get("stationCannotMove")));
+            if (FleetOrderGate.LockKey(fleet) is { } locked)
+                return Task.FromResult(ApiResult.Fail(Trans.Get(locked)));
             var pos = string.Format(CultureInfo.InvariantCulture, "{0}.{1}", tx, ty);
             if (mode == TravelMode.PrlBond)
             {
@@ -199,8 +199,8 @@ namespace Core.Holo
         public static async Task<(bool sent, ApiResult result, string barkAction)> AskAndSend(FocusFleet fleet,
             int systemId, float tx, float ty, string destLabel, UnityEngine.Vector3? near = null)
         {
-            if (fleet != null && fleet.IsStation)
-                return (true, ApiResult.Fail(Trans.Get("stationCannotMove")), null);
+            if (FleetOrderGate.LockKey(fleet) is { } locked)
+                return (true, ApiResult.Fail(Trans.Get(locked)), null);
 
             var mode = TravelMode.Sublight;
             var console = OrderConsole.Instance;
