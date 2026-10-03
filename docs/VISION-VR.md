@@ -1,8 +1,8 @@
-# Vision SU:VR — même jeu, autre corps
+# Vision Stellar Universe — même jeu, autre corps
 
-**Décision produit (2026-09-17) : scope B.**  
-Client VR **complet** de Stellar Universe : **toutes** les features du web / `actionjs.php`, même compte, même galaxie persistante, **multiplateforme**.  
-Ce n’est **pas** un compagnon, **pas** un port RTS god-cam, **pas** un 4X autonome.
+**Décision produit : multiplateforme (VR, PC Desktop, Mobile tactile).**  
+Client 3D **complet** de Stellar Universe : **toutes** les features du web / `actionjs.php`, même compte, même galaxie persistante.  
+Disponible sur **Meta Quest (VR)**, **PC Desktop / PCVR** et **Mobile (Android / iOS)**.
 
 Inspiration UX : [BattleGroup VR](https://www.meta.com/experiences/battlegroupvr/4459505850829471/) — on commande depuis **le pont d’un vaisseau**, la carte est un **hologramme à portée de main**, le combat se voit par les hublots. Le joueur n’est pas une caméra qui vole.
 

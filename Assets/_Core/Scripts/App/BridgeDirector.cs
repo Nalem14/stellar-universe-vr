@@ -55,6 +55,7 @@ namespace Core.App
             var mapCtrl = interior.AddComponent<HoloMapController>();
             mapCtrl.Bind(_zoneMap, _focus, _poller);
             interior.AddComponent<PcHoloMapInput>().Bind(mapCtrl, _zoneMap);
+            interior.AddComponent<MobileHoloMapInput>().Bind(mapCtrl, _zoneMap);
 
             var hex = interior.AddComponent<HexBattleController>();
             var tableMount = _zoneMap != null ? _zoneMap.transform : interior.transform;

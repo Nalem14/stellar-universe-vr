@@ -6,15 +6,30 @@ using Unity.XR.CoreUtils;
 
 namespace Core.App
 {
+    public enum PlatformMode
+    {
+        VR,
+        Desktop,
+        Mobile
+    }
+
     /// <summary>
-    /// Automatic detection and bootstrapper for PC Desktop mode versus VR mode.
-    /// If no XR headset is active, or if launched with -desktop / -novr, initializes
-    /// first-person desktop controls (keyboard/mouse), PC HUD, and desktop UI event handling.
+    /// Automatic detection and bootstrapper for VR, PC Desktop, and Mobile (Android / iOS):
+    /// - Detects if running on Quest (VR), PC Desktop (Keyboard/Mouse), or Mobile Phone/Tablet (Touch).
+    /// - Configures appropriate player controller, HUD overlay, and EventSystem input modules.
     /// </summary>
     public static class PcPlatformBoot
     {
-        public static bool IsPcDesktop { get; private set; }
+        public static PlatformMode Mode { get; private set; }
         public static bool IsInitialized { get; private set; }
+
+        public static bool IsVr => Mode == PlatformMode.VR;
+        public static bool IsDesktop => Mode == PlatformMode.Desktop;
+        public static bool IsMobile => Mode == PlatformMode.Mobile;
+        public static bool IsFlatScreen => IsDesktop || IsMobile;
+
+        /// <summary>Backwards compatibility alias for Desktop mode</summary>
+        public static bool IsPcDesktop => IsDesktop;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         public static void Initialize()
@@ -24,6 +39,7 @@ namespace Core.App
             IsInitialized = true;
 
             var args = System.Environment.GetCommandLineArgs();
+            bool forceMobile = System.Array.IndexOf(args, "-mobile") >= 0 || System.Array.IndexOf(args, "-touch") >= 0;
             bool forceDesktop = System.Array.IndexOf(args, "-desktop") >= 0 || System.Array.IndexOf(args, "-novr") >= 0;
             bool forceVr = System.Array.IndexOf(args, "-vr") >= 0;
 
@@ -33,17 +49,40 @@ namespace Core.App
             vrActive = xrManager != null && xrManager.activeLoader != null;
             #endif
 
-            // On Android (Quest), always VR. On PC / Editor, Desktop unless VR loader is running or forced.
-            IsPcDesktop = forceDesktop || (!forceVr && !vrActive && Application.platform != RuntimePlatform.Android);
+            if (forceMobile)
+            {
+                Mode = PlatformMode.Mobile;
+            }
+            else if (forceDesktop)
+            {
+                Mode = PlatformMode.Desktop;
+            }
+            else if (forceVr)
+            {
+                Mode = PlatformMode.VR;
+            }
+            else if (vrActive)
+            {
+                Mode = PlatformMode.VR;
+            }
+            else if (Application.isMobilePlatform)
+            {
+                // Android smartphone/tablet or iOS device without active VR headset
+                Mode = PlatformMode.Mobile;
+            }
+            else
+            {
+                Mode = PlatformMode.Desktop;
+            }
 
-            Debug.Log($"[PcPlatformBoot] Mode: {(IsPcDesktop ? "PC Desktop (Keyboard/Mouse)" : "VR (OpenXR)")}");
+            Debug.Log($"[PcPlatformBoot] Active Platform Mode: {Mode}");
 
             SceneManager.sceneLoaded += OnSceneLoaded;
         }
 
         static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
         {
-            if (!IsPcDesktop)
+            if (IsVr)
                 return;
 
             EnsureDesktopEventSystem();
@@ -52,11 +91,11 @@ namespace Core.App
         }
 
         /// <summary>
-        /// Replaces or configures EventSystem to use InputSystemUIInputModule for mouse/pointer support on PC.
+        /// Replaces or configures EventSystem to use InputSystemUIInputModule for mouse and touch support.
         /// </summary>
         public static void EnsureDesktopEventSystem()
         {
-            if (!IsPcDesktop)
+            if (IsVr)
                 return;
 
             var es = Object.FindFirstObjectByType<EventSystem>();
@@ -79,11 +118,11 @@ namespace Core.App
         }
 
         /// <summary>
-        /// Sets up First Person Controller and raycasters on the scene's player rig.
+        /// Sets up First Person Controller (PC or Mobile) and raycasters on the scene's player rig.
         /// </summary>
         public static void SetupDesktopRig()
         {
-            if (!IsPcDesktop)
+            if (IsVr)
                 return;
 
             var rig = Object.FindFirstObjectByType<XROrigin>();
@@ -102,7 +141,7 @@ namespace Core.App
                 body.skinWidth = 0.04f;
             }
 
-            // Disable TrackedPoseDriver on camera so it does not override mouse look
+            // Disable TrackedPoseDriver on camera so it does not override camera rotation
             var cam = rig.Camera != null ? rig.Camera : Camera.main;
             if (cam != null)
             {
@@ -111,15 +150,19 @@ namespace Core.App
                 foreach (var tpd in cam.GetComponents<UnityEngine.SpatialTracking.TrackedPoseDriver>())
                     tpd.enabled = false;
 
-                // Adjust camera near clip plane for close cockpit interactions
                 cam.nearClipPlane = 0.05f;
 
-                // Attach PC Interaction Raycaster
-                if (cam.GetComponent<UI.PcInteractionRaycaster>() == null)
-                    cam.gameObject.AddComponent<UI.PcInteractionRaycaster>();
+                if (IsDesktop)
+                {
+                    if (cam.GetComponent<UI.PcInteractionRaycaster>() == null)
+                        cam.gameObject.AddComponent<UI.PcInteractionRaycaster>();
 
-                // Attach PC HUD
-                UI.PcHud.Ensure();
+                    UI.PcHud.Ensure();
+                }
+                else if (IsMobile)
+                {
+                    UI.MobileHud.Ensure();
+                }
             }
 
             // Hide/disable VR controller and hand models that have no tracking
@@ -133,17 +176,24 @@ namespace Core.App
                 }
             }
 
-            // Attach PC Desktop Controller
-            if (rig.GetComponent<PcDesktopController>() == null)
-                rig.gameObject.AddComponent<PcDesktopController>();
+            if (IsDesktop)
+            {
+                if (rig.GetComponent<PcDesktopController>() == null)
+                    rig.gameObject.AddComponent<PcDesktopController>();
+            }
+            else if (IsMobile)
+            {
+                if (rig.GetComponent<UI.MobileTouchController>() == null)
+                    rig.gameObject.AddComponent<UI.MobileTouchController>();
+            }
         }
 
         /// <summary>
-        /// Ensures all WorldSpace canvases have their event camera set to Camera.main for mouse raycasts.
+        /// Ensures all WorldSpace canvases have their event camera set to Camera.main for pointer/touch raycasts.
         /// </summary>
         public static void ConfigureWorldCanvases()
         {
-            if (!IsPcDesktop)
+            if (IsVr)
                 return;
 
             var cam = Camera.main;
@@ -158,9 +208,21 @@ namespace Core.App
 
             foreach (var canvas in Object.FindObjectsByType<Canvas>(FindObjectsInactive.Include, FindObjectsSortMode.None))
             {
+                // Disable TrackedDeviceGraphicRaycaster before changing camera to prevent XRI KeyNotFoundException
+                var trackedRaycasters = canvas.GetComponentsInChildren<UnityEngine.XR.Interaction.Toolkit.UI.TrackedDeviceGraphicRaycaster>(true);
+                foreach (var tr in trackedRaycasters)
+                {
+                    tr.enabled = false;
+                }
+
                 if (canvas.renderMode == RenderMode.WorldSpace && canvas.worldCamera == null)
                 {
                     canvas.worldCamera = cam;
+                }
+
+                if (canvas.GetComponent<UnityEngine.UI.GraphicRaycaster>() == null)
+                {
+                    canvas.gameObject.AddComponent<UnityEngine.UI.GraphicRaycaster>();
                 }
             }
         }

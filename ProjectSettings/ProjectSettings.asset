@@ -13,7 +13,7 @@ PlayerSettings:
   useOnDemandResources: 0
   accelerometerFrequency: 60
   companyName: StellarUniverse
-  productName: Stellar Universe VR
+  productName: Stellar Universe
   defaultCursor: {fileID: 0}
   cursorHotspot: {x: 0, y: 0}
   m_SplashScreenBackgroundColor: {r: 0.027, g: 0.031, b: 0.031, a: 1}
@@ -968,14 +968,14 @@ PlayerSettings:
   editorAssembliesCompatibilityLevel: 1
   m_RenderingPath: 1
   m_MobileRenderingPath: 1
-  metroPackageName: stellar-universe-vr2
+  metroPackageName: stellar-universe
   metroPackageVersion: 
   metroCertificatePath: 
   metroCertificatePassword: 
   metroCertificateSubject: 
   metroCertificateIssuer: 
   metroCertificateNotAfter: 0000000000000000
-  metroApplicationDescription: stellar-universe-vr2
+  metroApplicationDescription: stellar-universe
   wsaImages: {}
   metroTileShortName: 
   metroTileShowName: 0
