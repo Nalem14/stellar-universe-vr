@@ -651,6 +651,7 @@ namespace Core.Stations
                     await AfterEdit();
                     RenderAll();
                 });
+            _blueprints.StationHull = () => StationHull;
 
             // Printer console on the starboard wall, between the store and the printer, operator facing the
             // wall: the store on the left, the printer on the right.
@@ -699,12 +700,46 @@ namespace Core.Stations
                 Quaternion.Euler(0f, 90f, 0f), _yard, _shelves.HeaderEndWorld, RoomHeight);
         }
 
+        /// <summary>
+        /// The store's stock. With a hull picked, only what that hull may carry (web ShipBuilderUI 69d40af:
+        /// a fortress hides propulsion, a ship hides fortress modules); with none, everything (recycling).
+        /// </summary>
         Dictionary<string, int> ShelfStock()
         {
             var d = new Dictionary<string, int>();
+            var picked = _fleetId > 0;
+            var station = StationHull;
             foreach (var (type, count) in HangarGroups())
-                d[type] = count;
+                if (!picked || ModuleCatalog.Compat(type).Fits(station))
+                    d[type] = count;
             return d;
+        }
+
+        /// <summary>The picked hull is an orbital fortress (isStation, or a StationCore at its heart).</summary>
+        bool StationHull
+        {
+            get
+            {
+                if (_fleetId <= 0)
+                    return false;
+                if (_focus?.FindFleet(_fleetId) is { IsStation: true })
+                    return true;
+                foreach (var m in _layout)
+                    if (m.Type == ModuleCatalog.StationCore)
+                        return true;
+                return false;
+            }
+        }
+
+        /// <summary>Why this module may not go on the picked hull (native key), or null.</summary>
+        string FitRefusal(string type)
+        {
+            if (ModuleCatalog.IsCore(type))
+                return "cannotPlaceCore";
+            var station = StationHull;
+            if (ModuleCatalog.Compat(type).Fits(station))
+                return null;
+            return station ? "stationCannotEquipPropulsion" : "moduleOnlyForStations";
         }
 
         /// <summary>A block taken off the store: it becomes the module being fitted (green cells light up).</summary>
@@ -713,7 +748,8 @@ namespace Core.Stations
             _selectedType = type;
             _armedRemove = null;
             PaintGrid();
-            SetStatus(Trans.Get(ModuleCatalog.NameKey(type)) + " — " + Trans.Get(ModuleCatalog.DescKey(type)));
+            SetStatus(Trans.Get(ModuleCatalog.NameKey(type)) + "  " + ModuleCatalog.CompatTags(type) + " — " +
+                      Trans.Get(ModuleCatalog.DescKey(type)));
         }
 
         /// <summary>
@@ -743,7 +779,7 @@ namespace Core.Stations
             var (x, y) = cell.Value;
             _selectedType = type;
             var fits = _fleetId > 0 && _preview == null && !_busy && At(x, y) == null &&
-                       ModuleCatalog.CanPlace(Occupancy(), x, y) && HangarRow(type) != null;
+                       FitRefusal(type) == null && ModuleCatalog.CanPlace(Occupancy(), x, y) && HangarRow(type) != null;
             // Same path as a ray tap on the cell: it places, or says why not.
             OnCell(x, y);
             if (!fits)
@@ -832,18 +868,29 @@ namespace Core.Stations
                 var f = docked[i];
                 var id = f.Id;
                 var name = string.IsNullOrEmpty(f.Name) ? "#" + f.Id : f.Name;
+                if (f.IsStation)
+                    name = "<color=#fbbf24>◆</color> " + name;
                 Btn(_shipBody, name + "  #" + f.Id, -225f + (i % 2) * 450f, y - (i / 2) * 58f, 430f, 50f,
                     () => SelectFleet(id), id == _fleetId ? DiegeticUi.BtnStyle.Cyan : DiegeticUi.BtnStyle.Ghost);
             }
 
             y -= Mathf.CeilToInt(Mathf.Min(docked.Count, 4) / 2f) * 58f;
+            // A new hull starts from its core (AddToFleet fleet=0): ShipCore → ship, StationCore → orbital fortress.
             var core = HangarRow(ModuleCatalog.Core);
             var newShip = Btn(_shipBody, Trans.Get("vr.dock.newShip"), -225f, y, 430f, 50f,
-                () => AsyncTap.Run(NewShip()), core != null ? DiegeticUi.BtnStyle.Amber : DiegeticUi.BtnStyle.Ghost);
+                () => AsyncTap.Run(NewShip(ModuleCatalog.Core)), core != null ? DiegeticUi.BtnStyle.Amber : DiegeticUi.BtnStyle.Ghost);
             newShip.interactable = core != null;
+            var stationCore = HangarRow(ModuleCatalog.StationCore);
+            var newStation = Btn(_shipBody, Trans.Get("vr.dock.newStation"), 225f, y, 430f, 50f,
+                () => AsyncTap.Run(NewShip(ModuleCatalog.StationCore)),
+                stationCore != null ? DiegeticUi.BtnStyle.Amber : DiegeticUi.BtnStyle.Ghost);
+            newStation.interactable = stationCore != null;
+            y -= 40f;
             if (core == null)
-                Text(_shipBody, Trans.Get("vr.dock.needCore"), 20f, y, 440f, 15f, DiegeticUi.CyanDim);
-            y -= 70f;
+                Text(_shipBody, Trans.Get("vr.dock.needCore"), -440f, y, 430f, 14f, DiegeticUi.CyanDim);
+            if (stationCore == null)
+                Text(_shipBody, Trans.Get("vr.dock.needStationCore"), 10f, y, 430f, 14f, DiegeticUi.CyanDim);
+            y -= 40f;
 
             if (_fleetId <= 0)
             {
@@ -863,13 +910,14 @@ namespace Core.Stations
             y -= 70f;
 
             var s = ModuleCatalog.Sum(_layout);
+            var station = StationHull;
             var rows = new (string, string)[]
             {
                 (Trans.Get("modules"), s.Modules.ToString()),
                 (Trans.Get("armor"), Mathf.RoundToInt(s.Armor).ToString()),
                 (Trans.Get("shield"), Mathf.RoundToInt(s.Shield).ToString()),
                 (Trans.Get("damage"), Mathf.RoundToInt(s.Damage).ToString()),
-                (Trans.Get("speed"), Mathf.RoundToInt(s.Speed).ToString()),
+                (Trans.Get("speed"), station ? Trans.Get("vr.dock.immobile") : Mathf.RoundToInt(s.Speed).ToString()),
                 (Trans.Get("cargo"), Mathf.RoundToInt(s.Cargo).ToString()),
                 (Trans.Get("vr.dock.troops"), Mathf.RoundToInt(s.TroopCargo).ToString()),
                 (Trans.Get("vr.dock.size"), Mathf.RoundToInt(s.Size).ToString())
@@ -886,7 +934,7 @@ namespace Core.Stations
 
             y -= 4 * 40f + 10f;
             // Jump drives: the server wants one per modulesPerJumpModule modules (GetFleetStats).
-            if (s.Hyperdrives > 0 || s.PrlBonds > 0)
+            if (!station && (s.Hyperdrives > 0 || s.PrlBonds > 0))
             {
                 var hyperOk = s.Hyperdrives >= s.JumpRequired;
                 var prlOk = s.PrlBonds >= s.JumpRequired;
@@ -971,7 +1019,7 @@ namespace Core.Stations
             foreach (var (type, count) in HangarGroups())
                 stock[type] = count;
             foreach (var m in _layout)
-                if (m.Type != ModuleCatalog.Core)
+                if (!ModuleCatalog.IsCore(m.Type))
                     stock[m.Type] = (stock.TryGetValue(m.Type, out var n) ? n : 0) + 1;
             return stock;
         }
@@ -1133,7 +1181,7 @@ namespace Core.Stations
             var m = At(x, y);
             if (m != null)
             {
-                if (m.Type == ModuleCatalog.Core)
+                if (ModuleCatalog.IsCore(m.Type))
                 {
                     SetStatus(Trans.Get("cannotRemoveCore"), true);
                     CicCue.Fail(_cells[x, y].transform.position);
@@ -1165,6 +1213,15 @@ namespace Core.Stations
             if (_selectedType == null)
             {
                 SetStatus(Trans.Get("vr.dock.takeFromStore"));
+                return;
+            }
+
+            var refusal = FitRefusal(_selectedType);
+            if (refusal != null)
+            {
+                // Same refusal the server gives (PlaceShipModule 69d40af), without the round trip.
+                SetStatus(Trans.Get(refusal), true);
+                CicCue.Fail(_cells[x, y].transform.position);
                 return;
             }
 
@@ -1236,9 +1293,9 @@ namespace Core.Stations
             RenderAll();
         }
 
-        async Task NewShip()
+        async Task NewShip(string coreType)
         {
-            var core = HangarRow(ModuleCatalog.Core);
+            var core = HangarRow(coreType);
             if (core == null)
                 return;
             _busy = true;
@@ -1253,7 +1310,8 @@ namespace Core.Stations
                     { "ship", FocusContext.AsString(core["id"]) },
                     { "planet", _planetId.ToString() }
                 });
-                Feedback(r, "fleetCreated", transform.position + Vector3.up * GridHeight);
+                Feedback(r, coreType == ModuleCatalog.StationCore ? "orbitalStation" : "fleetCreated",
+                    transform.position + Vector3.up * GridHeight);
             }
             finally
             {

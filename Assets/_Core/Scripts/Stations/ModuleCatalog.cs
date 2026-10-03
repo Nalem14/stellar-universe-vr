@@ -37,14 +37,94 @@ namespace Core.Stations
         public int JumpRequired;
     }
 
+    /// <summary>Which hulls may carry a module (web moduleShapes.getModuleCompatibility, 600347f).</summary>
+    public readonly struct ModuleCompat
+    {
+        public readonly bool Ship;
+        public readonly bool Station;
+
+        public ModuleCompat(bool ship, bool station)
+        {
+            Ship = ship;
+            Station = station;
+        }
+
+        public bool Fits(bool stationHull) => stationHull ? Station : Ship;
+    }
+
     /// <summary>
-    /// Ship modules from GetConfigs.shipstats (server $SHIPSTATS). One cell each on the 9×9 grid; ShipCore
-    /// sits at (4,4) and cannot leave; every other module must touch the structure (web ShipBuilderUI _adj).
+    /// Ship modules from GetConfigs.shipstats (server $SHIPSTATS). One cell each on the 9×9 grid; the core
+    /// (ShipCore, or StationCore for an orbital fortress) is set at (4,4) by AddToFleet and never moves; every
+    /// other module must touch the structure (web ShipBuilderUI _adj).
     /// Names: native key = module type; descriptions: "desc" + Type (fr.json descShipCore…).
     /// </summary>
     public static class ModuleCatalog
     {
         public const string Core = "ShipCore";
+        public const string StationCore = "StationCore";
+
+        /// <summary>Modules only an orbital fortress may carry (server PlaceShipModule moduleOnlyForStations).</summary>
+        static readonly HashSet<string> StationOnlyTypes = new()
+        {
+            "StationCore", "OrbitalDefenseBattery", "PlanetaryShieldProjector", "OrbitalJammingArray",
+            "OrbitalGantry", "CitadelReactor"
+        };
+
+        /// <summary>Propulsion a fortress refuses (server stationCannotEquipPropulsion list; speed &gt; 0 too).</summary>
+        static readonly HashSet<string> PropulsionTypes = new()
+        {
+            "SpeedBooster", "CombustionThruster", "ImpulsionThruster", "FusionThruster", "HyperspaceDrive",
+            "BondPRLModule", "JumpgateDrive"
+        };
+
+        /// <summary>Ship-only hull starters (web SHIP_ONLY_CORES).</summary>
+        static readonly HashSet<string> ShipOnlyTypes = new() { "ShipCore", "colonyShip", "ColonyShip" };
+
+        /// <summary>A hull core: placed by AddToFleet at (4,4), never by hand (cannotPlaceCore), never removed.</summary>
+        public static bool IsCore(string type) => type == Core || type == StationCore;
+
+        public static bool IsStationOnly(string type) => type != null && StationOnlyTypes.Contains(type);
+
+        public static bool IsPropulsion(string type)
+        {
+            if (string.IsNullOrEmpty(type))
+                return false;
+            return PropulsionTypes.Contains(type) || FocusContext.AsFloat(Stats(type)?["speed"]) > 0f;
+        }
+
+        public static ModuleCompat Compat(string type)
+        {
+            if (IsStationOnly(type))
+                return new ModuleCompat(false, true);
+            if ((type != null && ShipOnlyTypes.Contains(type)) || IsPropulsion(type))
+                return new ModuleCompat(true, false);
+            return new ModuleCompat(true, true);
+        }
+
+        public static readonly Color ShipTagColor = new(0.22f, 0.74f, 0.97f, 1f);
+        public static readonly Color StationTagColor = new(0.98f, 0.75f, 0.14f, 1f);
+
+        /// <summary>Rich-text compatibility tags (web 🚀 SHIP / 🛰 STATION pills): cyan ship, amber station.</summary>
+        public static string CompatTags(string type)
+        {
+            var c = Compat(type);
+            var sb = new System.Text.StringBuilder(96);
+            if (c.Ship)
+                sb.Append("<color=#").Append(ColorUtility.ToHtmlStringRGB(ShipTagColor)).Append("><size=75%>[")
+                    .Append(Trans.Get("vr.module.compatShip")).Append("]</size></color>");
+            if (c.Station)
+            {
+                if (sb.Length > 0)
+                    sb.Append(' ');
+                sb.Append("<color=#").Append(ColorUtility.ToHtmlStringRGB(StationTagColor)).Append("><size=75%>[")
+                    .Append(Trans.Get("vr.module.compatStation")).Append("]</size></color>");
+            }
+
+            return sb.ToString();
+        }
+
+        /// <summary>Can this hangar module be set on that hull's grid by hand (never a core)?</summary>
+        public static bool Placeable(string type, bool stationHull) => !IsCore(type) && Compat(type).Fits(stationHull);
         public const int Grid = 9;
         public const int CoreCell = 4;
 
@@ -67,6 +147,18 @@ namespace Core.Stations
         {
             if (string.IsNullOrEmpty(type))
                 return ModuleFamily.Life;
+            switch (type)
+            {
+                // Fortress modules first: their names would fall to the wrong family below
+                // (battery / reactor read as Defense, the core as Life). Web moduleShapes categories.
+                case StationCore: return ModuleFamily.Core;
+                case "OrbitalDefenseBattery": return ModuleFamily.Weapon;
+                case "PlanetaryShieldProjector": return ModuleFamily.Defense;
+                case "OrbitalJammingArray": return ModuleFamily.Special;
+                case "OrbitalGantry": return ModuleFamily.Special;
+                case "CitadelReactor": return ModuleFamily.Defense;
+            }
+
             var t = type.ToLowerInvariant();
             if (t == "shipcore") return ModuleFamily.Core;
             if (t.Contains("colony")) return ModuleFamily.Colony;

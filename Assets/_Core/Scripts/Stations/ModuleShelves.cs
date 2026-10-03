@@ -511,7 +511,8 @@ namespace Core.Stations
             _sb.Clear();
             _sb.Append("<b>").Append(Trans.Get(ModuleCatalog.NameKey(s.Type))).Append("</b>")
                 .Append("  <size=75%><color=#").Append(ColorUtility.ToHtmlStringRGB(ModuleCatalog.Accent(fam))).Append('>')
-                .Append(Trans.Get(ModuleCatalog.FamilyKey(fam))).Append("</color></size>\n<size=85%>");
+                .Append(Trans.Get(ModuleCatalog.FamilyKey(fam))).Append("</color></size>  ")
+                .Append(ModuleCatalog.CompatTags(s.Type)).Append("\n<size=85%>");
             _sb.Append("<color=#7dffa0>").Append(Trans.Format("vr.dock.shelf.inStock", s.Count)).Append("</color> — ");
             _sb.Append(_canFit() ? Trans.Get("vr.dock.shelf.grab") : "<color=#ffb04a>" + Trans.Get("vr.dock.pickShipFirst") + "</color>");
             _sb.Append("</size>");

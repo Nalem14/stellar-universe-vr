@@ -39,6 +39,12 @@ namespace Core.Stations
         readonly Action<string, bool> _status;
         readonly Action<Blueprint> _preview;
         readonly Func<Task> _applied;
+
+        /// <summary>
+        /// The picked hull is an orbital fortress: ApplyShipTemplate would send its StationCore back to the
+        /// hangar (server keeps only ShipCore) — refused here until the web fixes it (docs/PARITY.md).
+        /// </summary>
+        public Func<bool> StationHull;
         readonly List<Blueprint> _list = new();
         TMP_InputField _nameField;
         bool _loaded;
@@ -93,7 +99,7 @@ namespace Core.Stations
             var missing = new Dictionary<string, int>();
             foreach (var m in bp.Modules)
             {
-                if (m.Type == ModuleCatalog.Core)
+                if (ModuleCatalog.IsCore(m.Type))
                     continue;
                 if (stock.TryGetValue(m.Type, out var n) && n > 0)
                     stock[m.Type] = n - 1;
@@ -117,7 +123,7 @@ namespace Core.Stations
             foreach (var i in order)
             {
                 var t = bp.Modules[i].Type;
-                if (t == ModuleCatalog.Core)
+                if (ModuleCatalog.IsCore(t))
                 {
                     ok[i] = true;
                     continue;
@@ -380,6 +386,11 @@ namespace Core.Stations
             var fleet = _fleet();
             if (fleet <= 0)
                 return;
+            if (StationHull != null && StationHull())
+            {
+                _status(Trans.Get("vr.dock.templateStation"), true);
+                return;
+            }
             _busy = true;
             try
             {

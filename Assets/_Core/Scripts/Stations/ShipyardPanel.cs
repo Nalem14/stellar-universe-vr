@@ -35,6 +35,8 @@ namespace Core.Stations
         readonly List<(Image, Func<float>)> _bars = new();
         readonly List<string> _resources = new();
         ModuleFamily _family = ModuleFamily.Core;
+        /// <summary>Hull filter on top of the family (web 600347f quick filters): 0 all, 1 ships, 2 fortresses.</summary>
+        int _hull;
         int _page;
         bool _busy;
 
@@ -253,12 +255,30 @@ namespace Core.Stations
         void RenderCatalog(PlanetEconomy p, float y)
         {
             var families = (ModuleFamily[])Enum.GetValues(typeof(ModuleFamily));
+            // Two rows of six chips: the families, then the two hull filters (ships / fortresses).
+            for (var h = 1; h <= 2; h++)
+            {
+                var hull = h;
+                var slot = families.Length + h - 1;
+                var on = _hull == hull;
+                var hb = Btn(Trans.Get(hull == 1 ? "vr.module.filterShip" : "vr.module.filterStation"),
+                    -375f + slot % 6 * 150f, y - slot / 6 * 42f, 144f, 38f,
+                    () =>
+                    {
+                        _hull = _hull == hull ? 0 : hull;
+                        _page = 0;
+                        Render();
+                    }, on ? DiegeticUi.BtnStyle.Cyan : DiegeticUi.BtnStyle.Ghost);
+                hb.GetComponentInChildren<TMP_Text>().color = on ? UiKit.TextBright
+                    : hull == 1 ? ModuleCatalog.ShipTagColor : ModuleCatalog.StationTagColor;
+            }
+
             for (var i = 0; i < families.Length; i++)
             {
                 var f = families[i];
-                var col = i % 5;
-                var row = i / 5;
-                var b = Btn(Trans.Get(ModuleCatalog.FamilyKey(f)), -360f + col * 180f, y - row * 42f, 172f, 38f,
+                var col = i % 6;
+                var row = i / 6;
+                var b = Btn(Trans.Get(ModuleCatalog.FamilyKey(f)), -375f + col * 150f, y - row * 42f, 144f, 38f,
                     () =>
                     {
                         _family = f;
@@ -272,7 +292,7 @@ namespace Core.Stations
             y -= 2 * 42f + 10f;
             var types = new List<string>();
             foreach (var t in ModuleCatalog.Types())
-                if (ModuleCatalog.Family(t) == _family)
+                if (ModuleCatalog.Family(t) == _family && (_hull == 0 || ModuleCatalog.Compat(t).Fits(_hull == 2)))
                     types.Add(t);
             var pages = Mathf.Max(1, Mathf.CeilToInt(types.Count / (float)PerPage));
             _page = Mathf.Clamp(_page, 0, pages - 1);
@@ -294,7 +314,7 @@ namespace Core.Stations
                 var timg = tick.GetComponent<Image>();
                 timg.color = ModuleCatalog.Accent(ModuleCatalog.Family(type));
                 timg.raycastTarget = false;
-                Text("<b>" + Trans.Get(type) + "</b>", -440f, y + 17f, 470f, 17f, UiKit.TextBright);
+                Text("<b>" + Trans.Get(type) + "</b>  " + ModuleCatalog.CompatTags(type), -440f, y + 17f, 470f, 17f, UiKit.TextBright);
                 var stats = Text(ModuleCatalog.StatsLine(type), -440f, y, 470f, 13f, UiKit.TextBright);
                 stats.enableAutoSizing = true;
                 stats.fontSizeMin = 10f;
