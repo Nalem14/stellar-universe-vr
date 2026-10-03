@@ -196,6 +196,20 @@ namespace Core.Vfx
 
         Vector3 IdleFleetPosition(FocusFleet fleet)
         {
+            if (fleet.IsStation && fleet.PlanetId > 0 && _planets.TryGetValue(fleet.PlanetId, out var host))
+            {
+                // Orbital fortress (web 69d40af): anchored for good on the station orbit, out past the berths,
+                // a second / third fortress of the same world 60° further round it.
+                var hostBody = _focus != null ? _focus.FindPlanet(fleet.PlanetId) : null;
+                var hostRadius = WorldScale.PlanetRadius(hostBody != null ? hostBody.Slot : 1);
+                var outward = (host.position - transform.position).normalized;
+                if (outward.sqrMagnitude < 0.01f)
+                    outward = Vector3.right;
+                var nth = _stationRank.TryGetValue(fleet.Id, out var sr) ? sr : 0;
+                outward = Quaternion.Euler(0f, nth * 60f, 0f) * outward;
+                return host.position + outward * WorldScale.StationStandoff(hostRadius);
+            }
+
             if (fleet.PlanetId > 0 && _planets.TryGetValue(fleet.PlanetId, out var planet))
             {
                 var radial = (planet.position - transform.position).normalized;
@@ -272,16 +286,32 @@ namespace Core.Vfx
             fleet.IsArrivingTo(_focus.SystemId, now) && fleet.FromSystemId > 0 && fleet.FromSystemId != _focus.SystemId;
 
         readonly Dictionary<int, int> _berthRank = new();
+        readonly Dictionary<int, int> _stationRank = new();
         readonly List<FocusFleet> _berthScratch = new();
 
         /// <summary>Rank of each ship among those berthed at the same world (stable: by fleet id).</summary>
         void RankBerths()
         {
             _berthRank.Clear();
+            _stationRank.Clear();
             _berthScratch.Clear();
             foreach (var f in _focus.Fleets)
                 if (f.PlanetId > 0 && f.SystemId == _focus.SystemId)
                     _berthScratch.Add(f);
+            // Fortresses keep their own orbit (not a ship berth): ranked apart, so they leave no hole in the berths.
+            _berthScratch.Sort((a, b) => a.PlanetId != b.PlanetId ? a.PlanetId.CompareTo(b.PlanetId) : a.Id.CompareTo(b.Id));
+            var sPlanet = -1;
+            var sRank = 0;
+            foreach (var f in _berthScratch)
+            {
+                if (!f.IsStation)
+                    continue;
+                sRank = f.PlanetId == sPlanet ? sRank + 1 : 0;
+                sPlanet = f.PlanetId;
+                _stationRank[f.Id] = sRank;
+            }
+
+            _berthScratch.RemoveAll(f => f.IsStation);
             _berthScratch.Sort((a, b) => a.PlanetId != b.PlanetId ? a.PlanetId.CompareTo(b.PlanetId) : a.Id.CompareTo(b.Id));
             var planet = -1;
             var rank = 0;
@@ -462,7 +492,9 @@ namespace Core.Vfx
                 {
                     var target = IdleFleetPosition(fleet);
                     tf.position = Vector3.Lerp(tf.position, target, Time.deltaTime * 2.5f);
-                    if (view != null)
+                    if (fleet.IsStation)
+                        tf.Rotate(0f, 1.6f * Time.deltaTime, 0f, Space.World); // a fortress turns slowly on its axis
+                    else if (view != null)
                         view.SetThrottle(1f);
                 }
             }

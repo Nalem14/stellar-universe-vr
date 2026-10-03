@@ -240,7 +240,7 @@ namespace Core.Vfx
                 FlatRing(go.transform, "OwnerRing", size * 1.75f, 0.0028f, color, 2.4f);
 
             if (stationView)
-                AddStationModel(go.transform, size);
+                AddCitadelModel(go.transform, size);
 
             var col = go.AddComponent<SphereCollider>();
             col.radius = Mathf.Max(size * 1.6f, 0.035f);
@@ -255,20 +255,26 @@ namespace Core.Vfx
             Tag(go, HoloTokenKind.Planet, id, slot, owned: false, busy: false, label);
         }
 
-        /// <summary>Our orbital station beside the world we stand on, with a "you are here" beam.</summary>
-        void AddStationModel(Transform planet, float size)
+        /// <summary>The citadel we stand in: a gold spire on top of the world, its crown ring, a "you are here" beam.</summary>
+        void AddCitadelModel(Transform planet, float size)
         {
-            var st = new GameObject("OrbitalStation").transform;
+            var st = new GameObject("Citadel").transform;
             st.SetParent(planet, false);
-            st.localPosition = new Vector3(size * 2.1f, size * 0.6f, 0f);
-            var ring = FlatRing(st, "StationRing", 0.012f, 0.003f, CicArtKit.Amber, 3f);
-            ring.transform.localRotation = Quaternion.Euler(0f, 0f, 90f);
-            var hub = Sphere(st, "Hub", 0.005f, _art.AmberEmit(3f));
-            hub.transform.localScale = Vector3.one * 0.01f;
+            st.localPosition = new Vector3(0f, size * 0.98f, 0f);
+            var mat = _art.Lit(Texture2D.whiteTexture, CityExterior.CitadelGold, 3f);
+            var spire = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            spire.name = "Spire";
+            CicEnvironment.DropColliderStatic(spire);
+            spire.transform.SetParent(st, false);
+            spire.transform.localScale = new Vector3(0.0035f, 0.011f, 0.0035f);
+            spire.transform.localPosition = new Vector3(0f, 0.011f, 0f);
+            spire.GetComponent<MeshRenderer>().sharedMaterial = mat;
+            var crown = FlatRing(st, "Crown", 0.011f, 0.0022f, CityExterior.CitadelGold, 3f);
+            crown.transform.localPosition = new Vector3(0f, 0.016f, 0f);
             var spin = st.gameObject.AddComponent<HoloSpin>();
-            spin.DegreesPerSecond = 40f;
+            spin.DegreesPerSecond = 25f;
             spin.BobMeters = 0f;
-            HereBeam(planet, CicArtKit.Amber);
+            HereBeam(planet, CityExterior.CitadelGold);
         }
 
         /// <summary>Vertical beam down to the ecliptic: where the player is.</summary>
@@ -371,6 +377,8 @@ namespace Core.Vfx
 
         // ── Ships ─────────────────────────────────────────────────────────────────
 
+        static readonly Color FortressTint = new(0.98f, 0.75f, 0.14f, 1f);
+
         GameObject PlaceFleet(int slot, int id, Color color, int seed, bool owned, bool busy, string displayName,
             bool active, EmpireStance stance = EmpireStance.Unknown)
         {
@@ -408,6 +416,16 @@ namespace Core.Vfx
             ring.transform.localPosition = new Vector3(0f, -0.006f, 0f);
             if (busy)
                 FlatRing(go.transform, "Busy", 0.022f, 0.003f, CicArtKit.Amber, 3f);
+            if (fleet != null && fleet.IsStation)
+            {
+                // An orbital fortress reads as a ring round its hub on the table, turning slowly.
+                var fort = FlatRing(go.transform, "FortressRing", 0.026f * (active ? 1.35f : 1f), 0.0026f,
+                    FortressTint, 2.6f);
+                fort.transform.localPosition = new Vector3(0f, 0.004f, 0f);
+                var turn = fort.AddComponent<HoloSpin>();
+                turn.DegreesPerSecond = 14f;
+                turn.BobMeters = 0f;
+            }
             if (active)
                 HereBeam(go.transform, CicArtKit.Cyan);
 

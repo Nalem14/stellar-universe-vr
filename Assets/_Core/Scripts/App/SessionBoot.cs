@@ -97,8 +97,8 @@ namespace Core.App
             var view = _focus != null && _focus.ViewFleetId > 0
                 ? $" · ship {_focus.ViewFleetId}"
                 : _focus != null && _focus.ViewPlanetId > 0
-                    ? $" · station {_focus.ViewPlanetId}"
-                    : " · station";
+                    ? $" · city {_focus.ViewPlanetId}"
+                    : " · city";
             var count = _focus != null
                 ? _focus.CountVisibleInFocus(DateTimeOffset.UtcNow.ToUnixTimeSeconds())
                 : 0;

@@ -30,7 +30,7 @@ namespace Core.Stations
             return presence;
         }
 
-        int StationPlanet => _focus != null && _focus.ViewFleetId <= 0 ? _focus.ViewPlanetId : 0;
+        int StationPlanet => _focus != null ? _focus.RotundaPlanetId : 0;
 
         bool Available => GateRoom.Instance != null && GateRoom.Instance.HasGate(StationPlanet) && AuthManager.Ensure().Empire != null;
 

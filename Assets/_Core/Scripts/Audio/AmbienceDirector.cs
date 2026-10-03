@@ -22,6 +22,8 @@ namespace Core.Audio
             Boot,
             Menu,
             Bridge,
+            /// <summary>The rotunda on top of a city's tower: the bays open on the city.</summary>
+            Citadel,
             Corridor,
             Quarters,
             Diplomacy,
@@ -41,6 +43,7 @@ namespace Core.Audio
             Lab,
             Portal,
             Shield,
+            City,
             Count
         }
 
@@ -135,7 +138,7 @@ namespace Core.Audio
                 return Zone.Diplomacy;
             if (CorridorRoom.Inside)
                 return Zone.Corridor;
-            return Zone.Bridge;
+            return FocusContext.Current != null && FocusContext.Current.Mode == ViewMode.City ? Zone.Citadel : Zone.Bridge;
         }
 
         void Targets(Zone zone)
@@ -157,6 +160,11 @@ namespace Core.Audio
                     Set(Layer.Ship, 0.26f);
                     Set(Layer.Reactor, 0.1f);
                     Set(Layer.Air, 0.035f);
+                    break;
+                case Zone.Citadel:
+                    Set(Layer.City, 0.24f);
+                    Set(Layer.Ship, 0.07f);
+                    Set(Layer.Air, 0.03f);
                     break;
                 case Zone.Watch:
                     // The remote link to the ship, barely there: the real room is the sound.
@@ -207,6 +215,7 @@ namespace Core.Audio
                 Layer.Reactor => SfxSynth.BedClip(SfxSynth.Bed.Reactor),
                 Layer.Hangar => SfxSynth.BedClip(SfxSynth.Bed.Hangar),
                 Layer.Lab => SfxSynth.BedClip(SfxSynth.Bed.LabPad),
+                Layer.City => SfxSynth.BedClip(SfxSynth.Bed.City),
                 Layer.Portal => SfxLibrary.Get(SfxLibrary.PortalIdle),
                 Layer.Shield => SfxLibrary.Get(SfxLibrary.ShieldIdle),
                 _ => null

@@ -12,6 +12,8 @@ Shader "SU/PlanetSurface"
         _LightColor ("Light Color", Color) = (1, 0.92, 0.75, 1)
         _Ambient ("Ambient", Color) = (0.04, 0.06, 0.1, 1)
         _NightSide ("Night Side", Float) = 0.12
+        _CityLights ("City lights on the night side", Float) = 0
+        _CityColor ("City light colour", Color) = (1, 0.72, 0.4, 1)
     }
     SubShader
     {
@@ -37,6 +39,15 @@ Shader "SU/PlanetSurface"
             float4 _LightColor;
             float4 _Ambient;
             float _NightSide;
+            float _CityLights;
+            float4 _CityColor;
+
+            float CityHash(float2 p)
+            {
+                p = frac(p * float2(123.34, 456.21));
+                p += dot(p, p + 45.32);
+                return frac(p.x * p.y);
+            }
 
             struct appdata
             {
@@ -81,6 +92,15 @@ Shader "SU/PlanetSurface"
                 float3 v = normalize(_WorldSpaceCameraPos - i.worldPos);
                 float rim = pow(1.0 - saturate(dot(n, v)), _RimPower);
                 col += _RimColor.rgb * rim * _RimMul;
+                // Our worlds: the cities' lights on the night side (clusters on the land, none on bright ice / sea).
+                if (_CityLights > 0.0)
+                {
+                    float night = 1.0 - smoothstep(-0.05, 0.25, dot(n, l));
+                    float2 cell = floor(i.uv * float2(240.0, 120.0));
+                    float spark = step(0.9, CityHash(cell)) * step(0.55, CityHash(floor(i.uv * float2(18.0, 9.0))));
+                    float land = saturate(1.6 - dot(albedo, float3(0.55, 0.55, 0.9)) * 1.4);
+                    col += _CityColor.rgb * spark * land * night * _CityLights * 1.25;
+                }
                 // Soft shoulder: shadows ~untouched, a fully lit pale surface tops out ~0.81 — under the
                 // Quest LDR bloom threshold (0.88), so a planet filling a hublot no longer burns to white.
                 col = col * 1.18 / (1.0 + col * 0.45);

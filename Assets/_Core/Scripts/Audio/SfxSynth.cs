@@ -323,7 +323,9 @@ namespace Core.Audio
             Reactor,
             Hangar,
             LabPad,
-            Holo
+            Holo,
+            /// <summary>The citadel's bays open on the city: high wind, the city's low rumble, distant fly-bys.</summary>
+            City
         }
 
         static readonly Dictionary<Bed, Task<float[]>> Jobs = new();
@@ -359,6 +361,7 @@ namespace Core.Audio
                 Bed.Reactor => Loop(4f, ReactorWave),
                 Bed.Hangar => Loop(9f, HangarWave),
                 Bed.LabPad => Loop(8f, LabWave),
+                Bed.City => Loop(12f, CityWave),
                 _ => Loop(4f, HoloWave)
             };
         }
@@ -452,6 +455,43 @@ namespace Core.Audio
                 }
 
                 d[i] = s;
+            }
+        }
+
+        static void CityWave(float[] d, float loop)
+        {
+            // Wind round the tower top (band-passed noise breathing in gusts), the city's rumble far below
+            // (traffic, machinery: a low brown noise with a faint 55 Hz hum), and two craft passing far off
+            // (a soft Doppler swell each).
+            var rng = new System.Random(107);
+            float a = 0f, b = 0f, c = 0f, r = 0f;
+            var gust = Fit(0.09f, loop);
+            var gust2 = Fit(0.23f, loop);
+            var hum = Fit(55f, loop);
+            float[] pass = { 2.4f, 7.9f };
+            float[] passHz = { 182f, 131f };
+            for (var i = 0; i < d.Length; i++)
+            {
+                var t = i / (float)Rate;
+                var x = (float)rng.NextDouble() * 2f - 1f;
+                a += (x - a) * 0.08f;
+                b += (a - b) * 0.08f;
+                var wind = (a - b) * (0.55f + 0.3f * Mathf.Sin(2f * Mathf.PI * gust * t) + 0.15f * Mathf.Sin(2f * Mathf.PI * gust2 * t + 2.1f));
+                c += (x - c) * 0.01f;
+                r += (c - r) * 0.02f;
+                var rumble = r * 2.4f + Mathf.Sin(2f * Mathf.PI * hum * t) * 0.012f;
+                var craft = 0f;
+                for (var k = 0; k < pass.Length; k++)
+                {
+                    var tc = t - pass[k];
+                    if (tc < -1.6f || tc > 1.6f)
+                        continue;
+                    var env = Mathf.Exp(-tc * tc * 1.6f);
+                    var hz = passHz[k] * (1f - tc * 0.06f);
+                    craft += (Mathf.Sin(2f * Mathf.PI * hz * t) * 0.6f + (float)rng.NextDouble() * 0.4f) * env * 0.035f;
+                }
+
+                d[i] = wind * 0.9f + rumble + craft;
             }
         }
 

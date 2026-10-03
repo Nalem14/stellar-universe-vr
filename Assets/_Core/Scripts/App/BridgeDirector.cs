@@ -176,7 +176,7 @@ namespace Core.App
                     if (ops.IsOpen)
                         ops.Close();
                     else
-                        ops.Open(null, _focus != null ? _focus.ViewPlanetId : 0);
+                        ops.Open(null, _focus != null ? _focus.RotundaPlanetId : 0);
                 });
             }
 

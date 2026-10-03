@@ -349,6 +349,9 @@ namespace Core.Vfx
                 mat.SetFloat("_RimMul", rimMul);
             if (mat.HasProperty("_LightColor"))
                 mat.SetColor("_LightColor", new Color(1f, 0.92f, 0.75f));
+            // Inhabited worlds show their cities' lights on the night side (ours brightest).
+            if (mat.HasProperty("_CityLights"))
+                mat.SetFloat("_CityLights", own == Ownership.Owned ? 1f : own == Ownership.Foe ? 0.65f : 0f);
             return mat;
         }
 

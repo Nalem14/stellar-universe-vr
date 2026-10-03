@@ -43,6 +43,8 @@ namespace Core.App
             {
                 _focus.Changed -= OnFocusChanged;
                 _focus.Changed += OnFocusChanged;
+                _focus.FleetsChanged -= OnFleetsChanged;
+                _focus.FleetsChanged += OnFleetsChanged;
             }
 
             SnapToViewTarget(force: true);
@@ -51,7 +53,11 @@ namespace Core.App
         void OnDestroy()
         {
             if (_focus != null)
+            {
                 _focus.Changed -= OnFocusChanged;
+                _focus.FleetsChanged -= OnFleetsChanged;
+            }
+
             RestorePlayerParent();
         }
 
@@ -99,20 +105,52 @@ namespace Core.App
         }
 
         StationExterior _station;
-        bool _stationLayout;
+        CityExterior _city;
+        ViewMode _mode;
+        int _cityPlanet;
 
         /// <summary>
-        /// The view is our orbital station (no ship to stand on): its hub, spokes and ring round the command
-        /// hall, built on first use and hidden aboard a ship.
+        /// What the hall stands in. Aboard an orbital fortress: its hub, spokes and ring round the command hall
+        /// (plus its fitted modules). In a city's citadel: the tower, the city and the planet's land around
+        /// (<see cref="CityExterior"/>), set far below the system scene so none of space shows. Both are built on
+        /// first use and hidden aboard a ship.
         /// </summary>
-        public void SetStationLayout(bool station)
+        public void SetViewMode(ViewMode mode)
         {
-            _stationLayout = station;
+            var planet = _focus != null ? _focus.ViewPlanetId : 0;
+            var changed = mode != _mode || (mode == ViewMode.City && planet != _cityPlanet);
+            _cityPlanet = planet;
+            _mode = mode;
             EnsureViewShip();
+            var station = mode == ViewMode.Station;
             if (station && _station == null)
                 _station = StationExterior.Build(_bridgeMount);
             if (_station != null && _station.gameObject.activeSelf != station)
                 _station.gameObject.SetActive(station);
+            if (station && _station != null)
+                _station.Fit(_focus?.FindViewFleet());
+
+            var city = mode == ViewMode.City;
+            if (city)
+            {
+                if (_city == null)
+                    _city = CityExterior.Build(_bridgeMount, _focus);
+                _city.Show(_focus != null ? _focus.ViewPlanetId : 0);
+            }
+            else if (_city != null)
+                _city.Hide();
+
+            // The dressing follows the focus change that already snapped the rig: place it again for this mode
+            // (the citadel stands far below the system, a fortress on its own orbit).
+            if (changed)
+                SnapToViewTarget(force: true, onDeck: false);
+        }
+
+        /// <summary>The fortress we are aboard changed its fitting (FleetsChanged): refit the exterior modules.</summary>
+        void OnFleetsChanged()
+        {
+            if (_mode == ViewMode.Station && _station != null)
+                _station.Fit(_focus?.FindViewFleet());
         }
 
         void ParentPlayer()
@@ -175,6 +213,27 @@ namespace Core.App
             if (_viewShip == null || _exterior == null || _focus == null)
                 return;
 
+            // The citadel: the hall on top of its tower, far below the system scene (out of the far clip), facing
+            // the system's star so the day side of the city is the one ahead.
+            if (_mode == ViewMode.City && _focus.HasSystem && _focus.ViewPlanetId > 0)
+            {
+                var ground = CityAnchor();
+                var toStar = _exterior.transform.position - ground;
+                toStar.y = 0f;
+                var yaw = toStar.sqrMagnitude > 0.01f ? Quaternion.LookRotation(toStar.normalized, Vector3.up) : Quaternion.identity;
+                if (force || (_viewShip.position - ground).sqrMagnitude > 0.01f)
+                {
+                    _viewShip.SetPositionAndRotation(ground, yaw);
+                    _posVel = Vector3.zero;
+                    _bank = 0f;
+                    _bankVel = 0f;
+                    if (force && onDeck)
+                        PutPlayerOnDeck();
+                }
+
+                return;
+            }
+
             Vector3 target;
             if (!_focus.HasSystem)
             {
@@ -225,8 +284,8 @@ namespace Core.App
             else
             {
                 lookDir = star - target;
-                // A station's bow is its viewscreen monolith: turn so the world it orbits fills a starboard bay.
-                if (_stationLayout && fleetMot == null)
+                // A fortress's bow is its viewscreen monolith: turn so the world it orbits fills a starboard bay.
+                if (_mode == ViewMode.Station)
                     lookDir = Quaternion.Euler(0f, -StationPlanetBearing, 0f) * lookDir;
             }
 
@@ -269,6 +328,24 @@ namespace Core.App
 
         /// <summary>Degrees from the station's bow to the planet it orbits (inside the 24°–66° bay).</summary>
         const float StationPlanetBearing = 42f;
+
+        /// <summary>
+        /// Where the citadel's hall stands: straight under its planet in the system scene, <see cref="WorldScale.CityDepth"/>
+        /// down — beyond the bridge's far clip, so the system (star, planets, fleets) never shows in the city.
+        /// </summary>
+        Vector3 CityAnchor()
+        {
+            var planet = _focus.FindPlanet(_focus.ViewPlanetId);
+            Vector3 at;
+            if (_exterior.TryGetPlanet(_focus.ViewPlanetId, out var t))
+                at = t.position;
+            else if (planet != null)
+                at = _exterior.transform.position + SystemExterior.OrbitPosition(Mathf.Max(1, planet.Slot), planet.Id);
+            else
+                at = _exterior.transform.position;
+            at.y = _exterior.transform.position.y - WorldScale.CityDepth;
+            return at;
+        }
 
         Vector3 FallbackStationPosition()
         {

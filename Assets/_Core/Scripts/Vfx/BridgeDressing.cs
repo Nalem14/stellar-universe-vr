@@ -4,10 +4,12 @@ using UnityEngine;
 namespace Core.Vfx
 {
     /// <summary>
-    /// Ship bridge vs orbital station on the same CIC kit. Aboard a ship: the horseshoe bridge, cyan. At a
-    /// station: the round command hall (<see cref="StationCommandShell"/>) with the ring outside its bays, the
+    /// Ship bridge vs rotunda on the same CIC kit. Aboard a ship: the horseshoe bridge, cyan. Aboard an orbital
+    /// fortress or in a city's citadel: the round command hall (<see cref="StationCommandShell"/>), the
     /// commander's podium and the crew tiers (<see cref="StationCommandLayout"/>), the door and aft displays on
-    /// its curved wall, the lights lifted into the dome, cool white-cyan accents.
+    /// its curved wall, the lights lifted into the dome. Outside the bays: the fortress's hub and ring with cool
+    /// white-cyan accents (<see cref="StationExterior"/>), or the city falling away below the tower with warm
+    /// citadel gold (<see cref="CityExterior"/>).
     /// </summary>
     public static class BridgeDressing
     {
@@ -17,9 +19,12 @@ namespace Core.Vfx
         {
             if (host == null)
                 return;
-            var ship = focus != null && focus.ViewFleetId > 0;
+            var mode = focus != null ? focus.Mode : ViewMode.Ship;
+            var ship = mode == ViewMode.Ship;
+            var city = mode == ViewMode.City;
             ApplyLayout(host, !ship);
-            var accent = ship ? CicArtKit.Cyan : StationCommandShell.Glow;
+            ApplyExterior(host, mode);
+            var accent = ship ? CicArtKit.Cyan : city ? CityExterior.CitadelGold : StationCommandShell.Glow;
             foreach (var r in host.GetComponentsInChildren<MeshRenderer>(true))
             {
                 if (r == null || r.sharedMaterial == null || host.Art == null)
@@ -28,7 +33,8 @@ namespace Core.Vfx
                 // The sky panel over the table: cool daylight on a ship, a softer white under the station's dome.
                 if (n == "SkyPanel")
                 {
-                    r.sharedMaterial = host.Art.Lit(Texture2D.whiteTexture, ship ? new Color(0.7f, 0.88f, 1f) : new Color(0.82f, 0.94f, 1f), 1.25f);
+                    r.sharedMaterial = host.Art.Lit(Texture2D.whiteTexture, ship ? new Color(0.7f, 0.88f, 1f)
+                        : city ? new Color(1f, 0.93f, 0.8f) : new Color(0.82f, 0.94f, 1f), 1.25f);
                     continue;
                 }
 
@@ -39,6 +45,36 @@ namespace Core.Vfx
                 // Floor lines stay soft; wall and frame lines carry the accent.
                 var floor = n is "KickStrip" or "DeckStrip";
                 r.sharedMaterial = host.Art.Lit(Texture2D.whiteTexture, accent, floor ? 1f : ship ? 2.4f : 2f);
+            }
+        }
+
+        static ViewMode _exteriorMode = (ViewMode)(-1);
+        static CicEnvironment _exteriorHost;
+
+        /// <summary>
+        /// What stands outside the bays: nothing of ours aboard a ship (our hull is hidden), the fortress's hub and
+        /// ring, or the city under the citadel. Warm the hall's side lights in the citadel (sunlit stone and gold).
+        /// </summary>
+        static void ApplyExterior(CicEnvironment host, ViewMode mode)
+        {
+            // Every view change: another city or another fortress needs its own exterior even in the same mode.
+            var view = Object.FindFirstObjectByType<BridgeViewRig>();
+            if (view != null)
+                view.SetViewMode(mode);
+            if (_exteriorMode == mode && _exteriorHost == host)
+                return;
+            _exteriorMode = mode;
+            _exteriorHost = host;
+            if (mode == ViewMode.Ship)
+                return;
+            var room = host.transform;
+            var city = mode == ViewMode.City;
+            foreach (var name in new[] { "Warm", "WarmStbd" })
+            {
+                var t = room.Find(name);
+                var l = t != null ? t.GetComponent<UnityEngine.Light>() : null;
+                if (l != null)
+                    l.color = city ? new Color(1f, 0.84f, 0.62f) : new Color(0.62f, 0.86f, 1f);
             }
         }
 
@@ -96,9 +132,6 @@ namespace Core.Vfx
             var crew = host.GetComponentInChildren<Core.Crew.CrewLife>(true);
             if (crew != null)
                 crew.SetStationLayout(station);
-            var view = Object.FindFirstObjectByType<BridgeViewRig>();
-            if (view != null)
-                view.SetStationLayout(station);
 
             void Light(string name, Vector3 pos, Color color, float intensity, float range)
             {

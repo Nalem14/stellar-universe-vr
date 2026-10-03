@@ -36,7 +36,8 @@ namespace Core.Stations
                 _focus.Changed -= Apply;
         }
 
-        int StationPlanet => _focus != null && _focus.ViewFleetId <= 0 ? _focus.ViewPlanetId : 0;
+        /// <summary>The world under the rotunda (the city's, or the fortress's anchor): its dock is next door.</summary>
+        int StationPlanet => _focus != null ? _focus.RotundaPlanetId : 0;
 
         bool CanPass() => StationPlanet > 0 && OwnedPlanets.Contains(StationPlanet) && DryDock.Instance != null &&
                           !DryDock.Inside && CorridorRoom.Inside;

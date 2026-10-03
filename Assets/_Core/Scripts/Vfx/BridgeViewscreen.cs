@@ -154,13 +154,14 @@ namespace Core.Vfx
         /// <summary>Focused system: systems have no names, only galaxy coordinates.</summary>
         public static string SystemLabel(FocusContext focus) => GalaxyCatalog.Label(focus.SystemId);
 
-        /// <summary>Planet the virtual station orbits (name, else #id).</summary>
+        /// <summary>The world under the rotunda — the citadel's, or the fortress's anchor (name, else #id).</summary>
         public static string StationPlanetName(FocusContext focus)
         {
-            if (focus == null || focus.ViewPlanetId <= 0)
+            var id = focus != null ? focus.RotundaPlanetId : 0;
+            if (id <= 0)
                 return string.Empty;
-            var planet = focus.FindPlanet(focus.ViewPlanetId);
-            return planet != null && !string.IsNullOrEmpty(planet.Name) ? planet.Name : "#" + focus.ViewPlanetId;
+            var planet = focus.FindPlanet(id);
+            return planet != null && !string.IsNullOrEmpty(planet.Name) ? planet.Name : "#" + id;
         }
 
         void OnDestroy()
@@ -781,8 +782,9 @@ namespace Core.Vfx
                 return;
             var now = UnixNow();
             var fleet = _focus.FindViewFleet();
-            var station = fleet == null;
-            _accent = station ? CicArtKit.Amber : CicArtKit.Cyan;
+            // Fortress or citadel: the screen watches the world below; a ship looks ahead.
+            var station = _focus.IsRotundaView;
+            _accent = _focus.Mode == ViewMode.City ? CityExterior.CitadelGold : station ? CicArtKit.Amber : CicArtKit.Cyan;
             var mode = Mode.Survey;
             Target subject = null;
             string title;
@@ -854,7 +856,7 @@ namespace Core.Vfx
             {
                 // Idle: a station watches the world below; a ship looks ahead, with the system card.
                 title = station ? Trans.Get("vr.view.stationHeader") : Trans.Get("vr.screen.survey");
-                subject = station ? FindTarget(1_000_000 + _focus.ViewPlanetId) : null;
+                subject = station ? FindTarget(1_000_000 + _focus.RotundaPlanetId) : null;
                 if (station && subject != null)
                     Describe(subject, body, now);
                 else
@@ -1135,7 +1137,7 @@ namespace Core.Vfx
         string StatusLine(FocusFleet fleet)
         {
             if (fleet == null)
-                return Trans.Format("vr.view.orbiting", StationPlanetName(_focus));
+                return Trans.Format("vr.view.city", StationPlanetName(_focus));
             var name = string.IsNullOrEmpty(fleet.Name) ? "#" + fleet.Id : fleet.Name;
             var state = FleetOrderGate.IsIdle(fleet) ? Trans.Get("vr.crew.standby") : Trans.Get(FleetOrderGate.BusyKey(fleet));
             return "<noparse>" + name + "</noparse>  ·  " + state;

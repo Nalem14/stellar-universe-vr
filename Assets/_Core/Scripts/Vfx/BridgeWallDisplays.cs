@@ -149,7 +149,12 @@ namespace Core.Vfx
                 return;
             _dirty = false;
             _next = Time.unscaledTime + 1f;
-            var accent = _focus.ViewFleetId > 0 ? CicArtKit.Cyan : CicArtKit.Amber;
+            var accent = _focus.Mode switch
+            {
+                ViewMode.City => CityExterior.CitadelGold,
+                ViewMode.Station => CicArtKit.Amber,
+                _ => CicArtKit.Cyan
+            };
             _msd.SetAccent(accent, 0.45f);
             _plot.SetAccent(accent, 0.45f);
             DrawShip(accent);
@@ -164,21 +169,26 @@ namespace Core.Vfx
             var fleet = _focus.FindViewFleet();
             if (fleet == null)
             {
-                // Station: its ring and spokes over the world it orbits.
+                // Citadel: the city plan — the tower at the heart, its district rings, the eight boulevards.
                 var c = new Vector2(PlotSize * 0.5f, PlotSize * 0.5f);
-                Disc(px, c, 34f, new Color(0.25f, 0.55f, 0.8f, 1f));
-                Ring(px, c, 92f, 6f, accent);
-                Ring(px, c, 70f, 2f, accent * 0.6f);
-                for (var i = 0; i < 6; i++)
+                var rings = CityExterior.Current != null ? CityExterior.Current.RingCount : 4;
+                for (var k = rings; k >= 1; k--)
                 {
-                    var d = new Vector2(Mathf.Cos(i * Mathf.PI / 3f), Mathf.Sin(i * Mathf.PI / 3f));
-                    Line(px, c + d * 40f, c + d * 90f, 3f, accent * 0.8f);
-                    Disc(px, c + d * 92f, 9f, Color.Lerp(accent, Color.white, 0.4f));
+                    var r = 18f + k * (88f / rings);
+                    Ring(px, c, r, k == rings ? 4f : 2f, accent * (k == rings ? 0.9f : 0.5f));
                 }
 
+                for (var i = 0; i < 8; i++)
+                {
+                    var d = new Vector2(Mathf.Cos(i * Mathf.PI / 4f + 0.39f), Mathf.Sin(i * Mathf.PI / 4f + 0.39f));
+                    Line(px, c + d * 22f, c + d * 106f, 2f, accent * 0.75f);
+                }
+
+                Disc(px, c, 16f, Color.Lerp(accent, Color.white, 0.45f));
+                Ring(px, c, 22f, 3f, accent);
                 Apply(_msdTex, px);
-                Set(_msdTitle, Trans.Get("vr.view.stationHeader"));
-                Set(_msdBody, Trans.Format("vr.view.orbiting", BridgeViewscreen.StationPlanetName(_focus)));
+                Set(_msdTitle, Trans.Get("vr.view.citadelHeader"));
+                Set(_msdBody, Trans.Format("vr.view.city", BridgeViewscreen.StationPlanetName(_focus)));
                 _msdTitle.color = accent;
                 return;
             }
@@ -262,7 +272,7 @@ namespace Core.Vfx
                     mine++;
                 var tint = p.UserId > 0 ? DiplomacyIndex.Tint(DiplomacyIndex.Resolve(p.UserId)) : new Color(0.75f, 0.8f, 0.85f, 1f);
                 Disc(px, pos, owned ? 8f : 6f, tint);
-                if (p.Id == _focus.ViewPlanetId || _focus.FindViewFleet()?.PlanetId == p.Id)
+                if (p.Id == _focus.RotundaPlanetId || _focus.FindViewFleet()?.PlanetId == p.Id)
                     Ring(px, pos, 13f, 2f, Color.white);
             }
 

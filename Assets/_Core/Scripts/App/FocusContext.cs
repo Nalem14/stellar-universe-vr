@@ -275,7 +275,7 @@ namespace Core.App
         public void SetViewPlanet(int planetId)
         {
             ViewFleetId = 0;
-            ViewPlanetId = planetId > 0 && FindPlanet(planetId) != null ? planetId : 0;
+            ViewPlanetId = planetId > 0 && IsOurWorld(planetId) ? planetId : 0;
             if (ViewPlanetId <= 0)
                 EnsureBridgeView(preferredFleetId: 0, preferredPlanetId: 0);
             else
@@ -398,8 +398,8 @@ namespace Core.App
                 }
             }
 
-            // Explicit planet TP (citadel) — only when caller asked for it.
-            if (preferredPlanetId > 0 && FindPlanet(preferredPlanetId) != null)
+            // Explicit planet TP (citadel) — only when caller asked for it, and only into one of our cities.
+            if (preferredPlanetId > 0 && IsOurWorld(preferredPlanetId))
             {
                 ViewFleetId = 0;
                 ViewPlanetId = preferredPlanetId;
@@ -423,13 +423,25 @@ namespace Core.App
                 return EmitView(force: false);
             }
 
-            if (ViewPlanetId > 0 && FindPlanet(ViewPlanetId) != null)
+            if (ViewPlanetId > 0 && IsOurWorld(ViewPlanetId))
             {
                 return EmitView(force: false);
             }
 
             ViewPlanetId = ResolveDefaultPlanetId();
             return EmitView(force: false);
+        }
+
+        /// <summary>A world of this system whose city is ours (fresh list first; GetSystems ownership as fallback).</summary>
+        bool IsOurWorld(int planetId)
+        {
+            var planet = FindPlanet(planetId);
+            if (planet == null)
+                return false;
+            if (OwnedPlanets.All.Count > 0)
+                return OwnedPlanets.Contains(planetId);
+            var owned = OwnedUserId();
+            return owned <= 0 || planet.UserId == owned;
         }
 
         int ResolveDefaultPlanetId()

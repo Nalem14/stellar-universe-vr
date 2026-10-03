@@ -933,7 +933,7 @@ namespace Core.Vfx
             {
                 var a = i * Mathf.PI * 2f / segments;
                 var next = centre + new Vector3(Mathf.Cos(a) * radius, 0f, Mathf.Sin(a) * radius);
-                k.Link(name, prev, next, thick, mat);
+                k.Rod(name, prev, next, thick, mat);
                 prev = next;
             }
         }
@@ -946,14 +946,14 @@ namespace Core.Vfx
             k.Cyl("Deck", p + new Vector3(0f, 1.95f, 0f), new Vector3(c * 0.82f, 0.16f, c * 0.82f), Vector3.zero, k.Pal.Hull);
             k.Cyl("Gallery", p + new Vector3(0f, 2.18f, 0f), new Vector3(c * 0.66f, 0.1f, c * 0.66f), Vector3.zero, k.Pal.Glass);
             k.Sph("Dome", p + new Vector3(0f, 2.32f, 0f), c * 0.3f, k.Pal.Hull);
-            k.Link("Spire", p + new Vector3(0f, 2.5f, 0f), p + new Vector3(0f, 3.7f, 0f), 0.06f, k.Pal.Dark);
+            k.Rod("Spire", p + new Vector3(0f, 2.5f, 0f), p + new Vector3(0f, 3.7f, 0f), 0.06f, k.Pal.Dark);
             Pulse(k.Sph("Beacon", p + new Vector3(0f, 3.78f, 0f), 0.11f, k.Pal.Glow), 2.6f, 7.5f, 2.1f);
             Hoop(k, "DockRing", p + new Vector3(0f, 1.0f, 0f), c * 0.95f, 0.12f, 14, k.Pal.Hull);
             for (var i = 0; i < 4; i++)
             {
                 var a = i * Mathf.PI * 0.5f + Mathf.PI * 0.25f;
                 var rim = p + new Vector3(Mathf.Cos(a) * c * 0.95f, 1.0f, Mathf.Sin(a) * c * 0.95f);
-                k.Link("Spoke", p + new Vector3(0f, 1.0f, 0f), rim, 0.06f, k.Pal.Dark);
+                k.Rod("Spoke", p + new Vector3(0f, 1.0f, 0f), rim, 0.06f, k.Pal.Dark);
                 Pulse(k.Sph("DockLight", rim + Vector3.up * 0.16f, 0.07f, k.Pal.AmberDim), 1.6f, 5f, 1.2f + i * 0.3f);
             }
 
@@ -971,7 +971,7 @@ namespace Core.Vfx
             {
                 var a = p + new Vector3(s * 0.26f, 1.05f, 0.2f * z);
                 var b = a + new Vector3(0f, 0.28f, 2.1f * z);
-                k.Link("Barrel", a, b, 0.13f, k.Pal.Weapon);
+                k.Rod("Barrel", a, b, 0.13f, k.Pal.Weapon);
                 k.Cyl("Brake", b, new Vector3(0.36f, 0.12f, 0.36f), new Vector3(90f - 7.6f * z, 0f, 0f), k.Pal.Brass);
                 Pulse(k.Sph("Muzzle", b + new Vector3(0f, 0.04f, 0.14f * z), 0.1f, k.Pal.WepMissile), 2f, 6f, 3.3f + s);
             }
@@ -1010,9 +1010,9 @@ namespace Core.Vfx
             {
                 var foot = p + tips[i] + Vector3.up * 0.55f;
                 var top = foot + Vector3.up * (1.9f + i * 0.35f);
-                k.Link("Mast", foot, top, 0.05f, k.Pal.Hull);
-                k.Link("Cross", foot + Vector3.up * 0.8f, p + tips[(i + 1) % tips.Length] + Vector3.up * 1.35f, 0.03f, k.Pal.Dark);
-                k.Link("Fork", top - Vector3.up * 0.3f + Vector3.right * 0.22f, top - Vector3.up * 0.3f - Vector3.right * 0.22f,
+                k.Rod("Mast", foot, top, 0.05f, k.Pal.Hull);
+                k.Rod("Cross", foot + Vector3.up * 0.8f, p + tips[(i + 1) % tips.Length] + Vector3.up * 1.35f, 0.03f, k.Pal.Dark);
+                k.Rod("Fork", top - Vector3.up * 0.3f + Vector3.right * 0.22f, top - Vector3.up * 0.3f - Vector3.right * 0.22f,
                     0.03f, k.Pal.Dark);
                 Pulse(k.Sph("Tip", top, 0.09f, k.Pal.WepIem), 0.6f, 6.5f, 4.5f + i * 1.3f);
             }
@@ -1033,14 +1033,14 @@ namespace Core.Vfx
             {
                 var x = s * c * 0.38f;
                 k.Box("Tower", p + new Vector3(x, 1.0f, 0f), new Vector3(0.22f, 1.7f, 0.22f), k.Pal.Dark);
-                k.Link("BraceA", p + new Vector3(x, 0.3f, -0.3f), p + new Vector3(x, 1.6f, 0.3f), 0.035f, k.Pal.Brass);
-                k.Link("BraceB", p + new Vector3(x, 0.3f, 0.3f), p + new Vector3(x, 1.6f, -0.3f), 0.035f, k.Pal.Brass);
+                k.Rod("BraceA", p + new Vector3(x, 0.3f, -0.3f), p + new Vector3(x, 1.6f, 0.3f), 0.035f, k.Pal.Brass);
+                k.Rod("BraceB", p + new Vector3(x, 0.3f, 0.3f), p + new Vector3(x, 1.6f, -0.3f), 0.035f, k.Pal.Brass);
                 k.Box("Foot", p + new Vector3(x, 0.22f, 0f), new Vector3(0.36f, 0.16f, 0.82f), k.Pal.Armor);
             }
 
             k.Box("Beam", p + new Vector3(0f, 1.9f, 0f), new Vector3(c * 0.98f, 0.18f, 0.3f), k.Pal.Brass);
             k.Box("Trolley", p + new Vector3(0.18f, 1.74f, 0f), new Vector3(0.36f, 0.16f, 0.36f), k.Pal.Hull);
-            k.Link("Cable", p + new Vector3(0.18f, 1.66f, 0f), p + new Vector3(0.18f, 0.95f, 0f), 0.02f, k.Pal.Dark);
+            k.Rod("Cable", p + new Vector3(0.18f, 1.66f, 0f), p + new Vector3(0.18f, 0.95f, 0f), 0.02f, k.Pal.Dark);
             k.Cyl("Hook", p + new Vector3(0.18f, 0.9f, 0f), new Vector3(0.2f, 0.06f, 0.2f), Vector3.zero, k.Pal.AmberDim);
             Pulse(k.Sph("Warn", p + new Vector3(-c * 0.38f, 1.95f, 0f), 0.08f, k.Pal.AmberDim), 0.4f, 6f, 2.6f);
         }
@@ -1058,7 +1058,7 @@ namespace Core.Vfx
             {
                 var a = i * Mathf.PI * 0.5f;
                 var off = new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a)) * c * 0.38f;
-                k.Link("Strut", p + off + Vector3.up * 0.6f, p + off + Vector3.up * 1.74f, 0.05f, k.Pal.Dark);
+                k.Rod("Strut", p + off + Vector3.up * 0.6f, p + off + Vector3.up * 1.74f, 0.05f, k.Pal.Dark);
             }
 
             k.Cyl("Vent", p + new Vector3(0f, 2.0f, 0f), new Vector3(0.3f, 0.22f, 0.3f), Vector3.zero, k.Pal.Dark);
@@ -1487,6 +1487,19 @@ namespace Core.Vfx
                 if (len < 0.02f)
                     return Sph(name, a, radius, mat);
                 var go = Part(name, PrimitiveType.Capsule, (a + b) * 0.5f,
+                    new Vector3(radius * 2f, len * 0.5f, radius * 2f), Vector3.zero, mat);
+                go.transform.localRotation = Quaternion.FromToRotation(Vector3.up, d / len);
+                return go;
+            }
+
+            /// <summary>A straight rod between two points (a cylinder: ~80 triangles, a capsule costs ten times that).</summary>
+            public GameObject Rod(string name, Vector3 a, Vector3 b, float radius, Material mat)
+            {
+                var d = b - a;
+                var len = d.magnitude;
+                if (len < 0.02f)
+                    return Sph(name, a, radius, mat);
+                var go = Part(name, PrimitiveType.Cylinder, (a + b) * 0.5f,
                     new Vector3(radius * 2f, len * 0.5f, radius * 2f), Vector3.zero, mat);
                 go.transform.localRotation = Quaternion.FromToRotation(Vector3.up, d / len);
                 return go;

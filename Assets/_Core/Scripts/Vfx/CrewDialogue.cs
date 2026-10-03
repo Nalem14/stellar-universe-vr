@@ -355,9 +355,9 @@ namespace Core.Vfx
                     return;
                 }
 
-                // Virtual orbital station: no inhabited ship, so no ship orders; planet-side consoles of each
-                // station (colony, shipyard, defences, research, comms) land with docs/ROADMAP.md P5.
-                // Boarding a ship goes through the view teleporter; Helm is not even present here.
+                // A city's citadel: no inhabited ship, so no ship orders; the planet-side consoles (colony, shipyard,
+                // defences, research, comms) run the world. Boarding a ship or a fortress goes through the view
+                // teleporter; Helm is not even present here.
                 if (fleet == null)
                 {
                     // Science still surveys the system's anomalies with any of our scanner ships present.
@@ -367,7 +367,7 @@ namespace Core.Vfx
                         BuildAnomalies(focus);
                         return;
                     }
-                    // Tactical still runs the planet's garrison and defences from the station.
+                    // Tactical still runs the planet's garrison and defences from the citadel.
                     if (_role == Role.Tactical)
                     {
                         AddArmory(focus, null);

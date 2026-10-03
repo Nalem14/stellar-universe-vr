@@ -37,12 +37,40 @@ namespace Core.App
                 _focus.FleetsChanged -= FollowInhabitedShip;
                 _focus.FleetsChanged += FollowInhabitedShip;
             }
+
+            OwnedPlanets.Changed -= LeaveLostCity;
+            OwnedPlanets.Changed += LeaveLostCity;
         }
 
         void OnDestroy()
         {
             if (_focus != null)
                 _focus.FleetsChanged -= FollowInhabitedShip;
+            OwnedPlanets.Changed -= LeaveLostCity;
+        }
+
+        /// <summary>
+        /// The world whose citadel we stand in is no longer ours (a planetary siege lost): out of its city —
+        /// to a ship or a fortress of ours in this system, else another of our cities.
+        /// </summary>
+        void LeaveLostCity()
+        {
+            if (_busy || _focus == null || _focus.Mode != ViewMode.City || OwnedPlanets.All.Count == 0 ||
+                OwnedPlanets.Contains(_focus.ViewPlanetId))
+                return;
+            AsyncTap.Run(LeaveLostCityAsync());
+        }
+
+        async Task LeaveLostCityAsync()
+        {
+            if (await RunSwap(_focus.SystemId, preferredFleetId: 0, viewPlanetId: 0, fade: true) &&
+                _focus.HasInhabitedView && (_focus.Mode != ViewMode.City || OwnedPlanets.Contains(_focus.ViewPlanetId)))
+                return;
+            if (OwnedPlanets.TryFirst(0, out var home))
+            {
+                await ActionJs.Get("changeplanet", new Dictionary<string, string> { { "id", home.Id.ToString() } });
+                await LoadPlanetStation(home.Id, home.SystemId);
+            }
         }
 
         /// <summary>

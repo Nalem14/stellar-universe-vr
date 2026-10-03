@@ -85,17 +85,17 @@ namespace Core.Vfx
             if (_focus == null)
                 return;
             var fleet = _focus.FindViewFleet();
-            var station = fleet == null;
             string kind, name;
-            if (!station)
+            if (fleet != null)
             {
-                kind = Trans.Get("ship");
+                // A ship, or an orbital fortress (its server name already says "Station Orbitale <world>").
+                kind = Trans.Get(fleet.IsStation ? "orbitalStation" : "ship");
                 name = string.IsNullOrEmpty(fleet.Name) ? "#" + fleet.Id : fleet.Name;
             }
             else
             {
-                kind = Trans.Get("vr.view.stationHeader");
-                name = _focus.ViewPlanetId > 0 ? BridgeViewscreen.StationPlanetName(_focus) : string.Empty;
+                kind = Trans.Get("vr.view.citadelHeader");
+                name = BridgeViewscreen.StationPlanetName(_focus);
             }
 
             var where = _focus.HasSystem ? BridgeViewscreen.SystemLabel(_focus) : string.Empty;
@@ -103,7 +103,12 @@ namespace Core.Vfx
             if (sig == _sig)
                 return;
             _sig = sig;
-            var accent = station ? CicArtKit.Amber : CicArtKit.Cyan;
+            var accent = _focus.Mode switch
+            {
+                ViewMode.City => CityExterior.CitadelGold,
+                ViewMode.Station => CicArtKit.Amber,
+                _ => CicArtKit.Cyan
+            };
             _kind.text = kind.ToUpperInvariant();
             _kind.color = accent;
             _name.text = name;

@@ -221,7 +221,7 @@ namespace Core.Vfx
             var stance = DiplomacyIndex.ResolveFleet(fleet);
             return new FleetView(ResolveFleetSlot(fleet, focus), DiplomacyIndex.Tint(stance),
                 stance == EmpireStance.Owned, !fleet.IsIdle(now), viewId > 0 && fleet.Id == viewId, stance,
-                string.IsNullOrEmpty(fleet.Name) ? "ship" : fleet.Name, fleet.PlanetId + ":" + fleet.AsteroidId);
+                string.IsNullOrEmpty(fleet.Name) ? Trans.Get(fleet.IsStation ? "orbitalStation" : "fleet") : fleet.Name, fleet.PlanetId + ":" + fleet.AsteroidId);
         }
 
         void AddFleetView(int id, in FleetView v)
@@ -383,7 +383,8 @@ namespace Core.Vfx
                 var stance = DiplomacyIndex.Resolve(planet.UserId);
                 var color = DiplomacyIndex.Tint(stance);
                 var pname = string.IsNullOrEmpty(planet.Name) ? "planet" : planet.Name;
-                var station = focus.ViewPlanetId == planet.Id && focus.ViewFleetId <= 0;
+                // The world whose citadel we stand in carries the "you are here" tower.
+                var station = focus.Mode == ViewMode.City && focus.ViewPlanetId == planet.Id;
                 PlacePlanet(planet.Slot, planet.Id, color, WorldScale.HoloPlanetTokenRadius(planet.Slot),
                     pname, station);
             }

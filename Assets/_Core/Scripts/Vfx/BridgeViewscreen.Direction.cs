@@ -330,7 +330,7 @@ namespace Core.Vfx
             switch (role)
             {
                 case CrewDialogue.Role.Helm:
-                    return fleet != null ? ShipObjective(fleet)?.Key ?? -1 : 1_000_000 + _focus.ViewPlanetId;
+                    return fleet != null ? ShipObjective(fleet)?.Key ?? -1 : 1_000_000 + _focus.RotundaPlanetId;
                 case CrewDialogue.Role.Tactical:
                 {
                     var any = -1;
@@ -378,7 +378,7 @@ namespace Core.Vfx
                     foreach (var p in _focus.Planets)
                         if (me > 0 && p.UserId == me && FindTarget(1_000_000 + p.Id) != null)
                             return 1_000_000 + p.Id;
-                    return _focus.ViewPlanetId > 0 ? 1_000_000 + _focus.ViewPlanetId : -1;
+                    return _focus.RotundaPlanetId > 0 ? 1_000_000 + _focus.RotundaPlanetId : -1;
                 }
                 default:
                     return -1;

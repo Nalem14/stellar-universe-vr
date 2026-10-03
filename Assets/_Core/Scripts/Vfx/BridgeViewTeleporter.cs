@@ -18,12 +18,17 @@ namespace Core.Vfx
         RectTransform _listRoot;
         TMP_Text _title;
         TMP_Text _hint;
-        bool _shipsTab = true;
+        /// <summary>Tab: 0 ships, 1 orbital fortresses, 2 planets (their cities).</summary>
+        int _tab;
+        const int TabShips = 0;
+        const int TabStations = 1;
+        const int TabPlanets = 2;
         readonly List<GameObject> _rows = new();
         /// <summary>List lines laid out so far (a planet line also carries its favourite star).</summary>
         int _slots;
         CicArtKit _art;
         Button _tabShips;
+        Button _tabStations;
         Button _tabPlanets;
 
         public void Bind(BridgeSystemLoader loader, FocusContext focus, CicArtKit art)
@@ -86,19 +91,11 @@ namespace Core.Vfx
                 new Vector2(800f, 36f), 18f, DiegeticUi.CyanDim);
 
             tp._tabShips = DiegeticUi.HoloButton(frame, Trans.Get("fleets"),
-                new Vector2(-200f, 160f), new Vector2(280f, 56f), () =>
-                {
-                    tp._shipsTab = true;
-                    tp.StyleTabs();
-                    Core.Utils.AsyncTap.Run(tp.RefreshList());
-                });
+                new Vector2(-270f, 160f), new Vector2(250f, 56f), () => tp.PickTab(TabShips));
+            tp._tabStations = DiegeticUi.HoloButton(frame, Trans.Get("orbitalStation"),
+                new Vector2(0f, 160f), new Vector2(250f, 56f), () => tp.PickTab(TabStations));
             tp._tabPlanets = DiegeticUi.HoloButton(frame, Trans.Get("planets"),
-                new Vector2(200f, 160f), new Vector2(280f, 56f), () =>
-                {
-                    tp._shipsTab = false;
-                    tp.StyleTabs();
-                    Core.Utils.AsyncTap.Run(tp.RefreshList());
-                }, amber: true);
+                new Vector2(270f, 160f), new Vector2(250f, 56f), () => tp.PickTab(TabPlanets), amber: true);
 
             var listGo = new GameObject("TpList", typeof(RectTransform));
             listGo.transform.SetParent(frame, false);
@@ -121,34 +118,46 @@ namespace Core.Vfx
             go.GetComponent<MeshRenderer>().SetPropertyBlock(block);
         }
 
+        void PickTab(int tab)
+        {
+            _tab = tab;
+            StyleTabs();
+            Core.Utils.AsyncTap.Run(RefreshList());
+        }
+
+        static readonly Color TabIdle = new(0.55f, 0.65f, 0.7f, 0.85f);
+
         void StyleTabs()
         {
             if (_tabShips != null)
-                _tabShips.GetComponent<Image>().color = _shipsTab
-                    ? Color.white
-                    : new Color(0.55f, 0.65f, 0.7f, 0.85f);
+                _tabShips.GetComponent<Image>().color = _tab == TabShips ? Color.white : TabIdle;
+            if (_tabStations != null)
+                _tabStations.GetComponent<Image>().color = _tab == TabStations ? Color.white : TabIdle;
             if (_tabPlanets != null)
-                _tabPlanets.GetComponent<Image>().color = !_shipsTab
-                    ? Color.white
-                    : new Color(0.55f, 0.65f, 0.7f, 0.85f);
+                _tabPlanets.GetComponent<Image>().color = _tab == TabPlanets ? Color.white : TabIdle;
         }
+
+        string TabTitle() => Trans.Get(_tab == TabShips ? "fleets" : _tab == TabStations ? "orbitalStation" : "planets");
 
         public async Task RefreshList()
         {
             ClearRows();
             if (_title != null)
-                _title.text = _shipsTab ? Trans.Get("fleets") : Trans.Get("planets");
+                _title.text = TabTitle();
 
-            if (_shipsTab)
-                await LoadShips();
-            else
+            if (_tab == TabPlanets)
                 await LoadPlanets();
+            else
+                await LoadShips(_tab == TabStations);
 
             if (_rows.Count == 0)
             {
-                var msg = _title != null && !string.IsNullOrEmpty(_title.text)
-                    ? _title.text
-                    : Trans.Get("Loading");
+                // No fortress yet: say how one is made (a StationCore assembled at the dry dock).
+                var msg = _tab == TabStations && _title != null && _title.text == TabTitle()
+                    ? Trans.Get("vr.view.noStation")
+                    : _title != null && !string.IsNullOrEmpty(_title.text)
+                        ? _title.text
+                        : Trans.Get("Loading");
                 AddStatusRow(msg);
             }
 
@@ -179,10 +188,11 @@ namespace Core.Vfx
                 return;
             }
 
-            _hint.text = _shipsTab ? Trans.Get("fleets") : Trans.Get("planets");
+            _hint.text = TabTitle();
         }
 
-        async Task LoadShips()
+        /// <summary>Our ships, or our orbital fortresses (isStation) — both boarded the same way (their own bridge).</summary>
+        async Task LoadShips(bool stations)
         {
             var result = await ActionJs.Get("GetAllFleets");
             if (!result.Ok)
@@ -206,6 +216,8 @@ namespace Core.Vfx
                     foreach (var fleet in _focus.Fleets)
                     {
                         if (owned > 0 && !fleet.IsOwnedBy(owned))
+                            continue;
+                        if (fleet.IsStation != stations)
                             continue;
                         var name = string.IsNullOrEmpty(fleet.Name) ? "#" + fleet.Id : fleet.Name;
                         pending.Add((fleet.Id, fleet.SystemId, name, viewId > 0 && fleet.Id == viewId));
@@ -246,7 +258,7 @@ namespace Core.Vfx
         /// </summary>
         async Task LoadPlanets()
         {
-            var viewPlanet = _focus != null && _focus.ViewFleetId <= 0 ? _focus.ViewPlanetId : 0;
+            var viewPlanet = _focus != null && _focus.Mode == ViewMode.City ? _focus.ViewPlanetId : 0;
             await GalaxyCatalog.EnsureLoaded();
             await OwnedPlanets.EnsureLoaded();
             OwnedScratch.Clear();

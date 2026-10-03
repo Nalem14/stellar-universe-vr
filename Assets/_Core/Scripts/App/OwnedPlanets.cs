@@ -21,6 +21,9 @@ namespace Core.App
 
         public static IReadOnlyList<GalaxyCatalog.PlanetRef> All => Planets;
 
+        /// <summary>The list was re-read (a world founded, conquered or lost).</summary>
+        public static event System.Action Changed;
+
         public static bool Contains(int planetId) => Ids.Contains(planetId);
 
         /// <summary>One of our worlds is in <paramref name="systemId"/>.</summary>
@@ -107,6 +110,7 @@ namespace Core.App
             }
 
             Sort();
+            Changed?.Invoke();
         }
 
         /// <summary>Favourites first (<see cref="PlanetFavorites"/>), then id order.</summary>

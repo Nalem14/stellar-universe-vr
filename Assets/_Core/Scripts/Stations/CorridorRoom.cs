@@ -424,7 +424,7 @@ namespace Core.Stations
         /// <summary>Ship corridor = cyan passage; station = the concourse (its own lights and colours).</summary>
         void ApplyDressing()
         {
-            var station = _focus == null || _focus.ViewFleetId <= 0;
+            var station = _focus == null || _focus.IsRotundaView;
             ApplyLayout(station);
             if (_accents == null || station == _station && _accents[0].sharedMaterial != null && _dressed)
                 return;
@@ -492,10 +492,10 @@ namespace Core.Stations
             Inside = true;
         }
 
-        /// <summary>A ship's passage is a wing over the bridge; the station's concourse lies in its ring.</summary>
+        /// <summary>A ship's passage is a wing over the bridge; the concourse lies in the fortress's ring, or in the citadel's crown.</summary>
         void PlaceOverShip()
         {
-            if (_focus == null || _focus.ViewFleetId <= 0)
+            if (_focus == null || _focus.IsRotundaView)
                 RoomPlacement.OnMount(transform, StationConcourse.MountPose());
             else
                 RoomPlacement.OverShip(transform, Vector3.right);

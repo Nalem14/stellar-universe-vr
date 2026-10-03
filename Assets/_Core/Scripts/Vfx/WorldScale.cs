@@ -62,6 +62,33 @@ namespace Core.Vfx
 
         public const float BridgeFarClip = 1100f;
         public const float BridgeFogDensity = 0.0032f;
+
+        // ── City (planet view: the citadel on top of its tower) — a fourth layer, never mixed with the system's ──
+
+        /// <summary>
+        /// How far under the system scene the city stands (m): well past <see cref="BridgeFarClip"/> and
+        /// <see cref="CityFarClip"/>, so no star, planet or ship of the system ever shows over the city.
+        /// </summary>
+        public const float CityDepth = 6000f;
+        /// <summary>Command deck (the rotunda floor) above the city's ground: the citadel's tower.</summary>
+        public const float CityTowerHeight = 260f;
+        /// <summary>Radius of the tower's shaft at its foot, and where the first district ring starts.</summary>
+        public const float CityTowerFoot = 34f;
+        public const float CityPlazaRadius = 72f;
+        /// <summary>Outer edge of the built city (the defence wall stands just outside).</summary>
+        public const float CityRadius = 760f;
+        /// <summary>The mountain / cloud-bank ring on the horizon, and the far edge of the land.</summary>
+        public const float CityHorizon = 1150f;
+        public const float CityLandEdge = 1400f;
+        /// <summary>Sky dome radius (follows the eye) — inside the far clip.</summary>
+        public const float CitySkyRadius = 1500f;
+        /// <summary>The player's far clip in a city (the bridge's is restored on leaving).</summary>
+        public const float CityFarClip = 1700f;
+        /// <summary>Exp² haze over the city: the horizon at about half strength.</summary>
+        public const float CityFogDensity = 0.00048f;
+        /// <summary>Our fortresses seen in the city's sky: their altitude above the ground and their size ×.</summary>
+        public const float CitySkyStationAltitude = 820f;
+        public const float CitySkyStationScale = 5f;
         public const float StarLightRange = 900f;
 
         // --- Holo table (centimetres on the platter). Never reuse OrbitBase / world radii. ---
