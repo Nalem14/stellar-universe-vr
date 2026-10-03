@@ -116,6 +116,9 @@ namespace Core.App
         {
             get
             {
+                // The real room is a headset's: never offered on a PC or a phone.
+                if (!PcPlatformBoot.IsVr)
+                    return false;
 #if UNITY_EDITOR
                 return true;
 #else

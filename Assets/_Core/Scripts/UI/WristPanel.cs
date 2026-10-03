@@ -135,8 +135,39 @@ namespace Core.UI
                 SetLayer(t.GetChild(i), layer);
         }
 
+        /// <summary>Mobile: the HUD's status button shows / hides the wrist (PC holds I).</summary>
+        public static bool FlatShown { get; set; }
+
+        /// <summary>
+        /// On a screen there is no wrist to turn: the panel is raised in the lower left of the view, like a watch
+        /// brought up, while I is held (PC) or the status button is on (mobile).
+        /// </summary>
+        void FlatPose(Camera cam)
+        {
+            var kb = UnityEngine.InputSystem.Keyboard.current;
+            var shown = Core.App.PcPlatformBoot.IsDesktop
+                ? kb != null && kb.iKey.isPressed && !Core.App.PcPlatformBoot.IsTyping
+                : FlatShown;
+            var t = cam.transform;
+            var at = t.TransformPoint(new Vector3(-0.15f, -0.09f, 0.38f));
+            transform.SetPositionAndRotation(at, Quaternion.LookRotation(at - t.position, t.up));
+            Fade(shown ? 1f : 0f);
+            if (_alpha > 0.01f && Time.unscaledTime >= _nextRefresh)
+            {
+                _nextRefresh = Time.unscaledTime + 1f;
+                Refresh();
+            }
+        }
+
         void LateUpdate()
         {
+            if (Core.App.PcPlatformBoot.IsFlatScreen)
+            {
+                if (Camera.main != null)
+                    FlatPose(Camera.main);
+                return;
+            }
+
             var anchor = _hand != null && _hand.gameObject.activeInHierarchy ? _hand : _controller;
             var cam = Camera.main;
             if (anchor == null || cam == null || !anchor.gameObject.activeInHierarchy)

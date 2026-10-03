@@ -29,11 +29,15 @@ Sur écran plat, `SetupDesktopRig` réutilise le rig XR de la scène : capsule `
 | Viser | rayon de la manette | réticule central (curseur capturé) ou curseur libre | le doigt |
 | Interagir (bouton 3D, objet, porte, fauteuil) | poke / gâchette | **E** ou **clic gauche** | tap |
 | Écrans holo (boutons, champs, listes) | rayon / poke | réticule + E / clic (vue FPS), ou curseur libre + clic | tap |
-| **Saisir / poser** (token de flotte, module, objet) | saisir à la main / gâchette, relâcher sur la cible | **touche de saisie** sur l’objet visé → il suit le réticule → **clic gauche** pour poser sur la cible, **clic droit / Échap** pour annuler | **tap** sur l’objet → il suit le doigt / le centre → **tap** sur la cible pour poser, bouton *Annuler* |
-| Table holo : zoom / galaxie ↔ système | pincer à deux mains | molette | pincer (au fauteuil) |
-| Table holo : tourner / déplacer | deux mains | clic-glisser | deux doigts (au fauteuil) |
+| **Saisir / poser** (vaisseau sur la table, point de route, module du chantier, échantillon et cristaux du labo) | saisir à la main / gâchette, relâcher sur la cible | **E** sur l’objet visé (« [E] Saisir … ») → il suit le réticule → **clic gauche** (ou E) pour poser sur la cible, **clic droit / Échap** pour le reposer | **tap** sur l’objet → il suit le centre de l’écran → **tap** sur la cible pour poser, bouton *Annuler* |
+| Table holo : choisir un vaisseau, une cible, un point de route | gâchette sur le token | clic gauche / E (survol au réticule) | tap |
+| Table holo : zoom / galaxie ↔ système | pincer à deux mains | molette sur la table (autour du point visé) | pincer (au fauteuil) |
+| Table holo : déplacer / tourner | deux mains | clic molette glissé (déplacer) ; clic droit glissé (tourner le système, déplacer la galaxie) | deux doigts : glisser, tourner (au fauteuil) |
+| Plateau hex (combat) | gâchette / doigt sur une case | clic / E sur la case visée | tap sur la case |
+| Écran principal | saisir l’image : glisser, écarter, double tape | molette (zoom), clic droit glissé (tourner autour), double clic (rend la main au réalisateur) | pincer, double tap |
+| Bracelet (heure, alerte, affaires) | tourner le poignet | maintenir **I** | bouton *Bracelet* |
 | Texte | clavier holo (`HoloKeyboard`) | clavier physique | clavier natif |
-| Menu rapide | bouton menu gauche | Échap (debout) | bouton *Menu* |
+| Menu rapide | bouton menu gauche | Échap (debout) ; réglages souris (sensibilité, axe inversé) | bouton *Menu* |
 | S’asseoir / se lever (poste de commandement) | s’asseoir / bouton | E sur le fauteuil ; Espace ou Échap pour se lever | tap sur le fauteuil ; bouton *Se lever* |
 | Postes au fauteuil | se tourner vers le poste | F flottes · M carte · C comms · O opérations · T tactique | barre de boutons tactiles |
 
@@ -55,17 +59,20 @@ Tant qu’un champ de texte a le focus (`PcPlatformBoot.IsTyping`), aucune touch
 
 | Zone | Casque | PC | Mobile | Notes |
 |---|---|---|---|---|
-| Sas : connexion, inscription, plaque Communauté | ✅ | ✅ (curseur libre au sas, Entrée / Tab) | ✅ (tap, clavier natif) | `5214e67` : un seul EventSystem |
-| Marche dans les pièces, portes | ✅ | ✅ | ✅ | portes par proximité + panneau |
-| Écrans holo (stations, salles) | ✅ | ✅ (curseur libre ou réticule, `f22d5a0`) | ✅ | |
-| Boutons 3D (`PokeButton`), objets (`XRSimpleInteractable`) | ✅ | ✅ | ✅ | portée 9 m |
+| Sas : connexion, inscription, plaque Communauté | ✅ | ✅ | ✅ | un seul EventSystem ; curseur libre au sas ; Tab = champ suivant |
+| Marche dans les pièces, portes | ✅ | ✅ | ✅ | capsule écran plat r 0.35 m ; locomotion XR coupée sur écran plat ; galerie de la porte des étoiles et galerie de la citadelle fermées |
+| Écrans holo (stations, salles) | ✅ | ✅ | ✅ | réticule ou curseur libre ; un clic sur un écran ne traverse plus vers l’objet derrière |
+| Boutons 3D, objets, fauteuil, crew | ✅ | ✅ | ✅ | portée 9 m ; sur mobile le bouton remonte après le tap |
 | Bourse : caisses, berceau, pad | ✅ | ✅ | ✅ | |
-| Fauteuil, raccourcis de postes | ✅ | ✅ | ✅ | |
-| Table holo : saisir / déposer un token, files, outils | ✅ | en cours | en cours | saisie écran plat (§3.3) |
-| Plateau hex (combat) | ✅ | en cours | en cours | |
-| Écran principal (gestes) | ✅ | en cours | en cours | |
-| Chantier : glisser les modules sur la grille 9×9 | ✅ | en cours | en cours | saisie écran plat (§3.3) |
-| Labo, orrery, porte des étoiles | ✅ | en cours | en cours | |
-| Poignet / consoles de bras | ✅ | en cours | en cours | manettes masquées sur écran plat |
+| Table holo : choisir / ordonner (point → point) | ✅ | ✅ | ✅ | `TacticalCommand` + `FlatPointer` |
+| Table holo : saisir un vaisseau / un point de route | ✅ | ✅ | ✅ | `FlatGrab` ; mobile : reposer un point sans cible ouvre son menu |
+| Table holo : zoom, déplacer, tourner | ✅ | ✅ | ✅ | `PcHoloMapInput` / `MobileHoloMapInput` |
+| Plateau hex (combat) | ✅ | ✅ | ✅ | case visée / tapée ; touches de console inchangées |
+| Écran principal (gestes) | ✅ | ✅ | ✅ | molette / clic droit / double clic ; pincement |
+| Chantier : modules sur la grille 9×9, recycleur | ✅ | ✅ | ✅ | `FlatGrab` sur les blocs des étagères |
+| Labo : échantillon, cristaux en file | ✅ | ✅ | ✅ | `FlatCarry` ; boutons d’écran toujours là |
+| Orrery, porte des étoiles, quartiers, diplomatie | ✅ | ✅ | ✅ | objets simples + écrans |
+| Bracelet | ✅ | ✅ (I) | ✅ (bouton) | posé en bas à gauche de la vue |
+| Mode quart (passthrough) | ✅ | — | — | casque seulement (`WatchMode.Supported`) |
 
-« En cours » = revue des trois entrées en cours (ROADMAP, phase PX). Une ligne passe à ✅ quand l’interaction est faite **et** vérifiée (Editor pour le PC ; appareil pour le mobile et le casque — sinon le noter).
+Vérifié dans l’Editor en mode PC (Play Mode réel, compte propriétaire) : connexion, pont, salles, saisie d’un vaisseau sur la table et annulation, sans exception. **Non vérifié** : un téléphone réel (tactile) et le Quest réel — à faire sur appareil.

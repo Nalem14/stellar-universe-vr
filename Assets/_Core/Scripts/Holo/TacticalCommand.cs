@@ -23,7 +23,8 @@ namespace Core.Holo
     /// </summary>
     public sealed class TacticalCommand : MonoBehaviour
     {
-        const float RayLength = 4f;
+        /// <summary>Reach of an aim: a hand at the table (4 m), or a camera standing back from it (flat screens).</summary>
+        static float RayLength => Core.App.PcPlatformBoot.IsFlatScreen ? 9f : 4f;
         const float PokeRadius = 0.025f;
         static readonly Color Valid = new(0.45f, 1f, 0.6f, 1f);
         static readonly Color Queued = new(1f, 0.72f, 0.32f, 1f);
@@ -158,6 +159,8 @@ namespace Core.Holo
         readonly List<HoloAimRay> _aims = new();
         HoloAimReticle _reticle;
         HoloAimRay _primary;
+        /// <summary>The flat-screen aim (no controller ray: crosshair, mouse or finger).</summary>
+        readonly HoloAimRay _flat = new();
         int _tintKey = -1;
         int _tintSel = -1;
         Color _tint = AimNeutral;
@@ -225,6 +228,34 @@ namespace Core.Holo
                 }
 
                 AssistGrab(aim, ray);
+            }
+
+            // Flat screens (PC, mobile): one aim along the crosshair / mouse / finger — hover on PC, a click or a
+            // tap picks a ship or gives the order, exactly as the headset trigger does.
+            if (Core.App.PcPlatformBoot.IsFlatScreen && live)
+            {
+                if (Core.App.PcPlatformBoot.IsDesktop && Core.UI.FlatPointer.TryAim(out var fr))
+                {
+                    _flat.Filter(fr.origin, fr.direction, now);
+                    AimRay(_flat, null, now);
+                    if (!_flat.OnUi && _flat.Target != null && _flat.Score < bestScore)
+                    {
+                        bestScore = _flat.Score;
+                        best = _flat;
+                    }
+                }
+
+                if (!busy && clicker == null && Core.UI.FlatPointer.Peek(out var cr))
+                {
+                    _flat.Filter(cr.origin, cr.direction, now);
+                    AimRay(_flat, null, now);
+                    // Only a click on the table is a table click (not one on a wall, a door or the floor).
+                    if (!_flat.OnUi && (_flat.Target != null || _flat.HasPoint) && Core.UI.FlatPointer.TryClick(out _))
+                    {
+                        clicker = _flat;
+                        clicked = _flat.Target;
+                    }
+                }
             }
 
             _primary = best;
@@ -378,7 +409,10 @@ namespace Core.Holo
             if (nodeDist < blocker && nodeDist < front)
                 aim.OnUi = true;
             // A lectern / panel canvas in front (the XRI UI ray).
-            if (ray.TryGetCurrentUIRaycastResult(out RaycastResult ui) && ui.isValid && ui.distance < front)
+            if (ray != null && ray.TryGetCurrentUIRaycastResult(out RaycastResult ui) && ui.isValid && ui.distance < front)
+                aim.OnUi = true;
+            // Flat screens: a holo panel in front of the table owns the pointer.
+            if (ray == null && Core.UI.FlatPointer.UiDistance() < front)
                 aim.OnUi = true;
             if (aim.OnUi)
             {

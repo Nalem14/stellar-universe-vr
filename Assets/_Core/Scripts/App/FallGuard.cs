@@ -65,7 +65,8 @@ namespace Core.App
             _spawnLocal = ToLocal(_spawnParent, floorPoint);
             _spawnForward = _spawnParent != null ? _spawnParent.InverseTransformDirection(forward) : forward;
             _hasSpawn = true;
-            _hold = HoldTime;
+            // The hold waits for a headset's late pose; a flat-screen body may walk straight away.
+            _hold = Core.App.PcPlatformBoot.IsFlatScreen ? 0f : HoldTime;
             _still = 0f;
             if (_rig != null && _rig.Camera != null)
             {

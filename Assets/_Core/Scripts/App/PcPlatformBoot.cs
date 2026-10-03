@@ -194,17 +194,24 @@ namespace Core.App
             if (rig == null)
                 return;
 
-            // Ensure character controller exists for deck collisions
+            // The XR locomotion (move, turn, teleport, gravity, jump, climb, body transformer) reads controllers and
+            // would also push the capsule (double gravity): the flat controllers own the body here.
+            foreach (var provider in rig.GetComponentsInChildren<UnityEngine.XR.Interaction.Toolkit.Locomotion.LocomotionProvider>(true))
+                provider.enabled = false;
+            foreach (var mediator in rig.GetComponentsInChildren<UnityEngine.XR.Interaction.Toolkit.Locomotion.LocomotionMediator>(true))
+                mediator.enabled = false;
+            foreach (var transformer in rig.GetComponentsInChildren<UnityEngine.XR.Interaction.Toolkit.Locomotion.XRBodyTransformer>(true))
+                transformer.enabled = false;
+
+            // A walking body (the rig prefab's own capsule is the headset's: r 0.1 m, 0.5 m steps).
             var body = rig.GetComponentInChildren<CharacterController>();
             if (body == null)
-            {
                 body = rig.gameObject.AddComponent<CharacterController>();
-                body.height = 1.8f;
-                body.radius = 0.35f;
-                body.center = new Vector3(0f, 0.9f, 0f);
-                body.stepOffset = 0.3f;
-                body.skinWidth = 0.04f;
-            }
+            body.height = 1.8f;
+            body.radius = 0.35f;
+            body.center = new Vector3(0f, 0.9f, 0f);
+            body.stepOffset = 0.3f;
+            body.skinWidth = 0.04f;
 
             // Disable TrackedPoseDriver on camera so it does not override camera rotation
             var cam = rig.Camera != null ? rig.Camera : Camera.main;

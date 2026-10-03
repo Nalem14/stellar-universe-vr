@@ -65,6 +65,89 @@ namespace Core.UI
             BuildActionButton();
             BuildCommandBar();
             BuildMenuButton();
+            BuildGrabBar();
+            BuildWristButton();
+        }
+
+        /// <summary>Top left, under Menu: shows / hides the wrist status (clock, alert, affairs).</summary>
+        void BuildWristButton()
+        {
+            var btnGo = new GameObject("WristBtn", typeof(RectTransform), typeof(Image), typeof(Button));
+            btnGo.transform.SetParent(transform, false);
+            var rt = btnGo.GetComponent<RectTransform>();
+            rt.anchorMin = rt.anchorMax = new Vector2(0f, 1f);
+            rt.pivot = new Vector2(0f, 1f);
+            rt.sizeDelta = new Vector2(110f, 50f);
+            rt.anchoredPosition = new Vector2(25f, -85f);
+            btnGo.GetComponent<Image>().color = new Color(0.05f, 0.2f, 0.28f, 0.8f);
+            btnGo.GetComponent<Button>().onClick.AddListener(() => WristPanel.FlatShown = !WristPanel.FlatShown);
+            var lGo = new GameObject("Text", typeof(RectTransform), typeof(TextMeshProUGUI));
+            lGo.transform.SetParent(btnGo.transform, false);
+            var lrt = lGo.GetComponent<RectTransform>();
+            lrt.anchorMin = Vector2.zero;
+            lrt.anchorMax = Vector2.one;
+            lrt.sizeDelta = Vector2.zero;
+            var tmp = lGo.GetComponent<TextMeshProUGUI>();
+            tmp.alignment = TextAlignmentOptions.Center;
+            tmp.enableAutoSizing = true;
+            tmp.fontSizeMin = 10f;
+            tmp.fontSizeMax = 16f;
+            tmp.fontStyle = FontStyles.UpperCase;
+            tmp.color = Color.white;
+            tmp.raycastTarget = false;
+            _labels.Add((tmp, "vr.mobile.wrist"));
+            Relabel();
+        }
+
+        GameObject _grabBar;
+
+        /// <summary>While something is carried (FlatGrab): the hint and a Cancel button, top centre.</summary>
+        void BuildGrabBar()
+        {
+            _grabBar = new GameObject("GrabBar", typeof(RectTransform));
+            _grabBar.transform.SetParent(transform, false);
+            var rt = _grabBar.GetComponent<RectTransform>();
+            rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 1f);
+            rt.pivot = new Vector2(0.5f, 1f);
+            rt.sizeDelta = new Vector2(900f, 70f);
+            rt.anchoredPosition = new Vector2(0f, -25f);
+
+            var hintGo = new GameObject("Hint", typeof(RectTransform), typeof(TextMeshProUGUI));
+            hintGo.transform.SetParent(_grabBar.transform, false);
+            var hrt = hintGo.GetComponent<RectTransform>();
+            hrt.sizeDelta = new Vector2(620f, 60f);
+            hrt.anchoredPosition = new Vector2(-130f, -35f);
+            var hint = hintGo.GetComponent<TextMeshProUGUI>();
+            hint.alignment = TextAlignmentOptions.Center;
+            hint.enableAutoSizing = true;
+            hint.fontSizeMin = 12f;
+            hint.fontSizeMax = 22f;
+            hint.color = new Color(1f, 0.85f, 0.5f);
+            hint.raycastTarget = false;
+            _labels.Add((hint, "vr.mobile.dropHint"));
+
+            var btnGo = new GameObject("Cancel", typeof(RectTransform), typeof(Image), typeof(Button));
+            btnGo.transform.SetParent(_grabBar.transform, false);
+            var brt = btnGo.GetComponent<RectTransform>();
+            brt.sizeDelta = new Vector2(200f, 60f);
+            brt.anchoredPosition = new Vector2(330f, -35f);
+            btnGo.GetComponent<Image>().color = new Color(0.45f, 0.12f, 0.1f, 0.9f);
+            btnGo.GetComponent<Button>().onClick.AddListener(FlatGrab.Cancel);
+            var lGo = new GameObject("Text", typeof(RectTransform), typeof(TextMeshProUGUI));
+            lGo.transform.SetParent(btnGo.transform, false);
+            var lrt = lGo.GetComponent<RectTransform>();
+            lrt.anchorMin = Vector2.zero;
+            lrt.anchorMax = Vector2.one;
+            lrt.sizeDelta = Vector2.zero;
+            var l = lGo.GetComponent<TextMeshProUGUI>();
+            l.alignment = TextAlignmentOptions.Center;
+            l.fontSize = 18f;
+            l.fontStyle = FontStyles.UpperCase;
+            l.color = Color.white;
+            l.raycastTarget = false;
+            _labels.Add((l, "cancel"));
+            _grabBar.SetActive(false);
+            Relabel();
         }
 
         void BuildJoystickVisuals()
@@ -300,6 +383,8 @@ namespace Core.UI
                 _canvas.enabled = true;
             if (Trans.IsReady && _lang != Trans.Lang)
                 Relabel();
+            if (_grabBar != null && _grabBar.activeSelf != FlatGrab.Holding)
+                _grabBar.SetActive(FlatGrab.Holding);
 
             bool isSeated = CaptainCommandMode.Instance != null && CaptainCommandMode.Instance.IsCommandMode;
             if (_commandBar != null && _commandBar.activeSelf != isSeated)

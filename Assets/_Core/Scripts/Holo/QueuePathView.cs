@@ -57,11 +57,13 @@ namespace Core.Holo
     /// with the steps still to do). The route lives on the table only: drawn in the real system outside, it ran
     /// through our own (hidden) hull and across the bridge.
     /// </summary>
+    [DefaultExecutionOrder(-50)]
     public sealed class QueuePathView : MonoBehaviour
     {
         const float Lift = 0.065f;
         const int MaxNodes = 10;
-        const float RayLength = 4f;
+        /// <summary>Reach of an aim: a hand at the table (4 m), or a camera standing back from it (flat screens).</summary>
+        static float RayLength => Core.App.PcPlatformBoot.IsFlatScreen ? 9f : 4f;
         const float DropRadius = 0.16f;
         static readonly Color Pending = new(1f, 0.66f, 0.24f, 1f);
         static readonly Color Now = new(0.35f, 1f, 1f, 1f);
@@ -337,6 +339,14 @@ namespace Core.Holo
             n.Grab.trackRotation = false;
             n.Grab.selectEntered.AddListener(_ => OnGrab(n));
             n.Grab.selectExited.AddListener(_ => OnDrop(n));
+            // Flat screens: E (PC) / a tap (mobile) takes the waypoint over the plate; set down on a world or a rock
+            // it retargets the step; set down on nothing on mobile it opens the step's menu (PC: left click does).
+            if (Core.App.PcPlatformBoot.IsFlatScreen)
+            {
+                var flat = go.AddComponent<Core.UI.FlatGrabbable>();
+                flat.Begin = () => BeginFlat(n);
+            }
+
             return n;
         }
 
@@ -481,6 +491,25 @@ namespace Core.Holo
                 }
             }
 
+            // Flat screens: the crosshair / mouse hovers a waypoint, a click or a tap opens its menu (before the
+            // table takes the click: this view runs first).
+            if (Core.App.PcPlatformBoot.IsFlatScreen)
+            {
+                if (Core.App.PcPlatformBoot.IsDesktop && Core.UI.FlatPointer.TryAim(out var fr) && Core.UI.FlatPointer.UiDistance() > RayLength)
+                {
+                    var n = RayNode(fr.origin, fr.direction);
+                    if (n != null && aimed == null)
+                        aimed = n;
+                }
+
+                if (!busy && Core.UI.FlatPointer.Peek(out var cr))
+                {
+                    var n = RayNode(cr.origin, cr.direction);
+                    if (n != null && Core.UI.FlatPointer.TryClick(out _))
+                        AsyncTap.Run(Menu(n));
+                }
+            }
+
             foreach (var poke in _pokes)
             {
                 if (poke == null || !poke.isActiveAndEnabled)
@@ -599,6 +628,29 @@ namespace Core.Holo
             {
                 _busy = false;
             }
+        }
+
+        Core.UI.IFlatGrab BeginFlat(Node n)
+        {
+            if (_busy || _held != null || _map == null || _map.InteractionLocked || !_nodes.Contains(n))
+                return null;
+            OnGrab(n);
+            return new Core.UI.FlatCarry(n.Root.transform, () =>
+            {
+                var target = DropTarget(n.Root.transform.position);
+                var same = target == null || (target.Kind == n.Tag.Kind && target.Id == n.Tag.TargetId);
+                OnDrop(n);
+                if (same && Core.App.PcPlatformBoot.IsMobile)
+                    AsyncTap.Run(Menu(n));
+            }, () =>
+            {
+                _held = null;
+                n.Root.transform.localPosition = n.Home;
+                Refresh();
+            })
+            {
+                Snap = aim => _map.AimPlanePoint(aim.origin, aim.direction, 9f, out var world, out _) ? world + Vector3.up * 0.03f : (Vector3?)null
+            };
         }
 
         void OnGrab(Node n)

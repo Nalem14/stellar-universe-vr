@@ -49,7 +49,7 @@ namespace Core.UI
             // Esc / M are keys a typed text may contain: never while a field has the keyboard (PC, phone).
             m._menu.performed += _ =>
             {
-                if (PcPlatformBoot.IsFlatScreen && PcPlatformBoot.IsTyping)
+                if (PcPlatformBoot.IsFlatScreen && (PcPlatformBoot.IsTyping || FlatGrab.Holding))
                     return;
                 // Seated at the command post on PC, Esc stands up and M flips the table (CaptainCommandMode).
                 if (PcPlatformBoot.IsPcDesktop && CaptainCommandMode.Instance != null && CaptainCommandMode.Instance.IsCommandMode)
@@ -100,10 +100,19 @@ namespace Core.UI
         void Refresh()
         {
             _volume.text = Trans.Get("vr.menu.volume") + "  " + Mathf.RoundToInt(AudioListener.volume * 100f) + " %";
-            _move.text = Trans.Get("vr.menu.move") + " · " + Trans.Get(ComfortSettings.Teleport ? "vr.menu.moveTeleport" : "vr.menu.moveSmooth");
-            _turn.text = Trans.Get("vr.menu.turn") + " · " + Trans.Get(ComfortSettings.SmoothTurn ? "vr.menu.turnSmooth" : "vr.menu.turnSnap");
-            _vignette.text = Trans.Get("vr.menu.vignette") + " · " + OnOff(ComfortSettings.Vignette);
-            _seated.text = Trans.Get("vr.menu.seated") + " · " + OnOff(ComfortSettings.Seated);
+            if (_move != null)
+                _move.text = Trans.Get("vr.menu.move") + " · " + Trans.Get(ComfortSettings.Teleport ? "vr.menu.moveTeleport" : "vr.menu.moveSmooth");
+            if (_turn != null)
+                _turn.text = Trans.Get("vr.menu.turn") + " · " + Trans.Get(ComfortSettings.SmoothTurn ? "vr.menu.turnSmooth" : "vr.menu.turnSnap");
+            if (_vignette != null)
+                _vignette.text = Trans.Get("vr.menu.vignette") + " · " + OnOff(ComfortSettings.Vignette);
+            if (_seated != null)
+                _seated.text = Trans.Get("vr.menu.seated") + " · " + OnOff(ComfortSettings.Seated);
+            var pc = PcDesktopController.Instance;
+            if (_sens != null)
+                _sens.text = Trans.Get("vr.menu.mouseSens") + "  " + (pc != null ? pc.MouseSensitivity : 2f).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture);
+            if (_invert != null)
+                _invert.text = Trans.Get("vr.menu.invertY") + " · " + OnOff(pc != null && pc.InvertY);
             _glow.text = Trans.Get("vr.fx.glow") + " · " + OnOff(CicEnvironment.GlowEnabled);
             _watch.interactable = WatchMode.Instance != null && WatchMode.Supported && WatchMode.Instance.Worthwhile && !WatchMode.Inside;
         }
@@ -130,6 +139,25 @@ namespace Core.UI
             return t;
         }
 
+        TMP_Text _sens;
+        TMP_Text _invert;
+
+        void Sensitivity(float step)
+        {
+            var pc = PcDesktopController.Instance;
+            if (pc != null)
+                pc.SaveSettings(Mathf.Clamp(pc.MouseSensitivity + step, 0.25f, 6f), pc.InvertY);
+            Refresh();
+        }
+
+        /// <summary>Close the panel (on PC the crosshair comes back, unless seated where the cursor stays free).</summary>
+        void Hide()
+        {
+            _panel.SetActive(false);
+            if (PcPlatformBoot.IsPcDesktop && !(CaptainCommandMode.Instance != null && CaptainCommandMode.Instance.IsCommandMode))
+                PcDesktopController.Instance?.SetCursorLock(true);
+        }
+
         void BuildPanel()
         {
             _panel = new GameObject("QuickMenuPanel");
@@ -143,32 +171,50 @@ namespace Core.UI
             _volume = DiegeticUi.HoloLabel(frame, string.Empty, new Vector2(0f, 140f), new Vector2(280f, 44f), 24f, UiKit.TextBright);
             DiegeticUi.HoloButton(frame, "+", new Vector2(180f, 140f), new Vector2(64f, 50f), () => Volume(0.1f), DiegeticUi.BtnStyle.Ghost);
 
-            // Comfort: moving, turning, the vignette, seated play.
-            _move = Switch(frame, -ColX, 78f, () => ComfortSettings.Teleport = !ComfortSettings.Teleport);
-            _turn = Switch(frame, ColX, 78f, () => ComfortSettings.SmoothTurn = !ComfortSettings.SmoothTurn);
-            _vignette = Switch(frame, -ColX, 16f, () => ComfortSettings.Vignette = !ComfortSettings.Vignette);
-            _seated = Switch(frame, ColX, 16f, () => ComfortSettings.Seated = !ComfortSettings.Seated);
+            if (PcPlatformBoot.IsVr)
+            {
+                // Comfort: moving, turning, the vignette, seated play (a headset's).
+                _move = Switch(frame, -ColX, 78f, () => ComfortSettings.Teleport = !ComfortSettings.Teleport);
+                _turn = Switch(frame, ColX, 78f, () => ComfortSettings.SmoothTurn = !ComfortSettings.SmoothTurn);
+                _vignette = Switch(frame, -ColX, 16f, () => ComfortSettings.Vignette = !ComfortSettings.Vignette);
+                _seated = Switch(frame, ColX, 16f, () => ComfortSettings.Seated = !ComfortSettings.Seated);
+            }
+            else if (PcPlatformBoot.IsDesktop)
+            {
+                // PC: the mouse's feel.
+                DiegeticUi.HoloButton(frame, "−", new Vector2(-ColX - 150f, 78f), new Vector2(54f, 50f), () => Sensitivity(-0.25f), DiegeticUi.BtnStyle.Ghost);
+                _sens = DiegeticUi.HoloLabel(frame, string.Empty, new Vector2(-ColX, 78f), new Vector2(230f, 44f), 18f, UiKit.TextBright);
+                DiegeticUi.HoloButton(frame, "+", new Vector2(-ColX + 150f, 78f), new Vector2(54f, 50f), () => Sensitivity(0.25f), DiegeticUi.BtnStyle.Ghost);
+                _invert = Switch(frame, ColX, 78f, () =>
+                {
+                    var pc = PcDesktopController.Instance;
+                    if (pc != null)
+                        pc.SaveSettings(pc.MouseSensitivity, !pc.InvertY);
+                });
+            }
 
             _glow = Switch(frame, -ColX, -46f, () => CicEnvironment.ToggleGlow());
             DiegeticUi.HoloButton(frame, Trans.Get("guide"), new Vector2(ColX, -46f), Cell, () =>
             {
-                _panel.SetActive(false);
+                Hide();
                 Core.Crew.TutorialGuide.Instance?.Restart();
             }, DiegeticUi.BtnStyle.Cyan);
 
             _watch = DiegeticUi.HoloButton(frame, Trans.Get("vr.watch.enter"), new Vector2(-ColX, -108f), Cell, () =>
             {
-                _panel.SetActive(false);
+                Hide();
                 WatchMode.Instance?.Enter();
             }, DiegeticUi.BtnStyle.Amber);
+            // The watch (passthrough) is a headset's.
+            _watch.gameObject.SetActive(PcPlatformBoot.IsVr);
             DiegeticUi.HoloButton(frame, Trans.Get("vr.menu.recenter"), new Vector2(ColX, -108f), Cell, () =>
             {
-                _panel.SetActive(false);
+                Hide();
                 if (!Core.Stations.DiplomacyRoom.AnyRoomInside)
                     FindFirstObjectByType<BridgeViewRig>()?.PutPlayerOnDeck();
             }, DiegeticUi.BtnStyle.Ghost);
 
-            DiegeticUi.HoloButton(frame, Trans.Get("close"), new Vector2(0f, -176f), new Vector2(200f, 50f), () => _panel.SetActive(false),
+            DiegeticUi.HoloButton(frame, Trans.Get("close"), new Vector2(0f, -176f), new Vector2(200f, 50f), Hide,
                 DiegeticUi.BtnStyle.Ghost);
 
             foreach (var t in _panel.GetComponentsInChildren<Transform>(true))

@@ -314,7 +314,7 @@ namespace Core.Holo
         }
 
         /// <summary>Never lose the map: stay over the table's reach, above the floor, below the ceiling.</summary>
-        static void ClampContent(Transform c)
+        internal static void ClampContent(Transform c)
         {
             var p = c.localPosition;
             var flat = new Vector2(p.x, p.z);

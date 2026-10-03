@@ -160,14 +160,15 @@ namespace Core.Stations
             for (var i = -5; i <= 5; i++)
                 Box("Stanchion" + i, new Vector3(i * 1.15f, 0.5f, GalleryEdge - 0.08f), new Vector3(0.05f, 1f, 0.05f), rib);
             var glass = _art.Holo(Texture2D.whiteTexture, new Color(0.4f, 0.6f, 1f, 0.12f));
-            Box("RailGlass", new Vector3(0f, 0.5f, GalleryEdge - 0.06f), new Vector3(HallWidth - 1f, 0.9f, 0.01f), glass);
+            // The glass is the gallery's edge: a body stops at it (the hall is 1.4 m below).
+            Box("RailGlass", new Vector3(0f, 0.5f, GalleryEdge - 0.06f), new Vector3(HallWidth - 1f, 0.9f, 0.01f), glass, solid: true);
 
             // Embarkation hall below: floor, walls with ribs, a violet base line that goes red on alarm.
             Box("HallFloor", new Vector3(0f, HallFloor - 0.05f, (GalleryEdge + HallEnd) * 0.5f),
                 new Vector3(HallWidth, 0.1f, HallEnd - GalleryEdge), deck, solid: true);
             Box("Ceiling", new Vector3(0f, HallFloor + HallHeight, (HallEnd - 3.5f) * 0.5f), new Vector3(HallWidth, 0.1f, HallEnd + 3.5f), wall);
             Box("BackWall", new Vector3(0f, HallFloor + HallHeight * 0.5f, HallEnd), new Vector3(HallWidth, HallHeight, 0.2f), wall);
-            Box("GalleryBack", new Vector3(0f, HallFloor + HallHeight * 0.5f, -3.5f), new Vector3(HallWidth, HallHeight, 0.2f), wall);
+            Box("GalleryBack", new Vector3(0f, HallFloor + HallHeight * 0.5f, -3.5f), new Vector3(HallWidth, HallHeight, 0.2f), wall, solid: true);
             for (var side = -1; side <= 1; side += 2)
             {
                 Box(side < 0 ? "WallL" : "WallR", new Vector3(side * half, HallFloor + HallHeight * 0.5f, (HallEnd - 3.5f) * 0.5f),

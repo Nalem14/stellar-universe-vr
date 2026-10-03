@@ -13,6 +13,7 @@ namespace Core.UI
     /// to trigger 3D interactables (PokeButton, XRSimpleInteractable, Captain Seat, Room Doors) with mouse or E key.
     /// Updates PcHud with contextual action prompts.
     /// </summary>
+    [DefaultExecutionOrder(-200)]
     public sealed class PcInteractionRaycaster : MonoBehaviour
     {
         /// <summary>Far enough for the exchange's crates over the pit (5–7 m) and the holo table from the seat.</summary>
@@ -42,26 +43,26 @@ namespace Core.UI
                     return;
             }
 
+            // Something carried (FlatGrab): it follows the aim; left click drops, right click / Esc puts it back.
+            if (FlatGrab.Holding)
+            {
+                ReleaseUi();
+                ClearHover(keepPrompt: true);
+                PcHud.Instance?.SetHover(true, Trans.Get("vr.pc.dropHint"));
+                FlatGrab.Tick();
+                return;
+            }
+
             var ctrl = PcDesktopController.Instance;
             bool isLocked = ctrl != null && ctrl.IsCursorLocked;
+            if (!FlatPointer.TryAim(out var ray))
+                return;
 
-            Ray ray;
-            var mouse = Mouse.current;
-            if (isLocked || mouse == null)
-            {
-                ray = _cam.ViewportPointToRay(new Vector3(0.5f, 0.5f, 0f));
-            }
-            else
-            {
-                ray = _cam.ScreenPointToRay(mouse.position.ReadValue());
-            }
-
-            // Raycast against physical colliders
-            var physical = Physics.Raycast(ray, out var hit, MaxInteractionDistance);
+            var found = FlatPointer.FindTarget(ray, MaxInteractionDistance, out var hit);
 
             // FPS view: the cursor is captured and the UI module ignores a locked mouse, so the holo screens are
             // aimed with the crosshair here (hover, press, click, field focus), whichever is nearer wins.
-            if (isLocked && AimUi(physical ? hit.distance : MaxInteractionDistance))
+            if (isLocked && AimUi(found ? hit.distance : MaxInteractionDistance))
             {
                 ClearHover(keepPrompt: true);
                 HandleUiInput();
@@ -69,17 +70,15 @@ namespace Core.UI
             }
 
             ReleaseUi();
-            if (physical)
-            {
+            if (found)
                 HandleHit(hit);
-            }
             else
-            {
                 ClearHover();
-            }
 
             HandleInput();
         }
+
+
 
         // ── Crosshair on world-space UI (locked cursor) ─────────────────────────
 
@@ -151,6 +150,7 @@ namespace Core.UI
                 _ped.eligibleForClick = true;
                 _uiPress = UnityEngine.EventSystems.ExecuteEvents.ExecuteHierarchy(_uiHover, _ped, UnityEngine.EventSystems.ExecuteEvents.pointerDownHandler) ?? _uiHover;
                 _ped.pointerPress = _uiPress;
+                FlatPointer.Consume();
                 // A field takes the keyboard (the module would select on press; it does not see a locked mouse).
                 var selectable = UnityEngine.EventSystems.ExecuteEvents.GetEventHandler<UnityEngine.EventSystems.ISelectHandler>(_uiHover);
                 if (es != null && selectable != null)
@@ -179,42 +179,33 @@ namespace Core.UI
             _uiHover = null;
         }
 
+        FlatGrabbable _hoveredGrab;
+
         void HandleHit(RaycastHit hit)
         {
             var hitGo = hit.collider.gameObject;
-
-            // 1. Check for PokeButton
             var poke = hitGo.GetComponentInParent<PokeButton>();
-
-            // 2. Check for XRSimpleInteractable
             var interactable = hitGo.GetComponentInParent<XRSimpleInteractable>();
-
-            // 3. Check for RoomDoor
             var door = hitGo.GetComponentInParent<RoomDoor>();
-
-            // 4. Check for Captain Seat
+            _hoveredGrab = hitGo.GetComponentInParent<FlatGrabbable>();
             bool isSeat = hitGo.name.Contains("CaptainSeat") || hitGo.name.Contains("SitZone");
 
-            if (poke != null)
+            if (_hoveredGrab != null)
             {
+                var what = _hoveredGrab.Label != null ? _hoveredGrab.Label() : null;
+                var grab = string.IsNullOrEmpty(what) ? Trans.Get("vr.pc.grabOnly") : Trans.Format("vr.pc.grabPrompt", what);
+                SetHover(interactable, poke, grab);
+            }
+            else if (poke != null)
                 SetHover(interactable, poke, GetPromptForButton(poke));
-            }
             else if (isSeat)
-            {
                 SetHover(interactable, null, Prompt(Trans.Get("vr.pc.sit")));
-            }
             else if (door != null)
-            {
                 SetHover(interactable, null, Prompt(Trans.Get("vr.pc.door")));
-            }
             else if (interactable != null)
-            {
                 SetHover(interactable, null, Prompt(Trans.Get("vr.pc.interact")));
-            }
             else
-            {
                 ClearHover();
-            }
         }
 
         string GetPromptForButton(PokeButton btn)
@@ -255,6 +246,7 @@ namespace Core.UI
 
         void ClearHover(bool keepPrompt = false)
         {
+            _hoveredGrab = null;
             if (_hoveredInteractable != null)
             {
                 try { _hoveredInteractable.hoverExited?.Invoke(new HoverExitEventArgs { interactableObject = _hoveredInteractable }); } catch { }
@@ -272,46 +264,48 @@ namespace Core.UI
         void HandleInput()
         {
             var mouse = Mouse.current;
-            var kb = Keyboard.current;
-
             // The E key is a letter when a field has the keyboard.
-            if (PcPlatformBoot.IsTyping)
-                kb = null;
+            var kb = PcPlatformBoot.IsTyping ? null : Keyboard.current;
+            var ePressed = kb != null && kb.eKey.wasPressedThisFrame;
 
-            bool pressDown = (mouse != null && mouse.leftButton.wasPressedThisFrame) ||
-                             (kb != null && kb.eKey.wasPressedThisFrame);
+            // E on a grabbable picks it up (FPS rule); a left click on it stays a click (select, give an order).
+            if (ePressed && _hoveredGrab != null && FlatGrab.TryBegin(_hoveredGrab))
+                return;
 
-            bool pressUp = (mouse != null && mouse.leftButton.wasReleasedThisFrame) ||
-                           (kb != null && kb.eKey.wasReleasedThisFrame);
+            bool pressDown = (mouse != null && mouse.leftButton.wasPressedThisFrame) || ePressed;
+            bool pressUp = (mouse != null && mouse.leftButton.wasReleasedThisFrame) || (kb != null && kb.eKey.wasReleasedThisFrame);
+
+            // A free cursor over a holo screen: the UI module has this click, not the object behind the screen.
+            var locked = PcDesktopController.Instance == null || PcDesktopController.Instance.IsCursorLocked;
+            if (pressDown && !locked && UnityEngine.EventSystems.EventSystem.current != null &&
+                UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject())
+                pressDown = false;
 
             if (pressDown && _hoveredInteractable != null)
             {
+                // This object owns the click: the world systems (table, board) do not see it.
+                FlatPointer.Consume();
                 _heldInteractable = _hoveredInteractable;
                 try
                 {
-                    _heldInteractable.selectEntered?.Invoke(new SelectEnterEventArgs
-                    {
-                        interactableObject = _heldInteractable
-                    });
+                    _heldInteractable.selectEntered?.Invoke(new SelectEnterEventArgs { interactableObject = _heldInteractable });
                 }
                 catch (System.Exception ex)
                 {
-                    Debug.LogWarning($"[PcInteractionRaycaster] Exception during selectEntered: {ex.Message}");
+                    Debug.LogException(ex);
                 }
             }
             else if (pressUp && _heldInteractable != null)
             {
                 try
                 {
-                    _heldInteractable.selectExited?.Invoke(new SelectExitEventArgs
-                    {
-                        interactableObject = _heldInteractable
-                    });
+                    _heldInteractable.selectExited?.Invoke(new SelectExitEventArgs { interactableObject = _heldInteractable });
                 }
                 catch (System.Exception ex)
                 {
-                    Debug.LogWarning($"[PcInteractionRaycaster] Exception during selectExited: {ex.Message}");
+                    Debug.LogException(ex);
                 }
+
                 _heldInteractable = null;
             }
         }

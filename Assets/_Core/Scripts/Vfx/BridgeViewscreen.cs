@@ -628,6 +628,7 @@ namespace Core.Vfx
 
             Gaze(main);
             TickGestures();
+            TickFlatGestures();
             TickDirection();
             TickInset(true);
             _switch = Mathf.MoveTowards(_switch, 0f, Time.unscaledDeltaTime * 2.2f);

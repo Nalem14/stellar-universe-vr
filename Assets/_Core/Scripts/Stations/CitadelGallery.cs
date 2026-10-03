@@ -206,6 +206,16 @@ namespace Core.Stations
             var col = new GameObject("GalleryWindowStop");
             col.transform.SetParent(root, false);
             col.AddComponent<MeshCollider>().sharedMesh = stop.ToMesh("SU_GalleryWindowStop");
+            // Solid boxes behind the windows, one per bay (a one-sided mesh can be crossed from behind).
+            for (var deg = A0 + BayDeg * 0.5f; deg < A1; deg += BayDeg)
+            {
+                var d = LatheMesh.Dir(deg);
+                var box = new GameObject("GalleryHull");
+                box.transform.SetParent(root, false);
+                box.transform.localPosition = d * (ROut + 0.3f) + Vector3.up * 2f;
+                box.transform.localRotation = Quaternion.LookRotation(d, Vector3.up);
+                box.AddComponent<BoxCollider>().size = new Vector3(2f * (ROut + 0.3f) * Mathf.Tan(BayDeg * 0.5f * Mathf.Deg2Rad) + 0.3f, 4f, 0.6f);
+            }
         }
 
         static bool NearDoor(float deg, float pad)

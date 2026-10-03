@@ -26,7 +26,14 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 | `vr.pc.door` | Go through the door | Passer la porte | Invite PC sur une porte |
 | `vr.pc.interact` | Interact | Interagir | Invite PC sur un objet saisissable (caisse du marché, jeton…) |
 | `vr.pc.commandBar` | <b>[F]</b> Fleets  •  <b>[M]</b> Galaxy / system map  •  <b>[C]</b> Comms  •  <b>[O]</b> Operations  •  <b>[T]</b> Tactical  •  <b>[Space]</b> Stand up | <b>[F]</b> Flottes  •  <b>[M]</b> Carte galaxie / système  •  <b>[C]</b> Comms  •  <b>[O]</b> Opérations  •  <b>[T]</b> Tactique  •  <b>[Espace]</b> Se lever | Barre de raccourcis PC, assis au poste de commandement |
-| `vr.pc.cursorHint` | <b>[Tab]</b> Free cursor  •  <b>[Esc]</b> Menu | <b>[Tab]</b> Curseur libre  •  <b>[Échap]</b> Menu | Rappel PC en bas à droite |
+| `vr.pc.cursorHint` | <b>[Tab]</b> Free cursor  •  <b>[I]</b> Wrist  •  <b>[Esc]</b> Menu | <b>[Tab]</b> Curseur libre  •  <b>[I]</b> Bracelet  •  <b>[Échap]</b> Menu | Rappel PC en bas à droite |
+| `vr.pc.grabOnly` | <b>[E]</b> Grab | <b>[E]</b> Saisir | Invite PC sur un objet saisissable sans nom |
+| `vr.pc.grabPrompt` | <b>[E]</b> Grab {0} | <b>[E]</b> Saisir {0} | Invite PC sur un objet saisissable ; {0} = son nom (vaisseau, module…) |
+| `vr.pc.dropHint` | <b>[Left click]</b> Drop  •  <b>[Right click]</b> / <b>[Esc]</b> Put back | <b>[Clic gauche]</b> Poser  •  <b>[Clic droit]</b> / <b>[Échap]</b> Reposer | Invite PC pendant qu'un objet est tenu |
+| `vr.mobile.dropHint` | Tap the target to drop it | Touchez la cible pour poser | Bandeau mobile pendant qu'un objet est tenu |
+| `vr.mobile.wrist` | Status | Bracelet | Bouton mobile : affiche / masque le bracelet (heure, alerte, affaires) |
+| `vr.menu.mouseSens` | Mouse sensitivity | Sensibilité souris | Menu rapide (PC) |
+| `vr.menu.invertY` | Invert vertical look | Inverser l'axe vertical | Menu rapide (PC) |
 | `vr.pc.standUp` | Stand up | Se lever | Bouton tactile du poste de commandement (mobile) |
 | `vr.mobile.map` | Map | Carte | Bouton tactile : bascule galaxie / système de la table holo |
 

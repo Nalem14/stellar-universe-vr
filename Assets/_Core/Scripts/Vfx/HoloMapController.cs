@@ -142,8 +142,9 @@ namespace Core.Vfx
                 return;
 
             var stick = 0f;
+            // The wheel on a flat screen belongs to PcHoloMapInput (zoom around the aimed point, only over the table).
             var mouse = UnityEngine.InputSystem.Mouse.current;
-            if (mouse != null)
+            if (mouse != null && !Core.App.PcPlatformBoot.IsFlatScreen)
                 stick = mouse.scroll.ReadValue().y * 0.05f;
 
             var gamepad = UnityEngine.InputSystem.Gamepad.current;

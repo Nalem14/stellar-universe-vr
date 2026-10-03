@@ -310,6 +310,12 @@ namespace Core.App
             var chairLift = CaptainCommandMode.Instance != null ? CaptainCommandMode.Instance.ViewLift : null;
             var baseY = _rig.CurrentTrackingOriginMode == UnityEngine.XR.TrackingOriginModeFlags.Floor ? 0f : _rig.CameraYOffset;
             CurrentLift = chairLift ?? StandingLift;
+            if (PcPlatformBoot.IsFlatScreen)
+            {
+                // No tracked head on a screen: standing eyes at WorldScale height, only the chair lifts them.
+                baseY = Core.Vfx.WorldScale.EyeStanding;
+                CurrentLift = chairLift ?? 0f;
+            }
             var y = baseY + CurrentLift;
             var p = offset.transform.localPosition;
             if (Mathf.Abs(p.y - y) > 0.001f)

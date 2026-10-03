@@ -301,6 +301,15 @@ namespace Core.Stations
                 grab.selectExited.AddListener(_ => OnRelease(s));
                 grab.hoverEntered.AddListener(_ => ShowCard(s));
                 grab.hoverExited.AddListener(_ => HideCard(s));
+                // Flat screens: E (PC) / a tap (mobile) takes the block, it follows the aim, a click / tap sets it
+                // down on a grid cell or in the recycler (the same drop as letting go with the hand).
+                if (Core.App.PcPlatformBoot.IsFlatScreen)
+                {
+                    var flat = block.AddComponent<Core.UI.FlatGrabbable>();
+                    flat.Begin = () => BeginFlat(s);
+                    flat.Label = () => s.Type != null ? Trans.Get(ModuleCatalog.NameKey(s.Type)) : null;
+                }
+
                 _slots[i] = slot;
             }
         }
@@ -668,6 +677,64 @@ namespace Core.Stations
             _mpb.SetFloat(GhostId, 0f);
             _mpb.SetFloat(RevealId, s.Reveal);
             s.Renderer.SetPropertyBlock(_mpb);
+        }
+
+        // ── Flat-screen grab (PC, mobile) ───────────────────────────────────────
+
+        Core.UI.IFlatGrab BeginFlat(Slot s)
+        {
+            if (s.Type == null || _held != null || s.BlockCol == null || !s.BlockCol.enabled)
+                return null;
+            OnGrab(s);
+            return new FlatBlock(this, s);
+        }
+
+        static readonly RaycastHit[] FlatHits = new RaycastHit[16];
+
+        sealed class FlatBlock : Core.UI.IFlatGrab
+        {
+            readonly ModuleShelves _shelves;
+            readonly Slot _slot;
+
+            public FlatBlock(ModuleShelves shelves, Slot slot)
+            {
+                _shelves = shelves;
+                _slot = slot;
+            }
+
+            /// <summary>Over what the aim meets (a cell of the grid, the recycler's maw), else at arm's length.</summary>
+            public void Move(Ray aim)
+            {
+                var block = _slot.Block.transform;
+                var at = aim.origin + aim.direction * 0.9f;
+                var n = Physics.RaycastNonAlloc(aim, FlatHits, 9f, ~0, QueryTriggerInteraction.Ignore);
+                var best = float.MaxValue;
+                for (var i = 0; i < n; i++)
+                {
+                    var h = FlatHits[i];
+                    if (h.collider.transform.IsChildOf(block) || h.distance >= best)
+                        continue;
+                    best = h.distance;
+                    var recycler = h.collider.GetComponentInParent<ModuleRecycler>();
+                    at = recycler != null ? recycler.MawWorld + Vector3.up * 0.1f : h.point + Vector3.up * 0.05f;
+                }
+
+                block.position = at;
+            }
+
+            public bool Drop(Ray aim)
+            {
+                Move(aim);
+                _shelves.OnRelease(_slot);
+                return true;
+            }
+
+            public void Cancel()
+            {
+                // Back on its shelf, no order (the drop at home is refused and the block flies home).
+                _slot.Block.transform.position = _slot.Home.position;
+                _shelves.OnRelease(_slot);
+            }
         }
 
         // ── Grab / trigger ────────────────────────────────────────────────────────

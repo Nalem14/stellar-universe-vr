@@ -15,7 +15,8 @@ namespace Core.Vfx
     /// </summary>
     public partial class HexBattleController
     {
-        const float RayLength = 4f;
+        /// <summary>Reach of an aim: a hand at the table (4 m), or a camera standing back from it (flat screens).</summary>
+        static float RayLength => Core.App.PcPlatformBoot.IsFlatScreen ? 9f : 4f;
         const float ShipPickRadius = 0.032f;
         const float PokeHeight = 0.04f;
 
@@ -38,6 +39,15 @@ namespace Core.Vfx
             _hoverCell = null;
             _inspect = 0;
             _touch.Clear();
+        }
+
+        /// <summary>A holo panel between the eye and the board owns the pointer there.</summary>
+        bool NearerThanBoard(Ray ray, float uiDistance)
+        {
+            if (uiDistance == float.MaxValue || _frame == null)
+                return false;
+            var plane = new Plane(_frame.up, _frame.position);
+            return plane.Raycast(ray, out var boardDistance) && uiDistance < boardDistance;
         }
 
         void UpdateInput()
@@ -68,6 +78,26 @@ namespace Core.Vfx
                     if (cell.HasValue)
                         ClickCell(cell.Value.x, cell.Value.y);
                     break;
+                }
+            }
+
+            // Flat screens (PC, mobile): the crosshair / mouse aims a cell (hover on PC), a click or a tap plays it —
+            // unless a console key or a panel nearer took the click (it is consumed first).
+            if (Core.App.PcPlatformBoot.IsFlatScreen)
+            {
+                var nearUi = Core.UI.FlatPointer.UiDistance();
+                if (Core.App.PcPlatformBoot.IsDesktop && Core.UI.FlatPointer.TryAim(out var fr))
+                {
+                    var cell = RayCell(fr.origin, fr.direction);
+                    if (cell.HasValue && !aimed.HasValue && !NearerThanBoard(fr, nearUi))
+                        aimed = cell;
+                }
+
+                if (Core.UI.FlatPointer.Peek(out var cr) && !NearerThanBoard(cr, nearUi))
+                {
+                    var cell = RayCell(cr.origin, cr.direction);
+                    if (cell.HasValue && Core.UI.FlatPointer.TryClick(out _))
+                        ClickCell(cell.Value.x, cell.Value.y);
                 }
             }
 

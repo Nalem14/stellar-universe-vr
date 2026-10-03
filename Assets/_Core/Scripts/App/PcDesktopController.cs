@@ -140,8 +140,9 @@ namespace Core.App
             if (kb == null)
                 return;
 
-            // Tab or Alt toggles free cursor
-            if (kb.tabKey.wasPressedThisFrame || kb.leftAltKey.wasPressedThisFrame)
+            // Tab or Alt toggles free cursor (at the airlock Tab moves between the form's fields: Alt only).
+            var atAirlock = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == SceneFlow.Menu;
+            if (!atAirlock && kb.tabKey.wasPressedThisFrame || kb.leftAltKey.wasPressedThisFrame)
             {
                 _manualUnlock = !_manualUnlock;
                 SetCursorLock(!_manualUnlock);

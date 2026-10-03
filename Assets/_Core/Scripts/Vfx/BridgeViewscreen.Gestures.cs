@@ -193,6 +193,95 @@ namespace Core.Vfx
             }
         }
 
+        // ── Flat screens (PC, mobile) ───────────────────────────────────────────
+
+        /// <summary>Last frame the flat pointer was on the viewscreen (the table's wheel / pinch leave it alone).</summary>
+        public static int FlatPointerFrame { get; private set; } = -10;
+
+        float _flatPinch;
+
+        /// <summary>
+        /// The same handling without hands: PC — aim at the screen, wheel to zoom, right-drag to swing round the
+        /// subject, double click for the director; mobile — pinch over the screen to zoom, double tap for the director.
+        /// </summary>
+        void TickFlatGestures()
+        {
+            if (!Core.App.PcPlatformBoot.IsFlatScreen)
+                return;
+            if (Core.App.PcPlatformBoot.IsMobile)
+            {
+                var touches = UnityEngine.InputSystem.EnhancedTouch.Touch.activeTouches;
+                if (touches.Count >= 2 && Camera.main != null)
+                {
+                    var a = touches[0].screenPosition;
+                    var b = touches[1].screenPosition;
+                    var mid = Camera.main.ScreenPointToRay((a + b) * 0.5f);
+                    if (ScreenPoint(mid.origin, mid.direction, out _))
+                    {
+                        FlatPointerFrame = Time.frameCount;
+                        var spread = (a - b).magnitude;
+                        if (_flatPinch > 20f && spread > 20f)
+                            _cam.Zoom = Mathf.Clamp(_cam.Zoom * _flatPinch / spread, 0.3f, 2.5f);
+                        _flatPinch = spread;
+                        HoldByHand();
+                        return;
+                    }
+                }
+
+                _flatPinch = 0f;
+            }
+
+            if (!Core.UI.FlatPointer.TryAim(out var aim) || !ScreenPoint(aim.origin, aim.direction, out _))
+            {
+                if (Core.UI.FlatPointer.Peek(out var tap) && Core.App.PcPlatformBoot.IsMobile && ScreenPoint(tap.origin, tap.direction, out _))
+                    FlatTap();
+                return;
+            }
+
+            FlatPointerFrame = Time.frameCount;
+            var mouse = UnityEngine.InputSystem.Mouse.current;
+            if (Core.App.PcPlatformBoot.IsDesktop && mouse != null)
+            {
+                var wheel = mouse.scroll.ReadValue().y;
+                if (Mathf.Abs(wheel) > 0.01f)
+                {
+                    _cam.Zoom = Mathf.Clamp(_cam.Zoom * (wheel > 0f ? 0.9f : 1.1f), 0.3f, 2.5f);
+                    HoldByHand();
+                }
+
+                if (mouse.rightButton.isPressed)
+                {
+                    // Pull right and the subject turns right, as with a hand on the glass.
+                    var d = mouse.delta.ReadValue() * 0.0025f;
+                    if (d.sqrMagnitude > 1e-8f)
+                    {
+                        _cam.OrbitYaw = Mathf.Clamp(_cam.OrbitYaw - d.x * DegreesPerMetre, -ViewscreenCamera.MaxOrbitYaw, ViewscreenCamera.MaxOrbitYaw);
+                        _cam.OrbitPitch = Mathf.Clamp(_cam.OrbitPitch + d.y * DegreesPerMetre, -60f, 60f);
+                        HoldByHand();
+                    }
+                }
+            }
+
+            if (Core.UI.FlatPointer.Peek(out _))
+                FlatTap();
+        }
+
+        /// <summary>A click / tap on the screen: two in a row give the picture back to the director.</summary>
+        void FlatTap()
+        {
+            if (!Core.UI.FlatPointer.TryClick(out _))
+                return;
+            if (Time.unscaledTime - _lastTap < 0.55f)
+            {
+                _lastTap = -9f;
+                Auto();
+            }
+            else
+            {
+                _lastTap = Time.unscaledTime;
+            }
+        }
+
         /// <summary>A hand on the shot keeps its subject, whatever the director had in mind.</summary>
         void HoldByHand()
         {

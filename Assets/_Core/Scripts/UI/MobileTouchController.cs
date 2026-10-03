@@ -15,6 +15,7 @@ namespace Core.UI
     /// - Smooth touch swipe on right screen half (mouse look equivalent: yaw & pitch)
     /// - Tap detection on 3D objects (PokeButton, doors, chair, interactables)
     /// </summary>
+    [DefaultExecutionOrder(-200)]
     public sealed class MobileTouchController : MonoBehaviour
     {
         public static MobileTouchController Instance { get; private set; }
@@ -95,7 +96,18 @@ namespace Core.UI
             }
 
             HandleTouches();
+            // Something carried: it follows the screen centre, a tap on the target drops it (FlatGrab).
+            FlatGrab.Tick();
             ApplyMovement();
+        }
+
+        static bool Seated => CaptainCommandMode.Instance != null && CaptainCommandMode.Instance.IsCommandMode;
+
+        /// <summary>A finger on a HUD or holo-screen button (the Input System module keys pointers by touch id).</summary>
+        static bool OverUi(Touch touch)
+        {
+            var es = UnityEngine.EventSystems.EventSystem.current;
+            return es != null && es.IsPointerOverGameObject(touch.touchId);
         }
 
         void HandleTouches()
@@ -108,7 +120,8 @@ namespace Core.UI
                 var touch = activeTouches[i];
                 var fingerId = touch.finger.index;
                 var pos = touch.screenPosition;
-                var isLeftSide = pos.x < Screen.width * 0.48f;
+                // Seated at the command post nobody walks: the whole screen is for looking and tapping the table.
+                var isLeftSide = !Seated && pos.x < Screen.width * 0.48f;
 
                 // 1. Manage Move Joystick (Left side)
                 if (_joystickFingerId == fingerId)
@@ -132,7 +145,7 @@ namespace Core.UI
                         MobileHud.Instance?.ShowJoystick(false, Vector2.zero);
                     }
                 }
-                else if (_joystickFingerId == -1 && isLeftSide && touch.phase == TouchPhase.Began)
+                else if (_joystickFingerId == -1 && isLeftSide && touch.phase == TouchPhase.Began && !OverUi(touch))
                 {
                     _joystickFingerId = fingerId;
                     _joystickOrigin = pos;
@@ -145,7 +158,12 @@ namespace Core.UI
                 // 2. Manage Camera Look & Tap (Right side)
                 if (_lookFingerId == fingerId)
                 {
-                    if (touch.phase == TouchPhase.Moved)
+                    // Two fingers at the table are a pinch (MobileHoloMapInput), not a look.
+                    if (touch.phase == TouchPhase.Moved && Seated && activeTouches.Count >= 2)
+                    {
+                        _lookStartPos = new Vector2(-9999f, -9999f);
+                    }
+                    else if (touch.phase == TouchPhase.Moved)
                     {
                         var delta = touch.delta * TouchSensitivity;
                         _yaw += delta.x;
@@ -162,8 +180,8 @@ namespace Core.UI
                         float duration = Time.unscaledTime - _lookStartTime;
                         float moveDist = (pos - _lookStartPos).magnitude;
 
-                        // Quick tap detected
-                        if (duration < 0.25f && moveDist < 25f)
+                        // Quick tap detected (and not on a button: the UI already took it)
+                        if (duration < 0.25f && moveDist < 25f && !OverUi(touch))
                         {
                             PerformTap(pos);
                         }
@@ -177,7 +195,7 @@ namespace Core.UI
                 else if (_lookFingerId == -1 && !isLeftSide && touch.phase == TouchPhase.Began)
                 {
                     // Check if touching a UI element
-                    if (!UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject(fingerId))
+                    if (!OverUi(touch))
                     {
                         _lookFingerId = fingerId;
                         _lookStartPos = pos;
@@ -224,38 +242,57 @@ namespace Core.UI
                 return;
 
             var ray = _camera.ScreenPointToRay(screenPos);
-            if (Physics.Raycast(ray, out var hit, TapReach))
+            // Carrying something: this tap is where it goes.
+            if (FlatGrab.Holding)
             {
-                var hitGo = hit.collider.gameObject;
-
-                var poke = hitGo.GetComponentInParent<PokeButton>();
-                var interactable = hitGo.GetComponentInParent<XRSimpleInteractable>();
-                var door = hitGo.GetComponentInParent<RoomDoor>();
-                bool isSeat = hitGo.name.Contains("CaptainSeat") || hitGo.name.Contains("SitZone");
-
-                if (isSeat)
-                {
-                    CaptainCommandMode.Instance?.EnterCommandMode();
-                }
-                else if (door != null)
-                {
-                    // Request door opening
-                    door.SendMessage("Request", UnityEngine.SendMessageOptions.DontRequireReceiver);
-                }
-                else if (poke != null)
-                {
-                    poke.SendMessage("OnPress", UnityEngine.SendMessageOptions.DontRequireReceiver);
-                }
-                else if (interactable != null)
-                {
-                    try
-                    {
-                        interactable.selectEntered?.Invoke(new SelectEnterEventArgs { interactableObject = interactable });
-                        interactable.selectExited?.Invoke(new SelectExitEventArgs { interactableObject = interactable });
-                    }
-                    catch { }
-                }
+                FlatPointer.PostTap(ray, screenPos);
+                return;
             }
+
+            if (!FlatPointer.FindTarget(ray, TapReach, out var hit))
+            {
+                // Nothing that reacts here: the tap goes to the world systems (holo table, hex board, viewscreen).
+                FlatPointer.PostTap(ray, screenPos);
+                return;
+            }
+
+            var hitGo = hit.collider.gameObject;
+            var grab = hitGo.GetComponentInParent<FlatGrabbable>();
+            var interactable = hitGo.GetComponentInParent<XRSimpleInteractable>();
+            var door = hitGo.GetComponentInParent<RoomDoor>();
+            bool isSeat = hitGo.name.Contains("CaptainSeat") || hitGo.name.Contains("SitZone");
+
+            if (grab != null && FlatGrab.TryBegin(grab))
+                return;
+            if (isSeat)
+            {
+                CaptainCommandMode.Instance?.EnterCommandMode();
+                return;
+            }
+
+            if (door != null)
+            {
+                door.SendMessage("Request", UnityEngine.SendMessageOptions.DontRequireReceiver);
+                return;
+            }
+
+            if (interactable != null)
+            {
+                // Press and release, as a poke would (PokeButton included: its cap comes back up).
+                try
+                {
+                    interactable.selectEntered?.Invoke(new SelectEnterEventArgs { interactableObject = interactable });
+                    interactable.selectExited?.Invoke(new SelectExitEventArgs { interactableObject = interactable });
+                }
+                catch (System.Exception e)
+                {
+                    Debug.LogException(e);
+                }
+
+                return;
+            }
+
+            FlatPointer.PostTap(ray, screenPos);
         }
 
         /// <summary>Triggered by the onscreen Action button</summary>

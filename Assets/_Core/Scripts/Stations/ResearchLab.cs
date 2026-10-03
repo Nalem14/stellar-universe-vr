@@ -830,6 +830,24 @@ namespace Core.Stations
                 CicCue.Crystal(go.transform.position);
             });
             grab.selectExited.AddListener(_ => OnQueueReleased(slot));
+            // Flat screens: E / tap takes it; set it down away from its pad to cancel, right click / Cancel to keep it.
+            if (PcPlatformBoot.IsFlatScreen)
+            {
+                var flat = go.AddComponent<FlatGrabbable>();
+                flat.Begin = () =>
+                {
+                    if (slot.Crystal != go || slot.QueueId <= 0)
+                        return null;
+                    slot.Held = true;
+                    CicCue.Crystal(go.transform.position);
+                    return new FlatCarry(go.transform, () => OnQueueReleased(slot), () =>
+                    {
+                        go.transform.position = SlotHome(slot);
+                        OnQueueReleased(slot);
+                    });
+                };
+            }
+
             return go;
         }
 
@@ -914,6 +932,34 @@ namespace Core.Stations
                     CicCue.Crystal(_sample.transform.position);
                 });
                 _sampleGrab.selectExited.AddListener(_ => OnSampleReleased());
+                // Flat screens: E / tap takes the sample, it follows the aim and snaps into the core's intake when
+                // the aim passes through it; a click / tap there launches the research.
+                if (PcPlatformBoot.IsFlatScreen)
+                {
+                    var flat = _sample.AddComponent<FlatGrabbable>();
+                    flat.Begin = () =>
+                    {
+                        if (_sample == null || !_sample.activeSelf)
+                            return null;
+                        _sampleHeld = true;
+                        _sampleFlight = 1f;
+                        CicCue.Crystal(_sample.transform.position);
+                        return new FlatCarry(_sample.transform, OnSampleReleased, () =>
+                        {
+                            _sampleHeld = false;
+                            ReturnSample();
+                        })
+                        {
+                            Snap = aim =>
+                            {
+                                var intake = _coreRoot.TransformPoint(new Vector3(0f, (BeamLow + BeamHigh) * 0.5f, 0f));
+                                var along = Vector3.Dot(intake - aim.origin, aim.direction);
+                                var nearest = aim.origin + aim.direction * Mathf.Max(0f, along);
+                                return along > 0f && Vector3.Distance(nearest, intake) < IntakeRadius + 0.15f ? intake : (Vector3?)null;
+                            }
+                        };
+                    };
+                }
             }
 
             var c = _nodes.TryGetValue(tech, out var view) ? view.Node.Color : Accent;

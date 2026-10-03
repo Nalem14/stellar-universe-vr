@@ -211,6 +211,16 @@ namespace Core.Vfx
                 grab.focusMode = InteractableFocusMode.Single;
                 grab.distanceCalculationMode = XRBaseInteractable.DistanceCalculationMode.ColliderPosition;
 
+                // Flat screens: the same ship is picked up with E (PC) or a tap (mobile), follows the aim, and is
+                // dropped on a target with a click / tap (Core.UI.FlatGrab).
+                if (Core.App.PcPlatformBoot.IsFlatScreen)
+                {
+                    var flat = token.GetComponent<Core.UI.FlatGrabbable>() ?? token.gameObject.AddComponent<Core.UI.FlatGrabbable>();
+                    var held = token;
+                    flat.Begin = () => BeginFlatDrag(held);
+                    flat.Label = () => string.IsNullOrEmpty(held.DisplayName) ? null : held.DisplayName.Replace('\n', ' ');
+                }
+
                 grab.selectEntered.RemoveListener(OnSelectEntered);
                 grab.selectExited.RemoveListener(OnSelectExited);
                 grab.hoverEntered.RemoveListener(OnHoverEntered);
@@ -241,6 +251,9 @@ namespace Core.Vfx
                 grab.selectExited.RemoveListener(OnSelectExited);
                 grab.hoverEntered.RemoveListener(OnHoverEntered);
                 grab.hoverExited.RemoveListener(OnHoverExited);
+                var flat = grab.GetComponent<Core.UI.FlatGrabbable>();
+                if (flat != null)
+                    Destroy(flat);
             }
 
             _grabs.Clear();
@@ -311,12 +324,19 @@ namespace Core.Vfx
         void OnSelectEntered(SelectEnterEventArgs args)
         {
             var token = args.interactableObject.transform.GetComponent<HoloToken>();
-            if (token == null)
+            // A select with no hand behind it (a flat-screen press) is not a drag: FlatGrab carries ships there.
+            if (token == null || args.interactorObject == null)
                 return;
+            BeginDrag(token, args.interactorObject.transform);
+        }
+
+        /// <summary>The ship leaves its place and follows <paramref name="attach"/> (a hand, or the flat-screen aim).</summary>
+        void BeginDrag(HoloToken token, Transform attach)
+        {
             ClearHoverHighlight();
             _dragging = token;
             _stickyDrop = null;
-            _dragAttach = args.interactorObject.transform;
+            _dragAttach = attach;
             _map?.SetInteractionLock(true);
             var spin = token.GetComponent<HoloSpin>();
             if (spin != null)
@@ -345,6 +365,14 @@ namespace Core.Vfx
                 }
             }
 
+            if (token == null || token != _dragging)
+                return;
+            EndDrag(token);
+        }
+
+        /// <summary>The ship is let go where it is: the order for the target under it, or back home.</summary>
+        void EndDrag(HoloToken token)
+        {
             _mapCtrl?.HideMoveGhost();
             ClearDropHighlight();
             HideOrderPreview(token);
@@ -361,6 +389,76 @@ namespace Core.Vfx
             var sticky = _stickyDrop;
             _stickyDrop = null;
             Core.Utils.AsyncTap.Run(ResolveDrop(token, sticky));
+        }
+
+        // ── Flat screens (PC, mobile): carry a ship with the aim ─────────────────
+
+        Transform _flatAttach;
+
+        /// <summary>E / tap on one of our idle ships: it rises and follows the aim over the plate (null = not now).</summary>
+        Core.UI.IFlatGrab BeginFlatDrag(HoloToken token)
+        {
+            if (token == null || _dragging != null || _ordering || _map == null || (_mapCtrl != null && _mapCtrl.MovesLocked))
+                return null;
+            if (_flatAttach == null)
+            {
+                _flatAttach = new GameObject("FlatDragAttach").transform;
+                _flatAttach.SetParent(transform, false);
+            }
+
+            _flatAttach.position = token.transform.position;
+            BeginDrag(token, _flatAttach);
+            return new FlatShipDrag(this, token);
+        }
+
+        sealed class FlatShipDrag : Core.UI.IFlatGrab
+        {
+            readonly HoloFleetOrders _o;
+            readonly HoloToken _token;
+
+            public FlatShipDrag(HoloFleetOrders orders, HoloToken token)
+            {
+                _o = orders;
+                _token = token;
+            }
+
+            public void Move(Ray aim)
+            {
+                if (_o._map == null || _o._flatAttach == null)
+                    return;
+                // On the plate under the aim; off the plate, kept at arm's length along it.
+                if (_o._map.AimPlanePoint(aim.origin, aim.direction, 9f, out var world, out _))
+                    _o._flatAttach.position = world + Vector3.up * DragLift;
+                else
+                    _o._flatAttach.position = aim.origin + aim.direction * 1.2f;
+            }
+
+            public bool Drop(Ray aim)
+            {
+                Move(aim);
+                if (_o._dragging != _token)
+                    return true;
+                _token.transform.localScale = Vector3.one;
+                _o.EndDrag(_token);
+                return true;
+            }
+
+            public void Cancel()
+            {
+                if (_o._dragging != _token)
+                    return;
+                _o._mapCtrl?.HideMoveGhost();
+                _o.ClearDropHighlight();
+                _o.HideOrderPreview(_token);
+                _o._dragging = null;
+                _o._dragAttach = null;
+                _o._stickyDrop = null;
+                _token.transform.localScale = Vector3.one;
+                _token.SnapHome();
+                RestoreSpin(_token);
+                _o._map?.SetInteractionLock(false);
+                _o._map?.SetReadout(Trans.Get("CommandBridge"));
+            }
         }
 
         static bool SelectStillHeld(IXRSelectInteractor interactor)

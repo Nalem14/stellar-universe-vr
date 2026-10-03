@@ -208,7 +208,7 @@ namespace Core.App
             if (!_command || _animating)
                 return;
 
-            if (PcPlatformBoot.IsPcDesktop && !PcPlatformBoot.IsTyping)
+            if (PcPlatformBoot.IsPcDesktop && !PcPlatformBoot.IsTyping && !Core.UI.FlatGrab.Holding)
             {
                 var kb = UnityEngine.InputSystem.Keyboard.current;
                 if (kb != null)
