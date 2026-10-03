@@ -43,17 +43,8 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 - `descCloneBay`, `descCommandBridge`, `descCommunicationArray`, `descCorridor`, `descCrewQuarters`, `descDroneBay`, `descEnergyBattery`, `descEnergyReactor`, `descGunTurret`, `descHatchCorridor`, `descHeatCannon`, `descHydroponicBay`, `descKitchen`, `descLuxuryQuarters`, `descMedicalBay`, `descMindControlModule`, `descOpenBay`, `descOxygenSystem`, `descPrlBond`, `descResearchLab`, `descRestArea`, `descShower`, `descSolarPanel`, `descStargateTriangulation`, `descStasisPod`, `descToilet`, `seasonTier_bronze`, `seasonTier_diamond`, `seasonTier_gold`, `seasonTier_grandmaster`, `seasonTier_master`, `seasonTier_platinum`, `seasonTier_silver`, `vr.research.effect`, `vr.research.feature.defenses`, `vr.research.feature.jumpgate`, `vr.research.feature.prlRange`, `vr.research.feature.triangulation`, `vr.research.feature.troops`, `vr.research.kind.feature`, `vr.research.kind.research`, `vr.season.allianceHint`, `vr.season.breakdown`, `vr.season.cycle`, `vr.season.endRewards`, `vr.season.maxTier`, `vr.season.members`, `vr.season.nextTier`, `vr.season.noAccolades`, `vr.season.noAlliances`, `vr.season.noScores`, `vr.season.none`, `vr.season.novaClaimed`, `vr.season.objectives`, `vr.season.pantheonEmpty`, `vr.season.podium.first`, `vr.season.podium.second`, `vr.season.podium.third`, `vr.season.podium.top10`, `vr.season.podium.top20`, `vr.season.points`, `vr.season.rank`, `vr.season.rankPoints`, `vr.season.score`, `vr.season.score.anomaly`, `vr.season.score.battleWon`, `vr.season.score.bounty`, `vr.season.score.daily`, `vr.season.score.defenseHeld`, `vr.season.score.monthly`, `vr.season.score.planetConquered`, `vr.season.score.stargateCapture`, `vr.season.score.stargateColony`, `vr.season.score.weekly`, `vr.season.seeQuarters`, `vr.season.standing`, `vr.season.tier`, `vr.season.titleHint`, `vr.watch.console.comms`, `vr.watch.console.ops`, `vr.watch.consoles` dans **les dix langues**.
 - `vr.comms.readAll`, `vr.comms.readAllDone`, `vr.comms.readAllPartial`, `vr.dock.printer.done`, `vr.dock.printer.idle`, `vr.dock.printer.left`, `vr.dock.printer.queued`, `vr.dock.printer.title`, `vr.gate.ownAddress`, `vr.gate.thisGate`, `vr.quarters.bossGo`, `vr.quarters.bossHere`, `vr.quarters.bossHow`, `vr.quarters.bossNoShip`, `vr.quarters.bossWhere`, `vr.shop.perk.explore_speed`, `vr.shop.perk.mining_speed`, `vr.shop.perk.move_speed`, `vr.shop.perk.production_multiplier`, `vr.shop.perk.queues`, `vr.shop.perk.research_speed`, `vr.shop.perk.xp_multiplier` dans **les dix langues**.
 - `vr.dock.recycler.confirm`, `vr.dock.recycler.go`, `vr.dock.recycler.hint`, `vr.dock.recycler.title`, `vr.dock.store.empty`, `vr.dock.store.title`, `vr.dock.takeFromStore` dans **les dix langues**.
+- `vr.alert.auto`, `vr.alert.manual`, `vr.alert.normal`, `vr.alert.standDown` dans **les dix langues**.
 
-## À intégrer — sélecteur de condition d'alerte
-
-| Clé | EN | FR | Contexte |
-|---|---|---|---|
-| `vr.alert.auto` | Auto | Auto | Touche du sélecteur : l'alerte suit la situation tactique (mode par défaut) ; aussi suffixe de la plaque |
-| `vr.alert.standDown` | Stand down | Repos | Touche du sélecteur : force la fin d'alerte |
-| `vr.alert.normal` | Normal condition | Condition normale | Plaque du sélecteur quand aucune alerte n'est active |
-| `vr.alert.manual` | Manual | Manuel | Suffixe de la plaque quand le commandant a forcé la condition |
-
-Les touches Jaune et Rouge réutilisent `vr.console.amberAlert` (« Alerte jaune ») et `vr.screen.redAlert`.
 
 ## Anomalies (intégré web)
 
