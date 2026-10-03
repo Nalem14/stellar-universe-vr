@@ -18,15 +18,19 @@ namespace Core.Stations
     /// Engineering dry dock of an orbital station — a room you walk into through a door of the bridge (only
     /// at a station over one of our worlds; web ShipBuilderUI + planet shipyard, rebuilt as a place). A control room overlooks a hangar bay through a wide window: the
     /// selected ship sits in its cradle at 1:1 (the real procedural hull, <see cref="ShipHullBuilder"/>) and is
-    /// rebuilt, with welding sparks, each time a module goes on. The assembly table in the room carries the
-    /// 9×9 grid: pick a module on the hangar rack, a holo crate appears on the dispenser — grab it and set it
-    /// on a free cell touching the structure (or point at the cell) → PlaceShipModule. The same blocks stand on
-    /// the module fabricator along the starboard wall (<see cref="ModuleShelves"/>): take one off its shelf and
-    /// set it on the grid, or trigger a missing one twice to have the shipyard build it — the module printer
-    /// next to it (<see cref="ModulePrinter"/>) then shows the part being printed. Point twice at a placed
-    /// module to take it off (RemoveShipModule). Ships docked at the planet are listed; a ShipCore in the
-    /// hangar founds a new one (AddToFleet fleet=0). The dock lives far below the bridge; entering moves the
-    /// XR origin here, leaving puts it back on deck.
+    /// rebuilt, with welding sparks, each time a module goes on. One path per job, each at its own piece of
+    /// furniture (no floating screen):
+    /// - build: the printer's console on the starboard wall (<see cref="ShipyardPanel"/>: AddShip, queue,
+    ///   cancel, Nova finish); the printer beside it (<see cref="ModulePrinter"/>) prints the part, its
+    ///   shuttle carries it to the store;
+    /// - store: the module store forward of it (<see cref="ModuleShelves"/>) holds the finished hangar, one
+    ///   block per type — the only place a module is taken from;
+    /// - fit: set a store block on a free cell of the assembly table's 9×9 grid touching the structure →
+    ///   PlaceShipModule; point twice at a placed module to take it off (RemoveShipModule);
+    /// - scrap: drop a store block in the recycler between the printer and its console → DelShip;
+    /// - ship: the console left of the table (docked ships, new ship from a ShipCore = AddToFleet fleet=0,
+    ///   rename, design readout); blueprints at the console right of it (<see cref="BlueprintPanel"/>).
+    /// The dock lives far below the bridge; entering moves the XR origin here, leaving puts it back on deck.
     /// </summary>
     public sealed class DryDock : MonoBehaviour
     {
@@ -38,7 +42,6 @@ namespace Core.Stations
         static readonly Vector3 Cradle = new(0f, 1.1f, 13.5f);
         /// <summary>The ship lies broadside to the window, bow to the right; the table grid turns the same way.</summary>
         static readonly Quaternion Broadside = Quaternion.Euler(0f, 90f, 0f);
-        static readonly Vector3 Dispenser = new(1.15f, 0f, -1.75f);
         /// <summary>Control room extents: side walls at ±RoomWidth/2, bay window at RoomNorth, exit door in RoomSouth.</summary>
         const float RoomWidth = 11f;
         const float RoomNorth = 3.5f;
@@ -46,7 +49,14 @@ namespace Core.Stations
         const float RoomHeight = 3.4f;
         const float Cell = 0.2f;
         const float GridHeight = 0.92f;
-        const int RackPerPage = 7;
+        /// <summary>Starboard wall, fore to aft: module store, printer console, recycler, printer.</summary>
+        const float StoreZ = -2.0f;
+        const float YardDeskZ = -4.15f;
+        const float RecyclerZ = -5.02f;
+        const float PrinterZ = -6.15f;
+        static readonly Vector3 ShipDesk = new(-2.6f, 0f, -1.3f);
+        static readonly Vector3 PlansDesk = new(2.6f, 0f, -1.1f);
+        static readonly Vector2 ScreenSize = new(0.95f, 0.8f);
         static readonly Color Accent = new(0.4f, 0.95f, 0.55f, 1f);
 
         public static DryDock Instance { get; private set; }
@@ -60,23 +70,16 @@ namespace Core.Stations
         Transform _hullBay;
         Transform _hullBuilt;
         ParticleSystem _sparks;
-        GameObject _crate;
-        XRGrabInteractable _crateGrab;
-        bool _crateHeld;
         readonly Renderer[,] _cells = new Renderer[ModuleCatalog.Grid, ModuleCatalog.Grid];
         readonly TextMeshPro[,] _cellLabels = new TextMeshPro[ModuleCatalog.Grid, ModuleCatalog.Grid];
         MaterialPropertyBlock _mpb;
 
         HoloScreen _shipScreen;
-        HoloScreen _rackScreen;
         RectTransform _shipBody;
-        RectTransform _rackBody;
-        RectTransform _rackList;
+        HoloScreen _yardScreen;
         RectTransform _yardBody;
         ShipyardPanel _yard;
-        /// <summary>Hangar screen tab: 0 hangar rack, 1 shipyard, 2 blueprints.</summary>
-        int _tab;
-        bool _yardTab => _tab == 1;
+        TMP_Text _yardStatus;
         RectTransform _bpBody;
         BlueprintPanel _blueprints;
         Blueprint _preview;
@@ -85,16 +88,16 @@ namespace Core.Stations
         float _nextTick;
         TMP_Text _status;
         TMP_InputField _nameField;
+        ModuleShelves _shelves;
+        ModuleRecycler _recycler;
 
         int _planetId;
         int _fleetId;
         string _selectedType;
-        int _rackPage;
         (int x, int y)? _armedRemove;
         float _armedUntil;
         (int x, int y)? _hover;
         (int x, int y)? _pendingWeld;
-        MaterialPropertyBlock _crateMpb;
         bool _busy;
         readonly List<FocusShipModule> _layout = new();
 
@@ -112,7 +115,7 @@ namespace Core.Stations
             dock.BuildGrid();
             dock.BuildScreens();
             dock.BuildShelves();
-            dock.BuildPrinter();
+            dock.BuildFabrication();
             go.SetActive(false);
             return dock;
         }
@@ -218,11 +221,6 @@ namespace Core.Stations
             glow.GetComponent<MeshRenderer>().sharedMaterial = _art.Holo(
                 _art.ProjectorGlow != null ? _art.ProjectorGlow : Texture2D.whiteTexture, new Color(0.3f, 1f, 0.6f, 0.12f));
 
-            // Module dispenser beside the table, within reach of the stand.
-            Box("Dispenser", Dispenser + new Vector3(0f, 0.47f, 0f), new Vector3(0.34f, 0.94f, 0.34f), wall);
-            Box("DispenserPad", Dispenser + new Vector3(0f, 0.95f, 0f), new Vector3(0.3f, 0.02f, 0.3f),
-                _art.Lit(Texture2D.whiteTexture, Accent, 2.2f));
-
             Light("KeyOverhead", new Vector3(0f, h - 0.5f, -0.5f), new Color(0.75f, 0.95f, 1f), 1.4f, 7f);
             Light("AftOverhead", new Vector3(0f, h - 0.5f, RoomSouth + 2.3f), new Color(0.95f, 0.92f, 0.85f), 1.1f, 6.5f);
             BuildBay(dark, cyan, amber);
@@ -231,17 +229,17 @@ namespace Core.Stations
         }
 
         /// <summary>
-        /// Aft half of the control room: wall pilasters, tool lockers (west), the module fabricator and its
-        /// printer (east, built by <see cref="BuildShelves"/> / <see cref="BuildPrinter"/>), a bench and coolant
-        /// tanks either side of the door, and a hazard apron marking the doorway.
+        /// Aft half of the control room: wall pilasters, tool lockers (west), the module store, printer console,
+        /// recycler and printer (east, built by <see cref="BuildShelves"/> / <see cref="BuildFabrication"/>), a
+        /// bench and coolant tanks either side of the door, and a hazard apron marking the doorway.
         /// </summary>
         void BuildWorkBay(Material wall, Material dark, Material cyan, Material amber, float w, float h)
         {
             var xw = w * 0.5f;
             var cz = (RoomNorth + RoomSouth) * 0.5f;
 
-            // Structural pilasters along both side walls (forward of the lockers / fabricator), a thin cyan seam on
-            // each; the fabricator's control column stands where the aft starboard one would.
+            // Structural pilasters along both side walls (forward of the lockers), a thin cyan seam on each; the
+            // module store stands where the aft starboard one would.
             for (var i = 0; i < 3; i++)
             {
                 var z = -1.6f + i * 2.1f;
@@ -622,76 +620,82 @@ namespace Core.Stations
 
         void BuildScreens()
         {
-            var eye = transform.TransformPoint(Stand + Vector3.up * WorldScale.EyeStanding);
+            var metal = _art.MetalPanel(0.45f);
+            var dark = _art.DarkPanel(0.3f);
+            var cyan = _art.CyanEmit(2.4f);
+            var amber = _art.AmberEmit(2f);
 
-            _shipScreen = HoloScreen.Create(transform, "DockShipScreen", new Vector2(0.95f, 0.8f),
-                new Vector3(-2.2f, 1.45f, -1.3f), Quaternion.identity, Trans.Get("vr.dock.title"));
-            ScreenMount.FaceViewer(_shipScreen.transform, eye, 1f, 6f);
+            // Ship console, left of the table, turned to the stand: docked ships, new ship, rename, readout.
+            var shipMount = GateRoomDecor.Desk(transform, "ShipDesk", ShipDesk,
+                GateRoomDecor.FaceStand(ShipDesk.x - Stand.x, ShipDesk.z - Stand.z), 1.05f, metal, dark, cyan, amber);
+            _shipScreen = HoloScreen.Create(transform, "DockShipScreen", ScreenSize, Vector3.zero, Quaternion.identity,
+                Trans.Get("vr.dock.title"));
+            GateRoomDecor.SeatOnArm(_shipScreen.transform, shipMount, ScreenSize.y);
             _shipScreen.SetAccent(Accent, 0.5f);
             _shipBody = Body(_shipScreen);
             _status = DiegeticUi.HoloLabel(_shipScreen.Content, string.Empty, new Vector2(0f, -350f),
                 new Vector2(900f, 60f), 17f, DiegeticUi.CyanDim);
             _status.textWrappingMode = TextWrappingModes.Normal;
 
-            _rackScreen = HoloScreen.Create(transform, "DockHangarRack", new Vector2(0.95f, 0.8f),
-                new Vector3(2.2f, 1.45f, -0.9f), Quaternion.identity, Trans.Get("hangar"));
-            ScreenMount.FaceViewer(_rackScreen.transform, eye, 1f, 6f);
-            _rackScreen.SetAccent(Accent, 0.5f);
-            _rackBody = Body(_rackScreen);
-            // Two tabs on the hangar screen: finished modules (rack) | building new ones (shipyard).
-            _rackList = Sub(_rackBody, "Rack", 0f);
-            _yardBody = Sub(_rackBody, "Yard", -45f);
-            _yard = new ShipyardPanel(_yardBody, _eco, () => _planetId, (t, e) => SetStatus(t, e), () =>
-            {
-                RenderRack();
-                RenderShipScreen();
-            });
-            _bpBody = Sub(_rackBody, "Blueprints", -45f);
+            // Blueprint console, right of the table: save / project / load designs.
+            var plansMount = GateRoomDecor.Desk(transform, "PlansDesk", PlansDesk,
+                GateRoomDecor.FaceStand(PlansDesk.x - Stand.x, PlansDesk.z - Stand.z), 1.05f, metal, dark, cyan, amber);
+            var plans = HoloScreen.Create(transform, "DockPlansScreen", ScreenSize, Vector3.zero, Quaternion.identity,
+                Trans.Get("shipTemplates"));
+            GateRoomDecor.SeatOnArm(plans.transform, plansMount, ScreenSize.y);
+            plans.SetAccent(Accent, 0.5f);
+            _bpBody = Sub(Body(plans), "Blueprints", -20f);
             _blueprints = new BlueprintPanel(_bpBody, () => _fleetId, Stock, (t, e) => SetStatus(t, e), Preview,
                 async () =>
                 {
                     await AfterEdit();
                     RenderAll();
-                    RefreshCrate();
                 });
-            _rackTabs = new[]
-            {
-                DiegeticUi.HoloButton(_rackScreen.Content, Trans.Get("hangar"), new Vector2(-300f, 262f),
-                    new Vector2(280f, 44f), () => SetTab(0), DiegeticUi.BtnStyle.Cyan),
-                DiegeticUi.HoloButton(_rackScreen.Content, Trans.Get("shipyard"), new Vector2(0f, 262f),
-                    new Vector2(280f, 44f), () => SetTab(1), DiegeticUi.BtnStyle.Ghost),
-                DiegeticUi.HoloButton(_rackScreen.Content, Trans.Get("shipTemplates"), new Vector2(300f, 262f),
-                    new Vector2(280f, 44f), () => SetTab(2), DiegeticUi.BtnStyle.Ghost)
-            };
 
+            // Printer console on the starboard wall, between the store and the printer, operator facing the
+            // wall: the store on the left, the printer on the right.
+            var yardMount = GateRoomDecor.Desk(transform, "PrinterDesk", new Vector3(RoomWidth * 0.5f - 0.82f, 0f, YardDeskZ),
+                90f, 1.0f, metal, dark, cyan, amber);
+            _yardScreen = HoloScreen.Create(transform, "DockYardScreen", ScreenSize, Vector3.zero, Quaternion.identity,
+                Trans.Get("shipyard"));
+            GateRoomDecor.SeatOnArm(_yardScreen.transform, yardMount, ScreenSize.y);
+            _yardScreen.SetAccent(Accent, 0.5f);
+            var yardRoot = Body(_yardScreen);
+            _yardBody = Sub(yardRoot, "Yard", -20f);
+            _yardStatus = DiegeticUi.HoloLabel(_yardScreen.Content, string.Empty, new Vector2(0f, -372f),
+                new Vector2(900f, 44f), 16f, DiegeticUi.CyanDim);
+            _yardStatus.textWrappingMode = TextWrappingModes.Normal;
+            _yard = new ShipyardPanel(_yardBody, _eco, () => _planetId, SetYardStatus, () =>
+            {
+                RenderPanels();
+                RenderShipScreen();
+            });
             // Way back: the door in the aft wall, well behind the stand (walk through it facing it, or use its
             // panel). Deliberate: you work here with your back to it, so backing off the table never exits.
             RoomDoor.Build(transform, "DoorToBridge", new Vector3(0f, 0f, RoomSouth + 0.06f), 0f, Trans.Get("vr.dock.leave"),
                 UiKit.Amber, _art, () => Inside, () => AsyncTap.Run(Leave()), deliberate: true);
         }
 
-        UnityEngine.UI.Button[] _rackTabs;
-
         /// <summary>
-        /// Module fabricator on the starboard wall, aft of the table: its face is 4.9 m out from the centreline,
-        /// 3.5 m clear of the table's rim; the module printer carries on aft of it (door walkway untouched).
+        /// Module store on the starboard wall, abeam the table: its face is 4.9 m out from the centreline, 3.5 m
+        /// clear of the table's rim; its control column stands at the forward end, nearest the table.
         /// </summary>
         void BuildShelves()
         {
-            _shelves = ModuleShelves.Build(transform, _art, new Vector3(RoomWidth * 0.5f - 0.06f, 0f, -3.2f),
-                Quaternion.Euler(0f, 90f, 0f), _yard, ShelfStock, () => _fleetId > 0 && _preview == null,
-                () => _selectedType, OnShelfPick, OnShelfDrop, (t, e) => SetStatus(t, e));
+            _shelves = ModuleShelves.Build(transform, _art, new Vector3(RoomWidth * 0.5f - 0.06f, 0f, StoreZ),
+                Quaternion.Euler(0f, 90f, 0f), ShelfStock, () => _fleetId > 0 && _preview == null,
+                () => _selectedType, OnShelfPick, OnShelfDrop);
         }
 
-        ModuleShelves _shelves;
-
         /// <summary>
-        /// Module printer aft of the fabricator on the same wall (the shipyard's build, visualised), joined to
-        /// the shelves by its overhead transfer rail; it ends 0.7 m before the aft wall, clear of the coolant tanks.
+        /// Aft of the printer console on the same wall: the recycler, then the module printer joined to the store
+        /// by its overhead transfer rail; the printer ends 0.7 m before the aft wall, clear of the coolant tanks.
         /// </summary>
-        void BuildPrinter()
+        void BuildFabrication()
         {
-            ModulePrinter.Build(transform, _art, new Vector3(RoomWidth * 0.5f - 0.06f, 0f, -6.15f),
+            _recycler = ModuleRecycler.Build(transform, _art, new Vector3(RoomWidth * 0.5f - 0.06f, 0f, RecyclerZ),
+                Quaternion.Euler(0f, 90f, 0f), Recycle);
+            ModulePrinter.Build(transform, _art, new Vector3(RoomWidth * 0.5f - 0.06f, 0f, PrinterZ),
                 Quaternion.Euler(0f, 90f, 0f), _yard, _shelves.HeaderEndWorld, RoomHeight);
         }
 
@@ -703,29 +707,36 @@ namespace Core.Stations
             return d;
         }
 
-        /// <summary>A block taken off the fabricator: it becomes the module being fitted (green cells light up).</summary>
+        /// <summary>A block taken off the store: it becomes the module being fitted (green cells light up).</summary>
         void OnShelfPick(string type)
         {
             _selectedType = type;
             _armedRemove = null;
-            RenderRack();
             PaintGrid();
-            RefreshCrate();
             SetStatus(Trans.Get(ModuleCatalog.NameKey(type)) + " — " + Trans.Get(ModuleCatalog.DescKey(type)));
         }
 
         /// <summary>
-        /// A fabricator block let go: over a free cell that touches the structure = the dock's PlaceShipModule
-        /// (true: the block stays there and dissolves); anywhere else it goes back on its shelf.
+        /// A store block let go: in the recycler's mouth = offered for scrapping; over a free cell that touches
+        /// the structure = PlaceShipModule (true: the block stays there and dissolves, the store replicates it);
+        /// anywhere else it flies back to its shelf.
         /// </summary>
         bool OnShelfDrop(string type, Vector3 world)
         {
             _hover = null;
+            if (Inside && _recycler != null && _recycler.Catches(world))
+            {
+                _selectedType = null;
+                _recycler.Offer(type);
+                PaintGrid();
+                return true;
+            }
+
             var cell = Inside ? NearestCell(world) : null;
             if (!cell.HasValue)
             {
+                _selectedType = null;
                 PaintGrid();
-                RefreshCrate();
                 return false;
             }
 
@@ -735,6 +746,8 @@ namespace Core.Stations
                        ModuleCatalog.CanPlace(Occupancy(), x, y) && HangarRow(type) != null;
             // Same path as a ray tap on the cell: it places, or says why not.
             OnCell(x, y);
+            if (!fits)
+                _selectedType = null;
             PaintGrid();
             return fits;
         }
@@ -747,23 +760,6 @@ namespace Core.Stations
             rt.sizeDelta = parent.sizeDelta;
             rt.anchoredPosition = new Vector2(0f, y);
             return rt;
-        }
-
-        void SetTab(int tab)
-        {
-            _tab = tab;
-            // Leaving the blueprints tab drops the projection: the cradle shows the real ship again.
-            if (tab != 2 && _preview != null)
-                _blueprints.Deselect();
-            for (var i = 0; i < _rackTabs.Length; i++)
-            {
-                var on = i == tab;
-                var label = _rackTabs[i].GetComponentInChildren<TMP_Text>();
-                label.color = on ? UiKit.Cyan : new Color(0.7f, 0.85f, 0.92f, 0.8f);
-                _rackTabs[i].GetComponent<Image>().color = on ? new Color(0.6f, 1f, 1f, 1f) : new Color(1f, 1f, 1f, 0.55f);
-            }
-
-            RenderRack();
         }
 
         static RectTransform Body(HoloScreen screen)
@@ -809,6 +805,14 @@ namespace Core.Stations
                 return;
             _status.text = text ?? string.Empty;
             _status.color = error ? UiKit.Danger : DiegeticUi.CyanDim;
+        }
+
+        void SetYardStatus(string text, bool error)
+        {
+            if (_yardStatus == null)
+                return;
+            _yardStatus.text = text ?? string.Empty;
+            _yardStatus.color = error ? UiKit.Danger : DiegeticUi.CyanDim;
         }
 
         void RenderShipScreen()
@@ -897,89 +901,14 @@ namespace Core.Stations
 
         static string Tone(string t, bool ok) => ok ? "<color=#7dffa0>" + t + "</color>" : "<color=#ff6a5a>" + t + "</color>";
 
-        void RenderRack()
+        /// <summary>Store shelves, printer console and blueprint console follow the hangar / ship state.</summary>
+        void RenderPanels()
         {
             RefreshShelves();
-            Clear(_rackList);
-            Clear(_yardBody);
-            _rackList.gameObject.SetActive(_tab == 0);
-            _yardBody.gameObject.SetActive(_tab == 1);
-            _bpBody.gameObject.SetActive(_tab == 2);
-            if (_tab == 1)
-            {
-                _yard.Render();
-                return;
-            }
-
-            if (_tab == 2)
-            {
-                _blueprints.Render();
-                return;
-            }
-
-            var groups = HangarGroups();
-            if (groups.Count == 0)
-            {
-                Text(_rackList, Trans.Get("vr.dock.hangarEmpty"), 0f, 60f, 860f, 20f, DiegeticUi.CyanDim,
-                    TextAlignmentOptions.Center);
-                return;
-            }
-
-            var pages = Mathf.Max(1, Mathf.CeilToInt(groups.Count / (float)RackPerPage));
-            _rackPage = Mathf.Clamp(_rackPage, 0, pages - 1);
-            var first = _rackPage * RackPerPage;
-            for (var i = first; i < groups.Count && i < first + RackPerPage; i++)
-            {
-                var (type, count) = groups[i];
-                var y = 200f - (i - first) * 64f;
-                var fam = ModuleCatalog.Family(type);
-                var chip = new GameObject("Chip", typeof(RectTransform), typeof(Image));
-                chip.transform.SetParent(_rackList, false);
-                var crt = chip.GetComponent<RectTransform>();
-                crt.sizeDelta = new Vector2(10f, 52f);
-                crt.anchoredPosition = new Vector2(-438f, y);
-                chip.GetComponent<Image>().color = ModuleCatalog.Accent(fam);
-                chip.GetComponent<Image>().raycastTarget = false;
-
-                var t = type;
-                var selected = _selectedType == type;
-                // Fitting needs a ship first (left screen): until then the stock reads, but is not pickable.
-                // Name and stock, then what the module brings to the hull (non-zero shipstats, tinted by kind).
-                var stats = ModuleCatalog.StatsLine(type);
-                var label = Trans.Get(ModuleCatalog.NameKey(type)) + "  ×" + count;
-                if (stats.Length > 0)
-                    label += "\n<size=62%>" + stats + "</size>";
-                var pick = Btn(_rackList, label, -115f, y, 620f, 56f,
-                    () => SelectModule(t), selected ? DiegeticUi.BtnStyle.Cyan : DiegeticUi.BtnStyle.Ghost);
-                pick.interactable = _fleetId > 0;
-                if (stats.Length > 0)
-                {
-                    var tmp = pick.GetComponentInChildren<TMP_Text>();
-                    tmp.lineSpacing = -18f;
-                }
-                if (type != ModuleCatalog.Core || count > 0)
-                    Btn(_rackList, "×", 380f, y, 70f, 56f, () => AsyncTap.Run(Scrap(t)), DiegeticUi.BtnStyle.Danger);
-            }
-
-            if (pages > 1)
-            {
-                Btn(_rackList, "‹", -80f, -300f, 70f, 46f, () => { _rackPage = (_rackPage - 1 + pages) % pages; RenderRack(); },
-                    DiegeticUi.BtnStyle.Ghost);
-                Text(_rackList, (_rackPage + 1) + " / " + pages, 0f, -300f, 90f, 18f, DiegeticUi.CyanDim,
-                    TextAlignmentOptions.Center);
-                Btn(_rackList, "›", 80f, -300f, 70f, 46f, () => { _rackPage = (_rackPage + 1) % pages; RenderRack(); },
-                    DiegeticUi.BtnStyle.Ghost);
-            }
-
-            if (_fleetId <= 0)
-                Text(_rackList, Trans.Get("vr.dock.pickShipFirst"), 0f, -355f, 880f, 17f, UiKit.Amber,
-                    TextAlignmentOptions.Center);
-            else if (_selectedType != null)
-                Text(_rackList, Trans.Format("vr.dock.placing", Trans.Get(_selectedType)), 0f, -355f, 880f, 16f,
-                    UiKit.Ok, TextAlignmentOptions.Center);
+            _yard.Render();
+            _blueprints.Render();
         }
 
-        /// <summary>Every rack re-render (stock, selection, ship) reaches the fabricator shelves too.</summary>
         void RefreshShelves() => _shelves?.Refresh();
 
         // ── Data ──────────────────────────────────────────────────────────────────
@@ -1123,10 +1052,7 @@ namespace Core.Stations
             Inside = false;
             _shelves?.DropHeld();
             _blueprints?.Deselect();
-            if (_crate != null)
-                Destroy(_crate);
-            _crate = null;
-            _crateHeld = false;
+            _recycler?.Clear();
             // Out into the corridor, in front of this room's door.
             CorridorRoom.ReturnPlayer(CorridorRoom.Slot.DockStarboard);
 
@@ -1136,17 +1062,6 @@ namespace Core.Stations
 
 
         void SelectFleet(int id) => AsyncTap.Run(LoadFleet(id));
-
-        void SelectModule(string type)
-        {
-            _selectedType = _selectedType == type ? null : type;
-            _armedRemove = null;
-            RenderRack();
-            PaintGrid();
-            RefreshCrate();
-            if (_selectedType != null)
-                SetStatus(Trans.Get(_selectedType) + " — " + Trans.Get(ModuleCatalog.DescKey(_selectedType)));
-        }
 
         async Task LoadFleet(int fleetId)
         {
@@ -1180,79 +1095,9 @@ namespace Core.Stations
             if (_preview != null)
                 _previewOk = _blueprints.Availability(_preview);
             RenderShipScreen();
-            RenderRack();
+            RenderPanels();
             PaintGrid();
             RebuildHull();
-        }
-
-        // ── Holo crate (manual placement) ─────────────────────────────────────────
-
-        /// <summary>The selected module as a grabbable crate on the dispenser (none when nothing is selected).</summary>
-        void RefreshCrate()
-        {
-            if (_crateHeld)
-                return;
-            // A block in hand from the fabricator is the part being fitted: no second one on the dispenser.
-            if (_selectedType == null || _fleetId <= 0 || HangarRow(_selectedType) == null ||
-                (_shelves != null && _shelves.Holding))
-            {
-                if (_crate != null)
-                    Destroy(_crate);
-                _crate = null;
-                return;
-            }
-
-            if (_crate == null)
-            {
-                _crate = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                _crate.name = "ModuleCrate";
-                _crate.transform.SetParent(transform, false);
-                _crate.transform.localScale = Vector3.one * 0.14f;
-                var body = _crate.AddComponent<Rigidbody>();
-                body.isKinematic = true;
-                body.useGravity = false;
-                _crateGrab = _crate.AddComponent<XRGrabInteractable>();
-                _crateGrab.movementType = XRBaseInteractable.MovementType.Instantaneous;
-                _crateGrab.throwOnDetach = false;
-                _crateGrab.useDynamicAttach = true;
-                _crateGrab.selectEntered.AddListener(_ =>
-                {
-                    _crateHeld = true;
-                    CicCue.Clunk(_crate.transform.position);
-                });
-                _crateGrab.selectExited.AddListener(_ => OnCrateReleased());
-                // Crate-local units (the crate is 0.14 m): a label across its lid.
-                var tag = UiKit.Label(_crate.transform, "Tag", string.Empty, new Vector3(0f, 0.51f, 0f),
-                    0.95f, 0.22f, UiKit.TextBright);
-                tag.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
-                tag.name = "Tag";
-                // A brushed-metal crate with a lit band in the module family's colour (not a flat coloured box).
-                _crate.GetComponent<MeshRenderer>().sharedMaterial = UiKit.Cap;
-                foreach (var (y, h) in new[] { (0.3f, 0.07f), (-0.3f, 0.07f) })
-                {
-                    var band = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                    band.name = "Band";
-                    Destroy(band.GetComponent<Collider>());
-                    band.transform.SetParent(_crate.transform, false);
-                    band.transform.localPosition = new Vector3(0f, y, 0f);
-                    band.transform.localScale = new Vector3(1.03f, h, 1.03f);
-                    band.GetComponent<MeshRenderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-                }
-            }
-
-            var accent = ModuleCatalog.Accent(ModuleCatalog.Family(_selectedType));
-            var lit = _art.Lit(Texture2D.whiteTexture, accent, 1.6f);
-            foreach (Transform child in _crate.transform)
-                if (child.name == "Band")
-                    child.GetComponent<MeshRenderer>().sharedMaterial = lit;
-            _crateMpb ??= new MaterialPropertyBlock();
-            _crateMpb.SetColor("_Accent", accent);
-            _crate.GetComponent<MeshRenderer>().SetPropertyBlock(_crateMpb);
-            var label = _crate.transform.Find("Tag")?.GetComponent<TextMeshPro>();
-            if (label != null)
-                label.text = Short(Trans.Get(_selectedType));
-            _crate.transform.localPosition = Dispenser + new Vector3(0f, 1.05f, 0f);
-            _crate.transform.localRotation = Quaternion.identity;
         }
 
         (int x, int y)? NearestCell(Vector3 world)
@@ -1265,18 +1110,6 @@ namespace Core.Stations
             if (x < 0 || y < 0 || x >= ModuleCatalog.Grid || y >= ModuleCatalog.Grid)
                 return null;
             return (x, y);
-        }
-
-        void OnCrateReleased()
-        {
-            _crateHeld = false;
-            var cell = _crate != null ? NearestCell(_crate.transform.position) : null;
-            _hover = null;
-            if (cell.HasValue && At(cell.Value.x, cell.Value.y) == null)
-                OnCell(cell.Value.x, cell.Value.y);
-            // Back on the dispenser (or gone if that was the last one): refreshed after the order lands.
-            RefreshCrate();
-            PaintGrid();
         }
 
         // ── Orders ────────────────────────────────────────────────────────────────
@@ -1331,7 +1164,7 @@ namespace Core.Stations
 
             if (_selectedType == null)
             {
-                SetStatus(Trans.Get("vr.dock.pickModule"));
+                SetStatus(Trans.Get("vr.dock.takeFromStore"));
                 return;
             }
 
@@ -1346,7 +1179,7 @@ namespace Core.Stations
             if (row == null)
             {
                 _selectedType = null;
-                RenderRack();
+                RenderPanels();
                 return;
             }
 
@@ -1377,13 +1210,13 @@ namespace Core.Stations
             }
 
             await AfterEdit();
-            if (_selectedType != null && HangarRow(_selectedType) == null)
+            // The block was set down: nothing is in hand any more.
+            if (_shelves == null || !_shelves.Holding)
                 _selectedType = null;
             RenderAll();
             if (_pendingWeld.HasValue)
                 Weld(_pendingWeld.Value.x, _pendingWeld.Value.y);
             _pendingWeld = null;
-            RefreshCrate();
         }
 
         async Task Remove(FocusShipModule m)
@@ -1439,29 +1272,24 @@ namespace Core.Stations
             RenderAll();
         }
 
-        /// <summary>Scrap a hangar module (DelShip): two taps within 4 s.</summary>
-        string _armedScrap;
-        float _scrapUntil;
-
-        async Task Scrap(string type)
+        /// <summary>
+        /// The recycler's confirmed order: one hangar module of that type → DelShip (no refund). Answers null
+        /// when done, else the error the recycler shows.
+        /// </summary>
+        async Task<string> Recycle(string type)
         {
-            if (_armedScrap != type || Time.unscaledTime > _scrapUntil)
-            {
-                _armedScrap = type;
-                _scrapUntil = Time.unscaledTime + 4f;
-                SetStatus(Trans.Format("vr.dock.confirmScrap", Trans.Get(type)), true);
-                return;
-            }
-
-            _armedScrap = null;
             var row = HangarRow(type);
             if (row == null)
-                return;
+                return Trans.Get("notFound");
+            ApiResult r;
             _busy = true;
             try
             {
-                var r = await ActionJs.Get("DelShip", new Dictionary<string, string> { { "ship", FocusContext.AsString(row["id"]) } });
-                Feedback(r, "vr.dock.scrapped", _rackScreen.transform.position);
+                r = await ActionJs.Get("DelShip", new Dictionary<string, string> { { "ship", FocusContext.AsString(row["id"]) } });
+                if (r.Ok)
+                    CicCue.Ok(_recycler.MawWorld);
+                else
+                    CicCue.Fail(_recycler.MawWorld);
             }
             finally
             {
@@ -1469,10 +1297,10 @@ namespace Core.Stations
             }
 
             await _eco.RefreshNow();
-            if (_selectedType == type && HangarRow(type) == null)
-                _selectedType = null;
-            RenderRack();
+            RenderPanels();
+            RenderShipScreen();
             PaintGrid();
+            return r.Ok ? null : Error(r);
         }
 
         async Task Rename()
@@ -1545,14 +1373,13 @@ namespace Core.Stations
         {
             if (!Inside)
                 return;
-            if (_tab == 1 && Time.unscaledTime >= _nextTick)
+            if (Time.unscaledTime >= _nextTick)
             {
                 _nextTick = Time.unscaledTime + 0.5f;
                 _yard.Tick();
             }
 
-            if (_tab == 2)
-                _blueprints.Tick();
+            _blueprints.Tick();
 
             if (_armedRemove.HasValue && Time.unscaledTime > _armedUntil)
             {
@@ -1560,11 +1387,10 @@ namespace Core.Stations
                 PaintGrid();
             }
 
-            // Held crate / fabricator block: preview the cell it would land on.
-            var holding = _shelves != null && _shelves.Holding;
-            if ((_crateHeld && _crate != null) || holding)
+            // Store block in hand: preview the cell it would land on.
+            if (_shelves != null && _shelves.Holding)
             {
-                var cell = NearestCell(holding ? _shelves.HeldPosition : _crate.transform.position);
+                var cell = NearestCell(_shelves.HeldPosition);
                 var h = cell.HasValue ? cell : null;
                 if (h != _hover)
                 {

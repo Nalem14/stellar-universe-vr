@@ -4,13 +4,14 @@ namespace Core.Vfx
 {
     /// <summary>
     /// Procedural surfaces for the station's civil spaces (the concourse): a soft matte composite panel for walls
-    /// and vault, and a warm honed stone for the floor. Neutral in colour (tinted by the material), fine grain,
+    /// and vault, a honed stone, and long boards for the concourse deck. Neutral in colour (tinted by the material), fine grain,
     /// drawn once, mipmapped, made non-readable. Seeded: every build looks the same.
     /// </summary>
     public static class StationSurfaces
     {
         static Texture2D _panel;
         static Texture2D _stone;
+        static Texture2D _planks;
 
         /// <summary>Matte panel: a faint grain and long soft streaks (no edge trim; HullInterior cuts the seams).</summary>
         public static Texture2D Panel()
@@ -60,6 +61,57 @@ namespace Core.Vfx
 
             _stone = Finish(px, n, "SU_StationStone");
             return _stone;
+        }
+
+        /// <summary>
+        /// Long boards running along V: eight per tile across (0.25 m at 0.5 tiling), butt joints staggered per
+        /// board, a tone per board length, fine grain streaks and a soft knot here and there.
+        /// </summary>
+        public static Texture2D Planks()
+        {
+            if (_planks != null)
+                return _planks;
+            const int n = 512;
+            const int boards = 8;
+            const int w = n / boards;
+            var px = new Color32[n * n];
+            for (var y = 0; y < n; y++)
+            for (var x = 0; x < n; x++)
+            {
+                var col = x / w;
+                var u = x / (float)n;
+                var v = y / (float)n;
+                // Two joints per board per tile, shifted by board.
+                var shift = Hash(col, 0, 41);
+                var run = v * 2f + shift;
+                var piece = Mathf.FloorToInt(run);
+                var along = run - piece;
+                var tone = (Hash(col, (piece % 2 + 2) % 2, 43) - 0.5f) * 0.14f;
+                var grain = Noise(u * 64f, v * 6f, 45, 64, 6) * 0.07f + Noise(u * 160f, v * 3f, 46, 160, 3) * 0.05f;
+                var cloud = Noise(u * 8f, v * 4f, 47, 8, 4) * 0.06f;
+                var k = 0.74f + tone + grain + cloud - 0.09f;
+                // Board edges and butt joints: a thin dark line with a lighter bevel beside it.
+                var ex = x % w;
+                if (ex == 0) k *= 0.55f;
+                else if (ex == 1) k *= 1.06f;
+                var joint = Mathf.Min(along, 1f - along) * n * 0.5f;
+                if (joint < 0.8f) k *= 0.6f;
+                // A knot now and then.
+                var kx = (col + 0.5f) * w;
+                var ky = (piece + 0.5f - shift) * n * 0.5f;
+                if (Hash(col, piece % 2, 49) > 0.7f)
+                {
+                    var d = new Vector2((x - kx) / 5f, (y - ky) / 11f).magnitude;
+                    if (d < 1f)
+                        k *= 0.82f + d * 0.18f;
+                }
+
+                k = Mathf.Clamp01(k);
+                px[y * n + x] = new Color(k * 1.03f, k * 0.97f, k * 0.9f);
+            }
+
+            _planks = Finish(px, n, "SU_StationPlanks");
+            return _planks;
         }
 
         static float Hash(int x, int y, int seed)

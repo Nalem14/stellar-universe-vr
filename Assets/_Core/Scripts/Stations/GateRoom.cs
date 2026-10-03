@@ -35,7 +35,7 @@ namespace Core.Stations
         const float HallHeight = 6.8f;
         const float GalleryEdge = 1.5f;
         const float HallEnd = 15f;
-        static readonly Vector3 GatePos = new(0f, HallFloor + 0.3f + GateRing.Outer, 10.5f);
+        static readonly Vector3 GatePos = new(0f, HallFloor + 0.3f + GateRing.Inner - GateRing.Sunk, 10.5f);
         const float StatusEvery = 3f;
         const float MissionsEvery = 10f;
         const int TargetsPerPage = 5;
@@ -53,9 +53,8 @@ namespace Core.Stations
         CicArtKit _art;
         EconomyService _eco;
         GateRing _gate;
-        TextMeshPro _banner;
-        TextMeshPro _bannerCaption;
         TMP_Text _ownAddress;
+        string _dialingTo;
         GateRoomDecor.Refs _decor;
         readonly int[] _lampState = { -1, -1, -1, -1, -1, -1 };
         readonly List<Renderer> _alarmStrips = new();
@@ -187,24 +186,18 @@ namespace Core.Stations
                 Box("CausewayLight", new Vector3(side * 1.28f, HallFloor + 0.245f, 6.8f), new Vector3(0.04f, 0.012f, 7.2f), cyan);
             Box("Dais", new Vector3(0f, HallFloor + 0.15f, GatePos.z), new Vector3(8f, 0.3f, 2.4f), rib, solid: true);
             Box("DaisGlow", new Vector3(0f, HallFloor + 0.305f, GatePos.z + 1.2f), new Vector3(7.6f, 0.012f, 0.05f), violet);
+            // The ring stands in a slot cut through the dais: walk straight over the sunk lower arc.
+            var slotHalf = GateRing.FloorChord(GateRing.Outer) + 0.15f;
+            Box("DaisSlot", new Vector3(0f, HallFloor + 0.302f, GatePos.z), new Vector3(slotHalf * 2f, 0.008f, 0.86f),
+                _art.DarkPanel(0.2f));
+            for (var side = -1; side <= 1; side += 2)
+                Box("DaisSlotEdge", new Vector3(0f, HallFloor + 0.308f, GatePos.z + side * 0.44f),
+                    new Vector3(slotHalf * 2f, 0.008f, 0.025f), violet);
 
             // Team door on the left wall of the hall, lit frame.
             Box("TeamDoor", new Vector3(-half + 0.12f, HallFloor + 1.3f, 3.6f), new Vector3(0.06f, 2.6f, 2f),
                 _art.Lit(Texture2D.whiteTexture, new Color(0.03f, 0.06f, 0.08f), 0.2f));
             Box("TeamDoorLintel", new Vector3(-half + 0.14f, HallFloor + 2.7f, 3.6f), new Vector3(0.06f, 0.06f, 2.2f), cyan);
-
-            // Address banner above the gate.
-            _banner = UiKit.Label(transform, "AddressBanner", string.Empty,
-                GatePos + new Vector3(0f, GateRing.Outer + 0.75f, 0.2f), 7f, 0.55f, Accent);
-            _banner.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
-            _banner.fontStyle = FontStyles.Bold;
-            _banner.characterSpacing = 12f;
-            // At rest the banner carries this gate's own address, captioned beneath.
-            _bannerCaption = UiKit.Label(transform, "AddressCaption", string.Empty,
-                GatePos + new Vector3(0f, GateRing.Outer + 0.32f, 0.2f), 5f, 0.22f, new Color(0.75f, 0.85f, 1f, 0.85f));
-            _bannerCaption.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
-            _bannerCaption.characterSpacing = 6f;
-            _bannerCaption.richText = false;
 
             var fill = new GameObject("HallLight").AddComponent<Light>();
             fill.transform.SetParent(transform, false);
@@ -243,7 +236,7 @@ namespace Core.Stations
             _ownAddress.richText = true;
             _ownAddress.enableAutoSizing = true;
             _ownAddress.fontSizeMin = 13f;
-            _ownAddress.fontSizeMax = 19f;
+            _ownAddress.fontSizeMax = 22f;
 
             _dialGroup = new GameObject("DialBar", typeof(RectTransform));
             _dialGroup.transform.SetParent(frame, false);
@@ -525,10 +518,12 @@ namespace Core.Stations
                 }
 
                 SetStatus(Trans.Format("vr.gate.dialing", Name(target)));
-                _banner.text = FocusContext.AsString(target["address"]);
-                _bannerCaption.text = Name(target);
+                _dialingTo = FocusContext.AsString(target["address"]);
+                RenderAddress();
                 _gate.Dial(FocusContext.AsString(target["address"]), () =>
                 {
+                    _dialingTo = null;
+                    RenderAddress();
                     SetStatus(Trans.Format("vr.gate.open", Name(target)));
                     Core.Crew.BarkDirector.Instance?.Say(CrewDialogue.Role.Comms, "stargateOpen", 2);
                 });
@@ -713,9 +708,7 @@ namespace Core.Stations
                 ? Trans.Get("vr.gate.noGate")
                 : (planet != null && !string.IsNullOrEmpty(planet.Name) ? planet.Name : "#" + _planetId) +
                   "   <size=70%><color=#7fd8ff>" + star + "</color></size>";
-            var own = OwnAddress();
-            _ownAddress.text = own.Length == 0 ? string.Empty
-                : Trans.Format("vr.gate.ownAddress", "<b><mspace=0.62em>" + own + "</mspace></b>");
+            RenderAddress();
 
             _dialGroup.SetActive(_planetId > 0 && _conn == null);
             if (_planetId <= 0)
@@ -741,12 +734,35 @@ namespace Core.Stations
             return own != null ? FocusContext.AsString(own["address"]) : string.Empty;
         }
 
-        /// <summary>No wormhole: the banner over the ring shows the address of this gate.</summary>
+        /// <summary>
+        /// The console's address plate: the code being dialed while the ring turns, otherwise this gate's own
+        /// address (the one other empires dial to reach us).
+        /// </summary>
+        void RenderAddress()
+        {
+            if (!string.IsNullOrEmpty(_dialingTo) && _gate.Busy)
+            {
+                _ownAddress.text = "<color=#ffb45a>›</color> <b><mspace=0.62em>" + _dialingTo + "</mspace></b>";
+                return;
+            }
+
+            var own = OwnAddress();
+            if (own.Length == 0)
+            {
+                _ownAddress.text = string.Empty;
+                return;
+            }
+
+            var shown = "<b><mspace=0.62em>" + own + "</mspace></b>";
+            var line = Trans.Format("vr.gate.ownAddress", shown);
+            // The address is the point of this line: a key not yet served by GetTranslations must not hide it.
+            _ownAddress.text = line.Contains(own) ? line : line + " " + shown;
+        }
+
         void SetIdleBanner()
         {
-            var own = OwnAddress();
-            _banner.text = own;
-            _bannerCaption.text = own.Length > 0 ? Trans.Get("vr.gate.thisGate") : string.Empty;
+            _dialingTo = null;
+            RenderAddress();
         }
 
         void RenderTargets()

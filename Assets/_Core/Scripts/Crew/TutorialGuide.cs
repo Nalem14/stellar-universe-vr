@@ -13,7 +13,8 @@ namespace Core.Crew
     /// in the same order, with the same titles (native <c>tutorial.stepN.title</c>), the text rewritten for the
     /// bridge (<c>vr.tutorial.stepN.text</c>) and the web spotlight become a beacon on what the step is about —
     /// the officer who handles it, the holo table, the corridor door, the Guide button. Each step is spoken by
-    /// that officer (radio chirp, turns to the captain). Screen on a stand at the captain's front right;
+    /// that officer (radio chirp, turns to the captain). Screen on a stand at the captain's front right, or on an
+    /// arm at the chair's right while seated;
     /// Previous / Skip / Next (End on the last), like the web window. Client-side only, as on the web: the step
     /// is kept locally per account; the Guide button on the right arm pad replays it from step 1.
     /// </summary>
@@ -109,6 +110,8 @@ namespace Core.Crew
 
         void OnDestroy()
         {
+            if (_chair != null)
+                _chair.CommandModeChanged -= Reseat;
             if (Instance == this)
                 Instance = null;
         }
@@ -168,6 +171,7 @@ namespace Core.Crew
             _skip.gameObject.SetActive(_step < Steps.Length - 1);
             _nextLabel.text = Trans.Get(_step == Steps.Length - 1 ? "end" : "next");
             _stand.SetActive(true);
+            HookChair();
             BarkDirector.Instance?.Hush(true);
 
             Point(s.Mark, officer);
@@ -179,6 +183,8 @@ namespace Core.Crew
             _step = Steps.Length;
             Persist();
             _stand.SetActive(false);
+            if (_chairArm != null)
+                _chairArm.gameObject.SetActive(false);
             _beacon.Clear();
             BarkDirector.Instance?.Hush(false);
             if (_speaking != null)
@@ -282,6 +288,90 @@ namespace Core.Crew
             BarkDirector.SpeakBabble(officer.MouthPosition, _speakerRole, talk - 0.5f, _step);
         }
 
+        // ── Seated ──────────────────────────────────────────────────────────────
+
+        CaptainCommandMode _chair;
+        Transform _chairArm;
+        Transform _chairMount;
+        Vector3 _standPos;
+        Quaternion _standRot;
+
+        /// <summary>Follow the captain into the chair: the screen moves onto an arm at the seat's right.</summary>
+        void HookChair()
+        {
+            var chair = CaptainCommandMode.Instance;
+            if (chair == _chair)
+            {
+                Reseat(chair != null && chair.IsCommandMode);
+                return;
+            }
+
+            if (_chair != null)
+                _chair.CommandModeChanged -= Reseat;
+            _chair = chair;
+            if (_chair != null)
+                _chair.CommandModeChanged += Reseat;
+            Reseat(_chair != null && _chair.IsCommandMode);
+        }
+
+        void Reseat(bool seated)
+        {
+            if (_screen == null)
+                return;
+            if (seated && _chair != null && _chair.Seat != null)
+            {
+                EnsureChairArm(_chair.Seat);
+                _chairArm.gameObject.SetActive(_stand.activeSelf);
+                _screen.transform.SetParent(_chairMount, false);
+                _screen.transform.localPosition = Vector3.zero;
+                _screen.transform.localRotation = Quaternion.identity;
+                return;
+            }
+
+            if (_chairArm != null)
+                _chairArm.gameObject.SetActive(false);
+            _screen.transform.SetParent(_stand.transform, false);
+            _screen.transform.localPosition = _standPos;
+            _screen.transform.localRotation = _standRot;
+        }
+
+        /// <summary>
+        /// A slim articulated arm rising from the chair's right armrest, the guide screen at its head: a hand's
+        /// reach ahead and to the right of the seated eyes, below the eye line, clear of the map.
+        /// </summary>
+        void EnsureChairArm(Transform seat)
+        {
+            if (_chairArm != null)
+                return;
+            var head = new Vector3(0.5f, 0.6f, 0.3f);
+            var root = ScreenMount.Socket(seat, "GuideChairArm", Vector3.zero, Quaternion.identity);
+            _chairArm = root;
+            var foot = new Vector3(0.36f, 0.2f, -0.02f);
+            var elbow = new Vector3(0.52f, 0.3f, 0.18f);
+            var under = head + new Vector3(0f, -0.25f, 0.02f);
+            Strut(root, foot, elbow, 0.045f);
+            Strut(root, elbow, under, 0.035f);
+            UiKit.MeshPiece(root, "Elbow", UiMeshes.RoundedBox(Vector3.one * 0.07f, 0.03f), UiKit.Chassis, elbow);
+            var cap = UiKit.MeshPiece(root, "Wrist", UiMeshes.RoundedBox(new Vector3(0.16f, 0.03f, 0.06f), 0.012f), UiKit.Cap, under);
+            var block = new MaterialPropertyBlock();
+            block.SetColor(UiKit.AccentId, UiKit.Cyan);
+            block.SetFloat(UiKit.AccentMulId, 1.1f);
+            cap.GetComponent<MeshRenderer>().SetPropertyBlock(block);
+
+            _chairMount = new GameObject("GuideScreenMount").transform;
+            _chairMount.SetParent(root, false);
+            _chairMount.localPosition = head;
+            ScreenMount.FaceViewer(_chairMount, _chair.SeatedEye(), 0.8f);
+        }
+
+        static void Strut(Transform root, Vector3 a, Vector3 b, float thick)
+        {
+            var d = b - a;
+            var piece = UiKit.MeshPiece(root, "Strut", UiMeshes.RoundedBox(new Vector3(thick, thick, d.magnitude), thick * 0.4f),
+                UiKit.Chassis, (a + b) * 0.5f);
+            piece.transform.localRotation = Quaternion.LookRotation(d.normalized, Vector3.up);
+        }
+
         // ── Screen ──────────────────────────────────────────────────────────────
 
         void BuildScreen()
@@ -308,6 +398,8 @@ namespace Core.Crew
             ScreenMount.FaceViewer(_screen.transform,
                 _room.TransformPoint(WorldScale.CicCaptainStand + Vector3.up * WorldScale.EyeStanding), 1f);
             _screen.SetAccent(UiKit.Cyan, 0.5f);
+            _standPos = _screen.transform.localPosition;
+            _standRot = _screen.transform.localRotation;
 
             var px = _screen.PixelSize;
             var content = _screen.Content;

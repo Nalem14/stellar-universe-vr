@@ -7,14 +7,14 @@ using UnityEngine;
 namespace Core.Stations
 {
     /// <summary>
-    /// The dry dock's module printer, aft of the fabricator shelves on the starboard wall: a glazed cabinet with
+    /// The dry dock's module printer, aft of the module store on the starboard wall: a glazed cabinet with
     /// a lit build bed and an XY gantry. While the planet's shipyard builds a module (shipQueue) the part grows
     /// on the bed layer by layer — the shelf block of that type (<see cref="ModuleShelves.BlockMesh"/>) at
     /// print scale, solid below the print front, hologram above it (SU/ModuleBlock _Reveal / _Invert) — the
     /// nozzle rastering over the layer with sparks, its name, progress, time left and the orders behind it on
     /// the cabinet's front. Done: the part glows, dissolves and a shuttle runs it along the overhead rail to the
-    /// shelves (the hangar). Idle: bed dimmed, head parked. Read only — orders stay on the shelves / Shipyard
-    /// tab. Quest budget: frame merged by static batching, the part in two draws of the shared block
+    /// store (the hangar). Idle: bed dimmed, head parked. Orders are given at its console, the desk beside it
+    /// (<see cref="ShipyardPanel"/>: build, queue, cancel, Nova finish). Quest budget: frame merged by static batching, the part in two draws of the shared block
     /// material, one small particle pool, state read twice a second, no allocation per frame.
     /// Local frame: origin on the floor at the wall face, centre of the cabinet; the room lies toward -Z.
     /// </summary>

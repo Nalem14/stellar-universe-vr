@@ -32,6 +32,7 @@ namespace Core.Stations
         };
 
         public static PlanetSurvey Instance { get; private set; }
+        public bool IsOpen => gameObject.activeSelf;
 
         HoloScreen _screen;
         RectTransform _body;

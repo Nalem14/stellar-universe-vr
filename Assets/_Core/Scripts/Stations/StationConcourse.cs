@@ -7,9 +7,9 @@ namespace Core.Stations
     /// <summary>
     /// The station's concourse: the corridor's other body, a calm hall in the habitat ring where people pass,
     /// sit and watch the stars. One long wall is a leaning bay window on the hub (the spokes, the far side of
-    /// the ring, the planet), with a sill to sit on and benches facing it; the other wall carries the doors in a
-    /// row of 3 m bays, two of them free for rooms to come (a light garden stands in each until then). A soft
-    /// vault, warm cove light, fibre-light planters. Same local frame as the ship corridor: +z from the bridge
+    /// the ring, the planet), with a low step to stand on against the glass and benches facing it; the other wall
+    /// carries the doors in a row of 3 m bays, two of them free for rooms to come (a light garden stands in each
+    /// until then). A soft vault, warm cove light, fibre-light planters, a plank deck. Same local frame as the ship corridor: +z from the bridge
     /// door (z = 0) to the gate (z = <see cref="Length"/>), window on −x (toward the hub), doors on +x.
     /// Two hull materials, a few emissive ones, under twenty draw calls.
     /// </summary>
@@ -18,7 +18,8 @@ namespace Core.Stations
         public const float Length = 24f;
         public const float HalfWidth = 3.4f;
         const float WallTop = 3.2f;
-        const float Sill = 0.45f;
+        /// <summary>The window step: low enough to walk onto and stand against the glass.</summary>
+        const float Sill = 0.16f;
         const float Head = 3.6f;
         const float Lean = 0.3f;
         const float Bay = 3f;
@@ -76,8 +77,8 @@ namespace Core.Stations
             var panel = StationSurfaces.Panel();
             var wall = art.Hull(panel, new Color(0.7f, 0.69f, 0.67f), new Vector2(1.5f, 0.8f), seam: 0.3f, lift: 0.08f);
             var vault = art.Hull(panel, new Color(0.62f, 0.63f, 0.65f), new Vector2(Bay, 0.9f), seam: 0.25f, lift: 0.1f);
-            var deck = art.Hull(StationSurfaces.Stone(), new Color(0.5f, 0.48f, 0.46f), new Vector2(1.2f, 1.2f), tiling: 0.25f, seam: 0.45f,
-                lift: 0.06f);
+            var deck = art.Hull(StationSurfaces.Planks(), new Color(0.74f, 0.6f, 0.47f), new Vector2(40f, 40f), tiling: 0.5f, seam: 0f,
+                lift: 0.07f);
             var frame = art.Hull(panel, new Color(0.3f, 0.31f, 0.34f), new Vector2(40f, 40f), seam: 0f, lift: 0.08f);
             var seat = art.Hull(panel, new Color(0.62f, 0.46f, 0.34f), new Vector2(40f, 40f), seam: 0f, lift: 0.12f);
             var warm = art.Lit(Texture2D.whiteTexture, Warm, 1.0f);
@@ -144,9 +145,14 @@ namespace Core.Stations
 
             LatheMesh.Part(root, "HallVault", v.ToMesh("SU_ConcourseVault"), vault);
 
-            // Window side: the sill bench (sit on it, face the hub), the head beam, slim leaning mullions.
+            // Window side: the step up to the glass (walk on it, stand against the view), the head beam, slim
+            // leaning mullions.
             var f = new LatheMesh(Vector3.zero);
             Box(f, new Vector3(-HalfWidth - Lean * 0.5f, Sill * 0.5f, Length * 0.5f), new Vector3(1.2f + Lean, Sill, Length));
+            var step = new GameObject("SillFloor");
+            step.transform.SetParent(root, false);
+            step.transform.localPosition = new Vector3(-HalfWidth - Lean * 0.5f, Sill * 0.5f, Length * 0.5f);
+            step.AddComponent<BoxCollider>().size = new Vector3(1.2f + Lean, Sill, Length);
             Box(f, new Vector3(-HalfWidth - Lean * 0.5f, Head + 0.2f, Length * 0.5f), new Vector3(0.5f + Lean, 0.4f, Length));
             for (var z = Bay; z < Length - 0.1f; z += Bay)
             {
@@ -353,7 +359,8 @@ namespace Core.Stations
             }
 
             Solid(new Vector3(HalfWidth + 0.3f, 2f, Length * 0.5f), new Vector3(0.6f, 4.4f, Length + 1f));
-            Solid(new Vector3(-HalfWidth - 0.1f, 2.2f, Length * 0.5f), new Vector3(0.6f, 4.4f, Length + 1f));
+            // The glass leans out from the step's edge: stop the body at its foot.
+            Solid(new Vector3(-HalfWidth - 0.38f, 2.2f, Length * 0.5f), new Vector3(0.6f, 4.4f, Length + 1f));
             Solid(new Vector3(0f, 2f, -0.3f), new Vector3(HalfWidth * 2f + 1.5f, 4.4f, 0.6f));
             Solid(new Vector3(0f, 2f, Length + 0.3f), new Vector3(HalfWidth * 2f + 1.5f, 4.4f, 0.6f));
         }

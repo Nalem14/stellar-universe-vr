@@ -11,16 +11,16 @@ using UnityEngine.XR.Interaction.Toolkit.Interactables;
 namespace Core.Stations
 {
     /// <summary>
-    /// The dry dock's module fabricator: a lit wall of shelves holding one block per module type (every
-    /// GetConfigs.shipstats entry), each a miniature of the module's own deck silhouette
+    /// The dry dock's module store: the planet's finished hangar, as a lit wall of shelves holding one block per
+    /// module type in stock, each a miniature of the module's own deck silhouette
     /// (<see cref="ShipHullBuilder.ModuleMesh"/>) on a cartridge plinth banded in its family colour.
-    /// A block the hangar holds is solid: grab it (grip, or ray + trigger) and set it on a grid cell of the
-    /// assembly table = the dock's usual PlaceShipModule. A block the hangar lacks is a hologram: trigger it
-    /// twice to have the planet's shipyard fabricate one (AddShip, same rules as the Shipyard tab).
-    /// The catalogue is larger than the wall: a robot gantry runs along the shelves and swaps the page, block
-    /// by block, with a replicator sweep (SU/ModuleBlock). Hovering a block shows its name, stock, stats, description and cost
-    /// (red where the planet falls short) on one shared card. Quest budget: one shared material and one draw
-    /// per block, the frame merged by static batching, four text rows for the shelf lips, one card.
+    /// It is the one place modules are taken from: grab a block (grip, or ray + trigger) and set it on a grid
+    /// cell of the assembly table = PlaceShipModule, or drop it in the recycler = DelShip. It stores, it does
+    /// not order: new modules come from the printer (<see cref="ModulePrinter"/>), whose shuttle delivers here.
+    /// More types than the wall holds: a robot gantry runs along the shelves and swaps the page, block by block,
+    /// with a replicator sweep (SU/ModuleBlock). Hovering a block shows its name, stock, stats and description on
+    /// one shared card. Quest budget: one shared material and one draw per block, the frame merged by static
+    /// batching, four text rows for the shelf lips, one card.
     /// Local frame: origin on the floor at the wall face, centre of the rack; the room lies toward -Z.
     /// </summary>
     public sealed class ModuleShelves : MonoBehaviour
@@ -63,7 +63,6 @@ namespace Core.Stations
             public string Next;
             public bool Swapped;
             public int Count;
-            public bool InProduction;
             public float Reveal = Solid;
             public float RevealTarget = Solid;
             public bool ReturnAfterDissolve;
@@ -73,13 +72,11 @@ namespace Core.Stations
         }
 
         CicArtKit _art;
-        ShipyardPanel _yard;
         Func<Dictionary<string, int>> _stock;
         Func<bool> _canFit;
         Func<string> _selected;
         Action<string> _onPick;
         Func<string, Vector3, bool> _onDrop;
-        Action<string, bool> _status;
 
         readonly Slot[] _slots = new Slot[PerPage];
         readonly TextMeshPro[] _lips = new TextMeshPro[Rows];
@@ -92,7 +89,6 @@ namespace Core.Stations
         GameObject _gantryBeam;
         TextMeshPro _pageLabel;
         TextMeshPro _familyLabel;
-        PokeButton _filterButton;
         Transform _card;
         TextMeshPro _cardText;
         MeshRenderer _cardBack;
@@ -100,13 +96,9 @@ namespace Core.Stations
         Slot _held;
         int _page;
         int _pages = 1;
-        bool _stockOnly;
         bool _cycling;
         float _cycleT;
         float _dir = -1f;
-        string _armedType;
-        float _armedUntil;
-        bool _ordering;
 
         public bool Holding => _held != null;
 
@@ -115,22 +107,20 @@ namespace Core.Stations
         public Vector3 HeldPosition => _held != null ? _held.Block.transform.position : Vector3.zero;
 
         public static ModuleShelves Build(Transform room, CicArtKit art, Vector3 localPos, Quaternion localRot,
-            ShipyardPanel yard, Func<Dictionary<string, int>> stock, Func<bool> canFit, Func<string> selected,
-            Action<string> onPick, Func<string, Vector3, bool> onDrop, Action<string, bool> status)
+            Func<Dictionary<string, int>> stock, Func<bool> canFit, Func<string> selected,
+            Action<string> onPick, Func<string, Vector3, bool> onDrop)
         {
-            var go = new GameObject("ModuleFabricator");
+            var go = new GameObject("ModuleStore");
             go.transform.SetParent(room, false);
             go.transform.localPosition = localPos;
             go.transform.localRotation = localRot;
             var s = go.AddComponent<ModuleShelves>();
             s._art = art;
-            s._yard = yard;
             s._stock = stock;
             s._canFit = canFit;
             s._selected = selected;
             s._onPick = onPick;
             s._onDrop = onDrop;
-            s._status = status;
             s._mpb = new MaterialPropertyBlock();
             s.BuildFrame();
             s.BuildSlots();
@@ -242,7 +232,7 @@ namespace Core.Stations
             _gantryBeam.SetActive(false);
 
             // Sign on the header, and the page's families beneath it.
-            var sign = UiKit.Label(transform, "Sign", Trans.Get("vr.dock.shelf.title"),
+            var sign = UiKit.Label(transform, "Sign", Trans.Get("vr.dock.store.title"),
                 new Vector3(0f, Top + 0.15f, -Depth + 0.035f), Length * 0.8f, 0.07f, Accent);
             sign.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
             _familyLabel = UiKit.Label(transform, "Families", string.Empty,
@@ -276,7 +266,7 @@ namespace Core.Stations
                 slot.Home.SetParent(transform, false);
                 slot.Home.localPosition = new Vector3(SlotX(col), ShelfY(row) + 0.004f, -Depth * 0.5f);
 
-                // Pad: catches the trigger where no block can be taken (hologram, or no ship to fit it on).
+                // Pad: keeps the hover card while the block itself is not grabbable (page swap, dissolving).
                 var pad = new GameObject("Pad");
                 pad.transform.SetParent(slot.Home, false);
                 slot.PadCol = pad.AddComponent<BoxCollider>();
@@ -456,19 +446,6 @@ namespace Core.Stations
                 new Vector2(0.1f, 0.07f), Accent, () => Turn(1));
             _pageLabel = UiKit.Label(column, "Page", "1 / 1", new Vector3(0f, 1.225f, z - 0.002f), 0.26f, 0.025f,
                 UiKit.TextBright);
-            _filterButton = PokeButton.Create(column, "StockFilter", Trans.Get("vr.dock.shelf.showAll"),
-                new Vector3(0f, 1.12f, z), Quaternion.identity, new Vector2(0.26f, 0.07f), UiKit.Cyan, ToggleFilter);
-        }
-
-        void ToggleFilter()
-        {
-            if (_held != null || _cycling)
-                return;
-            _stockOnly = !_stockOnly;
-            _filterButton.SetLabel(Trans.Get(_stockOnly ? "vr.dock.shelf.showStock" : "vr.dock.shelf.showAll"));
-            _filterButton.SetAccent(_stockOnly ? UiKit.Amber : UiKit.Cyan);
-            _page = 0;
-            Refresh(true);
         }
 
         void Turn(int step)
@@ -489,7 +466,7 @@ namespace Core.Stations
         {
             _card = new GameObject("HoverCard").transform;
             _card.SetParent(transform, false);
-            // Name · status · stats · description · cost: tall enough for a two-line description.
+            // Name · stock · stats · description: tall enough for a two-line description.
             var back = UiKit.MeshPiece(_card, "Back", UiMeshes.RoundedBox(new Vector3(0.52f, 0.25f, 0.012f), 0.012f),
                 UiKit.Chassis, new Vector3(0f, 0f, 0.008f));
             _cardBack = back.GetComponent<MeshRenderer>();
@@ -531,42 +508,20 @@ namespace Core.Stations
             if (s == null || s.Type == null)
                 return;
             var fam = ModuleCatalog.Family(s.Type);
-            var afford = _yard.CanAfford(s.Type);
             _sb.Clear();
-            _sb.Append(afford ? "<b>" : "<b><color=#ff6a5a>").Append(Trans.Get(ModuleCatalog.NameKey(s.Type)))
-                .Append(afford ? "</b>" : "</color></b>")
+            _sb.Append("<b>").Append(Trans.Get(ModuleCatalog.NameKey(s.Type))).Append("</b>")
                 .Append("  <size=75%><color=#").Append(ColorUtility.ToHtmlStringRGB(ModuleCatalog.Accent(fam))).Append('>')
                 .Append(Trans.Get(ModuleCatalog.FamilyKey(fam))).Append("</color></size>\n<size=85%>");
-            if (s.Count > 0)
-            {
-                _sb.Append("<color=#7dffa0>").Append(Trans.Format("vr.dock.shelf.inStock", s.Count)).Append("</color> — ");
-                _sb.Append(_canFit() ? Trans.Get("vr.dock.shelf.grab") : "<color=#ffb04a>" + Trans.Get("vr.dock.pickShipFirst") + "</color>");
-            }
-            else if (s.InProduction)
-            {
-                _sb.Append("<color=#ffb04a>").Append(Trans.Get("vr.dock.shelf.inProduction")).Append("</color>");
-            }
-            else
-            {
-                var blocker = _yard.BuildBlocker(s.Type);
-                if (blocker != null)
-                    _sb.Append("<color=#ff6a5a>").Append(blocker).Append("</color>");
-                else if (_armedType == s.Type && Time.unscaledTime <= _armedUntil)
-                    _sb.Append("<color=#ffb04a>").Append(Trans.Format(_yard.YardBusy ? "vr.dock.shelf.confirmQueue"
-                        : "vr.dock.shelf.confirmBuild", Trans.Get(ModuleCatalog.NameKey(s.Type)))).Append("</color>");
-                else
-                    _sb.Append(Trans.Get("vr.dock.shelf.fabricate"));
-            }
-
+            _sb.Append("<color=#7dffa0>").Append(Trans.Format("vr.dock.shelf.inStock", s.Count)).Append("</color> — ");
+            _sb.Append(_canFit() ? Trans.Get("vr.dock.shelf.grab") : "<color=#ffb04a>" + Trans.Get("vr.dock.pickShipFirst") + "</color>");
             _sb.Append("</size>");
             var stats = ModuleCatalog.StatsLine(s.Type);
             if (stats.Length > 0)
                 _sb.Append("\n<size=80%>").Append(stats).Append("</size>");
             _sb.Append("\n<size=70%><color=#9fc4d6>").Append(ModuleCatalog.Description(s.Type)).Append("</color></size>");
-            _sb.Append("\n<size=80%>").Append(_yard.CostText(s.Type)).Append("</size>");
             _cardText.text = _sb.ToString();
             _cardBack.GetPropertyBlock(_mpb);
-            _mpb.SetColor(UiKit.AccentId, afford ? ModuleCatalog.Accent(fam) : UiKit.Danger);
+            _mpb.SetColor(UiKit.AccentId, ModuleCatalog.Accent(fam));
             _mpb.SetFloat(UiKit.AccentMulId, 1.1f);
             _cardBack.SetPropertyBlock(_mpb);
             _mpb.Clear();
@@ -575,8 +530,8 @@ namespace Core.Stations
         // ── State ─────────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// Re-read stock / production and lay out the current page. <paramref name="animate"/>: the gantry swaps
-        /// the blocks whose type changes (page turn, filter); otherwise they change in place.
+        /// Re-read the stock and lay out the current page. <paramref name="animate"/>: the gantry swaps the
+        /// blocks whose type changes (page turn); otherwise they change in place.
         /// </summary>
         public void Refresh(bool animate = false)
         {
@@ -584,11 +539,8 @@ namespace Core.Stations
                 return;
             _counts = _stock() ?? new Dictionary<string, int>();
             _types.Clear();
-            foreach (var t in ModuleCatalog.Types())
-                if (!_stockOnly || (_counts.TryGetValue(t, out var n) && n > 0))
-                    _types.Add(t);
             foreach (var kv in _counts)
-                if (kv.Value > 0 && !_types.Contains(kv.Key))
+                if (kv.Value > 0)
                     _types.Add(kv.Key);
             _types.Sort((a, b) =>
             {
@@ -631,8 +583,7 @@ namespace Core.Stations
         void ReadState(Slot s)
         {
             s.Count = s.Type != null && _counts.TryGetValue(s.Type, out var n) ? n : 0;
-            s.InProduction = s.Type != null && s.Count == 0 && _yard.InProduction(s.Type);
-            var pickable = s.Type != null && s.Count > 0 && _canFit() && !_cycling;
+            var pickable = s.Type != null && s.Count > 0 && !_cycling;
             s.BlockCol.enabled = pickable;
             s.PadCol.enabled = s.Type != null && !pickable && !_cycling;
         }
@@ -675,7 +626,7 @@ namespace Core.Stations
                 last = f;
             }
 
-            _familyLabel.text = _sb.Length > 0 ? _sb.ToString() : Trans.Get("vr.dock.hangarEmpty");
+            _familyLabel.text = _sb.Length > 0 ? _sb.ToString() : Trans.Get("vr.dock.store.empty");
 
             for (var row = 0; row < Rows; row++)
             {
@@ -689,12 +640,7 @@ namespace Core.Stations
                     var pct = (SlotX(col) - 0.2f + (Length - 0.1f) * 0.5f) / (Length - 0.1f) * 100f;
                     _sb.Append("<pos=").Append(pct.ToString("F1", System.Globalization.CultureInfo.InvariantCulture))
                         .Append("%>");
-                    if (s.Count > 0)
-                        _sb.Append("<color=#7dffa0><b>×").Append(s.Count).Append("</b></color> ");
-                    else if (s.InProduction)
-                        _sb.Append("<color=#ffb04a><b>×0</b></color> ");
-                    else
-                        _sb.Append("<color=#5f8797>×0</color> ");
+                    _sb.Append("<color=#7dffa0><b>×").Append(s.Count).Append("</b></color> ");
                     var name = Trans.Get(ModuleCatalog.NameKey(s.Type));
                     _sb.Append(name.Length <= 14 ? name : name.Substring(0, 13) + "…");
                 }
@@ -715,14 +661,10 @@ namespace Core.Stations
             if (s.Type == null)
                 return;
             var accent = ModuleCatalog.Accent(ModuleCatalog.Family(s.Type));
-            if (s.Count == 0 && s.InProduction)
-                accent = UiKit.Amber;
             var hover = s == _cardSlot ? 1f : s == _held ? 0.8f : s.Type == _selected() ? 0.55f : 0f;
-            if (s == _cardSlot && s.Count == 0 && !s.InProduction && !_yard.CanAfford(s.Type))
-                accent = UiKit.Danger;
             _mpb.SetColor(AccentId, accent);
             _mpb.SetFloat(HoverId, hover);
-            _mpb.SetFloat(GhostId, s.Count > 0 ? 0f : 1f);
+            _mpb.SetFloat(GhostId, 0f);
             _mpb.SetFloat(RevealId, s.Reveal);
             s.Renderer.SetPropertyBlock(_mpb);
         }
@@ -771,60 +713,7 @@ namespace Core.Stations
         {
             if (s.Type == null || _cycling)
                 return;
-            if (s.Count > 0)
-            {
-                // Stock but no ship on the table yet: fitting needs one first.
-                _status?.Invoke(Trans.Get("vr.dock.pickShipFirst"), true);
-                CicCue.Fail(s.Home.position);
-                return;
-            }
-
-            if (s.InProduction)
-            {
-                _status?.Invoke(Trans.Get("vr.dock.shelf.inProduction"), false);
-                CicCue.Pip(s.Home.position);
-                return;
-            }
-
-            var blocker = _yard.BuildBlocker(s.Type);
-            if (blocker != null)
-            {
-                _status?.Invoke(blocker, true);
-                CicCue.Fail(s.Home.position);
-                return;
-            }
-
-            // Two triggers within 4 s: arm, then fabricate (resources are spent).
-            if (_armedType != s.Type || Time.unscaledTime > _armedUntil)
-            {
-                _armedType = s.Type;
-                _armedUntil = Time.unscaledTime + 4f;
-                var name = Trans.Get(ModuleCatalog.NameKey(s.Type));
-                _status?.Invoke(Trans.Format(_yard.YardBusy ? "vr.dock.shelf.confirmQueue" : "vr.dock.shelf.confirmBuild", name), false);
-                CicCue.Pip(s.Home.position);
-                if (_cardSlot == s)
-                    RenderCard();
-                return;
-            }
-
-            _armedType = null;
-            if (_ordering)
-                return;
-            AsyncTap.Run(Fabricate(s));
-        }
-
-        async System.Threading.Tasks.Task Fabricate(Slot s)
-        {
-            _ordering = true;
-            try
-            {
-                CicCue.Synth(s.Home.position);
-                await _yard.Build(s.Type);
-            }
-            finally
-            {
-                _ordering = false;
-            }
+            CicCue.Pip(s.Home.position);
         }
 
         /// <summary>Leaving the dock with a block in hand: the hand lets go (it never follows onto the bridge).</summary>
@@ -839,7 +728,6 @@ namespace Core.Stations
         public void ResetAll()
         {
             _held = null;
-            _armedType = null;
             if (_cycling)
                 FinishCycle();
             foreach (var s in _slots)

@@ -21,7 +21,7 @@ namespace Core.Stations
     }
 
     /// <summary>
-    /// Blueprints tab of the dock's hangar screen (web ShipBuilderUI templates modal, commit a93b82c).
+    /// The dock's blueprint console, right of the assembly table (web ShipBuilderUI templates modal, commit a93b82c).
     /// Save the selected ship's layout under a name (Quest keyboard) → SaveShipTemplate; pick a blueprint
     /// and the dock projects it — holo hull in the cradle, its modules on the assembly table, green where
     /// the part is on hand, red where it is missing; Load (twice) → ApplyShipTemplate; Delete (twice) →

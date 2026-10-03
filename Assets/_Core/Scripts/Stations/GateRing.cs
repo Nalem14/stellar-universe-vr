@@ -18,6 +18,21 @@ namespace Core.Stations
     {
         public const float Outer = 3.05f;
         public const float Inner = 2.45f;
+        /// <summary>Depth of the inner lip under the floor it stands in: the lower arc is buried, the way through is flat.</summary>
+        public const float Sunk = 0.12f;
+
+        /// <summary>Half-width where a ring of radius <paramref name="r"/> meets the floor.</summary>
+        public static float FloorChord(float r)
+        {
+            var d = Inner - Sunk;
+            return Mathf.Sqrt(Mathf.Max(0f, r * r - d * d));
+        }
+
+        /// <summary>
+        /// Angle (degrees, CCW from +X) of lock <paramref name="i"/>: six clamps 50° apart over the visible arc,
+        /// from lower left over the top to lower right — none in the buried bottom.
+        /// </summary>
+        public static float LockAngle(int i) => 215f - i * 50f;
         const string Symbols = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
         const float SpinSeconds = 0.62f;
         const float LockSeconds = 0.22f;
@@ -137,10 +152,10 @@ namespace Core.Stations
                 _glyphs.Add(t);
             }
 
-            // Six locks: a wedge clamp over the rim with its lamp; lock 0 at the top (the reading mark).
+            // Six locks: a wedge clamp over the rim with its lamp, dialed in turn from lower left to lower right.
             for (var i = 0; i < 6; i++)
             {
-                var ang = 90f - i * 60f;
+                var ang = LockAngle(i);
                 var holder = new GameObject("Lock" + i).transform;
                 holder.SetParent(transform, false);
                 holder.localRotation = Quaternion.Euler(0f, 0f, ang - 90f);
@@ -163,17 +178,18 @@ namespace Core.Stations
             _horizon = h.GetComponent<MeshRenderer>();
             _horizon.enabled = false;
 
-            // Foot clamps into the dais.
+            // Collars where the ring enters the floor slot, one each side.
+            var d = Inner - Sunk;
             for (var side = -1; side <= 1; side += 2)
             {
-                var foot = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                foot.name = "Foot";
-                Destroy(foot.GetComponent<Collider>());
-                foot.transform.SetParent(transform, false);
-                foot.transform.localPosition = new Vector3(side * 1.55f, -Outer + 0.35f, 0f);
-                foot.transform.localRotation = Quaternion.Euler(0f, 0f, side * 28f);
-                foot.transform.localScale = new Vector3(0.7f, 0.9f, 0.9f);
-                foot.GetComponent<MeshRenderer>().sharedMaterial = metal;
+                var collar = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                collar.name = "FloorCollar";
+                Destroy(collar.GetComponent<Collider>());
+                collar.transform.SetParent(transform, false);
+                var mid = (FloorChord(Outer) + FloorChord(Inner)) * 0.5f;
+                collar.transform.localPosition = new Vector3(side * mid, -d + 0.09f, 0f);
+                collar.transform.localScale = new Vector3(FloorChord(Outer) - FloorChord(Inner) + 0.3f, 0.18f, 0.9f);
+                collar.GetComponent<MeshRenderer>().sharedMaterial = metal;
             }
 
             var lightGo = new GameObject("HorizonLight");
@@ -438,8 +454,7 @@ namespace Core.Stations
             var symbol = _groups[_group][0];
             var index = Mathf.Max(0, Symbols.IndexOf(char.ToUpperInvariant(symbol)));
             // Bring the symbol under lock _group; alternate the turning direction per group.
-            var lockAngle = -_group * 60f;
-            var want = lockAngle + index * 10f;
+            var want = LockAngle(_group) - 90f + index * 10f;
             _trackFrom = _trackAngle;
             var delta = Mathf.DeltaAngle(_trackAngle, want);
             if (_group % 2 == 1 && delta > 0f) delta -= 360f;

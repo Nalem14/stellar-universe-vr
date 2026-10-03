@@ -157,6 +157,8 @@ namespace Core.Vfx
 
         void Open()
         {
+            if (_home != null)
+                Close();
             if (s_Open != null && s_Open != this)
                 s_Open.Close();
             Core.Stations.OpsConsole.Instance?.Close();
@@ -208,7 +210,52 @@ namespace Core.Vfx
                 s_Open = null;
             ClearRows();
             if (_canvas != null && _canvas.transform.parent != null)
-                _canvas.transform.parent.gameObject.SetActive(false);
+            {
+                var root = _canvas.transform.parent;
+                root.gameObject.SetActive(false);
+                if (_home != null)
+                {
+                    root.SetParent(_home, false);
+                    _home = null;
+                }
+            }
+        }
+
+        Transform _home;
+
+        public bool IsOpen => _open;
+
+        /// <summary>The officer this repeater belongs to (null if none).</summary>
+        public static CrewDialogue For(Role role)
+        {
+            var officer = Core.Crew.BarkDirector.Instance?.Officer(role);
+            return officer != null && officer.gameObject.activeInHierarchy
+                ? officer.GetComponentInChildren<CrewDialogue>(true)
+                : null;
+        }
+
+        /// <summary>
+        /// Open the repeater seated on <paramref name="mount"/> (front on its −Z) instead of in front of the
+        /// captain: the watch carries the officer's orders into the real room. <see cref="Close"/> brings the
+        /// panel back. Returns the panel root.
+        /// </summary>
+        public Transform OpenDocked(Transform mount)
+        {
+            if (_canvas == null)
+                return null;
+            var root = _canvas.transform.parent;
+            _home ??= root.parent;
+            if (s_Open == this)
+                s_Open = null;
+            _open = true;
+            _lastSig = -1;
+            _dropOpen = DropGroup.None;
+            root.SetParent(mount, false);
+            root.localPosition = Vector3.zero;
+            root.localRotation = Quaternion.identity;
+            root.gameObject.SetActive(true);
+            Core.Utils.AsyncTap.Run(RebuildAsync());
+            return root;
         }
 
         /// <summary>

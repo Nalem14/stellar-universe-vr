@@ -70,6 +70,15 @@ namespace Core.Crew
             life._shipRing = ring;
             life._stationRing = StationRing();
 
+            // The station hall's gallery has its own hand, there only at a station.
+            var gallery = Core.Vfx.StationCommandShell.GallerySpots();
+            var galleryRing = new Spot[gallery.Length];
+            for (var i = 0; i < gallery.Length; i++)
+                galleryRing[i] = new Spot { At = gallery[i].at, Facing = gallery[i].facing.normalized, Post = gallery[i].post };
+            life.Walk(bridge, "GalleryHand", galleryRing, 2, Comms, family, true);
+            life._galleryHand = life._walkers[life._walkers.Count - 1].Body;
+            life._galleryHand.gameObject.SetActive(false);
+
             if (corridor != null)
             {
                 // Corridor: along the walls between the screens, the bench and the far console (CorridorDecor).
@@ -96,12 +105,14 @@ namespace Core.Crew
 
         Spot[] _shipRing;
         Spot[] _stationRing;
+        CrewExtra _galleryHand;
+        readonly List<(Vector3 pos, Quaternion rot)> _operatorShipPoses = new();
         Spot[] _hallShip;
         Spot[] _hallStation;
 
         /// <summary>
-        /// The station's command hall: round the wall from the starboard bow bay to the port one by the aft door
-        /// — bay sills (looking out), the data walls behind their desks, the credenzas under the displays.
+        /// The station's command hall, aft of the crew tiers (which they never cross): the two aft bay sills
+        /// (looking out) and the credenzas under the displays either side of the door.
         /// </summary>
         static Spot[] StationRing()
         {
@@ -113,8 +124,7 @@ namespace Core.Crew
 
             return new[]
             {
-                At(45f, 7.7f, false), At(90f, 7.3f, true), At(131f, 7.7f, false), At(160f, 7.5f, true),
-                At(200f, 7.5f, true), At(229f, 7.7f, false), At(270f, 7.3f, true), At(315f, 7.7f, false)
+                At(131f, 7.7f, false), At(160f, 7.5f, true), At(200f, 7.5f, true), At(229f, 7.7f, false)
             };
         }
 
@@ -123,6 +133,27 @@ namespace Core.Crew
         {
             Swap(station ? _shipRing : _stationRing, station ? _stationRing : _shipRing);
             Swap(station ? _hallShip : _hallStation, station ? _hallStation : _hallShip);
+            if (_galleryHand != null)
+                _galleryHand.gameObject.SetActive(station);
+
+            // The two auxiliary operators: at the bridge's side banks, or up on the tiers at the data walls.
+            if (_operatorShipPoses.Count == 0)
+                foreach (var o in _operators)
+                    _operatorShipPoses.Add((o.transform.localPosition, o.transform.localRotation));
+            for (var i = 0; i < _operators.Count && i < _operatorShipPoses.Count; i++)
+            {
+                var t = _operators[i].transform;
+                if (!station)
+                {
+                    t.SetLocalPositionAndRotation(_operatorShipPoses[i].pos, _operatorShipPoses[i].rot);
+                    continue;
+                }
+
+                // Science to port, Engineering to starboard, a step off the wall, facing it.
+                var deg = i == 0 ? 262f : 98f;
+                var dir = Core.Vfx.LatheMesh.Dir(deg);
+                t.SetLocalPositionAndRotation(Core.Vfx.StationCommandShell.OnTier(deg, 7.55f), Quaternion.LookRotation(dir, Vector3.up));
+            }
         }
 
         void Swap(Spot[] from, Spot[] to)

@@ -109,9 +109,9 @@ namespace Core.Vfx
             Vector2[] body =
             {
                 new(0.4f, -52f), new(1.8f, -47f), new(3.6f, -40f), new(4.4f, -30f), new(6.8f, -28.5f), new(6.8f, -24f),
-                new(4.8f, -22f), new(4.8f, -12f), new(7.6f, -10.5f), new(9.6f, -8f), new(9.9f, -1.2f), new(9.9f, 3.7f),
-                new(9.4f, 4.7f), new(8.1f, 5.7f), new(5.6f, 7.15f), new(3.2f, 7.85f), new(3.0f, 8.7f), new(1.3f, 9.1f),
-                new(0.55f, 12.5f), new(0.18f, 21f)
+                new(4.8f, -22f), new(4.8f, -12f), new(7.6f, -10.5f), new(9.6f, -8f), new(9.9f, -1.2f), new(9.9f, 5.7f),
+                new(9.4f, 6.7f), new(8.1f, 7.7f), new(5.6f, 9.15f), new(3.2f, 9.85f), new(3.0f, 10.7f), new(1.3f, 11.1f),
+                new(0.55f, 14.5f), new(0.18f, 23f)
             };
             var hub = new LatheMesh(Axis) { Step = 6f };
             // Flat-ish runs between the creases: one revolve per run keeps the creases crisp.
@@ -130,7 +130,7 @@ namespace Core.Vfx
             foreach (var w in new[] { new Vector2(24f, 66f), new Vector2(114f, 148f), new Vector2(212f, 246f), new Vector2(294f, 336f) })
                 glass.Revolve(new[] { new Vector2(9.92f, 0.45f), new Vector2(9.92f, 2.95f) }, w.x, w.y, false);
             var lines = new LatheMesh(Axis) { Step = 4f };
-            foreach (var y in new[] { -7.4f, -24.6f, 3.95f })
+            foreach (var y in new[] { -7.4f, -24.6f, 3.95f, 5.95f })
             {
                 var r = y < -20f ? 6.82f : y < 0f ? 9.66f : 9.82f;
                 lines.Revolve(new[] { new Vector2(r, y), new Vector2(r, y + 0.18f) }, 0f, 360f, false);

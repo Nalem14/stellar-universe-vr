@@ -37,8 +37,10 @@ namespace Core.Vfx
         float _toastUntil;
         Button _board;
         Image _boardImage;
-        Action<int> _onBuild;
         int _buildPlanet;
+
+        /// <summary>The world of the construction the watch shows (Ops opens on it), 0 if none.</summary>
+        public int BuildPlanet => _buildPlanet;
         LineRenderer _arc;
         Transform _from;
         Transform _to;
@@ -52,14 +54,12 @@ namespace Core.Vfx
         static Material _dot;
         static Material _beam;
 
-        /// <param name="onBuild">The Build key: the Ops console on that world (0 = the console's own pick).</param>
-        public static WatchCluster Build(Transform deck, int layer, Action onBoard, Action<int> onBuild)
+        public static WatchCluster Build(Transform deck, int layer, Action onBoard)
         {
             var go = new GameObject("WatchCluster");
             go.transform.SetParent(deck, false);
             var c = go.AddComponent<WatchCluster>();
             c._onBoard = onBoard;
-            c._onBuild = onBuild;
             c._layer = layer;
             c.BuildPanel();
             c.BuildHolo();
@@ -285,14 +285,11 @@ namespace Core.Vfx
             _toast.fontSizeMax = 15f;
             _toast.gameObject.SetActive(false);
 
-            _board = DiegeticUi.HoloButton(frame, Trans.Get("vr.watch.board"), new Vector2(-102f, -146f), new Vector2(190f, 40f),
+            _board = DiegeticUi.HoloButton(frame, Trans.Get("vr.watch.board"), new Vector2(0f, -146f), new Vector2(240f, 40f),
                 () => _onBoard?.Invoke(), DiegeticUi.BtnStyle.Amber);
             _boardImage = _board.GetComponent<Image>();
             // The ray must reach it from afar (trigger), not only a finger touching it.
             Core.UI.RayPress.Add(_board);
-            var build = DiegeticUi.HoloButton(frame, Trans.Get("build"), new Vector2(102f, -146f), new Vector2(190f, 40f),
-                () => _onBuild?.Invoke(_buildPlanet), DiegeticUi.BtnStyle.Cyan);
-            Core.UI.RayPress.Add(build);
         }
 
         static TMP_Text Label(Transform parent, Vector2 pos, Vector2 size, float fontSize, Color color, FontStyles style,

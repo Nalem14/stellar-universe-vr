@@ -45,6 +45,20 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 
 ---
 
+## À intégrer — cale sèche : magasin et recycleur
+
+| Clé | EN | FR | Contexte |
+|---|---|---|---|
+| `vr.dock.store.title` | Module store | Magasin de modules | Enseigne de l'armoire (stock seulement, on n'y commande plus) |
+| `vr.dock.store.empty` | Store empty — print modules at the printer console | Magasin vide — imprimez des modules à la console de l'imprimante | Armoire sans stock |
+| `vr.dock.takeFromStore` | Take a module from the store, then set it on the grid | Prenez un module dans le magasin, puis posez-le sur la grille | Statut de la cale, tap main vide sur la grille |
+| `vr.dock.recycler.title` | Recycler | Recycleur | Enseigne de la trémie (DelShip) |
+| `vr.dock.recycler.hint` | Drop a module here to scrap it | Déposez un module ici pour le détruire | Invite au repos |
+| `vr.dock.recycler.confirm` | Scrap {0}? No refund. | Détruire {0} ? Aucun remboursement. | `{0}` = nom du module |
+| `vr.dock.recycler.go` | Scrap | Détruire | Bouton de confirmation |
+
+---
+
 ## Anomalies (intégré web)
 
 | Clé | EN | FR | Contexte |

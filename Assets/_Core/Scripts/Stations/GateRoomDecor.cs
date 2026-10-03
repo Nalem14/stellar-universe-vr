@@ -64,7 +64,7 @@ namespace Core.Stations
             plate.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
             for (var i = 0; i < 6; i++)
             {
-                var a = (90f - i * 60f) * Mathf.Deg2Rad;
+                var a = GateRing.LockAngle(i) * Mathf.Deg2Rad;
                 var lamp = Rounded(ped, "Lamp" + i, new Vector3(0.06f, 0.03f, 0.06f), 0.012f,
                     new Vector3(Mathf.Cos(a) * 0.23f, 0.925f, Mathf.Sin(a) * 0.23f), chassis, new Color(0.3f, 0.14f, 0.06f), 0.6f);
                 refs.PedestalLamps[i] = lamp.GetComponent<Renderer>();

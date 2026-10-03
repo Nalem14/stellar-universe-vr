@@ -50,6 +50,13 @@ namespace Core.App
         public bool IsCommandMode => _command;
         public event System.Action<bool> CommandModeChanged;
 
+        /// <summary>The chair's seat (its forward faces the table), or null before binding.</summary>
+        public Transform Seat => _seat;
+
+        /// <summary>Where a seated captain's eyes are (world).</summary>
+        public Vector3 SeatedEye() =>
+            _seat.TransformPoint(new Vector3(0f, CushionTop, -0.13f)) + Vector3.up * EyeAboveSeat;
+
         /// <summary>The view lift the chair wants right now (m), or null off the chair (<see cref="ComfortSettings"/>).</summary>
         public float? ViewLift { get; private set; }
 

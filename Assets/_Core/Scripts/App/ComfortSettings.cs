@@ -34,7 +34,8 @@ namespace Core.App
         /// <summary>Walkable floors across the rooms (bridge, corridor, quarters, lab, dock, diplomacy, gate, sas).</summary>
         static readonly HashSet<string> Floors = new()
         {
-            "Deck", "Floor", "CommandPlate", "CaptainDais", "GalleryFloor", "HallFloor", "BayFloor"
+            "Deck", "Floor", "CommandPlate", "CaptainDais", "GalleryFloor", "HallFloor", "BayFloor", "Dais", "Causeway",
+            "OpsTier", "SillFloor"
         };
 
         static ComfortSettings s_Instance;

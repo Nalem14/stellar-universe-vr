@@ -146,7 +146,10 @@ namespace Core.App
             Scan();
             RefreshOffer();
             if (Inside)
+            {
                 _cluster.Show(_affairs);
+                _consoles.WatchPlanet = _cluster.BuildPlanet;
+            }
         }
 
         void RefreshOffer()
@@ -300,11 +303,17 @@ namespace Core.App
 
         // ── Enter / leave ───────────────────────────────────────────────────────
 
+        /// <summary>From the bridge or any room: the watch hands the player back where they stood.</summary>
         public void Enter()
         {
-            if (!Inside && !_busy && Supported && !Core.Stations.DiplomacyRoom.AnyRoomInside)
+            if (!Inside && !_busy && Supported)
                 AsyncTap.Run(EnterAsync());
         }
+
+        // Where the player stood before the watch (the rig's parent space: rooms ride their ship).
+        Transform _returnParent;
+        Vector3 _returnFloor;
+        Vector3 _returnForward;
 
         public void Leave()
         {
@@ -328,6 +337,14 @@ namespace Core.App
                 var cam = rig != null ? rig.Camera : Camera.main;
                 if (rig != null)
                 {
+                    _returnParent = rig.transform.parent;
+                    var head = cam != null ? cam.transform : rig.transform;
+                    var floor = new Vector3(head.position.x, rig.transform.position.y, head.position.z);
+                    var fwd = Vector3.ProjectOnPlane(head.forward, Vector3.up);
+                    if (fwd.sqrMagnitude < 1e-4f)
+                        fwd = rig.transform.forward;
+                    _returnFloor = _returnParent != null ? _returnParent.InverseTransformPoint(floor) : floor;
+                    _returnForward = _returnParent != null ? _returnParent.InverseTransformDirection(fwd.normalized) : fwd.normalized;
                     rig.transform.SetParent(_deck, false);
                     rig.transform.localPosition = Vector3.zero;
                     rig.transform.localRotation = Quaternion.identity;
@@ -371,11 +388,21 @@ namespace Core.App
                 Inside = false;
                 _cluster.Hide();
                 var bridge = FindFirstObjectByType<BridgeViewRig>();
-                if (rig != null && bridge != null && bridge.BridgeMount != null)
+                if (rig != null && _returnParent != null && _returnParent.gameObject.activeInHierarchy &&
+                    (bridge == null || _returnParent != bridge.BridgeMount))
+                {
+                    // Back in the room the watch was taken from, on the same spot.
+                    rig.transform.SetParent(_returnParent, false);
+                    XrPlacement.PlaceHead(rig, _returnParent.TransformPoint(_returnFloor),
+                        _returnParent.TransformDirection(_returnForward));
+                }
+                else if (rig != null && bridge != null && bridge.BridgeMount != null)
                 {
                     rig.transform.SetParent(bridge.BridgeMount, false);
                     bridge.PutPlayerOnDeck();
                 }
+
+                _returnParent = null;
 
                 await fade.FadeIn(0.5f);
             }
@@ -467,7 +494,7 @@ namespace Core.App
             floor.transform.SetParent(_deck, false);
             floor.transform.localPosition = new Vector3(0f, -0.1f, 0f);
             floor.AddComponent<BoxCollider>().size = new Vector3(30f, 0.2f, 30f);
-            _cluster = WatchCluster.Build(_deck, _watchLayer, Leave, planet => _consoles?.OpenOps(planet));
+            _cluster = WatchCluster.Build(_deck, _watchLayer, Leave);
             _consoles = WatchConsoles.Build(_deck, _cluster.transform, _watchLayer, _focus);
         }
     }

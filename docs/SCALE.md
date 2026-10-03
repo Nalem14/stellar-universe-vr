@@ -138,16 +138,31 @@ Constantes : `WorldScale.CicTableCenterZ`, `CicCaptainChairZ`, `CicCaptainStand`
 
 ### Station orbitale (vue planète)
 
-Même repère intérieur, mêmes postes (table, fauteuil, 6 stations, TP, viewscreen) ; seule la coque change (`BridgeDressing` bascule en direct sur `ViewFleetId <= 0`).
+Même repère intérieur et même table, mais pas de fauteuil : on commande **debout** sur un podium, et les six postes crew montent sur des gradins face aux murs de données. `BridgeDressing` bascule en direct sur `ViewFleetId <= 0` ; `StationCommandLayout` déplace les postes et les restaure à bord d'un vaisseau.
 
 | Élément | Valeur | Constante / source |
 |---|---|---|
-| Rotonde de commandement | r = 8.6 m autour de la table `(0, 0, 0.6)`, mur 3.4 m, dôme jusqu'à 6.7 m | `WorldScale.StationHallRadius`, `StationCommandShell` |
+| Rotonde de commandement | r = 8.6 m autour de la table `(0, 0, 0.6)`, mur 5.4 m, dôme 6.3 → 8.4 m, coiffe 8.7 m | `WorldScale.StationHallRadius`, `StationCommandShell` |
 | Baies panoramiques | 24–66°, 114–148°, 212–246°, 294–336° (0° = avant), allège 0.45 m, linteau 2.95 m | `StationCommandShell` |
+| Gradins ops | 66–114° et 246–294°, de r 4.4 m au mur, 3 marches jusqu'à +0.5 m ; murs de données 72–108° / 252–288° | `StationCommandShell.Tiers`, `OnTier` |
+| Postes crew | sur les gradins à r 5.75 m, face au mur : Tactical 74°, Engineering 90°, Ops 106°, Helm 286°, Science 270°, Comms 254° | `StationCommandLayout.Posts` |
+| Podium du commandant | sur `CicCaptainStand`, deux pupitres à ±60° (œil debout 1.5 m), rambarde en arc derrière, anneau au sol r 0.62–0.66 m | `StationCommandLayout` |
+| Coursive haute | +3.2 m, profondeur 0.95 m, 36 → 324°, garde-corps vitré 0.98 m, portes à 105/145/215/255° ; décor (pas de collider) | `StationCommandShell.GallerySpots` |
 | Porte coursive / écrans arrière | porte à 180° sur le mur courbe ; écrans à 160° / 200° | `StationCommandShell.OnWall` |
 | Anneau habité | rayon 46 m, section 12 × 8 m, centré 6 m sous le pont | `StationRingRadius`, `StationRingSection`, `StationRingDrop` |
 | Hub | r ≈ 9.9 m autour de la rotonde, fût et quai d'amarrage jusqu'à −52 m, antenne à +21 m | `StationExterior` |
 | Distance au centre de la planète | `R + 46 + 6 + 2.4 × FleetParkPadding` (anneau hors des vaisseaux garés) | `WorldScale.StationStandoff` |
 | Cap | planète à 42° tribord de l'avant (dans la baie avant tribord, pas derrière le monolithe) | `BridgeViewRig.StationPlanetBearing` |
 | Hall (coursive station) | 24 × 6.8 m, voûte 4.4 m, baie inclinée côté hub, sol 8.4 m sous le pont, à 272° sur l'anneau | `StationConcourse` |
+
+### Cale sèche (salle de contrôle)
+
+Un chemin par geste : on **imprime** à la console de l'imprimante, on **range** dans le magasin, on **monte** sur la grille et on **détruit** au recycleur. Aucun écran flottant : tous les écrans sont posés sur des pupitres.
+
+| Élément | Valeur | Constante / source |
+|---|---|---|
+| Pupitre vaisseau / pupitre plans | (−2.6, 0, −1.3) / (2.6, 0, −1.1), écran 0.95 × 0.8 m | `DryDock.ShipDesk`, `PlansDesk`, `ScreenSize` |
+| Magasin de modules | mur tribord, z = −2.0 ; seuls les types en stock sont listés | `DryDock.StoreZ`, `ModuleShelves` |
+| Console de l'imprimante (chantier + file) | mur tribord, z = −4.15, face à la salle | `DryDock.YardDeskZ`, `ShipyardPanel` |
+| Recycleur / imprimante | z = −5.02 / −6.15 | `DryDock.RecyclerZ`, `PrinterZ` |
 

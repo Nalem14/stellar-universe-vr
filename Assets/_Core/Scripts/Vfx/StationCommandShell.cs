@@ -4,32 +4,47 @@ using UnityEngine;
 namespace Core.Vfx
 {
     /// <summary>
-    /// The orbital station's command centre: a rotunda round the holo table (the ship's bridge is a tight
-    /// octagon; a station has room). A tall drum with four panoramic bays onto the ring and the world, two curved
-    /// data walls with their operator desks to port and starboard, the main screen standing on a monolith ahead,
-    /// the corridor door and two displays aft. Over it a stepped dome with hanging light rings and a lit oculus,
-    /// and an emitter ring over the table whose beams fall onto the platter's rim (the hologram's column). The
-    /// floor carries concentric light rings round the table. Same kit as the bridge (SU/HullInterior lit by the
-    /// room's four lights, shared materials, one mesh per material), built hidden and swapped in by
+    /// The orbital station's command centre: a tall rotunda round the holo table (the ship's bridge is a tight
+    /// octagon; a station has room), built in three levels. The pit: the table and the commander's podium on
+    /// the floor, concentric light rings round them. The tiers: two raised crescents (+0.5 m, three steps) to
+    /// port and starboard under the data walls, where the six crew posts work facing the walls
+    /// (<see cref="StationCommandLayout"/>). The gallery: a glass-railed balcony round the drum above the bays
+    /// (doorways onto it, a hand walking it), all but the arc behind the main screen, which stands on a
+    /// monolith ahead. Four panoramic bays onto the ring and the world, the corridor door and two displays aft;
+    /// over it a stepped dome with hanging light rings and a lit oculus, and an emitter ring over the table
+    /// whose beams fall onto the platter's rim. Same kit as the bridge (SU/HullInterior lit by the room's four
+    /// lights, shared materials, one mesh per material), built hidden and swapped in by
     /// <see cref="BridgeDressing"/> when the inhabited view is a station. Interior local metres, +z = forward.
     /// </summary>
     public static class StationCommandShell
     {
         public const float Sill = 0.45f;
         public const float Head = 2.95f;
-        public const float WallTop = 3.4f;
+        public const float WallTop = 5.4f;
         const float Reveal = 0.42f;
-        const float DomeBase = 4.3f;
-        const float DomeTop = 6.4f;
+        const float DomeBase = 6.3f;
+        const float DomeTop = 8.4f;
         const float Oculus = 2.8f;
-        const float CapY = 6.7f;
+        const float CapY = 8.7f;
+        /// <summary>Crew tiers: top height, first step's radius, tread depth (three steps of TierHeight / 3).</summary>
+        public const float TierHeight = 0.5f;
+        public const float TierInner = 4.4f;
+        const float TierTread = 0.3f;
+        /// <summary>Gallery deck height and depth from the wall; it spans GalleryFrom → GalleryTo (not behind the monolith).</summary>
+        public const float GalleryY = 3.2f;
+        const float GalleryDepth = 0.95f;
+        const float GalleryFrom = 36f;
+        const float GalleryTo = 324f;
+        const float RailHeight = 0.98f;
+        static readonly float[] GalleryDoors = { 105f, 145f, 215f, 255f };
 
         /// <summary>Panoramic bays (degrees from +z toward +x).</summary>
         static readonly Vector2[] Windows = { new(24f, 66f), new(114f, 148f), new(212f, 246f), new(294f, 336f) };
         /// <summary>Solid wall between the bays: ahead (behind the monolith), the two data walls, aft.</summary>
         static readonly Vector2[] Solid = { new(-24f, 24f), new(66f, 114f), new(148f, 212f), new(246f, 294f) };
         static readonly Vector2[] DataWalls = { new(72f, 108f), new(252f, 288f) };
-        static readonly Vector2[] Desks = { new(77f, 103f), new(257f, 283f) };
+        /// <summary>The crew tiers (degrees): the solid walls between the side bays, under the data walls.</summary>
+        public static readonly Vector2[] Tiers = { new(66f, 114f), new(246f, 294f) };
         static readonly Vector2[] Credenzas = { new(153f, 167f), new(193f, 207f) };
 
         /// <summary>The station's light colour: cool white-cyan (the ship's is a deeper cyan).</summary>
@@ -66,9 +81,11 @@ namespace Core.Vfx
             BuildFloor(root, deck, plate, glowSoft);
             BuildDrum(root, wall, dado, frame, glow);
             BuildCeiling(root, ceiling, rib, frame, glow, lamp, beams, art.Lit(Texture2D.whiteTexture, new Color(0.55f, 0.78f, 0.95f), 0.6f));
-            BuildDataWalls(root, art, frame, desk, glow);
+            BuildDataWalls(root, art, frame, glow);
+            BuildTiers(root, plate, desk, glow);
+            BuildGallery(root, art, frame, dado, glow, lamp);
             BuildMonolith(root, art, glow);
-            BuildAft(root, frame, desk, glow);
+            BuildAft(root, frame, glow);
             BuildHull(root);
             root.gameObject.SetActive(false);
             return root;
@@ -180,8 +197,8 @@ namespace Core.Vfx
         {
             var c = new LatheMesh(Centre);
             c.Revolve(new[] { new Vector2(R, WallTop), new Vector2(R - 0.3f, WallTop + 0.12f) }, 0f, 360f, true, ao: new[] { 0.7f, 0.85f });
-            c.Revolve(new[] { new Vector2(R - 0.3f, WallTop + 0.12f), new Vector2(R - 1f, 3.72f) }, 0f, 360f, true, ao: new[] { 0.85f, 0.6f });
-            c.Revolve(new[] { new Vector2(R - 1f, 3.72f), new Vector2(R - 1f, DomeBase) }, 0f, 360f, true, ao: new[] { 0.55f, 0.8f });
+            c.Revolve(new[] { new Vector2(R - 0.3f, WallTop + 0.12f), new Vector2(R - 1f, WallTop + 0.32f) }, 0f, 360f, true, ao: new[] { 0.85f, 0.6f });
+            c.Revolve(new[] { new Vector2(R - 1f, WallTop + 0.32f), new Vector2(R - 1f, DomeBase) }, 0f, 360f, true, ao: new[] { 0.55f, 0.8f });
             var dome = new Vector2[11];
             var ao = new float[dome.Length];
             for (var i = 0; i < dome.Length; i++)
@@ -221,8 +238,8 @@ namespace Core.Vfx
                     housing.Bar(i * 360f / hangers + 7f, r - 0.012f, r + 0.012f, y + h, top, 0.012f);
             }
 
-            Ring(5.7f, 5.15f, 0.15f, 0.12f, 8);
-            Ring(4.1f, 5.75f, 0.12f, 0.1f, 6);
+            Ring(5.7f, 7.15f, 0.15f, 0.12f, 8);
+            Ring(4.1f, 7.75f, 0.12f, 0.1f, 6);
             Ring(1.55f, 4.38f, 0.1f, 0.18f, 3);
             LatheMesh.Part(root, "LightRings", housing.ToMesh("SU_StationRingHousings"), frame);
             LatheMesh.Part(root, "LightRingGlow", under.ToMesh("SU_StationRingGlow"), lamp);
@@ -250,13 +267,12 @@ namespace Core.Vfx
             LatheMesh.Part(root, "LightBeams", b.ToMesh("SU_StationBeams"), beams);
         }
 
-        // ── Data walls and their operator desks (port and starboard) ───────────────
+        // ── Data walls (port and starboard, over the crew tiers) ──────────────────
 
-        static void BuildDataWalls(Transform root, CicArtKit art, Material frame, Material desk, Material glow)
+        static void BuildDataWalls(Transform root, CicArtKit art, Material frame, Material glow)
         {
             // Textured screens carry their light in the texture (a flat emission would wash their dark ground out).
             var screenMat = new Material(art.Lit(StationScreens.DataWall(), Color.white * 1.7f, 0f)) { name = "SU_StationDataWall" };
-            var consoleMat = art.Lit(StationScreens.Console(), Color.white * 1.6f, 0f);
             var screens = new LatheMesh(Centre);
             var plate = new LatheMesh(Centre);
             var lit = new LatheMesh(Centre);
@@ -280,26 +296,123 @@ namespace Core.Vfx
                 .AddComponent<StationScreens.Scroll>().Bind(screenMat, 0.006f);
             LatheMesh.Part(root, "DataFrames", plate.ToMesh("SU_StationDataFrames"), frame);
 
-            // Desks: walked back → top → front so every face looks out of the solid.
-            var body = new LatheMesh(Centre);
+            LatheMesh.Part(root, "GlowData", lit.ToMesh("SU_StationDataGlow"), glow);
+        }
+
+        // ── Crew tiers: two raised crescents under the data walls ─────────────────
+
+        /// <summary>A crew post on a tier: on its top at <paramref name="deg"/>, <paramref name="r"/> from the axis.</summary>
+        public static Vector3 OnTier(float deg, float r) => Centre + LatheMesh.Dir(deg) * r + Vector3.up * TierHeight;
+
+        /// <summary>
+        /// Three steps up from the pit to a flat top running to the wall; treads walkable (OpsTier), risers facing
+        /// the hall, a lit nosing on each step and a kick line under it, the ends closed on the bays' jambs.
+        /// </summary>
+        static void BuildTiers(Transform root, Material top, Material riser, Material glow)
+        {
+            var walk = new LatheMesh(Centre);
             var face = new LatheMesh(Centre);
-            Vector2[] section =
+            var lit = new LatheMesh(Centre);
+            const float h = TierHeight / 3f;
+            foreach (var t in Tiers)
             {
-                new(5.95f, 0f), new(5.95f, 0.86f), new(5.4f, 0.98f), new(5.28f, 0.94f), new(5.34f, 0.08f), new(5.42f, 0f)
-            };
-            foreach (var d in Desks)
-            {
-                for (var i = 0; i < section.Length - 1; i++)
-                    body.Revolve(new[] { section[i], section[i + 1] }, d.x, d.y, false, ao: new[] { i == 0 ? 0.5f : 0.9f, 0.9f });
-                body.Cap(section, d.x, false);
-                body.Cap(section, d.y, true);
-                face.Revolve(new[] { new Vector2(5.88f, 0.879f), new Vector2(5.45f, 0.974f) }, d.x + 1.2f, d.y - 1.2f, false, LatheMesh.Uv.Normalised);
-                lit.Revolve(new[] { new Vector2(5.284f, 0.925f), new Vector2(5.29f, 0.885f) }, d.x, d.y, false);
+                for (var k = 0; k < 3; k++)
+                {
+                    var r0 = TierInner + k * TierTread;
+                    var r1 = k == 2 ? R - 0.02f : r0 + TierTread;
+                    var y = h * (k + 1);
+                    walk.Revolve(new[] { new Vector2(r1, y), new Vector2(r0, y) }, t.x, t.y, false, LatheMesh.Uv.Planar);
+                    face.Revolve(new[] { new Vector2(r0, y), new Vector2(r0, y - h) }, t.x, t.y, false, ao: new[] { 0.9f, 0.55f });
+                    lit.Revolve(new[] { new Vector2(r0 + 0.05f, y + 0.003f), new Vector2(r0 + 0.012f, y + 0.003f) }, t.x + 0.5f, t.y - 0.5f, false);
+                    lit.Revolve(new[] { new Vector2(r0 - 0.003f, y - 0.014f), new Vector2(r0 - 0.003f, y - 0.03f) }, t.x + 0.5f, t.y - 0.5f, false);
+                    foreach (var (deg, sign) in new[] { (t.x, -1f), (t.y, 1f) })
+                    {
+                        var tan = Vector3.Cross(Vector3.up, LatheMesh.Dir(deg)) * sign;
+                        var rEnd = k == 2 ? R - 0.02f : r1;
+                        face.Quad(face.At(deg, r0, 0f), face.At(deg, rEnd, 0f), face.At(deg, rEnd, y), face.At(deg, r0, y), tan, 0.75f);
+                    }
+                }
             }
 
-            LatheMesh.Part(root, "Desks", body.ToMesh("SU_StationDesks"), desk, collider: true);
-            LatheMesh.Part(root, "DeskConsoles", face.ToMesh("SU_StationDeskConsoles"), consoleMat);
-            LatheMesh.Part(root, "GlowData", lit.ToMesh("SU_StationDataGlow"), glow);
+            LatheMesh.Part(root, "OpsTier", walk.ToMesh("SU_StationTierTreads"), top, collider: true);
+            LatheMesh.Part(root, "OpsTierRisers", face.ToMesh("SU_StationTierRisers"), riser, collider: true);
+            LatheMesh.Part(root, "GlowTier", lit.ToMesh("SU_StationTierGlow"), glow);
+        }
+
+        // ── Gallery: the balcony round the drum, above the bays ───────────────────
+
+        /// <summary>
+        /// Deck slab with a lit fascia and downlights under it, a glass balustrade between posts with a lit top
+        /// rail, its two ends closed beside the monolith, and doorways onto it in the upper wall. Seen, not walked:
+        /// no collider (one hand walks it, <see cref="Core.Crew.CrewLife"/>).
+        /// </summary>
+        static void BuildGallery(Transform root, CicArtKit art, Material frame, Material door, Material glow, Material lamp)
+        {
+            var g = new LatheMesh(Centre);
+            var lit = new LatheMesh(Centre);
+            var down = new LatheMesh(Centre);
+            var glass = new LatheMesh(Centre);
+            var panels = new LatheMesh(Centre);
+            var gi = R - GalleryDepth;
+            const float under = GalleryY - 0.16f;
+            const float rail = GalleryY + RailHeight;
+
+            g.Revolve(new[] { new Vector2(R - 0.01f, GalleryY), new Vector2(gi, GalleryY) }, GalleryFrom, GalleryTo, false, LatheMesh.Uv.Planar);
+            g.Revolve(new[] { new Vector2(gi, GalleryY), new Vector2(gi, under) }, GalleryFrom, GalleryTo, false);
+            g.Revolve(new[] { new Vector2(gi, under), new Vector2(R - 0.01f, under) }, GalleryFrom, GalleryTo, false, ao: new[] { 0.7f, 0.45f });
+            foreach (var (deg, sign) in new[] { (GalleryFrom, -1f), (GalleryTo, 1f) })
+            {
+                var tan = Vector3.Cross(Vector3.up, LatheMesh.Dir(deg)) * sign;
+                g.Quad(g.At(deg, gi, under), g.At(deg, R, under), g.At(deg, R, rail), g.At(deg, gi, rail), tan, 0.8f);
+            }
+
+            // Balustrade: glass on the deck's edge, posts every 9°, the rail capping them.
+            glass.Revolve(new[] { new Vector2(gi + 0.04f, GalleryY), new Vector2(gi + 0.04f, rail - 0.04f) }, GalleryFrom, GalleryTo, true,
+                LatheMesh.Uv.Normalised);
+            for (var deg = GalleryFrom + 4.5f; deg < GalleryTo; deg += 9f)
+                g.Bar(deg, gi, gi + 0.06f, GalleryY, rail, 0.018f);
+            g.Revolve(new[] { new Vector2(gi + 0.08f, rail), new Vector2(gi - 0.01f, rail) }, GalleryFrom, GalleryTo, false);
+            g.Revolve(new[] { new Vector2(gi - 0.01f, rail), new Vector2(gi - 0.01f, rail - 0.05f) }, GalleryFrom, GalleryTo, false);
+            lit.Revolve(new[] { new Vector2(gi - 0.004f, under + 0.05f), new Vector2(gi - 0.004f, under + 0.09f) }, GalleryFrom, GalleryTo, true);
+            lit.Revolve(new[] { new Vector2(gi + 0.05f, rail + 0.003f), new Vector2(gi + 0.025f, rail + 0.003f) }, GalleryFrom, GalleryTo, false);
+            down.Revolve(new[] { new Vector2(gi + 0.1f, under - 0.003f), new Vector2(gi + 0.2f, under - 0.003f) }, GalleryFrom + 1f, GalleryTo - 1f, false);
+
+            // Doorways in the upper wall: a dark leaf, jambs, a lit header.
+            foreach (var d in GalleryDoors)
+            {
+                const float half = 3.1f;
+                const float top = GalleryY + 2.1f;
+                panels.Quad(panels.At(d - half, R - 0.015f, GalleryY), panels.At(d + half, R - 0.015f, GalleryY),
+                    panels.At(d + half, R - 0.015f, top), panels.At(d - half, R - 0.015f, top), -LatheMesh.Dir(d), 0.8f);
+                g.Bar(d - half - 0.3f, R - 0.07f, R, GalleryY, top + 0.1f, 0.035f);
+                g.Bar(d + half + 0.3f, R - 0.07f, R, GalleryY, top + 0.1f, 0.035f);
+                g.Revolve(new[] { new Vector2(R - 0.07f, top), new Vector2(R - 0.07f, top + 0.1f) }, d - half - 0.3f, d + half + 0.3f, true);
+                lit.Revolve(new[] { new Vector2(R - 0.074f, top + 0.035f), new Vector2(R - 0.074f, top + 0.065f) }, d - half, d + half, true);
+                lit.Bar(d, R - 0.02f, R - 0.016f, GalleryY + 0.9f, GalleryY + 1.2f, 0.012f);
+            }
+
+            LatheMesh.Part(root, "Gallery", g.ToMesh("SU_StationGallery"), frame);
+            LatheMesh.Part(root, "GalleryDoors", panels.ToMesh("SU_StationGalleryDoors"), door);
+            LatheMesh.Part(root, "GlowGallery", lit.ToMesh("SU_StationGalleryGlow"), glow);
+            LatheMesh.Part(root, "GalleryDownlights", down.ToMesh("SU_StationGalleryDown"), lamp);
+            LatheMesh.Part(root, "GalleryGlass", glass.ToMesh("SU_StationGalleryGlass"),
+                art.Holo(Texture2D.whiteTexture, new Color(0.55f, 0.85f, 1f, 0.022f)));
+        }
+
+        /// <summary>Walk spots on the gallery deck, every 30° (the chords stay on the deck), doorways as posts.</summary>
+        public static (Vector3 at, Vector3 facing, bool post)[] GallerySpots()
+        {
+            var list = new System.Collections.Generic.List<(Vector3, Vector3, bool)>();
+            for (var deg = GalleryFrom + 9f; deg <= GalleryTo - 9f; deg += 30f)
+            {
+                var door = false;
+                foreach (var d in GalleryDoors)
+                    door |= Mathf.Abs(Mathf.DeltaAngle(d, deg)) < 6f;
+                var dir = LatheMesh.Dir(deg);
+                list.Add((Centre + dir * (R - GalleryDepth * 0.5f) + Vector3.up * GalleryY, door ? dir : -dir, door));
+            }
+
+            return list.ToArray();
         }
 
         // ── The main screen's monolith ─────────────────────────────────────────────
@@ -332,7 +445,7 @@ namespace Core.Vfx
 
         // ── Aft: door portal, credenzas under the displays ─────────────────────────
 
-        static void BuildAft(Transform root, Material frame, Material desk, Material glow)
+        static void BuildAft(Transform root, Material frame, Material glow)
         {
             var f = new LatheMesh(Centre);
             var lit = new LatheMesh(Centre);
@@ -359,7 +472,6 @@ namespace Core.Vfx
 
             LatheMesh.Part(root, "AftFrames", f.ToMesh("SU_StationAft"), frame, collider: false);
             LatheMesh.Part(root, "GlowAft", lit.ToMesh("SU_StationAftGlow"), glow);
-            _ = desk;
         }
 
         /// <summary>Solid boxes round the drum: a character body never slips through a one-sided wall or a bay.</summary>
@@ -372,9 +484,9 @@ namespace Core.Vfx
                 var deg = i * 360f / n;
                 var go = new GameObject("HullCollider");
                 go.transform.SetParent(root, false);
-                go.transform.localPosition = OnWall(deg, -0.35f, 1.9f);
+                go.transform.localPosition = OnWall(deg, -0.35f, (WallTop + 0.4f) * 0.5f);
                 go.transform.localRotation = FacingIn(deg);
-                go.AddComponent<BoxCollider>().size = new Vector3(chord, 3.8f, 0.6f);
+                go.AddComponent<BoxCollider>().size = new Vector3(chord, WallTop + 0.4f, 0.6f);
             }
         }
     }

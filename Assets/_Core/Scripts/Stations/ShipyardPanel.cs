@@ -14,11 +14,11 @@ using UnityEngine.UI;
 namespace Core.Stations
 {
     /// <summary>
-    /// Shipyard tab of the dock's hangar screen (web planet.js "Chantier" card): the module being built with
+    /// The dock's printer console (web planet.js "Chantier" card): the module being built with
     /// its Nova finish, the planet_ship_queue with cancel, and the module catalog by family (GetConfigs.shipstats)
     /// with cost, time and requirements — Build, or Add to queue when the yard is busy. One module per order
-    /// (AddShip has no quantity). Finished modules land in the hangar, i.e. on the rack. The dock's planet pays
-    /// (AddShip planet=): its stock heads the tab, and each cost it cannot cover reads red.
+    /// (AddShip has no quantity). Finished modules land in the hangar, i.e. in the module store. The dock's planet pays
+    /// (AddShip planet=): its stock heads the screen, and each cost it cannot cover reads red.
     /// </summary>
     public sealed class ShipyardPanel
     {
