@@ -105,8 +105,10 @@ public static class CityViewVerify
             foreach (var w in worlds)
             {
                 Seed(eco, w.id, rich: w.name != "rock");
+                var sw = System.Diagnostics.Stopwatch.StartNew();
                 focus.SetViewPlanet(w.id);
                 BridgeDressing.Apply(env, focus);
+                sw.Stop();
                 var city = CityExterior.Current;
                 if (city == null)
                 {
@@ -136,7 +138,7 @@ public static class CityViewVerify
                     Capture(cam, Path.Combine(outDir, "city-terra-aerial.png"));
                 }
 
-                report.Append(w.name).Append(": rings=").Append(city.RingCount).Append(" renderers=")
+                report.Append(w.name).Append(" (").Append(sw.ElapsedMilliseconds).Append(" ms): rings=").Append(city.RingCount).Append(" renderers=")
                     .Append(city.GetComponentsInChildren<Renderer>(false).Length).Append(" tris=")
                     .Append(Triangles(city.transform)).Append("; ");
             }

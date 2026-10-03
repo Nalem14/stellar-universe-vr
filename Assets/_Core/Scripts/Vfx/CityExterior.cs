@@ -145,11 +145,19 @@ namespace Core.Vfx
             _cameraFar = -1f;
         }
 
+        bool _builtWithLevels;
+        bool _pendingRebuild;
+
         void OnEconomy()
         {
-            // A building finished (the city grows) or the levels first arrived: rebuild when they differ.
-            if (_shown)
+            if (!_shown)
+                return;
+            // The levels first arrived (boot, behind its fade): build now. A building finished while we watch:
+            // the city grows at the next fade (rebuilding costs a few hundred ms on the headset — never in view).
+            if (!_builtWithLevels)
                 Rebuild(force: false);
+            else if (Signature(_planetId, ReadLevels()) != _sig)
+                _pendingRebuild = true;
         }
 
         void OnFleets()
@@ -202,9 +210,11 @@ namespace Core.Vfx
         {
             var levels = ReadLevels();
             var sig = Signature(_planetId, levels);
+            _pendingRebuild = false;
             if (!force && sig == _sig && _built != null)
                 return;
             _sig = sig;
+            _builtWithLevels = EconomyService.Instance != null && EconomyService.Instance.TryGet(_planetId, out _);
             Release();
 
             var planet = _focus?.FindPlanet(_planetId);
@@ -1247,6 +1257,8 @@ namespace Core.Vfx
         {
             if (!_shown || _built == null)
                 return;
+            if (_pendingRebuild && ViewFade.Alpha > 0.95f)
+                Rebuild(force: false);
             var t = Time.time;
             var dt = Time.deltaTime;
             TickTraffic(t);
