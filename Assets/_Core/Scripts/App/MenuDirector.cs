@@ -25,6 +25,8 @@ namespace Core.App
             if (rig != null)
                 XrPlacement.PlaceHead(rig, rig.transform.position, rig.transform.forward);
             FallGuard.Ensure();
+            PcPlatformBoot.SetupDesktopRig();
+            PcPlatformBoot.ConfigureWorldCanvases();
             Core.Audio.AmbienceDirector.Ensure();
         }
     }

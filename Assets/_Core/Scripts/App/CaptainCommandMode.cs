@@ -207,6 +207,60 @@ namespace Core.App
         {
             if (!_command || _animating)
                 return;
+
+            if (PcPlatformBoot.IsPcDesktop)
+            {
+                var kb = UnityEngine.InputSystem.Keyboard.current;
+                if (kb != null)
+                {
+                    if (kb.spaceKey.wasPressedThisFrame || kb.escapeKey.wasPressedThisFrame)
+                    {
+                        Core.Utils.AsyncTap.Run(ExitCommandMode());
+                        return;
+                    }
+
+                    if (kb.fKey.wasPressedThisFrame)
+                    {
+                        var tp = Object.FindFirstObjectByType<BridgeViewTeleporter>();
+                        if (tp != null)
+                            Core.Utils.AsyncTap.Run(tp.RefreshList());
+                    }
+                    else if (kb.mKey.wasPressedThisFrame)
+                    {
+                        var mapCtrl = Object.FindFirstObjectByType<HoloMapController>();
+                        if (mapCtrl != null)
+                            mapCtrl.SetMode(mapCtrl.Mode == HoloMapMode.System ? HoloMapMode.Galaxy : HoloMapMode.System);
+                    }
+                    else if (kb.cKey.wasPressedThisFrame)
+                    {
+                        var comms = Core.Stations.CommsConsole.Instance;
+                        if (comms != null)
+                        {
+                            if (comms.IsOpen) comms.Close();
+                            else comms.Open(null);
+                        }
+                    }
+                    else if (kb.oKey.wasPressedThisFrame)
+                    {
+                        var ops = Core.Stations.OpsConsole.Instance;
+                        if (ops != null)
+                        {
+                            if (ops.IsOpen) ops.Close();
+                            else ops.Open(null, FocusContext.Current != null ? FocusContext.Current.ViewPlanetId : 0);
+                        }
+                    }
+                    else if (kb.tKey.wasPressedThisFrame)
+                    {
+                        var armory = Core.Stations.ArmoryConsole.Instance;
+                        if (armory != null)
+                        {
+                            if (armory.IsOpen) armory.Close();
+                            else armory.Open(null, 0, 0);
+                        }
+                    }
+                }
+            }
+
             var cam = Camera.main;
             if (cam == null || _xr == null)
                 return;
@@ -259,6 +313,8 @@ namespace Core.App
             _command = true;
             _animating = false;
             SetSeatCueVisible(false);
+            if (PcPlatformBoot.IsPcDesktop)
+                PcDesktopController.Instance?.SetCursorLock(false);
             CommandModeChanged?.Invoke(true);
         }
 
@@ -285,6 +341,8 @@ namespace Core.App
             _animating = false;
             SetSeatCueVisible(true);
             SetSeatTarget(true);
+            if (PcPlatformBoot.IsPcDesktop)
+                PcDesktopController.Instance?.SetCursorLock(true);
             CommandModeChanged?.Invoke(false);
         }
 
