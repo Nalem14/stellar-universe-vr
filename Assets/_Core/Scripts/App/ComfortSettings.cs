@@ -5,6 +5,7 @@ using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 using UnityEngine.XR.Interaction.Toolkit.Interactors;
 using UnityEngine.XR.Interaction.Toolkit.Locomotion.Comfort;
+using UnityEngine.XR.Interaction.Toolkit.Locomotion.Movement;
 using UnityEngine.XR.Interaction.Toolkit.Locomotion.Teleportation;
 using UnityEngine.XR.Interaction.Toolkit.Samples.StarterAssets;
 
@@ -13,7 +14,8 @@ namespace Core.App
     /// <summary>
     /// The player's comfort choices, kept on the headset and applied to whichever rig the scene has:
     /// <list type="bullet">
-    /// <item>moving: smooth (left stick walks) or teleport (left stick forward aims an arc onto the floor);</item>
+    /// <item>moving: smooth (left stick walks) or teleport (left stick forward aims an arc onto the floor); in
+    /// smooth mode, clicking the left stick toggles a run, which drops back to a walk once the player stops;</item>
     /// <item>turning: smooth or snap (right stick; its forward push stays the holo map's zoom, never a teleport);</item>
     /// <item>the tunnelling vignette (the dark ring while moving) on or off;</item>
     /// <item>seated play: the view is lifted to standing height, except in the captain's chair, which sets
@@ -30,6 +32,13 @@ namespace Core.App
 
         /// <summary>Standing eye height minus seated eye height (m).</summary>
         public const float SeatedLift = 0.45f;
+
+        /// <summary>Run speed over the rig's walk speed (2.5 → 4.5 m/s).</summary>
+        const float RunFactor = 1.8f;
+        /// <summary>Stick at rest this long (s) after moving ends the run.</summary>
+        const float RunStopDelay = 0.3f;
+        /// <summary>A run toggled without moving lapses after this long (s).</summary>
+        const float RunIdleLapse = 3f;
 
         /// <summary>Walkable floors across the rooms (bridge, corridor, quarters, lab, dock, diplomacy, gate, sas).</summary>
         static readonly HashSet<string> Floors = new()
@@ -88,6 +97,15 @@ namespace Core.App
         bool _dirty = true;
         float _nextTry;
         bool _arcWasOut;
+        ContinuousMoveProvider _move;
+        float _walkSpeed;
+        InputAction _runToggle;
+        bool _running;
+        bool _movedSinceRun;
+        float _stillFor;
+
+        /// <summary>The player is running (left stick clicked, still moving).</summary>
+        public static bool Running => s_Instance != null && s_Instance._running;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Boot()
@@ -97,8 +115,18 @@ namespace Core.App
             s_Instance = go.AddComponent<ComfortSettings>();
         }
 
-        void OnEnable() => SceneManager.sceneLoaded += OnScene;
-        void OnDisable() => SceneManager.sceneLoaded -= OnScene;
+        void OnEnable()
+        {
+            SceneManager.sceneLoaded += OnScene;
+            _runToggle ??= new InputAction("RunToggle", InputActionType.Button, "<XRController>{LeftHand}/{Primary2DAxisClick}");
+            _runToggle.Enable();
+        }
+
+        void OnDisable()
+        {
+            SceneManager.sceneLoaded -= OnScene;
+            _runToggle?.Disable();
+        }
 
         void OnScene(Scene s, LoadSceneMode m)
         {
@@ -131,6 +159,7 @@ namespace Core.App
                 _rightTeleportCancel.Disable();
 
             ApplyLift();
+            UpdateRun();
 
             if (_leftTeleport != null)
             {
@@ -194,7 +223,49 @@ namespace Core.App
                 line.smoothMovement = false;
             _vignette = _rig.GetComponentInChildren<TunnelingVignetteController>(true);
             _arcWasOut = false;
+            _move = _rig.GetComponentInChildren<ContinuousMoveProvider>(true);
+            _walkSpeed = _move != null ? _move.moveSpeed : 0f;
+            _running = false;
             return true;
+        }
+
+        /// <summary>
+        /// Left stick click toggles walk / run (smooth moving only); stopping drops back to a walk, and a run
+        /// toggled without moving lapses.
+        /// </summary>
+        void UpdateRun()
+        {
+            if (_move == null)
+                return;
+            var canRun = _move.isActiveAndEnabled && !Teleport;
+            if (canRun && _runToggle.WasPressedThisFrame())
+            {
+                _running = !_running;
+                _movedSinceRun = false;
+                _stillFor = 0f;
+                Core.Audio.SfxBus.Play2D(Core.Audio.SfxSynth.Pip, 0.22f, _running ? 1.25f : 0.85f);
+            }
+
+            if (_running)
+            {
+                var moving = _move.leftHandMoveInput.ReadValue().sqrMagnitude > 0.02f;
+                if (moving)
+                {
+                    _movedSinceRun = true;
+                    _stillFor = 0f;
+                }
+                else
+                {
+                    _stillFor += Time.unscaledDeltaTime;
+                }
+
+                if (!canRun || (_movedSinceRun ? _stillFor > RunStopDelay : _stillFor > RunIdleLapse))
+                    _running = false;
+            }
+
+            var speed = _walkSpeed * (_running ? RunFactor : 1f);
+            if (!Mathf.Approximately(_move.moveSpeed, speed))
+                _move.moveSpeed = speed;
         }
 
         static void Straight(UnityEngine.XR.Interaction.Toolkit.Interactors.Visuals.LineProperties p)
