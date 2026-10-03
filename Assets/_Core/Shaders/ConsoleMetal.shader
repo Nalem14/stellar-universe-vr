@@ -27,6 +27,7 @@ Shader "SU/ConsoleMetal"
             #pragma fragment frag
             #pragma multi_compile_instancing
             #include "UnityCG.cginc"
+            #include "SUAlert.cginc"
 
             float4 _Color;
             float4 _Accent;
@@ -37,7 +38,6 @@ Shader "SU/ConsoleMetal"
             float _Gloss;
             // Shared with SU/HullInterior: space light washing in on a voyage, the ship's alert condition.
             float4 _SU_VoyageTint;
-            float4 _SU_AlertTint;
 
             struct appdata
             {
@@ -101,8 +101,10 @@ Shader "SU/ConsoleMetal"
 
                 float3 albedo = _Color.rgb * brush;
                 float3 col = albedo * (wrap * hemi * 0.85 + 0.2) + spec + fres * 0.08;
-                col += albedo * (_SU_VoyageTint.rgb * 0.8 + _SU_AlertTint.rgb * (0.5 + 0.3 * (1.0 - abs(n.y))));
-                col += _SU_AlertTint.rgb * 0.06;
+                float3 alert = SU_AlertLight(i.worldPos, n);
+                float3 flash = SU_FlashLight(i.worldPos, n);
+                col += albedo * (_SU_VoyageTint.rgb * 0.8 + alert * (0.9 + 0.5 * (1.0 - abs(n.y))) + flash * 2.0);
+                col += alert * 0.08 + alert * spec * 2.0 + flash * (0.06 + spec * 1.5);
                 float glow = saturate(bevel + _FaceGlow) * _AccentMul;
                 col += _Accent.rgb * glow;
                 return float4(col, 1);

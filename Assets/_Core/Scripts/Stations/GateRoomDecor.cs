@@ -180,6 +180,222 @@ namespace Core.Stations
             return refs;
         }
 
+        // ── Structure: up and down ────────────────────────────────────────────────
+
+        /// <summary>
+        /// What the hall is built of, over the head and underfoot, merged per material (<see cref="MeshBatch"/>):
+        /// roof trusses on the wall ribs with lit bottom chords, purlins, cable runs sagging between trusses, air
+        /// ducts along the walls, a crane gantry over the causeway, pendant lamps, an energy halo over the gate;
+        /// the gate's power — conduits from wall transformers into the dais (lit with the ring's own energy
+        /// material, so they surge as it charges), coolant tanks, wall-base pipes, a floor light grid, a probe cart,
+        /// vents under the gallery. Alarm beacons on the walls; returns the alarm horns (positions for the horn).
+        /// </summary>
+        public static Transform[] BuildStructure(Transform room, CicArtKit art, float hallFloor, float hallWidth, float hallHeight,
+            float galleryEdge, float hallEnd, Vector3 gatePos, Material energy)
+        {
+            var metal = art.MetalPanel(0.4f);
+            var dark = art.DarkPanel(0.3f);
+            var cyan = art.CyanEmit(1.8f);
+            var dim = art.CyanEmit(0.9f);
+            var amber = art.AmberEmit(2f);
+            var lamp = art.Lit(Texture2D.whiteTexture, new Color(0.85f, 0.92f, 1f), 3f);
+            var cable = art.Lit(Texture2D.whiteTexture, new Color(0.05f, 0.06f, 0.07f), 0.15f);
+            var f = hallFloor;
+            var top = hallFloor + hallHeight;
+            var half = hallWidth * 0.5f;
+            const float back = -3.45f;
+            var b = new MeshBatch();
+
+            // Roof: a truss on each wall rib, top and bottom chords, posts and alternating diagonals.
+            var trussZ = new List<float>();
+            for (var k = 1; k < 7; k++)
+                trussZ.Add(-2.5f + k * 2.8f);
+            foreach (var z in trussZ)
+            {
+                var y0 = top - 0.9f;
+                var y1 = top - 0.12f;
+                b.Box(new Vector3(0f, y1, z), new Vector3(hallWidth - 0.5f, 0.2f, 0.24f), metal);
+                b.Box(new Vector3(0f, y0, z), new Vector3(hallWidth - 0.8f, 0.14f, 0.2f), metal);
+                b.Box(new Vector3(0f, y0 - 0.08f, z), new Vector3(hallWidth - 1.2f, 0.02f, 0.05f), cyan);
+                for (var i = -4; i <= 4; i++)
+                {
+                    var x = i * 1.4f;
+                    b.Box(new Vector3(x, (y0 + y1) * 0.5f, z), new Vector3(0.08f, y1 - y0, 0.08f), metal);
+                    if (i < 4)
+                        b.Strut(new Vector3(x, i % 2 == 0 ? y0 : y1, z), new Vector3(x + 1.4f, i % 2 == 0 ? y1 : y0, z), 0.06f, metal);
+                }
+            }
+
+            // Purlins along the hall, and cables sagging between the trusses.
+            foreach (var x in new[] { -4.4f, -2.2f, 2.2f, 4.4f })
+                b.Box(new Vector3(x, top - 0.28f, (back + hallEnd) * 0.5f), new Vector3(0.12f, 0.14f, hallEnd - back), metal);
+            for (var k = 0; k < trussZ.Count - 1; k++)
+                foreach (var x in new[] { -3.3f, -1.15f, 1.15f, 3.3f })
+                    b.Cable(new Vector3(x, top - 0.98f, trussZ[k]), new Vector3(x + 0.1f, top - 0.98f, trussZ[k + 1]), 0.32f, 0.03f, cable);
+
+            // Air ducts high along both walls, collared at each rib, hung from the roof.
+            for (var side = -1; side <= 1; side += 2)
+            {
+                var x = side * (half - 0.55f);
+                b.Tube(new Vector3(x, top - 0.6f, (back + hallEnd) * 0.5f), Vector3.forward, 0.28f, hallEnd - back, dark);
+                for (var k = 0; k < 7; k++)
+                {
+                    var z = -2.5f + k * 2.8f;
+                    b.Tube(new Vector3(x, top - 0.6f, z), Vector3.forward, 0.32f, 0.12f, metal);
+                    b.Box(new Vector3(x, top - 0.22f, z), new Vector3(0.05f, 0.5f, 0.05f), metal);
+                }
+            }
+
+            // Crane gantry over the causeway: twin rails, a trolley, the hook on its cable, parked by the gallery (clear of the ring from the gallery).
+            for (var side = -1; side <= 1; side += 2)
+                b.Box(new Vector3(side * 0.5f, top - 1.15f, 6f), new Vector3(0.14f, 0.22f, 9f), metal);
+            b.Box(new Vector3(0f, top - 1.3f, 2.3f), new Vector3(1.3f, 0.26f, 0.7f), dark);
+            b.Box(new Vector3(0f, top - 1.44f, 2.3f), new Vector3(1.1f, 0.02f, 0.5f), amber);
+            b.Pipe(new Vector3(0f, top - 1.45f, 2.3f), new Vector3(0f, f + 4.55f, 2.3f), 0.02f, cable);
+            b.Box(new Vector3(0f, f + 4.4f, 2.3f), new Vector3(0.3f, 0.32f, 0.2f), metal);
+            b.Box(new Vector3(0f, f + 4.22f, 2.3f), new Vector3(0.32f, 0.04f, 0.22f), Hazard(art, 2f));
+
+            // Pendant lamps over the hall floor.
+            foreach (var z in new[] { 3.2f, 7.4f, 12.8f })
+            foreach (var x in new[] { -2.2f, 2.2f })
+            {
+                var y = f + 4.1f;
+                b.Pipe(new Vector3(x, top - 0.3f, z), new Vector3(x, y + 0.12f, z), 0.015f, cable);
+                b.Tube(new Vector3(x, y + 0.06f, z), Vector3.up, 0.24f, 0.14f, dark);
+                b.Tube(new Vector3(x, y - 0.02f, z), Vector3.up, 0.2f, 0.02f, lamp);
+            }
+
+            // Energy halo in the roof over the gate.
+            var halo = new LatheMesh(new Vector3(0f, 0f, gatePos.z)) { Step = 7.5f };
+            halo.Revolve(new[]
+            {
+                new Vector2(2.3f, top - 0.05f), new Vector2(2.3f, top - 0.32f), new Vector2(1.6f, top - 0.32f), new Vector2(1.6f, top - 0.05f)
+            }, 0f, 360f, false);
+            b.Add(halo.ToMesh("SU_GateHalo"), Matrix4x4.identity, dark);
+            var haloLit = new LatheMesh(new Vector3(0f, 0f, gatePos.z)) { Step = 7.5f };
+            haloLit.Revolve(new[] { new Vector2(1.95f, top - 0.335f), new Vector2(1.7f, top - 0.335f) }, 0f, 360f, false);
+            b.Add(haloLit.ToMesh("SU_GateHaloLit"), Matrix4x4.identity, energy);
+
+            // ── Underfoot ─────────────────────────────────────────────────────────
+            // Power: a transformer cabinet on each wall, a conduit along the floor into the dais, two more to the back wall.
+            for (var side = -1; side <= 1; side += 2)
+            {
+                var wx = side * (half - 0.4f);
+                b.Box(new Vector3(wx, f + 1.0f, gatePos.z + 0.8f), new Vector3(0.6f, 2f, 1.5f), dark);
+                b.Box(new Vector3(wx - side * 0.31f, f + 1.15f, gatePos.z + 0.8f), new Vector3(0.02f, 1.3f, 0.26f), energy);
+                for (var v = 0; v < 5; v++)
+                    b.Box(new Vector3(wx - side * 0.31f, f + 0.35f + v * 0.34f, gatePos.z + 0.3f), new Vector3(0.02f, 0.05f, 0.4f), metal);
+                b.Box(new Vector3(wx - side * 0.31f, f + 1.95f, gatePos.z + 0.8f), new Vector3(0.03f, 0.06f, 1.3f), Hazard(art, 6f));
+                var inner = 4.05f;
+                var outer = half - 0.7f;
+                var cx = side * (inner + outer) * 0.5f;
+                var len = outer - inner;
+                b.Box(new Vector3(cx, f + 0.1f, gatePos.z + 0.8f), new Vector3(len, 0.2f, 0.56f), metal);
+                b.Box(new Vector3(cx, f + 0.205f, gatePos.z + 0.8f), new Vector3(len, 0.012f, 0.14f), energy);
+                foreach (var e in new[] { -1f, 1f })
+                    b.Box(new Vector3(cx, f + 0.21f, gatePos.z + 0.8f + e * 0.25f), new Vector3(len, 0.02f, 0.03f), Hazard(art, len * 4f));
+                b.Box(new Vector3(side * 1.6f, f + 0.08f, (gatePos.z + 1.2f + hallEnd) * 0.5f), new Vector3(0.4f, 0.16f, hallEnd - gatePos.z - 1.2f), metal);
+                b.Box(new Vector3(side * 1.6f, f + 0.165f, (gatePos.z + 1.2f + hallEnd) * 0.5f),
+                    new Vector3(0.1f, 0.012f, hallEnd - gatePos.z - 1.2f), energy);
+            }
+
+            // Coolant tanks in the far port corner, banded, piped into the wall.
+            foreach (var z in new[] { 12.95f, 13.95f })
+            {
+                var x = -half + 0.85f;
+                b.Tube(new Vector3(x, f + 1.4f, z), Vector3.up, 0.42f, 2.6f, metal);
+                b.Tube(new Vector3(x, f + 2.75f, z), Vector3.up, 0.32f, 0.12f, dark);
+                foreach (var y in new[] { 0.5f, 1.5f, 2.4f })
+                    b.Tube(new Vector3(x, f + y, z), Vector3.up, 0.44f, 0.06f, y > 1f && y < 2f ? cyan : dark);
+                b.Pipe(new Vector3(x, f + 2.2f, z), new Vector3(-half + 0.1f, f + 2.2f, z), 0.07f, metal);
+            }
+
+            b.Box(new Vector3(-half + 0.85f, f + 0.04f, 13.45f), new Vector3(1.2f, 0.08f, 2.3f), Hazard(art, 6f));
+
+            // Pipes along the foot of both walls, on brackets.
+            for (var side = -1; side <= 1; side += 2)
+            {
+                var x = side * (half - 0.2f);
+                b.Tube(new Vector3(x, f + 0.28f, (galleryEdge + hallEnd) * 0.5f), Vector3.forward, 0.07f, hallEnd - galleryEdge, metal);
+                b.Tube(new Vector3(x - side * 0.04f, f + 0.48f, (galleryEdge + hallEnd) * 0.5f), Vector3.forward, 0.05f, hallEnd - galleryEdge,
+                    dark);
+                for (var z = galleryEdge + 0.7f; z < hallEnd; z += 1.4f)
+                    b.Box(new Vector3(x + side * 0.05f, f + 0.38f, z), new Vector3(0.12f, 0.36f, 0.05f), dark);
+            }
+
+            // Floor light grid: lines across the hall at each rib, outside the causeway.
+            for (var k = 2; k < 7; k++)
+            {
+                var z = -2.5f + k * 2.8f;
+                if (Mathf.Abs(z - gatePos.z) < 1.4f)
+                    continue;
+                foreach (var side in new[] { -1f, 1f })
+                    b.Box(new Vector3(side * 3.6f, f + 0.006f, z), new Vector3(4.2f, 0.012f, 0.05f), dim);
+            }
+
+            // A probe cart parked in the far starboard corner: six wheels, a sensor mast and its lamp.
+            {
+                var c = new Vector3(half - 2.2f, f, 13.4f);
+                b.Box(c + new Vector3(0f, 0.55f, 0f), new Vector3(1.0f, 0.42f, 1.5f), UiKit.Uniform);
+                b.Box(c + new Vector3(0f, 0.78f, 0f), new Vector3(0.9f, 0.04f, 1.4f), Hazard(art, 4f));
+                for (var w = -1; w <= 1; w++)
+                foreach (var s in new[] { -1f, 1f })
+                    b.Tube(c + new Vector3(s * 0.56f, 0.22f, w * 0.55f), Vector3.right, 0.2f, 0.14f, dark);
+                b.Box(c + new Vector3(0f, 1.25f, -0.5f), new Vector3(0.08f, 0.9f, 0.08f), metal);
+                b.Box(c + new Vector3(0f, 1.72f, -0.55f), new Vector3(0.36f, 0.2f, 0.24f), dark);
+                b.Box(c + new Vector3(0f, 1.72f, -0.68f), new Vector3(0.12f, 0.12f, 0.02f), lamp);
+                b.Box(c + new Vector3(0.14f, 1.86f, -0.55f), new Vector3(0.05f, 0.05f, 0.05f), amber);
+            }
+
+            // Under the gallery: the face toward the hall, vent grilles and service panels.
+            for (var i = -2; i <= 2; i++)
+            {
+                var x = i * 2.4f;
+                b.Box(new Vector3(x, f + 0.75f, galleryEdge + 0.11f), new Vector3(1.6f, 0.9f, 0.02f), dark);
+                for (var s = 0; s < 5; s++)
+                    b.Box(new Vector3(x, f + 0.45f + s * 0.15f, galleryEdge + 0.125f), new Vector3(1.4f, 0.03f, 0.01f), s == 2 ? dim : metal);
+            }
+
+            b.Build(room, "HallStructure");
+
+            // Alarm beacons: two on the hall walls looking over the gate, two on the gallery's back wall.
+            AlertBeacon.MountOnWall(room, "Beacon", new Vector3(-half + 0.1f, f + 4.4f, 6.6f), Vector3.right, art);
+            AlertBeacon.MountOnWall(room, "Beacon", new Vector3(half - 0.1f, f + 4.4f, 6.6f), Vector3.left, art, 180f);
+            AlertBeacon.MountOnWall(room, "Beacon", new Vector3(-4.6f, 4.2f, back + 0.06f), Vector3.forward, art, 90f);
+            AlertBeacon.MountOnWall(room, "Beacon", new Vector3(4.6f, 4.2f, back + 0.06f), Vector3.forward, art, 270f);
+
+            // Alarm horns high on the hall walls either side of the gate: a flared bell on a bracket.
+            var horns = new Transform[2];
+            for (var side = -1; side <= 1; side += 2)
+            {
+                var hb = new MeshBatch();
+                var root = new GameObject("AlarmHorn").transform;
+                root.SetParent(room, false);
+                root.localPosition = new Vector3(side * (half - 0.12f), f + 4.6f, gatePos.z - 2.3f);
+                root.localRotation = Quaternion.LookRotation(new Vector3(-side, -0.35f, -0.4f).normalized, Vector3.up);
+                hb.Box(new Vector3(0f, 0f, -0.05f), new Vector3(0.22f, 0.22f, 0.1f), dark);
+                hb.Tube(new Vector3(0f, 0f, 0.12f), Vector3.forward, 0.08f, 0.24f, metal);
+                hb.Tube(new Vector3(0f, 0f, 0.27f), Vector3.forward, 0.16f, 0.06f, metal);
+                hb.Tube(new Vector3(0f, 0f, 0.3f), Vector3.forward, 0.13f, 0.01f, dark);
+                hb.Build(root, "Horn");
+                horns[(side + 1) / 2] = root;
+            }
+
+            return horns;
+        }
+
+        static Material Hazard(CicArtKit art, float tiles)
+        {
+            var key = Mathf.Max(1, Mathf.RoundToInt(tiles));
+            if (HazardMats.TryGetValue(key, out var m) && m != null)
+                return m;
+            m = new Material(art.Lit(HazardTex(), Color.white, 0.55f, 1f)) { name = "SU_Hazard" + key, mainTextureScale = new Vector2(key, 1f) };
+            HazardMats[key] = m;
+            return m;
+        }
+
+        static readonly Dictionary<int, Material> HazardMats = new();
+
         // ── Pieces ────────────────────────────────────────────────────────────────
 
         /// <summary>Yaw that puts a desk's operator side (local −z) toward the stand at the room origin.</summary>

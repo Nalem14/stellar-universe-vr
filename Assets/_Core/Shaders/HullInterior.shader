@@ -29,6 +29,7 @@ Shader "SU/HullInterior"
             #pragma fragment frag
             #pragma multi_compile_instancing
             #include "UnityCG.cginc"
+            #include "SUAlert.cginc"
 
             sampler2D _MainTex;
             float4 _Color;
@@ -45,8 +46,6 @@ Shader "SU/HullInterior"
             float4 _SU_RoomLightCol[4];
             // Light of the space outside washing in (hyperspace blue, PRL gold, gate violet, jump flashes).
             float4 _SU_VoyageTint;
-            // Ship alert condition (red pulse / amber breath), strongest on the walls.
-            float4 _SU_AlertTint;
 
             struct appdata
             {
@@ -106,10 +105,13 @@ Shader "SU/HullInterior"
                 }
 
                 light += _SU_VoyageTint.rgb * (0.55 + 0.45 * saturate(n.y * -0.5 + 0.75));
-                light += _SU_AlertTint.rgb * (0.3 + 0.2 * (1.0 - abs(n.y)));
+                // Alert condition: room-wide wash and the beacon sweep, strongest on the walls.
+                float3 alert = SU_AlertLight(i.worldPos, n);
+                float3 flash = SU_FlashLight(i.worldPos, n);
+                light += alert * (0.7 + 0.5 * (1.0 - abs(n.y))) + flash * (_LightGain * 1.5);
                 float3 col = albedo * light * i.ao + albedo * _Lift;
-                // The alert glows in the panels themselves (a dark hull still reads red / amber).
-                col += _SU_AlertTint.rgb * (0.05 + 0.07 * (1.0 - abs(n.y))) * i.ao;
+                // The alert glows in the panels themselves (a dark hull still reads red / yellow).
+                col += (alert * (0.06 + 0.08 * (1.0 - abs(n.y))) + flash * 0.07) * i.ao;
                 return float4(col, 1);
             }
             ENDCG

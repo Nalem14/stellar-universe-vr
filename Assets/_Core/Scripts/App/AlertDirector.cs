@@ -17,20 +17,54 @@ namespace Core.App
     /// unscheduled wormhole at the gate: a two-tone chime and a sonar sweep, a slow amber breath in the walls.</item>
     /// <item>Back to normal: the all-clear.</item>
     /// </list>
-    /// Tactical calls each change. No per-frame allocation; one global shader colour.
+    /// The commander may take the condition in hand (<see cref="Condition"/>: stand down, yellow, red) or leave it
+    /// on Auto. Every room lives it: a wash and a turning beacon sweep on all surfaces (<c>SUAlert.cginc</c>), and
+    /// the <see cref="AlertBeacon"/>s. Tactical calls each change. No per-frame allocation; shader globals only.
     /// </summary>
     public sealed class AlertDirector : MonoBehaviour
     {
         static readonly int TintId = Shader.PropertyToID("_SU_AlertTint");
-        static readonly Color RedTint = new(1f, 0.1f, 0.06f, 1f);
-        static readonly Color AmberTint = new(1f, 0.58f, 0.12f, 1f);
+        static readonly int ColorId = Shader.PropertyToID("_SU_AlertColor");
+        static readonly int SweepId = Shader.PropertyToID("_SU_AlertSweep");
+        public static readonly Color RedTint = new(1f, 0.1f, 0.06f, 1f);
+        public static readonly Color AmberTint = new(1f, 0.62f, 0.1f, 1f);
+        const float SweepReach = 24f;
+
+        public enum Mode
+        {
+            /// <summary>The ship judges its condition itself (contacts, sieges, the gate, a fight).</summary>
+            Auto,
+            /// <summary>The commander stands the ship down: no alert, whatever the scope says.</summary>
+            StandDown,
+            Yellow,
+            Red
+        }
+
+        /// <summary>The commander's condition selector (<see cref="Core.UI.AlertConditionPanel"/>); Auto at every boot.</summary>
+        public static Mode Condition { get; set; } = Mode.Auto;
+
+        /// <summary>
+        /// A room's own alarm (the gate base while the gate dials or stands open): lights and beacons only, the
+        /// ship's condition and the crew's calls are unchanged. Cleared by the room on leaving.
+        /// </summary>
+        public static AlertLevel RoomAlarm { get; set; }
+
+        /// <summary>What the lights show: the ship's condition or a room's own alarm, whichever is higher.</summary>
+        public static AlertLevel VisualLevel => AlertState.Level > RoomAlarm ? AlertState.Level : RoomAlarm;
+
+        /// <summary>Heading of the beacon beams (degrees): every gyrophare turns in step with the sweep on the walls.</summary>
+        public static float BeaconAngle { get; private set; }
 
         FocusContext _focus;
         float _next;
+        Mode _appliedCondition;
         bool _seeded;
         float _nextWhoop;
         int _whoops;
+        float _nextChime;
+        int _chimes;
         float _tint;
+        float _sweep;
         Color _tintColor = RedTint;
 
         public static AlertDirector Build(Transform host, FocusContext focus)
@@ -46,16 +80,25 @@ namespace Core.App
         {
             AlertState.Changed -= OnChanged;
             AlertState.Set(AlertLevel.Normal);
+            RoomAlarm = AlertLevel.Normal;
             Shader.SetGlobalColor(TintId, Color.clear);
+            Shader.SetGlobalVector(SweepId, Vector4.zero);
         }
 
         void Update()
         {
             var now = Time.unscaledTime;
-            if (now >= _next)
+            if (now >= _next || Condition != _appliedCondition)
             {
                 _next = now + 1f;
-                AlertState.Set(Evaluate());
+                _appliedCondition = Condition;
+                AlertState.Set(Condition switch
+                {
+                    Mode.StandDown => AlertLevel.Normal,
+                    Mode.Yellow => AlertLevel.Amber,
+                    Mode.Red => AlertLevel.Red,
+                    _ => Evaluate()
+                });
                 _seeded = true;
             }
 
@@ -69,17 +112,48 @@ namespace Core.App
                 SfxBus.DuckBeds(0.4f, 1f);
             }
 
-            // Walls: red pulses (~1.2 s), amber breathes; the light adds to the room, never darkens it.
-            var want = level switch
+            if (level == AlertLevel.Amber && _chimes > 0 && now >= _nextChime)
             {
-                AlertLevel.Red => 0.16f + 0.14f * (0.5f + 0.5f * Mathf.Sin(now * 5.2f)),
-                AlertLevel.Amber => 0.06f + 0.035f * (0.5f + 0.5f * Mathf.Sin(now * 1.6f)),
+                // Yellow alert: the two-tone repeats a few times, then once every half minute while it stands.
+                _chimes--;
+                _nextChime = now + (_chimes > 0 ? 3.2f : 30f);
+                if (_chimes == 0)
+                    _chimes = 1;
+                SfxBus.Play2D(SfxSynth.AmberChime, 0.22f, priority: SfxBus.Priority.Alert, cooldown: 2.5f);
+            }
+
+            UpdateLights(now);
+        }
+
+        /// <summary>
+        /// Every room lives the alert: a wash over all surfaces (red pulses ~1.2 s, yellow breathes) and the
+        /// sweep of the beacons turning round the room. The light adds, never darkens; consoles stay readable.
+        /// </summary>
+        void UpdateLights(float now)
+        {
+            var visual = VisualLevel;
+            var want = visual switch
+            {
+                AlertLevel.Red => 0.2f + 0.2f * (0.5f + 0.5f * Mathf.Sin(now * 5.2f)),
+                AlertLevel.Amber => 0.1f + 0.06f * (0.5f + 0.5f * Mathf.Sin(now * 1.6f)),
                 _ => 0f
             };
-            if (level != AlertLevel.Normal)
-                _tintColor = level == AlertLevel.Red ? RedTint : AmberTint;
-            _tint = Mathf.MoveTowards(_tint, want, Time.unscaledDeltaTime * 0.6f);
+            var sweepWant = visual switch
+            {
+                AlertLevel.Red => 0.9f,
+                AlertLevel.Amber => 0.55f,
+                _ => 0f
+            };
+            if (visual != AlertLevel.Normal)
+                _tintColor = visual == AlertLevel.Red ? RedTint : AmberTint;
+            var dt = Time.unscaledDeltaTime;
+            _tint = Mathf.MoveTowards(_tint, want, dt * 0.8f);
+            _sweep = Mathf.MoveTowards(_sweep, sweepWant, dt * 1.5f);
+            BeaconAngle = Mathf.Repeat(BeaconAngle + dt * (visual == AlertLevel.Red ? 250f : 160f), 360f);
             Shader.SetGlobalColor(TintId, _tintColor * _tint);
+            Shader.SetGlobalColor(ColorId, _tintColor);
+            var a = BeaconAngle * Mathf.Deg2Rad;
+            Shader.SetGlobalVector(SweepId, new Vector4(Mathf.Sin(a), Mathf.Cos(a), _sweep, SweepReach));
         }
 
         AlertLevel Evaluate()
@@ -127,6 +201,8 @@ namespace Core.App
                     break;
                 case AlertLevel.Amber:
                     SfxBus.Play2D(SfxSynth.AmberChime, 0.3f, priority: SfxBus.Priority.Alert, cooldown: 3f);
+                    _chimes = 3;
+                    _nextChime = Time.unscaledTime + 3.2f;
                     if (was == AlertLevel.Normal)
                         CicCue.Contact(ListenerPos());
                     bark?.Say(CrewDialogue.Role.Tactical, "alertAmber", 3);

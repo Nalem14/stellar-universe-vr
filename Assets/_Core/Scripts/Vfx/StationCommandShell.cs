@@ -32,11 +32,11 @@ namespace Core.Vfx
         const float TierTread = 0.3f;
         /// <summary>Gallery deck height and depth from the wall; it spans GalleryFrom → GalleryTo (not behind the monolith).</summary>
         public const float GalleryY = 3.2f;
-        const float GalleryDepth = 0.95f;
+        internal const float GalleryDepth = 0.95f;
         const float GalleryFrom = 36f;
         const float GalleryTo = 324f;
         const float RailHeight = 0.98f;
-        static readonly float[] GalleryDoors = { 105f, 145f, 215f, 255f };
+        internal static readonly float[] GalleryDoors = { 105f, 145f, 215f, 255f };
 
         /// <summary>Panoramic bays (degrees from +z toward +x).</summary>
         static readonly Vector2[] Windows = { new(24f, 66f), new(114f, 148f), new(212f, 246f), new(294f, 336f) };
@@ -45,7 +45,7 @@ namespace Core.Vfx
         static readonly Vector2[] DataWalls = { new(72f, 108f), new(252f, 288f) };
         /// <summary>The crew tiers (degrees): the solid walls between the side bays, under the data walls.</summary>
         public static readonly Vector2[] Tiers = { new(66f, 114f), new(246f, 294f) };
-        static readonly Vector2[] Credenzas = { new(153f, 167f), new(193f, 207f) };
+        internal static readonly Vector2[] Credenzas = { new(153f, 167f), new(193f, 207f) };
 
         /// <summary>The station's light colour: cool white-cyan (the ship's is a deeper cyan).</summary>
         public static readonly Color Glow = new(0.55f, 0.9f, 1f, 1f);
@@ -86,6 +86,7 @@ namespace Core.Vfx
             BuildGallery(root, art, frame, dado, glow, lamp);
             BuildMonolith(root, art, glow);
             BuildAft(root, frame, glow);
+            StationHallDressing.Build(root, art, frame, dado, glow, glowSoft);
             BuildHull(root);
             root.gameObject.SetActive(false);
             return root;

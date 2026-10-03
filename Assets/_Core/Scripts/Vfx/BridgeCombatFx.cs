@@ -53,12 +53,13 @@ namespace Core.Vfx
         readonly Dictionary<MeshRenderer, Material> _accents = new();
         float _accentCheck;
 
-        public static BridgeCombatFx Build(Transform interior, FocusContext focus)
+        public static BridgeCombatFx Build(Transform interior, FocusContext focus, CicArtKit art)
         {
             var fx = interior.gameObject.AddComponent<BridgeCombatFx>();
             fx._focus = focus;
+            fx._art = art;
             fx._sparks = CombatFxKit.Burst(interior, "BridgeSparks", 80, 0.9f, gravity: true, stretch: true);
-            CombatEvents.Engaged += fx.OnEngaged;
+            AlertState.Changed += fx.OnAlert;
             CombatEvents.Hit += fx.OnHit;
             CombatEvents.Shot += fx.OnShot;
             CombatEvents.Destroyed += fx.OnDestroyed;
@@ -103,12 +104,45 @@ namespace Core.Vfx
             ring.Revolve(new[] { new Vector2(r, StationCommandShell.WallTop - 0.12f), new Vector2(r, StationCommandShell.WallTop - 0.04f) },
                 0f, 360f, true);
             _stationStrips = LatheMesh.Part(_strips.transform, "Station", ring.ToMesh("SU_StationAlertRing"), _stripMat).transform;
+            BuildBeacons();
             ApplyLayout();
             _strips.SetActive(false);
         }
 
+        /// <summary>
+        /// Gyrophares high on the walls (dark until an alert): the four corner facets of the bridge; round the
+        /// station hall over the gallery, between its bays.
+        /// </summary>
+        void BuildBeacons()
+        {
+            if (_art == null)
+                return;
+            _shipBeacons = new GameObject("ShipBeacons").transform;
+            _shipBeacons.SetParent(transform, false);
+            var phase = 0f;
+            foreach (var e in new[] { BridgeShell.AftStarboard, BridgeShell.BowStarboard, BridgeShell.BowPort, BridgeShell.AftPort })
+            {
+                var wall = BridgeShell.EdgePoint(e, BridgeShell.EdgeLength(e) * 0.5f, 0f, BridgeShell.WallTop - 0.3f);
+                AlertBeacon.MountOnWall(_shipBeacons, "Beacon", wall, BridgeShell.EdgeNormal(e), _art, phase);
+                phase += 90f;
+            }
+
+            _stationBeacons = new GameObject("StationBeacons").transform;
+            _stationBeacons.SetParent(transform, false);
+            phase = 0f;
+            foreach (var deg in new[] { 45f, 135f, 225f, 315f })
+            {
+                var wall = StationCommandShell.OnWall(deg, 0f, StationCommandShell.WallTop - 0.55f);
+                AlertBeacon.MountOnWall(_stationBeacons, "Beacon", wall, -LatheMesh.Dir(deg), _art, phase);
+                phase += 90f;
+            }
+        }
+
+        CicArtKit _art;
         Transform _shipStrips;
         Transform _stationStrips;
+        Transform _shipBeacons;
+        Transform _stationBeacons;
         bool _station;
 
         /// <summary>Ship bridge or station command hall: which room the alert bars run round.</summary>
@@ -127,6 +161,10 @@ namespace Core.Vfx
                 _shipStrips.gameObject.SetActive(!_station);
             if (_stationStrips != null)
                 _stationStrips.gameObject.SetActive(_station);
+            if (_shipBeacons != null)
+                _shipBeacons.gameObject.SetActive(!_station);
+            if (_stationBeacons != null)
+                _stationBeacons.gameObject.SetActive(_station);
         }
 
         Transform Strip(Vector3 pos, Vector3 size)
@@ -146,7 +184,7 @@ namespace Core.Vfx
 
         void OnDestroy()
         {
-            CombatEvents.Engaged -= OnEngaged;
+            AlertState.Changed -= OnAlert;
             CombatEvents.Hit -= OnHit;
             CombatEvents.Shot -= OnShot;
             CombatEvents.Destroyed -= OnDestroyed;
@@ -170,8 +208,10 @@ namespace Core.Vfx
 
         bool Aboard(int fleet) => _focus != null && fleet > 0 && fleet == _focus.ViewFleetId;
 
-        void OnEngaged(bool on)
+        /// <summary>Red alert lighting and the klaxon follow the ship's condition (a fight, or the commander's call).</summary>
+        void OnAlert(AlertLevel was, AlertLevel now)
         {
+            var on = now == AlertLevel.Red;
             _alertTarget = on ? 1f : 0f;
             if (on)
             {

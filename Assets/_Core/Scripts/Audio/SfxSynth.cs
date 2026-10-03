@@ -31,6 +31,8 @@ namespace Core.Audio
         public static AudioClip AmberChime => Shot("su_amber", 1.1f, d => Bell(d, new[] { 659.3f, 880f }, 0.22f, 0.2f));
         public static AudioClip AllClear => Shot("su_clear", 1.2f, d => Bell(d, new[] { 587.3f, 740f, 880f }, 0.16f, 0.15f));
         public static AudioClip Incoming => Shot("su_incoming", 0.75f, IncomingWave);
+        public static AudioClip GateAlarm => Shot("su_gate_alarm", 1.3f, GateAlarmWave);
+        public static AudioClip GateCharge => Shot("su_gate_charge", 2.4f, GateChargeWave);
         public static AudioClip Pip => Shot("su_pip", 0.09f, d => Bell(d, new[] { 1318.5f }, 0.1f, 0.12f));
         public static AudioClip Synth => Shot("su_synth", 1.6f, SynthWave);
 
@@ -222,6 +224,69 @@ namespace Core.Audio
                     d[i] += (Mathf.Sin(w) + Mathf.Sin(w * 2.76f) * 0.2f + Mathf.Sin(w * 5.4f) * 0.06f) * Mathf.Exp(-t * 4.2f) *
                             Mathf.Clamp01(t * 400f) * amp;
                 }
+            }
+        }
+
+        /// <summary>
+        /// The base's gate-activation alarm, a containment alert rather than a horn: three FM pulses gliding down
+        /// (a metallic synthetic bell, its brightness decaying), warbled, through a swept comb (phaser shimmer), over
+        /// a sub drone, the last pulse ringing out. Not the battle whoop.
+        /// </summary>
+        static void GateAlarmWave(float[] d)
+        {
+            var n = d.Length;
+            var dry = new float[n];
+            float carrier = 0f, mod = 0f, sub = 0f;
+            const float pulse = 0.36f;
+            for (var i = 0; i < n; i++)
+            {
+                var t = i / (float)Rate;
+                var k = Mathf.Min(2, (int)(t / pulse));
+                var local = t - k * pulse;
+                var last = k == 2;
+                var u = Mathf.Clamp01(local / pulse);
+                var glide = Mathf.Lerp(1f, 0.72f, last ? Mathf.Clamp01(local / 0.6f) : u);
+                var warble = 1f + 0.012f * Mathf.Sin(t * 2f * Mathf.PI * 7f);
+                var hz = 740f * glide * warble;
+                carrier += hz / Rate;
+                mod += hz * 1.414f / Rate;
+                var index = 2.4f * Mathf.Exp(-local * 6f) + 0.35f;
+                var fm = Mathf.Sin(carrier * 6.2832f + index * Mathf.Sin(mod * 6.2832f));
+                var env = last
+                    ? Mathf.Clamp01(local * 120f) * Mathf.Exp(-local * 2.6f)
+                    : Mathf.Clamp01(local * 120f) * Mathf.Clamp01((pulse - local) * 30f) * (0.55f + 0.45f * Mathf.Exp(-local * 5f));
+                sub += 92.5f / Rate;
+                var drone = Mathf.Sin(sub * 6.2832f) * Mathf.Clamp01(t * 6f) * Mathf.Clamp01((1.3f - t) * 3f);
+                dry[i] = fm * env * 0.17f + drone * 0.05f;
+            }
+
+            for (var i = 0; i < n; i++)
+            {
+                var t = i / (float)Rate;
+                var delay = (int)(Rate * (0.004f + 0.0025f * (1f + Mathf.Sin(t * 2f * Mathf.PI * 0.9f))));
+                var wet = i >= delay ? dry[i - delay] : 0f;
+                d[i] = (float)Math.Tanh((dry[i] + wet * 0.7f) * 1.4f) * 0.75f;
+            }
+        }
+
+        /// <summary>The ring charging before the dial: a rising electric hum with crackle, ending on a click.</summary>
+        static void GateChargeWave(float[] d)
+        {
+            var n = d.Length;
+            var rng = new System.Random(23);
+            float phase = 0f, lp = 0f;
+            for (var i = 0; i < n; i++)
+            {
+                var u = i / (float)n;
+                var hz = Mathf.Lerp(55f, 220f, u * u);
+                phase += hz / Rate;
+                var w = phase * 6.2832f;
+                var hum = Mathf.Sin(w) + Mathf.Sin(w * 2f) * 0.5f + Mathf.Sin(w * 3.01f) * 0.25f;
+                var noise = (float)(rng.NextDouble() * 2.0 - 1.0);
+                lp += (noise - lp) * 0.25f;
+                var crackle = rng.NextDouble() < 0.002 + u * 0.01 ? noise * 2.5f : 0f;
+                var env = Mathf.Clamp01(u * 4f) * Mathf.Clamp01((1f - u) * 25f);
+                d[i] = ((float)Math.Tanh(hum * 0.9f) * 0.16f * (0.4f + u) + lp * 0.05f * u + crackle * 0.08f) * env;
             }
         }
 

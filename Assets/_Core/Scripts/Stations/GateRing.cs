@@ -36,10 +36,17 @@ namespace Core.Stations
         const string Symbols = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ";
         const float SpinSeconds = 0.62f;
         const float LockSeconds = 0.22f;
+        /// <summary>The ring powers up before the track turns: energy climbs the trims, arcs crawl round the rim.</summary>
+        const float ChargeSeconds = 1.8f;
+        const float FlashRange = 22f;
+        static readonly Color Violet = new(0.62f, 0.5f, 1f, 1f);
+        static readonly int FlashPosId = Shader.PropertyToID("_SU_FlashPos");
+        static readonly int FlashColId = Shader.PropertyToID("_SU_FlashCol");
 
         enum State
         {
             Idle,
+            Charging,
             Dialing,
             Open,
             Closing
@@ -50,8 +57,16 @@ namespace Core.Stations
 
         /// <summary>Lock <paramref name="i"/> is seated (dial progress, or the whole ring once open).</summary>
         public bool LockLit(int i) => _locks[i] != null && _locks[i].sharedMaterial != _lockOff;
-        public bool Busy => _state == State.Dialing || _state == State.Closing;
+        public bool Busy => _state == State.Charging || _state == State.Dialing || _state == State.Closing;
+        /// <summary>Powering up or dialing (the base's activation alarm sounds).</summary>
+        public bool Activating => _state == State.Charging || _state == State.Dialing;
         public Transform Horizon => _horizon.transform;
+
+        /// <summary>
+        /// The ring's energy material (its lit trims): the base's power conduits share it, so they surge with the
+        /// ring as it charges, dials and stands open.
+        /// </summary>
+        public Material Energy => _energy;
 
         Transform _track;
         readonly Renderer[] _locks = new Renderer[6];
@@ -64,6 +79,10 @@ namespace Core.Stations
         Material _lockAlarm;
         Light _light;
         ParticleSystem _burst;
+        Material _energy;
+        float _energyBase;
+        float _flash;
+        float _arcAt;
 
         State _state;
         string[] _groups = new string[6];
@@ -106,7 +125,10 @@ namespace Core.Stations
             if (metal.HasProperty("_EmissionMul")) metal.SetFloat("_EmissionMul", 0.5f);
             if (metal.HasProperty("_Color")) metal.SetColor("_Color", new Color(0.62f, 0.64f, 0.72f, 1f));
             if (metal.HasProperty("_RimColor")) metal.SetColor("_RimColor", new Color(0.55f, 0.45f, 1f, 1f));
-            var trim = art.Lit(Texture2D.whiteTexture, new Color(0.62f, 0.5f, 1f, 1f), 2.4f);
+            // Own instance (not the kit's cached violet): its glow is driven by the gate's state.
+            _energy = new Material(art.Lit(Texture2D.whiteTexture, Violet, 2.4f)) { name = "SU_GateEnergy" };
+            _energyBase = _energy.HasProperty("_EmissionMul") ? _energy.GetFloat("_EmissionMul") : 1f;
+            var trim = _energy;
             var dark = art.DarkPanel(0.25f);
             _lockOff = art.Lit(Texture2D.whiteTexture, new Color(0.25f, 0.12f, 0.06f, 1f), 0.5f);
             _lockOn = art.Lit(Texture2D.whiteTexture, new Color(1f, 0.55f, 0.18f, 1f), 3.2f);
@@ -399,8 +421,10 @@ namespace Core.Stations
             _incoming = false;
             _onOpen = onOpen;
             _group = 0;
-            BeginSpin();
-            _state = State.Dialing;
+            _t = 0f;
+            _state = State.Charging;
+            // Power-up: the hum climbs from the ring before the track moves.
+            Core.Audio.SfxBus.Play(Core.Audio.SfxSynth.GateCharge, transform.position, 0.7f, range: 30f, cooldown: 1f);
         }
 
         /// <summary>A connection already stands (entering the room, or dialed from the far side).</summary>
@@ -475,6 +499,8 @@ namespace Core.Stations
                 priority: Core.Audio.SfxBus.Priority.Alert, cooldown: 1f);
             CicCue.Boom(transform.position, 0.6f);
             CicCue.Whoosh(transform.position + transform.forward * 2f);
+            // The horizon forming lights the whole base for a moment.
+            _flash = 1f;
             var c = incoming ? new Color(1f, 0.4f, 0.3f, 1f) : new Color(0.55f, 0.85f, 1f, 1f);
             for (var i = 0; i < 40; i++)
                 CombatFxKit.Emit(_burst, transform.position + transform.forward * 0.5f + UnityEngine.Random.insideUnitSphere * 1.2f,
@@ -484,11 +510,104 @@ namespace Core.Stations
             _onOpen = null;
         }
 
+        void OnDisable() => Shader.SetGlobalVector(FlashColId, Vector4.zero);
+
+        /// <summary>An electric arc crawling over the ring at a random point of its visible arc.</summary>
+        void Arc(float strength)
+        {
+            var a = UnityEngine.Random.Range(-25f, 205f) * Mathf.Deg2Rad;
+            var r = UnityEngine.Random.Range(Inner + 0.05f, Outer);
+            var at = transform.TransformPoint(new Vector3(Mathf.Cos(a) * r, Mathf.Sin(a) * r, 0.36f));
+            var c = Color.Lerp(Violet, Color.white, UnityEngine.Random.value * 0.6f);
+            for (var i = 0; i < 4; i++)
+                CombatFxKit.Emit(_burst, at, c, UnityEngine.Random.Range(0.03f, 0.07f), UnityEngine.Random.Range(0.15f, 0.4f),
+                    (transform.forward * 0.6f + UnityEngine.Random.insideUnitSphere) * (1.2f + strength));
+            CombatFxKit.Emit(_burst, at, c, 0.25f + strength * 0.2f, 0.12f);
+        }
+
+        /// <summary>Feed the room-wide light (every unlit surface catches it) and the ring's trims.</summary>
+        void Lighting(float dt)
+        {
+            _flash = Mathf.Max(0f, _flash - dt * 1.4f);
+            var now = Time.time;
+            var flicker = 0.75f + 0.25f * Mathf.PerlinNoise(now * 17f, 0.4f);
+            float glow, energy;
+            Color color;
+            switch (_state)
+            {
+                case State.Charging:
+                {
+                    var k = Mathf.Clamp01(_t / ChargeSeconds);
+                    glow = k * 0.9f * flicker;
+                    energy = 1f + k * 3f * flicker;
+                    color = Violet;
+                    break;
+                }
+                case State.Dialing:
+                    glow = 0.7f + 0.15f * Mathf.Sin(now * 6f);
+                    energy = 3.2f + 0.6f * Mathf.Sin(now * 6f);
+                    color = Violet;
+                    break;
+                case State.Open:
+                    glow = 1.8f + 0.2f * Mathf.Sin(now * 2.1f);
+                    energy = 2.6f + 0.4f * Mathf.Sin(now * 2.1f);
+                    color = _incoming ? new Color(1f, 0.35f, 0.25f) : new Color(0.45f, 0.72f, 1f);
+                    break;
+                case State.Closing:
+                {
+                    var k = 1f - Mathf.Clamp01(_t / 0.7f);
+                    glow = 1.8f * k;
+                    energy = 1f + 1.6f * k;
+                    color = _incoming ? new Color(1f, 0.35f, 0.25f) : new Color(0.45f, 0.72f, 1f);
+                    break;
+                }
+                default:
+                    glow = 0f;
+                    energy = 1f;
+                    color = Violet;
+                    break;
+            }
+
+            if (_energy.HasProperty("_EmissionMul"))
+                _energy.SetFloat("_EmissionMul", _energyBase * energy);
+            var c = color * glow + Color.white * (_flash * _flash * 5f);
+            var live = glow > 0.001f || _flash > 0.001f;
+            var pos = transform.TransformPoint(new Vector3(0f, 0f, 1.8f));
+            Shader.SetGlobalVector(FlashPosId, new Vector4(pos.x, pos.y, pos.z, 1f / (FlashRange * FlashRange)));
+            Shader.SetGlobalVector(FlashColId, new Vector4(c.r, c.g, c.b, live ? 1f : 0f));
+        }
+
         void Update()
         {
             var dt = Time.deltaTime;
+            Lighting(dt);
             switch (_state)
             {
+                case State.Charging:
+                {
+                    _t += dt;
+                    var k = Mathf.Clamp01(_t / ChargeSeconds);
+                    if (Time.time >= _arcAt)
+                    {
+                        _arcAt = Time.time + Mathf.Lerp(0.22f, 0.05f, k);
+                        Arc(k);
+                    }
+
+                    // Glyphs wake one after another round the track.
+                    var lit = Mathf.FloorToInt(k * _glyphs.Count);
+                    for (var i = 0; i < _glyphs.Count; i++)
+                        _glyphs[i].color = i < lit ? new Color(0.6f, 0.85f, 1f, 0.95f) : new Color(0.35f, 0.75f, 0.9f, 0.55f);
+                    if (_t >= ChargeSeconds)
+                    {
+                        foreach (var g in _glyphs)
+                            g.color = new Color(0.35f, 0.75f, 0.9f, 0.55f);
+                        CicCue.Clunk(transform.position);
+                        BeginSpin();
+                        _state = State.Dialing;
+                    }
+
+                    break;
+                }
                 case State.Dialing:
                 {
                     _t += dt;
@@ -504,6 +623,14 @@ namespace Core.Stations
                         if (gi >= 0)
                             _glyphs[gi].color = new Color(1f, 0.75f, 0.35f, 1f);
                         CicCue.Deploy(_lockBlocks[_group].position);
+                        // The lock takes the charge: a spark burst at the clamp, a pulse through the base.
+                        var clamp = _lockBlocks[_group].position + transform.forward * 0.45f;
+                        for (var s = 0; s < 14; s++)
+                            CombatFxKit.Emit(_burst, clamp, new Color(1f, 0.7f, 0.35f, 1f), UnityEngine.Random.Range(0.03f, 0.06f),
+                                UnityEngine.Random.Range(0.3f, 0.7f), (transform.forward + UnityEngine.Random.insideUnitSphere) * 2.2f);
+                        CombatFxKit.Emit(_burst, clamp, new Color(1f, 0.75f, 0.4f, 1f), 0.6f, 0.18f);
+                        _flash = Mathf.Max(_flash, 0.35f);
+                        Arc(1f);
                         _group++;
                         if (_group >= 6)
                             Burst(false);

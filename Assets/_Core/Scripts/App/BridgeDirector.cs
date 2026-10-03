@@ -60,7 +60,7 @@ namespace Core.App
             hex.Bind(_focus, mapCtrl, tableMount, env.Art);
             mapCtrl.BindHex(hex);
             ExteriorCombatFx.Attach(_exterior);
-            BridgeCombatFx.Build(interior.transform, _focus);
+            BridgeCombatFx.Build(interior.transform, _focus, env.Art);
 
             var orders = interior.AddComponent<HoloFleetOrders>();
             orders.Bind(_zoneMap, _focus, _poller, mapCtrl);
@@ -179,6 +179,10 @@ namespace Core.App
                         ops.Open(null, _focus != null ? _focus.ViewPlanetId : 0);
                 });
             }
+
+            // The condition selector on the dais, at the captain's right hand (a station moves it to the podium).
+            Core.UI.AlertConditionPanel.Build(interior.transform, new Vector3(0.62f, 0.16f, WorldScale.CicCaptainChairZ + 0.3f),
+                new Vector3(0f, 1.34f, WorldScale.CicCaptainChairZ - 0.13f), env.Art);
 
             // Command mode scales a parent of HoloMapMount so zoom (child localScale) stays independent.
             var seat = FindNamed(interior.transform, "CaptainSeat");

@@ -44,6 +44,17 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 - `vr.comms.readAll`, `vr.comms.readAllDone`, `vr.comms.readAllPartial`, `vr.dock.printer.done`, `vr.dock.printer.idle`, `vr.dock.printer.left`, `vr.dock.printer.queued`, `vr.dock.printer.title`, `vr.gate.ownAddress`, `vr.gate.thisGate`, `vr.quarters.bossGo`, `vr.quarters.bossHere`, `vr.quarters.bossHow`, `vr.quarters.bossNoShip`, `vr.quarters.bossWhere`, `vr.shop.perk.explore_speed`, `vr.shop.perk.mining_speed`, `vr.shop.perk.move_speed`, `vr.shop.perk.production_multiplier`, `vr.shop.perk.queues`, `vr.shop.perk.research_speed`, `vr.shop.perk.xp_multiplier` dans **les dix langues**.
 - `vr.dock.recycler.confirm`, `vr.dock.recycler.go`, `vr.dock.recycler.hint`, `vr.dock.recycler.title`, `vr.dock.store.empty`, `vr.dock.store.title`, `vr.dock.takeFromStore` dans **les dix langues**.
 
+## À intégrer — sélecteur de condition d'alerte
+
+| Clé | EN | FR | Contexte |
+|---|---|---|---|
+| `vr.alert.auto` | Auto | Auto | Touche du sélecteur : l'alerte suit la situation tactique (mode par défaut) ; aussi suffixe de la plaque |
+| `vr.alert.standDown` | Stand down | Repos | Touche du sélecteur : force la fin d'alerte |
+| `vr.alert.normal` | Normal condition | Condition normale | Plaque du sélecteur quand aucune alerte n'est active |
+| `vr.alert.manual` | Manual | Manuel | Suffixe de la plaque quand le commandant a forcé la condition |
+
+Les touches Jaune et Rouge réutilisent `vr.console.amberAlert` (« Alerte jaune ») et `vr.screen.redAlert`.
+
 ## Anomalies (intégré web)
 
 | Clé | EN | FR | Contexte |

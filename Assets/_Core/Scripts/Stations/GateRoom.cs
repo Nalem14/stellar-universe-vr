@@ -94,6 +94,10 @@ namespace Core.Stations
         UnityEngine.UI.Button _stepPrev;
         UnityEngine.UI.Button _stepNext;
         float _klaxonAt;
+        float _hornAt;
+        float _openedAt;
+        bool _wasOpen;
+        Transform[] _horns = Array.Empty<Transform>();
 
         // ── Build ─────────────────────────────────────────────────────────────────
 
@@ -106,6 +110,8 @@ namespace Core.Stations
             room._eco = eco;
             room.BuildHall();
             room._gate = GateRing.Build(go.transform, GatePos, art);
+            room._horns = GateRoomDecor.BuildStructure(go.transform, art, HallFloor, HallWidth, HallHeight, GalleryEdge, HallEnd,
+                GatePos, room._gate.Energy);
             room.BuildScreens();
             go.SetActive(false);
             return room;
@@ -318,6 +324,7 @@ namespace Core.Stations
             await fade.FadeOut();
             Inside = false;
             SetAlarm(false);
+            AlertDirector.RoomAlarm = AlertLevel.Normal;
             // Out into the corridor, in front of this room's door.
             CorridorRoom.ReturnPlayer(CorridorRoom.Slot.GateEnd);
 
@@ -1140,6 +1147,32 @@ namespace Core.Stations
             }
         }
 
+        /// <summary>
+        /// Gate activation procedure, as in any gate base: while the ring powers up and dials, and for a while once
+        /// the horizon stands, the activation horn sounds over the hall and the beacons turn yellow (an unscheduled
+        /// incoming wormhole is the red alarm above). The open gate keeps a slow reminder.
+        /// </summary>
+        void ActivationAlarm(float now)
+        {
+            var open = _gate.IsOpen;
+            if (open && !_wasOpen)
+                _openedAt = now;
+            _wasOpen = open;
+            var activating = _gate.Activating;
+            AlertDirector.RoomAlarm = _alarm ? AlertLevel.Red : activating || open || _gate.Busy ? AlertLevel.Amber : AlertLevel.Normal;
+            if (_alarm || !(activating || open))
+                return;
+            if (now < _hornAt)
+                return;
+            var fresh = activating || now - _openedAt < 9f;
+            _hornAt = now + (fresh ? 1.5f : 12f);
+            var volume = fresh ? 0.55f : 0.3f;
+            // From the horns high on the hall walls, either side of the gate.
+            foreach (var horn in _horns)
+                Core.Audio.SfxBus.Play(Core.Audio.SfxSynth.GateAlarm, horn.position, volume, range: 40f,
+                    priority: Core.Audio.SfxBus.Priority.Alert, cooldown: 0f);
+        }
+
         void Update()
         {
             if (!Inside)
@@ -1182,6 +1215,8 @@ namespace Core.Stations
             {
                 _hallLight.color = new Color(0.7f, 0.8f, 1f);
             }
+
+            ActivationAlarm(now);
 
             if (_busy)
                 return;
