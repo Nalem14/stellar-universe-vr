@@ -46,7 +46,16 @@ namespace Core.UI
             m._menu.AddBinding("<XRController>{LeftHand}/menuButton");
             m._menu.AddBinding("<Keyboard>/escape");
             m._menu.AddBinding("<Keyboard>/m");
-            m._menu.performed += _ => m.Toggle();
+            // Esc / M are keys a typed text may contain: never while a field has the keyboard (PC, phone).
+            m._menu.performed += _ =>
+            {
+                if (PcPlatformBoot.IsFlatScreen && PcPlatformBoot.IsTyping)
+                    return;
+                // Seated at the command post on PC, Esc stands up and M flips the table (CaptainCommandMode).
+                if (PcPlatformBoot.IsPcDesktop && CaptainCommandMode.Instance != null && CaptainCommandMode.Instance.IsCommandMode)
+                    return;
+                m.Toggle();
+            };
             m._menu.Enable();
             return m;
         }

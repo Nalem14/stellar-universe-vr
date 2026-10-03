@@ -1,4 +1,5 @@
 using Core.App;
+using Core.Utils;
 using Core.Vfx;
 using TMPro;
 using UnityEngine;
@@ -117,7 +118,9 @@ namespace Core.UI
             lrt.sizeDelta = Vector2.zero;
 
             _actionLabel = labelGo.GetComponent<TextMeshProUGUI>();
-            _actionLabel.text = "ACTION";
+            _actionLabel.text = string.Empty;
+            _actionLabel.fontStyle = FontStyles.UpperCase;
+            _labels.Add((_actionLabel, "action"));
             _actionLabel.alignment = TextAlignmentOptions.Center;
             _actionLabel.fontSize = 18f;
             _actionLabel.color = Color.white;
@@ -138,37 +141,37 @@ namespace Core.UI
             float startX = -400f;
             float stepX = 160f;
 
-            AddCmdButton("FLOTTES", new Vector2(startX + 0 * stepX, 0f), () =>
+            AddCmdButton("fleets", new Vector2(startX + 0 * stepX, 0f), () =>
             {
                 var tp = FindFirstObjectByType<BridgeViewTeleporter>();
                 if (tp != null) Core.Utils.AsyncTap.Run(tp.RefreshList());
             });
 
-            AddCmdButton("CARTE", new Vector2(startX + 1 * stepX, 0f), () =>
+            AddCmdButton("vr.mobile.map", new Vector2(startX + 1 * stepX, 0f), () =>
             {
                 var map = FindFirstObjectByType<HoloMapController>();
                 if (map != null) map.SetMode(map.Mode == HoloMapMode.System ? HoloMapMode.Galaxy : HoloMapMode.System);
             });
 
-            AddCmdButton("COMMS", new Vector2(startX + 2 * stepX, 0f), () =>
+            AddCmdButton("vr.station.comms", new Vector2(startX + 2 * stepX, 0f), () =>
             {
                 var comms = Core.Stations.CommsConsole.Instance;
                 if (comms != null) { if (comms.IsOpen) comms.Close(); else comms.Open(null); }
             });
 
-            AddCmdButton("OPS", new Vector2(startX + 3 * stepX, 0f), () =>
+            AddCmdButton("vr.station.ops", new Vector2(startX + 3 * stepX, 0f), () =>
             {
                 var ops = Core.Stations.OpsConsole.Instance;
                 if (ops != null) { if (ops.IsOpen) ops.Close(); else ops.Open(null, FocusContext.Current != null ? FocusContext.Current.ViewPlanetId : 0); }
             });
 
-            AddCmdButton("TACTIQUE", new Vector2(startX + 4 * stepX, 0f), () =>
+            AddCmdButton("vr.station.tactical", new Vector2(startX + 4 * stepX, 0f), () =>
             {
                 var armory = Core.Stations.ArmoryConsole.Instance;
                 if (armory != null) { if (armory.IsOpen) armory.Close(); else armory.Open(null, 0, 0); }
             });
 
-            AddCmdButton("SE LEVER", new Vector2(startX + 5 * stepX, 0f), () =>
+            AddCmdButton("vr.pc.standUp", new Vector2(startX + 5 * stepX, 0f), () =>
             {
                 CaptainCommandMode.Instance?.ExitCommandMode();
             }, isAmber: true);
@@ -176,9 +179,21 @@ namespace Core.UI
             _commandBar.SetActive(false);
         }
 
-        void AddCmdButton(string label, Vector2 pos, UnityEngine.Events.UnityAction onClick, bool isAmber = false)
+        /// <summary>Every on-screen label and its <see cref="Trans"/> key (re-read when the language changes).</summary>
+        readonly System.Collections.Generic.List<(TMP_Text text, string key)> _labels = new();
+        string _lang;
+
+        void Relabel()
         {
-            var btnGo = new GameObject(label + "_Btn", typeof(RectTransform), typeof(Image), typeof(Button));
+            _lang = Trans.IsReady ? Trans.Lang : null;
+            foreach (var (text, key) in _labels)
+                if (text != null)
+                    text.text = Trans.Get(key);
+        }
+
+        void AddCmdButton(string labelKey, Vector2 pos, UnityEngine.Events.UnityAction onClick, bool isAmber = false)
+        {
+            var btnGo = new GameObject(labelKey + "_Btn", typeof(RectTransform), typeof(Image), typeof(Button));
             btnGo.transform.SetParent(_commandBar.transform, false);
             var rt = btnGo.GetComponent<RectTransform>();
             rt.sizeDelta = new Vector2(140f, 55f);
@@ -198,9 +213,13 @@ namespace Core.UI
             lrt.sizeDelta = Vector2.zero;
 
             var tmp = lGo.GetComponent<TextMeshProUGUI>();
-            tmp.text = label;
+            tmp.text = Trans.Get(labelKey);
+            tmp.fontStyle = FontStyles.UpperCase;
+            tmp.enableAutoSizing = true;
+            tmp.fontSizeMin = 10f;
+            tmp.fontSizeMax = 16f;
+            _labels.Add((tmp, labelKey));
             tmp.alignment = TextAlignmentOptions.Center;
-            tmp.fontSize = 16f;
             tmp.color = isAmber ? new Color(1f, 0.8f, 0.4f) : Color.white;
             tmp.raycastTarget = false;
         }
@@ -235,7 +254,9 @@ namespace Core.UI
             lrt.sizeDelta = Vector2.zero;
 
             var tmp = lGo.GetComponent<TextMeshProUGUI>();
-            tmp.text = "MENU";
+            tmp.text = Trans.Get("menu");
+            tmp.fontStyle = FontStyles.UpperCase;
+            _labels.Add((tmp, "menu"));
             tmp.alignment = TextAlignmentOptions.Center;
             tmp.fontSize = 16f;
             tmp.color = Color.white;
@@ -277,6 +298,8 @@ namespace Core.UI
 
             if (_canvas != null && !_canvas.enabled)
                 _canvas.enabled = true;
+            if (Trans.IsReady && _lang != Trans.Lang)
+                Relabel();
 
             bool isSeated = CaptainCommandMode.Instance != null && CaptainCommandMode.Instance.IsCommandMode;
             if (_commandBar != null && _commandBar.activeSelf != isSeated)

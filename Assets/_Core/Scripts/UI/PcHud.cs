@@ -1,4 +1,5 @@
 using Core.App;
+using Core.Utils;
 using Core.Vfx;
 using TMPro;
 using UnityEngine;
@@ -102,7 +103,7 @@ namespace Core.UI
             _commandBar.color = new Color(0.45f, 0.95f, 1f, 0.85f);
             _commandBar.raycastTarget = false;
             _commandBar.richText = true;
-            _commandBar.text = "<b>[F]</b> Flottes  •  <b>[M]</b> Carte Galaxie/Système  •  <b>[C]</b> Comms  •  <b>[O]</b> Opérations  •  <b>[T]</b> Tactique  •  <b>[Espace]</b> Se lever";
+            _commandBar.text = string.Empty;
             _commandBar.gameObject.SetActive(false);
 
             // Cursor hint (bottom-right)
@@ -120,7 +121,20 @@ namespace Core.UI
             _cursorHint.color = new Color(0.7f, 0.8f, 0.9f, 0.5f);
             _cursorHint.raycastTarget = false;
             _cursorHint.richText = true;
-            _cursorHint.text = "<b>[Tab]</b> Curseur libre  •  <b>[Échap]</b> Menu";
+            _cursorHint.text = string.Empty;
+            Relabel();
+        }
+
+        string _lang;
+
+        /// <summary>Key hints through <see cref="Trans"/> (re-read when the language or the dictionary changes).</summary>
+        void Relabel()
+        {
+            _lang = Trans.IsReady ? Trans.Lang : null;
+            if (_commandBar != null)
+                _commandBar.text = Trans.Get("vr.pc.commandBar");
+            if (_cursorHint != null)
+                _cursorHint.text = Trans.Get("vr.pc.cursorHint");
         }
 
         public void SetHover(bool isHovering, string promptText = null)
@@ -150,6 +164,8 @@ namespace Core.UI
 
             if (_canvas != null && !_canvas.enabled)
                 _canvas.enabled = true;
+            if (Trans.IsReady && _lang != Trans.Lang)
+                Relabel();
 
             var ctrl = PcDesktopController.Instance;
             bool isLocked = ctrl != null && ctrl.IsCursorLocked;

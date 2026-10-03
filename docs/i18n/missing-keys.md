@@ -17,6 +17,19 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 - **Paramètres** : `{0}`, `{1}`… (`Trans.Format`, `string.Format` en culture invariante).
 - Pour les répliques, les ordres et les échecs, le ton reprend celui du journal de colonisation web : l'équipage s'adresse au joueur en « Commandant ».
 
+## À intégrer — PC (clavier / souris) et mobile (tactile)
+
+| Clé | EN | FR | Contexte |
+|---|---|---|---|
+| `vr.pc.prompt` | <b>[E]</b> or <b>[Left click]</b> {0} | <b>[E]</b> ou <b>[Clic gauche]</b> {0} | Invite sous le réticule PC ; {0} = l'action (libellé du bouton visé, ou une des clés ci-dessous) |
+| `vr.pc.sit` | Take the command seat | S'asseoir au poste de commandement | Invite PC sur le fauteuil |
+| `vr.pc.door` | Go through the door | Passer la porte | Invite PC sur une porte |
+| `vr.pc.interact` | Interact | Interagir | Invite PC sur un objet saisissable (caisse du marché, jeton…) |
+| `vr.pc.commandBar` | <b>[F]</b> Fleets  •  <b>[M]</b> Galaxy / system map  •  <b>[C]</b> Comms  •  <b>[O]</b> Operations  •  <b>[T]</b> Tactical  •  <b>[Space]</b> Stand up | <b>[F]</b> Flottes  •  <b>[M]</b> Carte galaxie / système  •  <b>[C]</b> Comms  •  <b>[O]</b> Opérations  •  <b>[T]</b> Tactique  •  <b>[Espace]</b> Se lever | Barre de raccourcis PC, assis au poste de commandement |
+| `vr.pc.cursorHint` | <b>[Tab]</b> Free cursor  •  <b>[Esc]</b> Menu | <b>[Tab]</b> Curseur libre  •  <b>[Échap]</b> Menu | Rappel PC en bas à droite |
+| `vr.pc.standUp` | Stand up | Se lever | Bouton tactile du poste de commandement (mobile) |
+| `vr.mobile.map` | Map | Carte | Bouton tactile : bascule galaxie / système de la table holo |
+
 ## Intégré côté web
 
 - Clés `vr.*`, `crew.*`, `buildingDesc_*`, `colonyLog_*`, `relation_*` dans `assets/langs/{fr,en}.json`.

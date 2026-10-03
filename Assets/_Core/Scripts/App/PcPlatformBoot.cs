@@ -65,6 +65,11 @@ namespace Core.App
             {
                 Mode = PlatformMode.VR;
             }
+            else if (IsQuestDevice())
+            {
+                // A Quest is never a phone, even if the XR loader comes up after this runs.
+                Mode = PlatformMode.VR;
+            }
             else if (Application.isMobilePlatform)
             {
                 // Android smartphone/tablet or iOS device without active VR headset
@@ -78,6 +83,31 @@ namespace Core.App
             Debug.Log($"[PcPlatformBoot] Active Platform Mode: {Mode}");
 
             SceneManager.sceneLoaded += OnSceneLoaded;
+        }
+
+        static bool IsQuestDevice()
+        {
+            if (Application.platform != RuntimePlatform.Android)
+                return false;
+            var model = (SystemInfo.deviceModel ?? string.Empty).ToLowerInvariant();
+            return model.Contains("quest") || model.Contains("oculus") || model.Contains("meta");
+        }
+
+        /// <summary>
+        /// A text field has the keyboard (search, login, alliance description…): movement, interaction and
+        /// shortcut keys must not fire while the player types.
+        /// </summary>
+        public static bool IsTyping
+        {
+            get
+            {
+                var es = EventSystem.current;
+                var go = es != null ? es.currentSelectedGameObject : null;
+                if (go == null)
+                    return false;
+                var field = go.GetComponent<TMPro.TMP_InputField>();
+                return field != null && field.isFocused;
+            }
         }
 
         static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
@@ -97,24 +127,59 @@ namespace Core.App
         {
             if (IsVr)
                 return;
+            EnsureSingleEventSystem();
+        }
 
-            var es = Object.FindFirstObjectByType<EventSystem>();
-            if (es == null)
+        /// <summary>
+        /// Exactly one EventSystem, kept across scenes, with this platform's input module (XR rays in the headset,
+        /// mouse / touch on a flat screen). Two live EventSystems split the input and no field or button answers
+        /// (the login form first): every caller goes through here, extras are destroyed.
+        /// </summary>
+        public static EventSystem EnsureSingleEventSystem()
+        {
+            var all = Object.FindObjectsByType<EventSystem>(FindObjectsInactive.Include, FindObjectsSortMode.InstanceID);
+            EventSystem keep = null;
+            foreach (var e in all)
+                if (keep == null || e.isActiveAndEnabled && !keep.isActiveAndEnabled)
+                    keep = e;
+            foreach (var e in all)
+                if (e != keep)
+                {
+                    // Off at once (Destroy waits for the frame's end, and two live ones split the input meanwhile).
+                    e.gameObject.SetActive(false);
+                    Object.Destroy(e.gameObject);
+                }
+
+            if (keep == null)
+                keep = new GameObject("EventSystem", typeof(EventSystem)).GetComponent<EventSystem>();
+            if (keep.transform.parent == null)
+                Object.DontDestroyOnLoad(keep.gameObject);
+            keep.enabled = true;
+            keep.gameObject.SetActive(true);
+
+            var xr = keep.GetComponent<UnityEngine.XR.Interaction.Toolkit.UI.XRUIInputModule>();
+            var flat = keep.GetComponent<InputSystemUIInputModule>();
+            if (IsVr)
             {
-                var go = new GameObject("EventSystem", typeof(EventSystem), typeof(InputSystemUIInputModule));
-                Object.DontDestroyOnLoad(go);
+                if (xr == null)
+                    xr = keep.gameObject.AddComponent<UnityEngine.XR.Interaction.Toolkit.UI.XRUIInputModule>();
+                xr.enabled = true;
+                if (flat != null)
+                    flat.enabled = false;
             }
             else
             {
-                var xrModule = es.GetComponent<UnityEngine.XR.Interaction.Toolkit.UI.XRUIInputModule>();
-                if (xrModule != null)
-                    xrModule.enabled = false;
-
-                var inputModule = es.GetComponent<InputSystemUIInputModule>();
-                if (inputModule == null)
-                    inputModule = es.gameObject.AddComponent<InputSystemUIInputModule>();
-                inputModule.enabled = true;
+                if (xr != null)
+                    xr.enabled = false;
+                if (flat == null)
+                    flat = keep.gameObject.AddComponent<InputSystemUIInputModule>();
+                flat.enabled = true;
             }
+
+            EventSystem.current = keep;
+            if (keep.GetComponent<SingleEventSystemGuard>() == null)
+                keep.gameObject.AddComponent<SingleEventSystemGuard>();
+            return keep;
         }
 
         /// <summary>
@@ -225,6 +290,24 @@ namespace Core.App
                     canvas.gameObject.AddComponent<UnityEngine.UI.GraphicRaycaster>();
                 }
             }
+        }
+    }
+
+    /// <summary>
+    /// Rigs and prefabs can bring their own EventSystem after a scene has loaded (the boot screen's does): twice a
+    /// second, the kept one removes any newcomer so input is never split between two.
+    /// </summary>
+    public sealed class SingleEventSystemGuard : MonoBehaviour
+    {
+        float _next;
+
+        void Update()
+        {
+            if (Time.unscaledTime < _next)
+                return;
+            _next = Time.unscaledTime + 0.5f;
+            if (Object.FindObjectsByType<EventSystem>(FindObjectsInactive.Exclude, FindObjectsSortMode.None).Length > 1)
+                PcPlatformBoot.EnsureSingleEventSystem();
         }
     }
 }

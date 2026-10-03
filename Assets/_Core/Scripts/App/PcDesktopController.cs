@@ -77,6 +77,13 @@ namespace Core.App
         void Start()
         {
             AdjustCameraHeight(StandingEyeHeight);
+            // The airlock is a form (login, sign-up, community plaque): a free cursor to click its fields. On the
+            // bridge the view is first person (cursor captured, Tab frees it).
+            if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name == SceneFlow.Menu)
+            {
+                _manualUnlock = true;
+                SetCursorLock(false);
+            }
         }
 
         public void AdjustCameraHeight(float height)
@@ -91,8 +98,32 @@ namespace Core.App
             }
         }
 
+        Quaternion _applied = Quaternion.identity;
+
+        /// <summary>
+        /// Rooms, doors and teleports turn the rig (XrPlacement): take the yaw from it instead of snapping back to
+        /// the mouse's old heading on the next move.
+        /// </summary>
+        void SyncYaw()
+        {
+            if (Quaternion.Angle(transform.localRotation, _applied) > 0.01f)
+            {
+                _yaw = transform.localEulerAngles.y;
+                _applied = transform.localRotation;
+            }
+        }
+
         void Update()
         {
+            SyncYaw();
+            // Typing in a field: the keys are the field's (no walking, no cursor toggle on Tab).
+            if (PcPlatformBoot.IsTyping)
+            {
+                if (_cursorLocked)
+                    HandleMouseLook();
+                return;
+            }
+
             HandleCursorToggle();
 
             if (_cursorLocked)
@@ -159,6 +190,7 @@ namespace Core.App
 
             // Yaw rotates the player rig / body
             transform.localRotation = Quaternion.Euler(0f, _yaw, 0f);
+            _applied = transform.localRotation;
 
             // Pitch tilts the camera
             _camera.transform.localRotation = Quaternion.Euler(_pitch, 0f, 0f);

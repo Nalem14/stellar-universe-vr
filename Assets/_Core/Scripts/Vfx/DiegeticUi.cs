@@ -101,30 +101,19 @@ namespace Core.Vfx
 
         public static void EnsureEventSystem()
         {
-            var es = Object.FindFirstObjectByType<EventSystem>();
-            if (es != null)
+            // Cheap path: one live EventSystem already set up for this platform.
+            var current = EventSystem.current;
+            if (current != null && current.isActiveAndEnabled &&
+                Object.FindObjectsByType<EventSystem>(FindObjectsInactive.Exclude, FindObjectsSortMode.None).Length == 1)
             {
-                if (Core.App.PcPlatformBoot.IsPcDesktop)
-                {
-                    var xr = es.GetComponent<XRUIInputModule>();
-                    if (xr != null) xr.enabled = false;
-                    var inp = es.GetComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
-                    if (inp == null) inp = es.gameObject.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
-                    inp.enabled = true;
-                }
-                return;
+                var flat = current.GetComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
+                var xr = current.GetComponent<XRUIInputModule>();
+                var ready = Core.App.PcPlatformBoot.IsVr ? xr != null && xr.enabled : flat != null && flat.enabled;
+                if (ready)
+                    return;
             }
 
-            GameObject go;
-            if (Core.App.PcPlatformBoot.IsPcDesktop)
-            {
-                go = new GameObject("EventSystem", typeof(EventSystem), typeof(UnityEngine.InputSystem.UI.InputSystemUIInputModule));
-            }
-            else
-            {
-                go = new GameObject("EventSystem", typeof(EventSystem), typeof(XRUIInputModule));
-            }
-            Object.DontDestroyOnLoad(go);
+            Core.App.PcPlatformBoot.EnsureSingleEventSystem();
         }
 
         /// <summary>
@@ -144,8 +133,13 @@ namespace Core.Vfx
 
             var canvas = go.GetComponent<Canvas>();
             canvas.renderMode = RenderMode.WorldSpace;
-            if (Core.App.PcPlatformBoot.IsPcDesktop)
+            if (Core.App.PcPlatformBoot.IsFlatScreen)
+            {
+                // Mouse / touch through the GraphicRaycaster; the tracked-device one has no device here (XRI throws).
                 canvas.worldCamera = Camera.main;
+                go.GetComponent<TrackedDeviceGraphicRaycaster>().enabled = false;
+            }
+
             canvas.sortingOrder = 20;
             var rt = go.GetComponent<RectTransform>();
             rt.sizeDelta = pixelSize;

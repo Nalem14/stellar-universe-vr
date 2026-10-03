@@ -462,7 +462,7 @@ namespace Core.UI
 
             var canvas = go.GetComponent<Canvas>();
             canvas.renderMode = RenderMode.WorldSpace;
-            if (Core.App.PcPlatformBoot.IsPcDesktop)
+            if (Core.App.PcPlatformBoot.IsFlatScreen)
                 canvas.worldCamera = Camera.main;
             go.GetComponent<RectTransform>().sizeDelta = new Vector2(1100f, 660f);
             go.GetComponent<CanvasScaler>().dynamicPixelsPerUnit = 2.5f;
@@ -569,6 +569,7 @@ namespace Core.UI
             if (kb == null)
                 return;
 
+            // Enter submits from a field too; only Tab is the field's own when typing.
             if (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame)
             {
                 if (_panel == PanelMode.Forms && !_busy)

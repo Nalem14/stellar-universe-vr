@@ -71,6 +71,11 @@ namespace Core.UI
             }
         }
 
+        Quaternion _applied = Quaternion.identity;
+
+        /// <summary>Reach of a tap on the world: far enough for the exchange's crates and the holo table's tokens.</summary>
+        const float TapReach = 9f;
+
         void OnDestroy()
         {
             if (Instance == this)
@@ -81,6 +86,13 @@ namespace Core.UI
         {
             if (!PcPlatformBoot.IsMobile)
                 return;
+
+            // Rooms, doors and teleports turn the rig: follow it rather than snapping back to the old heading.
+            if (Quaternion.Angle(transform.localRotation, _applied) > 0.01f)
+            {
+                _yaw = transform.localEulerAngles.y;
+                _applied = transform.localRotation;
+            }
 
             HandleTouches();
             ApplyMovement();
@@ -141,6 +153,7 @@ namespace Core.UI
                         _pitch = Mathf.Clamp(_pitch + delta.y * yFactor, -80f, 80f);
 
                         transform.localRotation = Quaternion.Euler(0f, _yaw, 0f);
+                        _applied = transform.localRotation;
                         if (_camera != null)
                             _camera.transform.localRotation = Quaternion.Euler(_pitch, 0f, 0f);
                     }
@@ -211,7 +224,7 @@ namespace Core.UI
                 return;
 
             var ray = _camera.ScreenPointToRay(screenPos);
-            if (Physics.Raycast(ray, out var hit, 4.5f))
+            if (Physics.Raycast(ray, out var hit, TapReach))
             {
                 var hitGo = hit.collider.gameObject;
 

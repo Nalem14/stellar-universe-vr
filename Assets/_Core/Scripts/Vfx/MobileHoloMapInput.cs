@@ -27,6 +27,10 @@ namespace Core.Vfx
             _map = map;
         }
 
+        bool _pinchFlipped;
+        /// <summary>Finger spread when the pinch began: the flip reads the whole gesture, not one frame.</summary>
+        float _pinchStart;
+
         void Update()
         {
             if (!PcPlatformBoot.IsMobile)
@@ -41,9 +45,13 @@ namespace Core.Vfx
                 return;
 
             var touches = Touch.activeTouches;
-            if (touches.Count < 2)
+            // The table is in reach only from the command seat: two fingers while walking are the joystick and
+            // the look, not a pinch.
+            var seated = CaptainCommandMode.Instance != null && CaptainCommandMode.Instance.IsCommandMode;
+            if (touches.Count < 2 || !seated)
             {
                 _prevPinchDist = -1f;
+                _pinchFlipped = false;
                 return;
             }
 
@@ -58,16 +66,25 @@ namespace Core.Vfx
             var dir = pos1 - pos0;
             float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
 
-            if (_prevPinchDist > 0f)
+            if (_prevPinchDist <= 0f)
+                _pinchStart = dist;
+            else
             {
                 // 1. Pinch zoom
-                float distRatio = dist / _prevPinchDist;
-                if (Mathf.Abs(distRatio - 1f) > 0.04f)
+                float distRatio = dist / Mathf.Max(1f, _pinchStart);
+                // One galaxy / system flip per pinch, not one per frame.
+                if (!_pinchFlipped && Mathf.Abs(distRatio - 1f) > 0.04f)
                 {
-                    if (distRatio > 1.05f && _controller.Mode == HoloMapMode.Galaxy)
+                    if (distRatio > 1.25f && _controller.Mode == HoloMapMode.Galaxy)
+                    {
                         _controller.SetMode(HoloMapMode.System);
-                    else if (distRatio < 0.95f && _controller.Mode == HoloMapMode.System)
+                        _pinchFlipped = true;
+                    }
+                    else if (distRatio < 0.8f && _controller.Mode == HoloMapMode.System)
+                    {
                         _controller.SetMode(HoloMapMode.Galaxy);
+                        _pinchFlipped = true;
+                    }
                 }
 
                 // 2. Rotate table

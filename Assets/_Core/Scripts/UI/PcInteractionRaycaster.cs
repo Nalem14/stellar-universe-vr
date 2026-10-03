@@ -1,5 +1,6 @@
 using Core.App;
 using Core.Stations;
+using Core.Utils;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.XR.Interaction.Toolkit;
@@ -14,7 +15,8 @@ namespace Core.UI
     /// </summary>
     public sealed class PcInteractionRaycaster : MonoBehaviour
     {
-        public float MaxInteractionDistance = 4.5f;
+        /// <summary>Far enough for the exchange's crates over the pit (5–7 m) and the holo table from the seat.</summary>
+        public float MaxInteractionDistance = 9f;
 
         Camera _cam;
         XRSimpleInteractable _hoveredInteractable;
@@ -89,15 +91,15 @@ namespace Core.UI
             }
             else if (isSeat)
             {
-                SetHover(interactable, null, "<b>[E]</b> ou <b>[Clic G]</b> S'asseoir au poste de commandement");
+                SetHover(interactable, null, Prompt(Trans.Get("vr.pc.sit")));
             }
             else if (door != null)
             {
-                SetHover(interactable, null, "<b>[E]</b> ou <b>[Clic G]</b> Passer la porte");
+                SetHover(interactable, null, Prompt(Trans.Get("vr.pc.door")));
             }
             else if (interactable != null)
             {
-                SetHover(interactable, null, "<b>[E]</b> ou <b>[Clic G]</b> Interagir");
+                SetHover(interactable, null, Prompt(Trans.Get("vr.pc.interact")));
             }
             else
             {
@@ -110,8 +112,11 @@ namespace Core.UI
             var label = btn.Label != null && !string.IsNullOrEmpty(btn.Label.text)
                 ? btn.Label.text
                 : btn.gameObject.name;
-            return $"<b>[E]</b> ou <b>[Clic G]</b> {label}";
+            return Prompt(label);
         }
+
+        /// <summary>"[E] or [Left click] {action}", in the player's language.</summary>
+        static string Prompt(string action) => Trans.Format("vr.pc.prompt", action);
 
         void SetHover(XRSimpleInteractable interactable, PokeButton poke, string prompt)
         {
@@ -158,6 +163,10 @@ namespace Core.UI
         {
             var mouse = Mouse.current;
             var kb = Keyboard.current;
+
+            // The E key is a letter when a field has the keyboard.
+            if (PcPlatformBoot.IsTyping)
+                kb = null;
 
             bool pressDown = (mouse != null && mouse.leftButton.wasPressedThisFrame) ||
                              (kb != null && kb.eKey.wasPressedThisFrame);
