@@ -794,15 +794,10 @@ namespace Core.Vfx
                 }
             }
 
-            if (FleetOrderGate.CanSiege(fleet, focus))
-            {
-                AddAction(ActionLabel("attackOrbit", planetLabel),
-                    () => Issue("FleetAttackPlanet", new Dictionary<string, string>
-                    {
-                        { "fleet", fleet.Id.ToString() },
-                        { "planet", fleet.PlanetId.ToString() }
-                    }));
-            }
+            // Planetary siege: always the tactical battle now (web attackOnPlanet 69d40af), never FleetAttackPlanet.
+            if (_hex != null && FleetOrderGate.CanSiege(fleet, focus))
+                AddAction(ActionLabel("attackOrbit", planetLabel), () => Assault(fleet, planetLabel),
+                    DiegeticUi.BtnStyle.Danger);
         }
 
         void BuildEngineering(FocusContext focus, FocusFleet fleet)
@@ -1495,6 +1490,23 @@ namespace Core.Vfx
             {
                 CicCue.Ok(transform.position);
                 _map?.SetReadout(Trans.Get("tacticalBattle"));
+            }
+            else
+            {
+                CicCue.Fail(transform.position);
+                _map?.SetReadout(string.IsNullOrEmpty(result.Error) ? Trans.Get("vr.common.error") : result.Error);
+            }
+        }
+
+        async Task Assault(FocusFleet mine, string planetLabel)
+        {
+            _map?.SetReadout(Trans.Get("Loading"));
+            var result = await _hex.AssaultPlanet(mine);
+            Core.Crew.BarkDirector.Instance?.OrderResult(Role.Tactical, "MakeBattle", result, planetLabel);
+            if (result.Ok)
+            {
+                CicCue.Ok(transform.position);
+                _map?.SetReadout(Trans.Get("planetarySiege"));
             }
             else
             {

@@ -17,6 +17,11 @@ namespace Core.App
         public long EndTime;
         public bool OurPlanet;
         public bool OurAttack;
+        /// <summary>
+        /// A planetary siege fought on the battle board (MakeBattle with planetid, web 69d40af): hostiles in battle
+        /// over one of our worlds. No timer, no CheckPlanetAttack — it ends when the battle does.
+        /// </summary>
+        public bool Tactical;
     }
 
     /// <summary>
@@ -24,7 +29,8 @@ namespace Core.App
     /// attack timer runs out until someone calls CheckPlanetAttack on the planet (web: opening the planet
     /// window). The bridge does it for every siege it is part of, as soon as the timer is up —
     /// "wip" = the fight is still being simulated (retry), "ok" = resolved, "ko" = no attack left.
-    /// Also voices a new attack on one of our worlds and the outcome.
+    /// Also voices a new attack on one of our worlds and the outcome — including the tactical planetary sieges
+    /// (hostile ships in battle over one of our worlds), whose outcome is read from ownership once they end.
     /// </summary>
     public sealed class SiegeWatch : MonoBehaviour
     {
@@ -38,6 +44,8 @@ namespace Core.App
         readonly List<Siege> _sieges = new();
         readonly Dictionary<int, float> _nextCheck = new();
         readonly HashSet<int> _announced = new();
+        readonly HashSet<int> _tacticalPrev = new();
+        readonly HashSet<int> _tacticalNow = new();
         bool _inFlight;
         bool _seeded;
         float _tick;
@@ -114,6 +122,36 @@ namespace Core.App
                 s.EndTime = s.EndTime == 0 ? f.AttackEndTime : System.Math.Min(s.EndTime, f.AttackEndTime);
             }
 
+            // Tactical sieges: someone else's ship fighting over one of our worlds.
+            _tacticalNow.Clear();
+            foreach (var f in _focus.Fleets)
+            {
+                if (!f.IsInBattle || f.PlanetId <= 0 || f.UserId == me || !OwnedPlanets.Contains(f.PlanetId))
+                    continue;
+                _tacticalNow.Add(f.PlanetId);
+                if (!TryGet(f.PlanetId, out var s))
+                {
+                    s = new Siege
+                    {
+                        PlanetId = f.PlanetId,
+                        SystemId = f.SystemId,
+                        OurPlanet = true,
+                        Tactical = true,
+                        PlanetName = PlanetName(f.PlanetId)
+                    };
+                    _sieges.Add(s);
+                }
+
+                s.Attackers.Add(f.Id);
+            }
+
+            // A tactical siege that is over: who holds the world now tells the outcome.
+            foreach (var id in _tacticalPrev)
+                if (!_tacticalNow.Contains(id) && _seeded)
+                    AsyncTap.Run(Resolved(new Siege { PlanetId = id, OurPlanet = true, Tactical = true, PlanetName = PlanetName(id) }));
+            _tacticalPrev.Clear();
+            _tacticalPrev.UnionWith(_tacticalNow);
+
             foreach (var s in _sieges)
             {
                 // Hostiles over one of our worlds: Tactical calls it once (not on the first read at boot).
@@ -144,7 +182,7 @@ namespace Core.App
             var now = FleetOrderGate.UnixNow();
             foreach (var s in _sieges)
             {
-                if (s.EndTime > now)
+                if (s.Tactical || s.EndTime > now)
                     continue;
                 if (_nextCheck.TryGetValue(s.PlanetId, out var at) && Time.unscaledTime < at)
                     continue;

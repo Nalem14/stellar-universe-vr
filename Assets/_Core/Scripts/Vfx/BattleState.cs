@@ -28,7 +28,8 @@ namespace Core.Vfx
         /// Fires at once on the ship itself: range 0 skills, shield regen (the server always shields the
         /// caster) and the self-centred pulse (debuff_aoe hits around the caster).
         /// </summary>
-        public bool SelfCast => Type == "heal_shield" || Type == "debuff_aoe" || Range <= 0;
+        public bool SelfCast => Type == "heal_shield" || Type == "debuff_aoe" || Type == "reactor_overcharge" ||
+                                Range <= 0;
 
         public bool TargetsEnemy => !SelfCast &&
                                     Type is "attack" or "attack_status" or "debuff" or "cyber_hack";
@@ -78,12 +79,22 @@ namespace Core.Vfx
         public int Initiative;
         public int BuffArmor;
         public bool Alive;
+        /// <summary>Planetary siege (web 69d40af): the besieged world itself fights at (0,0) for team 1.</summary>
+        public bool IsPlanet;
+        /// <summary>An orbital fortress: never moves, never retreats.</summary>
+        public bool IsStation;
+        public int PlanetId;
+        /// <summary>Left the arena on a retreat order (alive = 0, hex −999): not a loss.</summary>
+        public bool Retreated;
         public bool IsMine;
         public bool IsActive;
         public string Name = string.Empty;
         public readonly Dictionary<string, int> Status = new();
         public readonly List<BattleSkill> Skills = new();
         public readonly List<FocusShipModule> Modules = new();
+
+        /// <summary>Planet or fortress: no move, no jump, no retreat (server cannot_move / cannot_retreat).</summary>
+        public bool Immobile => IsPlanet || IsStation;
 
         public int StatusTurns(string effect) => Status.TryGetValue(effect, out var v) ? v : 0;
 
@@ -107,6 +118,10 @@ namespace Core.Vfx
                 Initiative = FocusContext.AsInt(t["initiative"]),
                 BuffArmor = FocusContext.AsInt(t["buff_armor"]),
                 Alive = FocusContext.AsBool(t["alive"]),
+                IsPlanet = FocusContext.AsBool(t["is_planet"]),
+                IsStation = FocusContext.AsBool(t["is_station"]),
+                PlanetId = FocusContext.AsInt(t["planet_id"]),
+                Retreated = FocusContext.AsBool(t["retreated"]),
                 IsMine = FocusContext.AsBool(t["is_mine"]),
                 IsActive = FocusContext.AsBool(t["is_active"]),
                 Name = FocusContext.AsString(t["fleet_name"])

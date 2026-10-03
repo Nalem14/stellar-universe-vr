@@ -126,8 +126,8 @@ namespace Core.Vfx
         {
             if (_targetsDirty)
                 RebuildTargets();
-            var a = FindTarget(2_000_000 + src);
-            var b = FindTarget(2_000_000 + dst);
+            var a = FindTarget(CombatKey(src));
+            var b = FindTarget(CombatKey(dst));
             if (a == null || b == null)
                 return;
             Play(new Shot
@@ -137,8 +137,14 @@ namespace Core.Vfx
             }, "shot:" + src + ">" + dst);
         }
 
+        /// <summary>Screen target key of a combatant: a fleet, or a besieged world (CombatEvents −planetId).</summary>
+        static int CombatKey(int combatant) => combatant < 0 ? 1_000_000 - combatant : 2_000_000 + combatant;
+
         void OnDestroyed(int fleet)
         {
+            // A world beaten in a siege is not blown up: its fall is told by the siege outcome, not here.
+            if (fleet < 0)
+                return;
             if (_targetsDirty)
                 RebuildTargets();
             var t = FindTarget(2_000_000 + fleet);

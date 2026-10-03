@@ -168,9 +168,15 @@ namespace Core.App
                 return AlertLevel.Amber;
 
             if (SiegeWatch.Instance != null)
+            {
+                // One of our worlds fighting a planetary siege on the battle board: battle stations, wherever we are.
+                foreach (var sg in SiegeWatch.Instance.Sieges)
+                    if (sg.Tactical)
+                        return AlertLevel.Red;
                 foreach (var sg in SiegeWatch.Instance.Sieges)
                     if (sg.SystemId == _focus.SystemId && (sg.OurPlanet || sg.OurAttack))
                         return AlertLevel.Amber;
+            }
 
             var now = FleetOrderGate.UnixNow();
             foreach (var f in _focus.Fleets)

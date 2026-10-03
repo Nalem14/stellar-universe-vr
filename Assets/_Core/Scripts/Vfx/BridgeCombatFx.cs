@@ -206,7 +206,13 @@ namespace Core.Vfx
             }
         }
 
-        bool Aboard(int fleet) => _focus != null && fleet > 0 && fleet == _focus.ViewFleetId;
+        /// <summary>
+        /// The combatant we stand in: our ship or fortress — or, in the citadel, the besieged world itself
+        /// (CombatEvents −planetId): its batteries thump through the tower and its hits shake it.
+        /// </summary>
+        bool Aboard(int fleet) =>
+            _focus != null && (fleet > 0 ? fleet == _focus.ViewFleetId
+                : fleet < 0 && _focus.Mode == ViewMode.City && -fleet == _focus.ViewPlanetId);
 
         /// <summary>Red alert lighting and the klaxon follow the ship's condition (a fight, or the commander's call).</summary>
         void OnAlert(AlertLevel was, AlertLevel now)
@@ -264,7 +270,7 @@ namespace Core.Vfx
 
         void OnDestroyed(int fleet)
         {
-            if (!Aboard(fleet))
+            if (fleet < 0 || !Aboard(fleet))
                 return;
             _blackout = 1f;
             CicCue.Explosion(transform.TransformPoint(new Vector3(0f, 1.6f, 0f)), 1f);

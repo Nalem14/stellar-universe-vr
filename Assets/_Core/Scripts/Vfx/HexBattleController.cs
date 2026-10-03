@@ -49,6 +49,9 @@ namespace Core.Vfx
         readonly HashSet<int> _dismissed = new();
         readonly HashSet<int> _finished = new();
 
+        /// <summary>The bridge's battle board (one per table), for orders issued from elsewhere (holo here-orders).</summary>
+        public static HexBattleController Instance { get; private set; }
+
         public bool IsActive => _visible && _battleId > 0;
         public int BattleId => _battleId;
         public BattleSnapshot State => _state;
@@ -59,7 +62,32 @@ namespace Core.Vfx
             _mapCtrl = mapCtrl;
             _art = art;
             _mount = tableMount;
+            Instance = this;
             BuildBoard();
+        }
+
+        void OnDestroy()
+        {
+            if (Instance == this)
+                Instance = null;
+        }
+
+        /// <summary>
+        /// Assault the world <paramref name="mine"/> orbits (web objects/fleet.js attackOnPlanet, 69d40af): always a
+        /// tactical planetary siege — the planet fights with its defences, joined by every other empire's ship
+        /// and fortress in its orbit (the server also gathers them, and lets RUN_AWAY ships flee).
+        /// </summary>
+        public Task<ApiResult> AssaultPlanet(FocusFleet mine)
+        {
+            if (_focus == null || mine == null || mine.PlanetId <= 0)
+                return Task.FromResult(ApiResult.Fail(Trans.Get("vr.common.error")));
+            var ids = new List<int> { mine.Id };
+            var me = FocusContext.OwnedUserId();
+            foreach (var f in _focus.Fleets)
+                if (f.PlanetId == mine.PlanetId && f.SystemId == mine.SystemId && f.UserId != me && f.UserId > 0 &&
+                    !ids.Contains(f.Id))
+                    ids.Add(f.Id);
+            return MakeBattle(ids, mine.PlanetId);
         }
 
         // ── Map mode hooks (HoloMapController.SetMode) ───────────────────────────
@@ -149,6 +177,13 @@ namespace Core.Vfx
                 return;
 
             UpdateInput();
+            if (_retreatArmedUntil > 0f && !RetreatArmed)
+            {
+                // The retreat confirmation lapsed: the key goes back to its idle label.
+                _retreatArmedUntil = 0f;
+                RefreshConsole();
+            }
+
             if (_closeAt > 0f && Time.unscaledTime >= _closeAt)
             {
                 _closeAt = -1f;
@@ -375,6 +410,7 @@ namespace Core.Vfx
             _finished.Add(_battleId);
             _dismissed.Remove(_battleId);
             var mineAlive = false;
+            var mineFled = false;
             var anyMine = false;
             if (snap != null)
                 foreach (var s in snap.Ships)
@@ -383,9 +419,12 @@ namespace Core.Vfx
                         continue;
                     anyMine = true;
                     mineAlive |= s.Alive;
+                    mineFled |= s.Retreated;
                 }
 
-            var key = snap == null || !anyMine ? "vr.battle.over" : mineAlive ? "vr.battle.victory" : "vr.battle.defeat";
+            // Every ship of ours that is gone left on a retreat order: no victory, but no loss either.
+            var key = snap == null || !anyMine ? "vr.battle.over" : mineAlive ? "vr.battle.victory"
+                : mineFled ? "vr.battle.retreated" : "vr.battle.defeat";
             ShowOutcome(Trans.Get(key), key == "vr.battle.victory" ? UiKit.Ok : key == "vr.battle.defeat" ? UiKit.Danger : UiKit.Amber);
             var at = _boardRoot.position + Vector3.up * 0.25f;
             if (key == "vr.battle.victory")
@@ -524,7 +563,9 @@ namespace Core.Vfx
         /// </summary>
         public async Task<ApiResult> MakeBattle(IList<int> fleetIds, int planetId = 0)
         {
-            if (_focus == null || fleetIds == null || fleetIds.Count < 2)
+            // A planetary siege may start with our ship alone: the world (and whoever orbits it) is the enemy
+            // (web attackOnPlanet, 69d40af). Elsewhere there must be a target.
+            if (_focus == null || fleetIds == null || fleetIds.Count < (planetId > 0 ? 1 : 2))
                 return ApiResult.Fail(Trans.Get("vr.common.error"));
             var query = new Dictionary<string, string>
             {
@@ -569,6 +610,9 @@ namespace Core.Vfx
                 return code;
             if (code is "notYourTurn" or "notYourFleet" or "battleNotFound" or "fleetNotInBattle" or "battleAlreadyStarted")
                 return Trans.Get(code);
+            // A planet or a fortress cannot flee (native web key).
+            if (code == "cannot_retreat")
+                return Trans.Get("cannotRetreatStation");
             return Trans.Get("vr.battle.err." + code);
         }
     }

@@ -60,6 +60,11 @@ namespace Core.Vfx
             public Vector3 To;
             public float MoveT = 1f;
             public float DeathT = -1f;
+            /// <summary>Planet only: orbit ring (same tint as the globe) and shield bubble.</summary>
+            public MeshRenderer Extra;
+            public MeshRenderer Bubble;
+            /// <summary>Retreat warp-out under way (fades instead of exploding).</summary>
+            public float FleeT = -1f;
         }
 
         readonly Dictionary<int, ShipView> _ships = new();
@@ -274,7 +279,8 @@ namespace Core.Vfx
                 var old = view.Data;
                 view.Data = s;
                 var to = HexLocal(s.Q, s.R) + Vector3.up * ShipHover;
-                if ((to - view.To).sqrMagnitude > 1e-6f)
+                // A retreated hull is parked off-board by the server (−999): it warps out from where it was.
+                if (!s.Retreated && (to - view.To).sqrMagnitude > 1e-6f)
                 {
                     view.From = view.Root.transform.localPosition;
                     view.To = to;
@@ -287,7 +293,7 @@ namespace Core.Vfx
                 {
                     var lost = (old.Hp - s.Hp) + (old.Shield - s.Shield);
                     if (old.Hp > s.Hp || old.Shield > s.Shield)
-                        CombatEvents.RaiseHit(s.FleetId, Mathf.Max(0, old.Hp - s.Hp), Mathf.Max(0, old.Shield - s.Shield));
+                        CombatEvents.RaiseHit(CombatEvents.CombatantOf(s), Mathf.Max(0, old.Hp - s.Hp), Mathf.Max(0, old.Shield - s.Shield));
                     if (lost > 0)
                         Floater(view.Root.transform.position + Vector3.up * 0.05f, "-" + lost,
                             s.Hp < old.Hp ? UiKit.Danger : new Color(0.45f, 0.75f, 1f, 1f));
@@ -297,7 +303,12 @@ namespace Core.Vfx
                         Floater(view.Root.transform.position + Vector3.up * 0.05f, "+" + (s.Shield - old.Shield),
                             new Color(0.45f, 0.75f, 1f, 1f));
                     if (old.Alive && !s.Alive)
-                        Destroyed(view);
+                    {
+                        if (s.Retreated)
+                            Fled(view);
+                        else
+                            Destroyed(view);
+                    }
                 }
                 else if (!s.Alive && view.DeathT < 0f)
                     view.Root.SetActive(false);
@@ -333,21 +344,53 @@ namespace Core.Vfx
             // Team 0 faces +x (toward team 1), team 1 faces −x.
             v.Root.transform.localRotation = Quaternion.LookRotation(s.Team == 0 ? Vector3.right : Vector3.left, Vector3.up);
 
-            var placed = new List<FocusShipModule>();
-            foreach (var m in s.Modules)
-                if (m.OnGrid)
-                    placed.Add(m);
             var hull = new GameObject("Hull");
             hull.transform.SetParent(v.Root.transform, false);
-            var zSign = placed.Count > 0 ? ShipHullBuilder.NoseSignFor(placed) : 1f;
-            hull.transform.localScale = new Vector3(ShipScale, ShipScale * 1.8f, ShipScale * zSign);
-            hull.AddComponent<MeshFilter>().sharedMesh = ShipHullBuilder.SilhouetteMesh(placed, s.FleetId);
-            v.Hull = hull.AddComponent<MeshRenderer>();
-            v.Hull.sharedMaterial = HullMat();
-            v.Hull.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            var bob = hull.AddComponent<HoloSpin>();
-            bob.DegreesPerSecond = 0f;
-            bob.BobMeters = 0.003f;
+            if (s.IsPlanet)
+            {
+                // The besieged world: a holo globe filling its hex, slow spin, a thin orbit ring and, while its
+                // shields hold, a fresnel bubble (planetary siege, web 69d40af).
+                hull.transform.localScale = Vector3.one * HexSize * 1.55f;
+                hull.AddComponent<MeshFilter>().sharedMesh = SphereMesh.Smooth;
+                v.Hull = hull.AddComponent<MeshRenderer>();
+                v.Hull.sharedMaterial = HullMat();
+                v.Hull.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                var turn = hull.AddComponent<HoloSpin>();
+                turn.DegreesPerSecond = 6f;
+                turn.BobMeters = 0f;
+                var ring = new GameObject("OrbitRing");
+                ring.transform.SetParent(v.Root.transform, false);
+                ring.transform.localScale = new Vector3(HexSize * 2.3f, HexSize * 0.02f, HexSize * 2.3f);
+                ring.AddComponent<MeshFilter>().sharedMesh = PlanetRingMesh();
+                var rr = ring.AddComponent<MeshRenderer>();
+                rr.sharedMaterial = HullMat();
+                rr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                v.Extra = rr;
+                var bubble = new GameObject("ShieldBubble");
+                bubble.transform.SetParent(v.Root.transform, false);
+                bubble.transform.localScale = Vector3.one * HexSize * 1.95f;
+                bubble.AddComponent<MeshFilter>().sharedMesh = SphereMesh.Smooth;
+                v.Bubble = bubble.AddComponent<MeshRenderer>();
+                v.Bubble.sharedMaterial = BubbleMat();
+                v.Bubble.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            }
+            else
+            {
+                var placed = new List<FocusShipModule>();
+                foreach (var m in s.Modules)
+                    if (m.OnGrid)
+                        placed.Add(m);
+                // A fortress is round: no nose to flip, a touch flatter so its hub ring reads from above.
+                var zSign = placed.Count > 0 && !s.IsStation ? ShipHullBuilder.NoseSignFor(placed) : 1f;
+                hull.transform.localScale = new Vector3(ShipScale, ShipScale * (s.IsStation ? 1.3f : 1.8f), ShipScale * zSign);
+                hull.AddComponent<MeshFilter>().sharedMesh = ShipHullBuilder.SilhouetteMesh(placed, s.FleetId);
+                v.Hull = hull.AddComponent<MeshRenderer>();
+                v.Hull.sharedMaterial = HullMat();
+                v.Hull.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                var bob = hull.AddComponent<HoloSpin>();
+                bob.DegreesPerSecond = s.IsStation ? 4f : 0f;
+                bob.BobMeters = 0.003f;
+            }
 
             // Hull / shield bars + name, always facing the captain.
             var bars = new GameObject("Bars").transform;
@@ -396,7 +439,8 @@ namespace Core.Vfx
         void PaintShip(ShipView v, bool active)
         {
             var s = v.Data;
-            var tint = s.IsMine ? MineTint : FoeTint;
+            // A world fights for its team even when it is an ally's: tint by side, not by owner.
+            var tint = s.IsMine || (s.IsPlanet && _state != null && s.Team == _state.MyTeam) ? MineTint : FoeTint;
             _mpb.Clear();
             _mpb.SetColor("_Color", tint * 0.55f);
             _mpb.SetColor("_Emission", active ? Color.Lerp(tint, UiKit.Amber, 0.35f) : tint);
@@ -404,6 +448,22 @@ namespace Core.Vfx
             _mpb.SetFloat("_Rim", 2.2f);
             _mpb.SetFloat("_Pulse", active ? 1.2f : 0.25f);
             v.Hull.SetPropertyBlock(_mpb);
+            if (v.Extra != null)
+                v.Extra.SetPropertyBlock(_mpb);
+            if (v.Bubble != null)
+            {
+                var up = s.Shield > 0 && s.Alive;
+                v.Bubble.enabled = up;
+                if (up)
+                {
+                    // Brighter the fuller the shield (SU/Atmosphere: additive fresnel shell).
+                    _mpb.Clear();
+                    var k = Mathf.Clamp01(s.Shield / (float)Mathf.Max(1, s.MaxShield));
+                    _mpb.SetColor("_Color", new Color(0.35f, 0.78f, 1f, 1f));
+                    _mpb.SetFloat("_Intensity", 0.35f + 0.85f * k);
+                    v.Bubble.SetPropertyBlock(_mpb);
+                }
+            }
 
             var hp = Mathf.Clamp01(s.Hp / (float)s.MaxHp);
             Fill(v.HpFill, hp, 0.054f);
@@ -429,8 +489,73 @@ namespace Core.Vfx
             bar.localPosition = new Vector3(-width * 0.5f + width * pct * 0.5f, p.y, p.z);
         }
 
-        static string ShipName(BattleShip s) =>
-            string.IsNullOrEmpty(s.Name) || s.Name == "ship" ? "#" + s.FleetId : s.Name;
+        /// <summary>
+        /// Ship: its fleet name. Planet: its own name from our catalogs — the server's fleet_name for it is French
+        /// text ("… (Planète)"), so it is never shown as is.
+        /// </summary>
+        static string ShipName(BattleShip s)
+        {
+            if (s.IsPlanet)
+            {
+                var id = s.PlanetId;
+                var name = FocusContext.Current?.FindPlanet(id)?.Name;
+                if (string.IsNullOrEmpty(name) && GalaxyCatalog.TryGetPlanet(id, out var pr))
+                    name = pr.Name;
+                return string.IsNullOrEmpty(name) ? Trans.Get("planet") + " #" + id : name;
+            }
+
+            return string.IsNullOrEmpty(s.Name) || s.Name == "ship" ? "#" + s.FleetId : s.Name;
+        }
+
+        static Mesh _planetRing;
+
+        /// <summary>A flat annulus (orbit ring under the battle globe), shared by every board.</summary>
+        static Mesh PlanetRingMesh()
+        {
+            if (_planetRing != null)
+                return _planetRing;
+            const int seg = 48;
+            var verts = new Vector3[seg * 2];
+            var tris = new int[seg * 6];
+            for (var i = 0; i < seg; i++)
+            {
+                var a = i * Mathf.PI * 2f / seg;
+                var d = new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a)) * 0.5f;
+                verts[i * 2] = d * 0.86f;
+                verts[i * 2 + 1] = d;
+                var n = (i + 1) % seg;
+                tris[i * 6] = i * 2;
+                tris[i * 6 + 1] = n * 2;
+                tris[i * 6 + 2] = i * 2 + 1;
+                tris[i * 6 + 3] = i * 2 + 1;
+                tris[i * 6 + 4] = n * 2;
+                tris[i * 6 + 5] = n * 2 + 1;
+            }
+
+            _planetRing = new Mesh { name = "BattlePlanetRing", vertices = verts, triangles = tris };
+            _planetRing.RecalculateNormals();
+            _planetRing.RecalculateBounds();
+            _planetRing.UploadMeshData(true);
+            return _planetRing;
+        }
+
+        Material _bubbleMat;
+
+        /// <summary>The planet's shield: an additive fresnel shell (SU/Atmosphere), see-through by design.</summary>
+        Material BubbleMat()
+        {
+            if (_bubbleMat != null)
+                return _bubbleMat;
+            var shader = Shader.Find("SU/Atmosphere");
+            _bubbleMat = shader != null
+                ? new Material(shader) { name = "BattleShieldBubble" }
+                : _art.Lit(Texture2D.whiteTexture, new Color(0.35f, 0.78f, 1f, 1f), 1.2f);
+            if (_bubbleMat.HasProperty("_RimPower"))
+                _bubbleMat.SetFloat("_RimPower", 2.2f);
+            if (_bubbleMat.HasProperty("_Inner"))
+                _bubbleMat.SetFloat("_Inner", 0.05f);
+            return _bubbleMat;
+        }
 
         static readonly string[] Effects = { "ionized", "jammed", "gravity", "overheated" };
 
@@ -599,7 +724,11 @@ namespace Core.Vfx
                 {
                     var slot = 0;
                     var gravity = src.StatusTurns("gravity") > 0;
-                    var move = Button(Trans.Get("move") + "\n<size=70%>" + Trans.Format("vr.battle.pmLeft", src.Pm) + "</size>",
+                    // A planet or a fortress holds its hex: the move key reads "fixed position" and stays dark.
+                    var moveLabel = src.Immobile
+                        ? Trans.Get("vr.battle.immobile")
+                        : Trans.Get("move") + "\n<size=70%>" + Trans.Format("vr.battle.pmLeft", src.Pm) + "</size>";
+                    var move = Button(moveLabel,
                         slot++, 0, 5, w, h, _pendingSkill == null ? UiKit.Ok : UiKit.Cyan, () =>
                         {
                             _pendingSkill = null;
@@ -607,7 +736,7 @@ namespace Core.Vfx
                             RefreshGrid();
                             RefreshConsole();
                         });
-                    move.Interactive = src.Pm > 0 && !gravity;
+                    move.Interactive = !src.Immobile && src.Pm > 0 && !gravity;
                     var ionized = src.StatusTurns("ionized") > 0;
                     foreach (var sk in src.Skills)
                     {
@@ -624,8 +753,19 @@ namespace Core.Vfx
                         slot++;
                     }
 
-                    Button(Trans.Get("vr.tactical.endTurn"), 0, 2, 2, w * 1.4f, h, UiKit.Amber, () => AsyncTap.Run(EndTurn()));
-                    Button(Trans.Get("vr.battle.leave"), 1, 2, 2, w * 1.4f, h, UiKit.Cyan, Leave);
+                    if (src.Immobile)
+                    {
+                        Button(Trans.Get("vr.tactical.endTurn"), 0, 2, 2, w * 1.4f, h, UiKit.Amber, () => AsyncTap.Run(EndTurn()));
+                        Button(Trans.Get("vr.battle.leave"), 1, 2, 2, w * 1.4f, h, UiKit.Cyan, Leave);
+                    }
+                    else
+                    {
+                        // Retreat (web 69d40af): armed by a first press, the second one orders it.
+                        Button(Trans.Get("vr.tactical.endTurn"), 0, 2, 3, w * 1.2f, h, UiKit.Amber, () => AsyncTap.Run(EndTurn()));
+                        Button(RetreatArmed ? "<b>" + Trans.Get("retreatAction") + " ?</b>" : Trans.Get("retreatAction"),
+                            1, 2, 3, w * 1.2f, h, RetreatArmed ? UiKit.Danger : new Color(0.99f, 0.88f, 0.28f, 1f), Retreat);
+                        Button(Trans.Get("vr.battle.leave"), 2, 2, 3, w * 1.2f, h, UiKit.Cyan, Leave);
+                    }
                 }
                 else
                     Button(Trans.Get("vr.battle.leave"), 0, 2, 1, w * 1.4f, h, UiKit.Cyan, Leave);
@@ -652,7 +792,8 @@ namespace Core.Vfx
                 return "none";
             var sb = new StringBuilder();
             sb.Append(s.State).Append('|').Append(s.MyReady).Append('|').Append(s.MyTurn).Append('|')
-                .Append(s.ActiveId).Append('|').Append(_outcomeShown).Append('|').Append(_pendingSkill?.Id);
+                .Append(s.ActiveId).Append('|').Append(_outcomeShown).Append('|').Append(_pendingSkill?.Id)
+                .Append('|').Append(RetreatArmed);
             var a = s.MyTurn ? s.ActiveShip : null;
             if (a != null)
             {

@@ -36,6 +36,15 @@ namespace Core.Vfx
         /// <summary>A siege was resolved by the server (planet, attackers won).</summary>
         public static event Action<int, bool> SiegeResolved;
 
+        /// <summary>
+        /// Combatant id carried by these events: a fleet id, or −planetId for a besieged world fighting in a
+        /// planetary siege (web 69d40af battle_ships.is_planet, whose fleet_id is 0).
+        /// </summary>
+        public static int PlanetCombatant(int planetId) => -planetId;
+
+        public static int CombatantOf(BattleShip s) =>
+            s == null ? 0 : s.IsPlanet ? PlanetCombatant(s.PlanetId) : s.FleetId;
+
         public static void RaiseShot(int src, int dst, Color color, bool heavy) => Shot?.Invoke(src, dst, color, heavy);
         public static void RaiseSelf(int fleet, Color color) => SelfCast?.Invoke(fleet, color);
         public static void RaiseHit(int fleet, int hull, int shield) => Hit?.Invoke(fleet, hull, shield);

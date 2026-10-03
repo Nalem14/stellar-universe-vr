@@ -114,6 +114,9 @@ namespace Core.Vfx
                     continue;
                 if (e.Action == "skill")
                     PlaySkill(e);
+                else if (e.Action == "retreat" && _ships.TryGetValue(e.Src, out var fled) && fled.Root != null &&
+                         fled.FleeT < 0f)
+                    Fled(fled);
             }
 
             _lastLogId = Mathf.Max(max, 0);
@@ -127,7 +130,19 @@ namespace Core.Vfx
             var from = src.Root.transform.position;
             var skillId = SkillIdOf(src.Data, r);
             var color = SkillColor(skillId, r);
-            var heavy = skillId.Contains("missile") || skillId.Contains("torpedo");
+            var heavy = skillId.Contains("missile") || skillId.Contains("torpedo") || skillId == "planetary_battery" ||
+                        skillId == "orbital_cannonade";
+
+            if (r != null && Core.App.FocusContext.AsBool(r["overcharged"]))
+            {
+                // Citadel reactor overcharge: a gold pulse, shields topped up, ion / heat purged.
+                Flash(from, new Color(1f, 0.82f, 0.25f, 1f), 0.2f);
+                Flash(from, new Color(0.45f, 0.85f, 1f, 1f), 0.12f);
+                CicCue.Zap(from, 0.85f);
+                Floater(from + Vector3.up * 0.06f, Trans.Get("vr.battle.overcharge"), new Color(1f, 0.82f, 0.25f, 1f));
+                CombatEvents.RaiseSelf(CombatEvents.CombatantOf(src.Data), new Color(1f, 0.82f, 0.25f, 1f));
+                return;
+            }
             var any = false;
 
             if (r?["hits"] is JArray hits)
@@ -138,7 +153,7 @@ namespace Core.Vfx
                     if (_ships.TryGetValue(id, out var tv) && tv.Root != null)
                     {
                         FireBeam(from, tv.Root.transform.position, color, heavy);
-                        CombatEvents.RaiseShot(src.Data.FleetId, tv.Data.FleetId, color, heavy);
+                        CombatEvents.RaiseShot(CombatEvents.CombatantOf(src.Data), CombatEvents.CombatantOf(tv.Data), color, heavy);
                         any = true;
                     }
                 }
@@ -146,7 +161,7 @@ namespace Core.Vfx
                 if (!any)
                 {
                     Flash(from, color, 0.12f);
-                    CombatEvents.RaiseSelf(src.Data.FleetId, color);
+                    CombatEvents.RaiseSelf(CombatEvents.CombatantOf(src.Data), color);
                 }
 
                 return;
@@ -156,7 +171,7 @@ namespace Core.Vfx
             if (target > 0 && target != e.Src && _ships.TryGetValue(target, out var t) && t.Root != null)
             {
                 FireBeam(from, t.Root.transform.position, color, heavy);
-                CombatEvents.RaiseShot(src.Data.FleetId, t.Data.FleetId, color, heavy);
+                CombatEvents.RaiseShot(CombatEvents.CombatantOf(src.Data), CombatEvents.CombatantOf(t.Data), color, heavy);
                 return;
             }
 
@@ -168,14 +183,14 @@ namespace Core.Vfx
                                                  Vector3.up * ShipHover);
                 Flash(dest, new Color(0.75f, 0.5f, 1f, 1f), 0.1f);
                 CicCue.Zap(from, 1.5f);
-                CombatEvents.RaiseSelf(src.Data.FleetId, new Color(0.75f, 0.5f, 1f, 1f));
+                CombatEvents.RaiseSelf(CombatEvents.CombatantOf(src.Data), new Color(0.75f, 0.5f, 1f, 1f));
                 return;
             }
 
             // Self skill: shield / armour / engines / repair around the caster.
             Flash(from, color, 0.11f);
             CicCue.Zap(from, 1.7f);
-            CombatEvents.RaiseSelf(src.Data.FleetId, color);
+            CombatEvents.RaiseSelf(CombatEvents.CombatantOf(src.Data), color);
         }
 
         static int FocusContext_AsInt(JToken t) => Core.App.FocusContext.AsInt(t);
@@ -209,6 +224,14 @@ namespace Core.Vfx
         {
             if (r != null && (r["healed"] != null || r["shield"] != null))
                 return new Color(0.3f, 1f, 0.6f, 1f);
+            // Planet ground batteries and orbital artillery: heavy amber shells; flak: hot white-orange bursts;
+            // the orbital jammer: violet.
+            if (id == "planetary_battery" || id == "orbital_cannonade")
+                return new Color(1f, 0.6f, 0.18f, 1f);
+            if (id == "flak_barrage")
+                return new Color(1f, 0.85f, 0.55f, 1f);
+            if (id == "orbital_blackout")
+                return new Color(0.72f, 0.45f, 1f, 1f);
             if (id.Contains("ion") || id.Contains("emp") || id.Contains("jammed") || id.Contains("energy"))
                 return new Color(0.3f, 0.75f, 1f, 1f);
             if (id.Contains("plasma") || id.Contains("gravity"))
@@ -262,6 +285,20 @@ namespace Core.Vfx
             free.Root.gameObject.SetActive(true);
         }
 
+        /// <summary>Retreat: a yellow jump flare, the hull stretches up and out — no wreck, no destroyed tag.</summary>
+        void Fled(ShipView v)
+        {
+            if (v.FleeT >= 0f)
+                return;
+            v.FleeT = 0f;
+            v.DeathT = 0f;
+            var at = v.Root.transform.position;
+            Flash(at, new Color(0.99f, 0.88f, 0.28f, 1f), 0.18f);
+            Flash(at, Color.white, 0.07f);
+            CicCue.Zap(at, 1.9f);
+            Floater(at + Vector3.up * 0.07f, Trans.Get("vr.battle.retreated"), new Color(0.99f, 0.88f, 0.28f, 1f));
+        }
+
         void Destroyed(ShipView v)
         {
             v.DeathT = 0f;
@@ -271,7 +308,7 @@ namespace Core.Vfx
             CicCue.Boom(at, 0.8f);
             Floater(at + Vector3.up * 0.07f, Trans.Get("vr.battle.destroyed"), UiKit.Danger);
             if (v.Data != null)
-                CombatEvents.RaiseDestroyed(v.Data.FleetId);
+                CombatEvents.RaiseDestroyed(CombatEvents.CombatantOf(v.Data));
         }
 
         void UpdateFx()
@@ -339,8 +376,18 @@ namespace Core.Vfx
                     continue;
                 v.DeathT += dt;
                 var k = Mathf.Clamp01(v.DeathT / 0.9f);
-                v.Root.transform.localScale = Vector3.one * (1f - MotionEase.SmoothInOut(k));
-                v.Root.transform.localPosition = v.To - Vector3.up * (k * 0.02f);
+                if (v.FleeT >= 0f)
+                {
+                    // Warp-out: thin and tall, rising off the board.
+                    var e = MotionEase.SmoothInOut(k);
+                    v.Root.transform.localScale = new Vector3(1f - e, 1f + e * 2.5f, 1f - e);
+                    v.Root.transform.localPosition = v.To + Vector3.up * (e * 0.12f);
+                }
+                else
+                {
+                    v.Root.transform.localScale = Vector3.one * (1f - MotionEase.SmoothInOut(k));
+                    v.Root.transform.localPosition = v.To - Vector3.up * (k * 0.02f);
+                }
                 if (k >= 1f)
                     v.Root.SetActive(false);
             }

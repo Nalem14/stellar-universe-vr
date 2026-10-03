@@ -23,6 +23,8 @@ namespace Core.Vfx
             public Transform Src;
             public Transform Dst;
             public Vector3 Offset;
+            /// <summary>Planet shooter only: the battery's spot on the surface (ships fire from their centre).</summary>
+            public Vector3 SrcOffset;
             public Color Color;
             public float T = -1f;
             public float Travel;
@@ -76,9 +78,32 @@ namespace Core.Vfx
         /// <summary>Hit point on a hull: spread over the ship's span so a volley does not stack on one pixel.</summary>
         static Vector3 HullOffset() => Random.insideUnitSphere * (WorldScale.ShipSpan * 0.18f);
 
+        /// <summary>
+        /// A combatant outside: a fleet's ship, or (id &lt; 0) the besieged world itself — its ground batteries fire
+        /// from, and shots land on, its surface (planetary siege, web 69d40af).
+        /// </summary>
+        bool TryGetCombatant(int id, out Transform t, out float surface)
+        {
+            surface = 0f;
+            if (id < 0)
+            {
+                if (!_exterior.TryGetPlanet(-id, out t))
+                    return false;
+                surface = t.lossyScale.x * 0.5f;
+                return true;
+            }
+
+            return _exterior.TryGetFleet(id, out t);
+        }
+
+        /// <summary>Where a shot leaves / lands on <paramref name="t"/> seen from <paramref name="other"/>.</summary>
+        static Vector3 FaceToward(Transform t, float surface, Vector3 other) =>
+            surface > 0f ? (other - t.position).normalized * (surface * 1.01f) + Random.insideUnitSphere * (surface * 0.12f)
+                : HullOffset();
+
         void OnShot(int src, int dst, Color color, bool heavy)
         {
-            if (!_exterior.TryGetFleet(src, out var a) || !_exterior.TryGetFleet(dst, out var b))
+            if (!TryGetCombatant(src, out var a, out var aSurface) || !TryGetCombatant(dst, out var b, out var bSurface))
                 return;
             Shot free = null;
             foreach (var s in _shots)
@@ -91,7 +116,8 @@ namespace Core.Vfx
             free ??= _shots[0];
             free.Src = a;
             free.Dst = b;
-            free.Offset = HullOffset();
+            free.SrcOffset = aSurface > 0f ? FaceToward(a, aSurface, b.position) : Vector3.zero;
+            free.Offset = FaceToward(b, bSurface, a.position);
             free.Color = color;
             free.Heavy = heavy;
             var dist = (b.position - a.position).magnitude;
@@ -102,13 +128,21 @@ namespace Core.Vfx
             free.Hit = false;
             free.Line.enabled = true;
             // Muzzle flare at the gun.
-            CombatFxKit.Emit(_flares, a.position + HullOffset() * 0.5f, color, WorldScale.ShipSpan * 0.35f, 0.3f);
+            CombatFxKit.Emit(_flares, a.position + (aSurface > 0f ? free.SrcOffset : HullOffset() * 0.5f), color,
+                WorldScale.ShipSpan * (aSurface > 0f ? 0.8f : 0.35f), 0.3f);
         }
 
         void OnSelf(int fleet, Color color)
         {
-            if (!_exterior.TryGetFleet(fleet, out var t))
+            if (!TryGetCombatant(fleet, out var t, out var surface))
                 return;
+            if (surface > 0f)
+            {
+                // A world raising its garrison shields: a wide shimmer hugging the globe.
+                CombatFxKit.Emit(_flares, t.position, color * 0.6f, surface * 2.3f, 0.9f);
+                return;
+            }
+
             // A bubble of light around the hull (shield up, engines overcharged, repair drones…).
             for (var i = 0; i < 3; i++)
                 CombatFxKit.Emit(_flares, t.position + HullOffset() * 0.4f, color * 0.8f, WorldScale.ShipSpan * (1.1f + i * 0.3f),
@@ -117,8 +151,19 @@ namespace Core.Vfx
 
         void OnHit(int fleet, int hull, int shield)
         {
-            if (!_exterior.TryGetFleet(fleet, out var t))
+            if (!TryGetCombatant(fleet, out var t, out var surface))
                 return;
+            if (surface > 0f)
+            {
+                // The planetary shield flickers over the globe; what gets through scars the surface.
+                var spot = t.position + Random.onUnitSphere * surface;
+                if (shield > 0)
+                    CombatFxKit.Emit(_flares, t.position, new Color(0.35f, 0.7f, 1f, 0.6f), surface * 2.25f, 0.5f);
+                if (hull > 0)
+                    CombatFxKit.Emit(_flares, spot, new Color(1f, 0.55f, 0.2f, 1f), WorldScale.ShipSpan * 1.4f, 0.8f);
+                return;
+            }
+
             // Shield took it: a wide blue shimmer; hull took it: a hot small flare and a few sparks.
             if (shield > 0)
                 CombatFxKit.Emit(_flares, t.position, new Color(0.35f, 0.7f, 1f, 0.8f), WorldScale.ShipSpan * 1.6f, 0.5f);
@@ -165,7 +210,7 @@ namespace Core.Vfx
                 }
 
                 s.T += dt;
-                var from = s.Src.position;
+                var from = s.Src.position + s.SrcOffset;
                 var to = s.Dst.position + s.Offset;
                 var grow = Mathf.Clamp01(s.T / s.Travel);
                 var fade = Mathf.Clamp01((s.T - s.Travel) / 0.35f);

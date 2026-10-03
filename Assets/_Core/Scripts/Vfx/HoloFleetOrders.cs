@@ -788,8 +788,8 @@ namespace Core.Vfx
             if (planet != null && planet.UserId == 0 && CrewDialogue.ColonyModuleId(fleet) > 0 && FleetOrderGate.CanStance(fleet) &&
                 (planet.Habitability == 0 || planet.Habitability >= 6))
                 options.Add(new Core.Holo.OrderConsole.Option(Trans.Get("Colonize"), true, UiKit.Amber, "Colonize"));
-            if (FleetOrderGate.CanSiege(fleet, focus))
-                options.Add(new Core.Holo.OrderConsole.Option(Trans.Get("attackOrbit"), true, new Color(1f, 0.4f, 0.35f), "FleetAttackPlanet"));
+            if (FleetOrderGate.CanSiege(fleet, focus) && HexBattleController.Instance != null)
+                options.Add(new Core.Holo.OrderConsole.Option(Trans.Get("attackOrbit"), true, new Color(1f, 0.4f, 0.35f), "Assault"));
             if (FleetOrderGate.CanCargo(fleet, focus) && options.Count < 3)
             {
                 options.Add(new Core.Holo.OrderConsole.Option(Trans.Get("depositCargo"), true, UiKit.Cyan, "DepositCargo"));
@@ -818,6 +818,26 @@ namespace Core.Vfx
             {
                 _map?.SetReadout(Trans.Get("cancel"));
                 return false;
+            }
+
+            if (action == "Assault")
+            {
+                // Planetary siege on the battle board (web attackOnPlanet 69d40af).
+                _map?.SetReadout(Trans.Get("Loading"));
+                var siege = HexBattleController.Instance != null
+                    ? await HexBattleController.Instance.AssaultPlanet(fleet)
+                    : ApiResult.Fail(Trans.Get("vr.common.error"));
+                Core.Crew.BarkDirector.Instance?.OrderResult(CrewDialogue.Role.Tactical, "MakeBattle", siege, dest);
+                if (!siege.Ok)
+                {
+                    CicCue.Fail(target.transform.position);
+                    _map?.SetReadout(FormatError("MakeBattle", siege.Error));
+                    return false;
+                }
+
+                CicCue.Ok(target.transform.position);
+                _map?.SetReadout(Trans.Get("planetarySiege"));
+                return true;
             }
 
             var query = new Dictionary<string, string>();
@@ -853,7 +873,6 @@ namespace Core.Vfx
             _map?.SetReadout(Trans.Get("Loading"));
             var result = await ActionJs.Get(action, query);
             var role = action == "ExplorePlanet" ? CrewDialogue.Role.Science
-                : action == "FleetAttackPlanet" ? CrewDialogue.Role.Tactical
                 : action == "HarvestAsteroid" ? CrewDialogue.Role.Engineering
                 : CrewDialogue.Role.Ops;
             Core.Crew.BarkDirector.Instance?.OrderResult(role, action, result, dest);

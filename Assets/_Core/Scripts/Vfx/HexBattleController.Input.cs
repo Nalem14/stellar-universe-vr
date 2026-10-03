@@ -148,6 +148,13 @@ namespace Core.Vfx
             var src = _state?.MyTurn == true ? _state.ActiveShip : null;
             if (src == null || skill == null)
                 return;
+            if (skill.Type == "teleport" && src.Immobile)
+            {
+                // A planet or a fortress is anchored: no jump either (server cannot_move).
+                Refuse(Trans.Get("vr.battle.immobile"));
+                return;
+            }
+
             if (skill.SelfCast)
             {
                 _pendingSkill = null;
@@ -241,14 +248,20 @@ namespace Core.Vfx
                 return;
             }
 
+            if (d <= 0)
+                return;
+            if (src.Immobile)
+            {
+                Refuse(Trans.Get("vr.battle.immobile"));
+                return;
+            }
+
             if (src.StatusTurns("gravity") > 0)
             {
                 Refuse(Trans.Get("vr.battle.err.gravity_field"));
                 return;
             }
 
-            if (d <= 0)
-                return;
             if (d > src.Pm)
             {
                 Refuse(Trans.Format("vr.battle.tooFar", d, src.Pm));
@@ -258,6 +271,40 @@ namespace Core.Vfx
             CicCue.Ok(_frame.TransformPoint(HexLocal(q, r)));
             AsyncTap.Run(Act("move", null, 0, q, r));
         }
+
+        float _retreatArmedUntil;
+
+        /// <summary>
+        /// Retreat (web 69d40af "Fuir le combat"): two presses within 4 s, like the web's confirm — the active
+        /// ship leaves the arena (BattleDoAction subaction=retreat) and, if it was the fleet's last, its fleet
+        /// falls back to the star. Never offered to a planet or a fortress.
+        /// </summary>
+        public void Retreat()
+        {
+            var src = _state?.MyTurn == true ? _state.ActiveShip : null;
+            if (src == null || _acting || _outcomeShown)
+                return;
+            if (src.Immobile)
+            {
+                Refuse(Trans.Get("cannotRetreatStation"));
+                return;
+            }
+
+            if (Time.unscaledTime > _retreatArmedUntil)
+            {
+                _retreatArmedUntil = Time.unscaledTime + 4f;
+                CicCue.Hover(_console.position);
+                Toast(Trans.Get("retreatConfirm"));
+                RefreshConsole();
+                return;
+            }
+
+            _retreatArmedUntil = 0f;
+            _pendingSkill = null;
+            AsyncTap.Run(Act("retreat", null, 0, 0, 0));
+        }
+
+        bool RetreatArmed => Time.unscaledTime <= _retreatArmedUntil;
 
         void Fire(BattleSkill skill, int target, int q, int r)
         {
