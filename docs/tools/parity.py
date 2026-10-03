@@ -36,16 +36,16 @@ for name,v in sorted(A.items()):
 extra=sorted(registered-set(A))
 out=[]
 w=out.append
-w('# PARITY — Stellar Universe VR ↔ `actionjs.php`\n')
+w('# PARITY — Stellar Universe (casque · PC · mobile) ↔ `actionjs.php`\n')
 w(f'Généré depuis `action-api.json` ({len(A)} actions), `actionjs.php` et un grep des deux clients. Référence web : `/Users/thommy/Websites/stellar-universe`. Roadmap : [`ROADMAP.md`](ROADMAP.md).\n')
-w('**Règle** : chaque feature livrée met à jour sa ligne. Avant de coder, lire l\'implémentation web (colonne *Web*) + `model/*.php`. On adapte la jouabilité au pont VR ; le contrat serveur reste strict. La VR ne renvoie **jamais** au web.\n')
+w('**Règle** : chaque feature livrée met à jour sa ligne. Avant de coder, lire l\'implémentation web (colonne *Web*) + `model/*.php`. On adapte la jouabilité au pont (casque, souris, tactile : voir `PLATFORMS.md`) ; le contrat serveur reste strict. Le jeu ne renvoie **jamais** au web.\n')
 w('## Légende\n')
-w('- **Statut** : `Branché` (appel fonctionnel en VR, UX à finir) · `Démo` (appelé mais valeurs en dur / réponse ignorée ou brute) · `À faire` · `Hors scope` (legacy / serveur only / interdit par AGENTS).')
+w('- **Statut** : `Branché` (appel fonctionnel dans le jeu, UX à finir) · `Démo` (appelé mais valeurs en dur / réponse ignorée ou brute) · `À faire` · `Hors scope` (legacy / serveur only / interdit par AGENTS).')
 w('- **Station** : où la feature vit à bord. Helm, Tactical, Engineering, Science, Comms, Ops = stations du pont ; *Conseil* = salle du conseil / bureau du captain (admin empire, progression, shop) ; *Sas* = scène Menu ; *Holo table* = carte.')
 w('- **Phase** : voir [`ROADMAP.md`](ROADMAP.md) §3.')
 w('- **R/W** : lecture / écriture (heuristique sur le nom). `?` = param optionnel.\n')
 w('## Couverture\n')
-w('| Domaine | Appelées en VR | Total | % |'); w('|---|---|---|---|')
+w('| Domaine | Appelées par le jeu | Total | % |'); w('|---|---|---|---|')
 for c in order:
     n=len(rows[c]); u=sum(1 for r in rows[c] if r[3]!='—'); w(f'| {LEG[c]} | {u} | {n} | {round(100*u/n)} % |')
 w(f'| **Total** | **{used_total}** | **{len(A)}** | **{round(100*used_total/len(A))} %** |\n')

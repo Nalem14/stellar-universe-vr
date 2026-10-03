@@ -1,4 +1,4 @@
-# Échelles spatiales — Stellar Universe VR
+# Échelles spatiales — Stellar Universe (casque · PC · mobile)
 
 Source de vérité runtime : `Core.Vfx.WorldScale`.  
 Toute nouvelle géométrie **système / vaisseau / planète** lit ces constantes. Ne pas inventer un mètre « qui a l’air bien » dans un script isolé.
@@ -119,6 +119,18 @@ Les hublots Bridge sont des **trous** sur le `SystemExterior` partagé (l'ancien
 - [ ] Locomotion joueur = pièce seulement. Les flottes bougent ; le CIC suit **sa** flotte (`BridgeViewRig`).
 
 ---
+
+## Le joueur sur écran plat (PC, mobile)
+
+Même pièce, même échelle qu’en casque : la caméra est à hauteur d’yeux debout, le corps est une capsule qui bute sur les mêmes colliders.
+
+| Élément | Valeur | Constante / source |
+|---|---|---|
+| Yeux (debout) | 1.6 m au-dessus du sol | `WorldScale.EyeStanding` (`PcDesktopController`, `MobileTouchController`) |
+| Corps | capsule h 1.8 m, r 0.35 m, marche 0.3 m | `PcPlatformBoot.SetupDesktopRig` (`CharacterController`) |
+| Vitesse | 2.8 m/s marche, 4.8 m/s course (Maj / joystick à fond) | `PcDesktopController`, `MobileTouchController` |
+| Portée d’interaction | 9 m (réticule, souris, tap) — les caisses de la Bourse flottent à 5–7 m | `PcInteractionRaycaster.MaxInteractionDistance`, `MobileTouchController.TapReach` |
+| Regard | ±82° (PC), ±80° (mobile) en tangage | contrôleurs |
 
 ## Plan du pont (CIC, repère intérieur, +Z = hublots)
 

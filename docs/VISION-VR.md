@@ -1,8 +1,10 @@
 # Vision Stellar Universe — même jeu, autre corps
 
-**Décision produit : multiplateforme (VR, PC Desktop, Mobile tactile).**  
+**Décision produit : scope B, multiplateforme.**  
 Client 3D **complet** de Stellar Universe : **toutes** les features du web / `actionjs.php`, même compte, même galaxie persistante.  
-Disponible sur **Meta Quest (VR)**, **PC Desktop / PCVR** et **Mobile (Android / iOS)**.
+Un seul jeu sur **Meta Quest / PCVR (casque)**, **PC (clavier-souris, première personne)** et **mobile (Android / iOS, tactile)**. Ce n’est **pas** un compagnon, **pas** un port RTS god-cam, **pas** un 4X autonome.
+
+Le casque reste la référence d’**immersion** (et le plancher de **perfs**, voir AGENTS.md) ; le PC et le mobile sont le même lieu, vu par un écran : même pont, mêmes salles, mêmes gestes traduits à la souris et au doigt. Contrat d’entrées : [`PLATFORMS.md`](PLATFORMS.md).
 
 Inspiration UX : [BattleGroup VR](https://www.meta.com/experiences/battlegroupvr/4459505850829471/) — on commande depuis **le pont d’un vaisseau**, la carte est un **hologramme à portée de main**, le combat se voit par les hublots. Le joueur n’est pas une caméra qui vole.
 
@@ -11,20 +13,20 @@ Inspiration UX : [BattleGroup VR](https://www.meta.com/experiences/battlegroupvr
 ## 1. Promesse
 
 Tu n’ouvres pas « l’UI Stellaris en floating canvases ».  
-Tu **es** le commandant, **à bord** : pont de **n’importe lequel de tes vaisseaux**, ou — à défaut de flotte — une **fausse station en orbite** de la planète dont tu prends la vue. Jamais un avatar qui marche au sol.
+Tu **es** le commandant, **à bord** : le pont de **n’importe lequel de tes vaisseaux**, la rotonde d’une de **tes stations orbitales**, ou le sommet de la **citadelle** d’une de tes planètes. Jamais un avatar qui marche à la surface.
 
 Le web reste le client « bureau » (listes, grilles, clics).  
-Le casque est le client « être là » : mêmes ordres, autre geste, autre lieu.
+Stellar Universe est le client « être là » : mêmes ordres, autre geste, autre lieu — en casque, ou à la première personne sur un écran.
 
-| | Web | SU:VR |
+| | Web | Stellar Universe (casque · PC · mobile) |
 |---|---|---|
-| Où tu es | Page galaxie / planète | CIC : pont d’un **vaisseau à toi**, ou fausse **station orbitale** ; hublots = ce focus |
+| Où tu es | Page galaxie / planète | CIC : pont d’un **vaisseau à toi**, rotonde d’une **station**, ou **citadelle** d’une cité ; hublots = ce focus |
 | Carte | 2D cliquable | Table holo dans la pièce |
 | Ordre de flotte | Bouton + dropdown | Token de flotte posé sur une étoile / orbite |
 | Construction | Liste d’upgrades | Maquette de planète sur un pupitre |
 | Combat hex | Grille à l’écran | Le plateau holo **devient** le hex |
 | Chat / mail | Panneau latéral | Mur comms |
-| Locomotion | Scroll / zoom | Room-scale dans le pont. Quart : tu es déjà dans ta pièce |
+| Locomotion | Scroll / zoom | Dans la pièce seulement : room-scale (casque), ZQSD + souris (PC), joystick + glisser (mobile). Quart (casque) : tu es déjà dans ta pièce |
 
 Le serveur ne change pas. `changesystem` = ce que voient les hublots + le focus de la table. `MoveFleet*` = les vaisseaux, pas toi.
 
@@ -41,13 +43,15 @@ Un RTS classique en VR casse trois choses :
 Donc :
 
 - Le joueur **ne voyage pas** de système en système. Il **téléporte sa vue** : il *habite* un autre CIC. Les flottes, elles, bougent avec `MoveFleet*`.
-- **TP de vue, dans cet ordre :** (1) n’importe quel **vaisseau / flotte que tu possèdes** → tu es sur **son** pont ; (2) à défaut (pas de flotte, ou tu vises une planète) → n’importe quelle **planète** → tu es dans une **fausse station orbitale** au-dessus, pas à la surface.
+- **TP de vue, dans cet ordre :** (1) n’importe quel **vaisseau que tu possèdes** → tu es sur **son** pont ; (2) une de **tes stations orbitales** → sa rotonde de commandement ; (3) une de **tes planètes** → le sommet de la **citadelle**, la cité sous toi — jamais à la surface (§3.2).
 - Les distances galactiques n’existent que **sur la table**.
-- Le 1:1, c’est **l’intérieur du CIC** (pont vaisseau ou fausse station) et, par les hublots, le **système / l’orbite courants**. En **quart passthrough**, le 1:1 c’est **ta pièce** + un petit cluster holo — jamais la galaxie au sol.
+- Le 1:1, c’est **l’intérieur du CIC** (pont, rotonde ou citadelle) et, par les hublots, le **système / l’orbite / la cité courants**. En **quart passthrough**, le 1:1 c’est **ta pièce** + un petit cluster holo — jamais la galaxie au sol.
 
 ---
 
 ## 2.1 Passthrough = mode quart (pas un second jeu)
+
+> Casque seulement (Quest avec caméras). Sur PC et mobile, le quart n’existe pas : le pont suffit.
 
 SU a des **temps morts longs** : jump `desttime`, siège `attackEndTime`, colo 12 h, tour hex en attente de l’adversaire. Rester enfermé dans le pont Synty pendant 40 min, c’est absurde. Le passthrough sert à **rester casqué dans ta pièce**, avec un **brin de CIC** — pas à rejouer tout le jeu en AR.
 
@@ -101,7 +105,7 @@ Un seul « niveau » habité, réutilisé toute la session.
 
 ### 3.1 Pont / passerelle (pièce principale)
 
-- Room-scale ~3×3 m + téléport court **dans** la pièce.
+- Room-scale ~3×3 m + téléport court **dans** la pièce (casque) ; marche à la première personne dans la même pièce (PC, mobile).
 - **Table holo** au centre : carte interactive (voir §4).
 - **Hublots** : système actuellement focalisé (`user.systemid`). Soleil du bon type, planètes sur `slot`, lumières de flottes locales (`GetAllFleets` filtré sur le système focalisé + arrivées). En transit (amiral en jump) : tunnel / étoiles filantes (`hyperportal` SFX déjà là).
 - **Fauteuil de commandement** (option) : snap-turn, moins de locomotion, table toujours à portée.
@@ -120,10 +124,10 @@ Priorité :
 |---|---|---|---|---|
 | **Pont vaisseau** | Onglet *Vaisseaux* du téléporteur, ou reprise de session sur l’amiral | Pont en fer à cheval | Système de **cette** flotte ; jump si busy | `changesystem(fleet.systemid)` ; `changeplanet` si `planetid > 0` |
 | **Station orbitale** | Onglet *Stations* (une flotte `isStation`) | **Centre de commandement** rond (rotonde Ø 17 m, dôme à anneaux lumineux, murs de données, monolithe du viewscreen) ; coursive = **hall** dans l'anneau habité | Orbite de sa planète + **la station elle-même** : hub, 4 rayons, anneau Ø 92 m, **ses modules montés sur l'anneau** (batteries, projecteurs de bouclier, brouilleurs, chantiers, réacteurs) | `changesystem(fleet.systemid)` |
-| **Citadelle (cité)** | Onglet *Planètes* (une de tes planètes) | La même rotonde, habillage or ; le hall dans l'aile de la couronne (à 272°, entre deux baies) | **La cité** vue du haut de la tour : districts tirés des vrais bâtiments, terre / dunes / glace / canyons / mer de nuages selon la planète, ciel jour-nuit, tes stations qui passent dans le ciel, dôme-bouclier, batteries en siège | `changeplanet(planet.id)` + `changesystem(planet.systemid)` |
+| **Citadelle (cité)** | Onglet *Planètes* (une de tes planètes) | La même rotonde, habillage or ; le hall est la **galerie de la citadelle**, un étage dessous, **dans** la tour (couloir courbe en pierre, fenêtres en arc sur la ville ; aucun anneau autour de la tour) | **La cité** vue du haut de la tour : districts tirés des vrais bâtiments, terre / dunes / glace / canyons / mer de nuages selon la planète, ciel jour-nuit, tes stations qui passent dans le ciel, dôme-bouclier, batteries en siège | `changeplanet(planet.id)` + `changesystem(planet.systemid)` |
 | **Défaut boot** | Login | Amiral si un vaisseau existe, sinon une station, sinon la citadelle d'une planète possédée | Comme ci-dessus | Boot API déjà prévu (`changesystem` vers un système possédé) |
 
-Même locomotion (room-scale **dans** la pièce). Changer de vaisseau / de station / de cité = fade court, **pas** une nouvelle scène Unity : la cité est un extérieur partagé (`CityExterior`) posé sous la scène système, comme la station l'est autour de la rotonde. Une cité perdue (siège) renvoie à bord d'un vaisseau ou dans une autre cité.
+Même locomotion (dans la pièce, selon la plateforme). Changer de vaisseau / de station / de cité = fade court, **pas** une nouvelle scène Unity : la cité est un extérieur partagé (`CityExterior`) posé sous la scène système, comme la station l'est autour de la rotonde. Une cité perdue (siège) renvoie à bord d'un vaisseau ou dans une autre cité.
 
 Interdit : walker au sol, TP dans l’espace sans coque, god-cam entre les deux.
 
@@ -131,7 +135,9 @@ Interdit : walker au sol, TP dans l’espace sans coque, god-cam entre les deux.
 
 Marcher 2 m, ce n’est pas changer de scène Unity. Ce sont des **stations diegetic** autour du pont :
 
-| Alcôve | Features web (actions) | Interaction VR |
+Chaque meuble se joue en casque (main, rayon, poke), à la souris (réticule ou curseur, clic / E, glisser) et au doigt (tap, appui-glisser, pincement) — voir [`PLATFORMS.md`](PLATFORMS.md).
+
+| Alcôve | Features web (actions) | Interaction (geste de référence, casque) |
 |---|---|---|
 | **Table holo** | Galaxie, systèmes, flottes, files d’ordres, siège, hex battle | Grab / drop / pinch zoom |
 | **Astrométrie** (hublot + table) | `GetSystems`, anomalies, asteroids, bounties | Zoom système, scan |
@@ -144,7 +150,7 @@ Marcher 2 m, ce n’est pas changer de scène Unity. Ce sont des **stations dieg
 | **Intendance** | Shop Nova, objectifs, flag | Vitrine / console |
 | **Bourse** (station / cité seulement) | Marché galactique : offres, ventes, convois de fret | Caisses en orbite autour d'une fosse : on en vise une, elle vient au berceau et s'ouvre ; la marchandise vendue naît sur un pad de séquestre ; carte stellaire des routes et des convois en vol, cargos qui décollent par la baie |
 
-Pas de menu hamburger. Si une feature n’a pas de **meuble**, elle n’est pas encore dans le jeu VR.
+Pas de menu hamburger. Si une feature n’a pas de **meuble**, elle n’est pas encore dans le jeu.
 
 `PolygonSciFiSpace` = intérieur du pont. Le quart passthrough n’en a pas besoin (cluster holo seulement).  
 À jeter : coaching cards. Détection de plan = option pour coller le cluster à une vraie table.
@@ -170,7 +176,9 @@ Comme BattleGroup : **la carte vient à la main**, les vrais volumes restent par
 - **Construire** : poke plot bâtiment → `UpgradeBuilding` ; anneau de timer = `working`.
 - **Interdit UX** : caméra libre galactique, minimap collée au visage, recréer les écrans web en World Space Canvas dans le vide.
 
-Confort : table à hauteur de poitrine, 0,8–1,2 m. Joueur debout ou assis. Snap turn 45°. Pas de smooth locomotion galactique.
+Confort : table à hauteur de poitrine, 0,8–1,2 m. Joueur debout ou assis. Snap turn 45° (casque). Pas de smooth locomotion galactique.
+
+Sur écran plat, les gestes de table se traduisent sans changer de sens : saisir un token = clic / appui maintenu dessus, le déposer = relâcher sur la cible ; zoom = molette / pincement ; tourner la table = clic-glisser / deux doigts. Assis au fauteuil sur PC, des raccourcis (F, M, C, O, T) ouvrent les postes ; sur mobile, une barre de boutons tactiles.
 
 ---
 
@@ -181,7 +189,7 @@ Confort : table à hauteur de poitrine, 0,8–1,2 m. Joueur debout ou assis. Sna
 
 Ordre qui respecte le lieu :
 
-1. Réseau (`ActionJs` selon spec) + boot VR API  
+1. Réseau (`ActionJs` selon spec) + boot API  
 2. **Pièce pont** Synty + locomotion interne  
 3. Hublots = système focalisé (`changesystem`)  
 4. Table holo galaxie/système + token flotte + un `MoveFleet*`  
@@ -191,16 +199,17 @@ Ordre qui respecte le lieu :
 8. **Quart passthrough** (cluster holo + fade) branché sur `desttime` / tours hex  
 9. Stargate, alliance, guerres, shop  
 
-Le web peut rester en avance : un bouton manquant en VR n’est pas une feature « absente du jeu », c’est une alcôve pas encore construite. Le compte, lui, est le même.
+Le web peut rester en avance : un bouton manquant dans le jeu n’est pas une feature « absente », c’est une alcôve pas encore construite. Le compte, lui, est le même.
 
 ---
 
 ## 6. Multiplateforme
 
-- Un empire, des clients. Quest / PCVR ici ; navigateur et app ailleurs.
-- Token **minté sur l’appareil** (IP). Pas de token web collé dans le casque.
-- Pas de simu locale. Tick = API. La VR n’a pas de règles d’économie différentes.
-- Conflit web + casque en parallèle : le serveur tranche (busy flags). La table se contente de **poll** et d’afficher l’état.
+- Un empire, des clients : le navigateur (web), et ce jeu sur **Quest / PCVR**, **PC** (Windows, Mac) et **mobile** (Android, iOS). Une seule base de code ; la plateforme est détectée au boot (`PcPlatformBoot`), le reste du jeu est commun.
+- Même contenu partout : aucune feature réservée au casque ou à l’écran, sauf le **quart passthrough** (casque à caméras).
+- Token **minté sur l’appareil** (IP). Pas de token web collé dans le jeu, pas de token partagé entre deux appareils.
+- Pas de simu locale. Tick = API. Aucune plateforme n’a de règles d’économie différentes.
+- Conflit entre clients en parallèle (web, casque, téléphone) : le serveur tranche (busy flags). La table se contente de **poll** et d’afficher l’état.
 
 ---
 
@@ -208,11 +217,11 @@ Le web peut rester en avance : un bouton manquant en VR n’est pas une feature 
 
 Le proto 2022.3 n’est **pas** le socle : **nouveau projet Unity 6 LTS**, template VR, assets volés. Voir audit §8.
 
-- Scène de jeu = **intérieur pont** + rig XR. Galaxie = table, pas le world. Passthrough = couche caméra + cluster holo, **sans** détruire le pont (on le cache).
+- Scène de jeu = **intérieur pont** + rig XR (sur écran plat, le même rig porte un contrôleur à la première personne). Galaxie = table, pas le world. Passthrough = couche caméra + cluster holo, **sans** détruire le pont (on le cache).
 - `GameLoader` ne doit plus spawner toute la galaxie dans le world 1:1. Galaxie = renderer de **table**. Système courant = renderer **hublot**.
 - Positions : `x,y` et `slot` déterministes, jamais `Random` pour l’univers.
 - Prefabs vaisseaux : miniatures de table + silhouettes lointaines hublot, pas 200 hulls physiques.
-- UI XRI : poke/grab sur des **objets de pièce**, pas des Canvas d’écran.
+- UI : poke / grab / rayon / clic / tap sur des **objets de pièce**, pas des Canvas d’écran. Un seul chemin d’interaction par objet, lu par les trois entrées (`PLATFORMS.md`).
 - Audio : `ambient` / `eraSpace` dans le pont ; `travelengine` / `startHyperspace` / `hyperportal` quand l’amiral jump ; `click` sur la table.
 
 ---
@@ -225,7 +234,9 @@ Le proto 2022.3 n’est **pas** le socle : **nouveau projet Unity 6 LTS**, templ
 - Tutoriel Mixed Reality (coaching cards comme gameplay).  
 - Faire du passthrough un **second jeu** à parité (chantier, stargate, hex dense). C’est un **quart** : pièce réelle + cluster, features réduites.  
 - Dogfight 1ère personne comme vérité du combat hex.  
-- Téléporter le joueur **à la surface** d’une planète pour « jouer ». Le TP de vue = pont d’un **vaisseau à toi** ou **fausse station orbitale**, jamais un walker.  
+- Téléporter le joueur **à la surface** d’une planète pour « jouer ». Le TP de vue = pont d’un **vaisseau à toi**, rotonde d’une **station**, ou **citadelle** au-dessus de la cité — jamais un walker.  
+- Une version « allégée » pour une plateforme, ou une feature qui ne marche qu’en casque / qu’à la souris.  
+- Des menus Screen Space sur PC / mobile pour remplacer les meubles (l’overlay se limite au réticule, aux invites et aux commandes tactiles).  
 - Réécrire le serveur « pour la VR ».  
 - Forcer le passthrough : sans caméras, le pont seul.
 
@@ -233,4 +244,4 @@ Le proto 2022.3 n’est **pas** le socle : **nouveau projet Unity 6 LTS**, templ
 
 ## 9. Phrase de pitch
 
-**Stellar Universe VR : tu commandes le même empire que sur le web, depuis un CIC. Tu te TP dans n’importe lequel de tes vaisseaux ; à défaut, dans une fausse station en orbite d’une planète. La galaxie est sur la table. Les hublots, c’est seulement là où tu regardes.**
+**Stellar Universe : tu commandes le même empire que sur le web, depuis un CIC — en casque, sur PC ou sur ton téléphone. Tu te TP sur le pont de n’importe lequel de tes vaisseaux, dans tes stations, au sommet de tes citadelles. La galaxie est sur la table. Les hublots, c’est seulement là où tu regardes.**

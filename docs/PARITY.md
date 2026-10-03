@@ -1,19 +1,19 @@
-# PARITY — Stellar Universe VR ↔ `actionjs.php`
+# PARITY — Stellar Universe (casque · PC · mobile) ↔ `actionjs.php`
 
 Généré depuis `action-api.json` (172 actions), `actionjs.php` et un grep des deux clients. Référence web : `/Users/thommy/Websites/stellar-universe`. Roadmap : [`ROADMAP.md`](ROADMAP.md).
 
-**Règle** : chaque feature livrée met à jour sa ligne. Avant de coder, lire l'implémentation web (colonne *Web*) + `model/*.php`. On adapte la jouabilité au pont VR ; le contrat serveur reste strict. La VR ne renvoie **jamais** au web.
+**Règle** : chaque feature livrée met à jour sa ligne. Avant de coder, lire l'implémentation web (colonne *Web*) + `model/*.php`. On adapte la jouabilité au pont (casque, souris, tactile : voir `PLATFORMS.md`) ; le contrat serveur reste strict. Le jeu ne renvoie **jamais** au web.
 
 ## Légende
 
-- **Statut** : `Branché` (appel fonctionnel en VR, UX à finir) · `Démo` (appelé mais valeurs en dur / réponse ignorée ou brute) · `À faire` · `Hors scope` (legacy / serveur only / interdit par AGENTS).
+- **Statut** : `Branché` (appel fonctionnel dans le jeu, UX à finir) · `Démo` (appelé mais valeurs en dur / réponse ignorée ou brute) · `À faire` · `Hors scope` (legacy / serveur only / interdit par AGENTS).
 - **Station** : où la feature vit à bord. Helm, Tactical, Engineering, Science, Comms, Ops = stations du pont ; *Conseil* = salle du conseil / bureau du captain (admin empire, progression, shop) ; *Sas* = scène Menu ; *Holo table* = carte.
 - **Phase** : voir [`ROADMAP.md`](ROADMAP.md) §3.
 - **R/W** : lecture / écriture (heuristique sur le nom). `?` = param optionnel.
 
 ## Couverture
 
-| Domaine | Appelées en VR | Total | % |
+| Domaine | Appelées par le jeu | Total | % |
 |---|---|---|---|
 | Auth | 3 | 3 | 100 % |
 | Méta / boot | 5 | 5 | 100 % |

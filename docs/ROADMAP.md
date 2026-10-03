@@ -1,4 +1,4 @@
-# ROADMAP — Stellar Universe VR (2026)
+# ROADMAP — Stellar Universe (2026) — casque · PC · mobile
 
 > État au 2026-09-24. Remplace [`archive/AUDIT-FAISABILITE.md`](archive/AUDIT-FAISABILITE.md), qui est obsolète.
 > Parité action par action : [`PARITY.md`](PARITY.md). Clés i18n à intégrer : [`i18n/missing-keys.md`](i18n/missing-keys.md). Règles : [`../AGENTS.md`](../AGENTS.md).
@@ -11,10 +11,13 @@ Aujourd'hui, 49 des 152 actions sont appelées (32 %), et une bonne partie ne l'
 
 La plupart des défauts visibles viennent de quelques **causes structurelles** (§1), pas d'un manque de polish. On pose donc les fondations (§2) avant d'empiler de nouvelles features (§3).
 
+> **2026-10-03 — le jeu devient multiplateforme** (PR #1, `eecf200`) : le même client tourne en casque (Quest / PCVR), sur PC (clavier-souris, première personne) et sur mobile (tactile). Voir [`PLATFORMS.md`](PLATFORMS.md) et la phase **PX** ci-dessous. Les sections plus anciennes parlent de « VR » : elles valent pour les trois plateformes.
+
 Principes non négociables, rappelés ici :
-- **La VR se suffit à elle-même.** Le jeu ne renvoie jamais le joueur vers le web. Chaque feature web a son équivalent diegetic à bord.
+- **Le jeu se suffit à lui-même.** Il ne renvoie jamais le joueur vers le web. Chaque feature web a son équivalent diegetic à bord.
+- **Trois plateformes, un seul jeu.** Chaque interaction marche en casque, à la souris et au doigt ; aucune version allégée.
 - **Le web est la référence de fonctionnement.** Avant de coder une feature, on lit son implémentation web. On adapte la jouabilité au pont ; le contrat serveur, lui, reste strict.
-- **Art livré avec la feature**, dans le budget Quest (72 FPS).
+- **Art livré avec la feature**, dans le budget Quest (72 FPS), plancher de perfs commun aux trois plateformes.
 
 ---
 
@@ -399,6 +402,12 @@ Même langage que les postes de l'équipage (quincaillerie arrondie `SU/ConsoleM
 - Passe de perfs sur device (particules additives proches des yeux, `FindObjectsByType` toutes les 2 s dans trois outils de la table).
 
 ---
+
+### PX — Multiplateforme (PC, mobile) — en cours
+
+Base livrée par la PR #1 (`eecf200`) : détection de plateforme (`PcPlatformBoot`), contrôleur FPS PC et HUD minimal (`PcDesktopController`, `PcInteractionRaycaster`, `PcHud`), joystick / regard / tap mobile (`MobileTouchController`, `MobileHud`), molette et pincement sur la table (`PcHoloMapInput`, `MobileHoloMapInput`).
+Revue et corrections (`5214e67`, `f22d5a0`) : un seul EventSystem (connexion PC réparée), curseur libre au sas, textes PC / mobile traduits, champs de texte qui gardent le clavier, orientation suivie après une porte, portée 9 m, écrans holo visés au réticule en vue FPS.
+Reste : passer **chaque** interaction au crible des trois entrées (table holo — saisir / déposer un token, files ; plateau hex ; écran principal ; chantier — glisser les modules ; labo ; orrery ; porte des étoiles ; poignets / consoles de bras), puis vérifier sur téléphone et sur Quest. Suivi détaillé : [`PLATFORMS.md`](PLATFORMS.md) §4.
 
 ## Vérification (toutes phases)
 

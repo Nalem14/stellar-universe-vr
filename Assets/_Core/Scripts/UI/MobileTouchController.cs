@@ -23,7 +23,7 @@ namespace Core.UI
         public float WalkSpeed = 2.8f;
         public float RunSpeed = 4.8f;
         public float Gravity = -14.0f;
-        public float StandingEyeHeight = 1.65f;
+        public float StandingEyeHeight = Core.Vfx.WorldScale.EyeStanding;
         public float JoystickRadius = 80f;
 
         [Header("Camera Look")]
