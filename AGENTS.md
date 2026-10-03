@@ -69,7 +69,8 @@ Le client web (Phaser 3 + PHP) est disponible en local : **`/Users/thommy/Websit
 
 **Adapter, pas copier** : la jouabilité est repensée pour le POV pont VR (stations, crew, table holo, gestes). La compatibilité serveur, elle, reste **stricte** : mêmes actions, mêmes params, mêmes états, mêmes enchaînements.
 
-**Deux clients indépendants** : le web est une référence **pour les développeurs uniquement**. Le jeu VR ne renvoie **jamais** le joueur vers le web — pas de « faites-le sur le site », pas de lien, pas de QR. Chaque feature web a son équivalent en VR (création d'empire, admin d'empire / alliance, shop…). S'il manque une action serveur, on la **spécifie** dans `docs/PARITY.md` et on la demande côté web ; on ne contourne pas par le site.
+**Deux clients indépendants** : le web est une référence **pour les développeurs uniquement**. Le jeu VR ne renvoie **jamais** le joueur vers le web pour jouer — pas de « faites-le sur le site », pas de lien ni de QR vers une feature. Chaque feature web a son équivalent en VR (création d'empire, admin d'empire / alliance, shop…). S'il manque une action serveur, on la **spécifie** dans `docs/PARITY.md` et on la demande côté web ; on ne contourne pas par le site.
+**Seule exception** : la plaque **Communauté** du sas (`Core.UI.CommunityPlaque`) — le site et l'invitation Discord (https://discord.gg/KFrJKQMEGH), QR + ouverture dans le navigateur du casque. Rien d'autre.
 
 Points d'entrée utiles :
 

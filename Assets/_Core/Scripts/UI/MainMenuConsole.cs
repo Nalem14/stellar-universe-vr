@@ -89,6 +89,8 @@ namespace Core.UI
             if (_env != null)
             {
                 _board = SasTransmissions.Build(_env.transform, _env.Art);
+                // Right of the terminal: the game's site and Discord (QR + open in the headset's browser).
+                CommunityPlaque.Build(_env.transform, _env.Art);
                 // The boarding door: walking through it (or its jamb control) is the same as Continue.
                 var a = SasShell.DoorAngle * Mathf.Deg2Rad;
                 var door = SasShell.Centre + new Vector3(Mathf.Sin(a), 0f, Mathf.Cos(a)) * (SasShell.Radius - 0.1f);
