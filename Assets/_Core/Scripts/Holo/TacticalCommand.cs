@@ -493,7 +493,7 @@ namespace Core.Holo
                 return AimNeutral;
             if (Invalid(fleet, target) != null)
                 return AimInvalid;
-            return target.Kind != HoloTokenKind.Anomaly && !fleet.CanIssueMove(FleetOrderGate.UnixNow()) ? Queued : Valid;
+            return target.Kind != HoloTokenKind.Anomaly && !fleet.IsStation && !fleet.CanIssueMove(FleetOrderGate.UnixNow()) ? Queued : Valid;
         }
 
         void PokeClicks()
@@ -606,7 +606,9 @@ namespace Core.Holo
             Changed?.Invoke();
             CicCue.Ok(token.transform.position);
             var fleet = SelectedFleet;
-            if (fleet != null && !fleet.CanIssueMove(FleetOrderGate.UnixNow()))
+            if (fleet != null && fleet.IsStation)
+                Readout(token.DisplayName + "  ·  " + Trans.Get("stationCannotMove"));
+            else if (fleet != null && !fleet.CanIssueMove(FleetOrderGate.UnixNow()))
                 Readout(token.DisplayName + "  ·  " + Trans.Get(FleetOrderGate.BusyKey(fleet)) + "  ·  " +
                         Trans.Get("vr.queue.busyHint"));
             else
@@ -763,6 +765,12 @@ namespace Core.Holo
                 case HoloTokenKind.Asteroid:
                     if (target.Kind == HoloTokenKind.Asteroid && _focus?.FindAsteroid(target.Id) is { Gone: true })
                         return Trans.Get("asteroidDepleted");
+                    // Anchored fortress: only its own planet, and only for what it can do there.
+                    if (fleet.IsStation)
+                        return target.Kind == HoloTokenKind.Planet && fleet.PlanetId == target.Id &&
+                               HoloFleetOrders.HereOptions(fleet, target, _focus).Count > 0
+                            ? null
+                            : Trans.Get("stationCannotMove");
                     // Busy: valid — the order joins its queue (HoloFleetOrders.QueueOrders).
                     if (!fleet.CanIssueMove(now))
                         return null;
@@ -776,6 +784,8 @@ namespace Core.Holo
                         return Trans.Get("asteroidDepleted");
                     return null;
                 case HoloTokenKind.System:
+                    if (fleet.IsStation)
+                        return Trans.Get("stationCannotMove");
                     if (target.Slot < 0 || target.Id == fleet.SystemId)
                         return Trans.Get("vr.table.alreadyThere");
                     // Busy: a queued moveToSystem step.
@@ -795,7 +805,7 @@ namespace Core.Holo
                 return;
             var tex = _art.OrbitRing != null ? _art.OrbitRing : Texture2D.whiteTexture;
             // Busy ship: its targets take queued steps — amber rings (the queue's colour) instead of green.
-            var tint = fleet.CanIssueMove(FleetOrderGate.UnixNow()) ? Valid : Queued;
+            var tint = fleet.IsStation || fleet.CanIssueMove(FleetOrderGate.UnixNow()) ? Valid : Queued;
             var mat = _art.RadarIcon(tex, new Color(tint.r, tint.g, tint.b, 0.85f));
             foreach (var t in _map.Tokens)
             {
@@ -936,7 +946,7 @@ namespace Core.Holo
         {
             var name = string.IsNullOrEmpty(target.DisplayName) ? target.Kind.ToString() : target.DisplayName;
             // Busy: the pick is a queued step, not a flight — say so instead of an ETA.
-            if (target.Kind != HoloTokenKind.Anomaly && !fleet.CanIssueMove(FleetOrderGate.UnixNow()))
+            if (target.Kind != HoloTokenKind.Anomaly && !fleet.IsStation && !fleet.CanIssueMove(FleetOrderGate.UnixNow()))
                 return name + "  <color=#ffb866>" + Trans.Get("addToQueue") + "</color>";
             switch (target.Kind)
             {

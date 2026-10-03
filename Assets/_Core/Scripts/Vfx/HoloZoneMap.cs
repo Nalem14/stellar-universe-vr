@@ -220,7 +220,7 @@ namespace Core.Vfx
         {
             var stance = DiplomacyIndex.ResolveFleet(fleet);
             return new FleetView(ResolveFleetSlot(fleet, focus), DiplomacyIndex.Tint(stance),
-                stance == EmpireStance.Owned, !fleet.CanIssueMove(now), viewId > 0 && fleet.Id == viewId, stance,
+                stance == EmpireStance.Owned, !fleet.IsIdle(now), viewId > 0 && fleet.Id == viewId, stance,
                 string.IsNullOrEmpty(fleet.Name) ? "ship" : fleet.Name, fleet.PlanetId + ":" + fleet.AsteroidId);
         }
 

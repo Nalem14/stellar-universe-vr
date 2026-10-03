@@ -112,7 +112,7 @@ namespace Core.App
                 if (f.UserId != me || f.SystemId != systemId || f.IsMoving(now) || !HasScanner(f))
                     continue;
                 // Server ScanAnomaly refuses a busy fleet (IsFleetBusy) and keeps it exploring for the scan.
-                if (!f.CanIssueMove(now))
+                if (!f.IsIdle(now))
                 {
                     busy ??= f;
                     continue;
@@ -210,7 +210,7 @@ namespace Core.App
         public async Task<ApiResult> Scan(Anomaly anomaly, FocusFleet fleet)
         {
             var bark = Core.Crew.BarkDirector.Instance;
-            if (fleet != null && !fleet.CanIssueMove(FleetOrderGate.UnixNow()))
+            if (fleet != null && !fleet.IsIdle(FleetOrderGate.UnixNow()))
             {
                 bark?.Say(CrewDialogue.Role.Science, "fail", 3);
                 return ApiResult.Fail(Trans.Get(FleetOrderGate.BusyKey(fleet)));

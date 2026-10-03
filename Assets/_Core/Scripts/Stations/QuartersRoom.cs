@@ -1188,12 +1188,20 @@ namespace Core.Stations
 
         /// <summary>
         /// The ship we stand aboard sets course for the boss's system (helm travel lectern: sublight / hyperspace /
-        /// Bond PRL, same quotes as the bridge). From a station there is no ship to send: the captain is told so.
+        /// Bond PRL, same quotes as the bridge). From a fortress or a city there is no ship to send: the captain is told so.
         /// </summary>
         async Task SetCourseToBoss(int systemId)
         {
             var focus = FocusContext.Current;
             var fleet = focus?.FindViewFleet();
+            if (fleet != null && fleet.IsStation)
+            {
+                // An orbital fortress has no engine: the server refuses every move (stationCannotMove).
+                SetStatus(_progStatus, Trans.Get("stationCannotMove"), true);
+                CicCue.Fail(_prog.transform.position);
+                return;
+            }
+
             if (fleet == null)
             {
                 SetStatus(_progStatus, Trans.Get("vr.quarters.bossNoShip"), true);

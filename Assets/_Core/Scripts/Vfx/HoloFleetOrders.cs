@@ -175,8 +175,8 @@ namespace Core.Vfx
             ClearDropHighlight();
             if (_map == null)
                 return;
-            // From a virtual orbital station the table still commands every owned fleet around; the
-            // station itself has no fleet token, so there is nothing of it to drag.
+            // From a city the table still commands every owned fleet around. An orbital fortress has a token
+            // but no engine: it is never picked up (every move would be refused, stationCannotMove).
 
             foreach (var token in _map.Tokens)
             {
@@ -188,7 +188,7 @@ namespace Core.Vfx
                 // Under way or in battle it is not grabbed (its token glides / the hex fight owns it) — a
                 // point → point pick on the table queues for it instead (TacticalCommand).
                 var ship = _focus?.FindFleet(token.Id);
-                if (ship == null ? token.Busy : ship.IsMoving(UnixNow()) || ship.IsInBattle)
+                if (ship == null ? token.Busy : ship.IsStation || ship.IsMoving(UnixNow()) || ship.IsInBattle)
                     continue;
 
                 var col = EnsureGrabVolume(token.gameObject);
@@ -434,7 +434,17 @@ namespace Core.Vfx
                 // Busy (mining, surveying, sieging, under way): nothing flies now, but every target still takes
                 // queued steps — the server runs them in order once the ship is idle (ProcessFleetQueue).
                 var here = _focus.FindFleet(fleetToken.Id);
-                if (here != null && !here.CanIssueMove(UnixNow()))
+                if (here != null && here.IsStation && !IsAt(here, target))
+                {
+                    // Anchored fortress: no flight, no queue — only what it can do where it stands.
+                    fleetToken.SnapHome();
+                    RestoreSpin(fleetToken);
+                    CicCue.Fail(target.transform.position);
+                    _map?.SetReadout(Trans.Get("stationCannotMove"));
+                    return false;
+                }
+
+                if (here != null && !here.IsStation && !here.CanIssueMove(UnixNow()))
                     return await QueueOrders(fleetToken, here, target);
 
                 // The world (or rock field) the ship is already at: what it can do there, not a move.
@@ -604,7 +614,7 @@ namespace Core.Vfx
                 block = Trans.Get("fleet_lacks_science_module");
             else if (fleet.SystemId != anomaly.SystemId || fleet.IsMoving(FleetOrderGate.UnixNow()))
                 block = Trans.Get("fleet_not_in_system");
-            else if (!FleetOrderGate.CanMove(fleet))
+            else if (!FleetOrderGate.IsIdle(fleet))
                 block = Trans.Get(FleetOrderGate.BusyKey(fleet)); // server IsFleetBusy (exploring / mining / siege)
 
             fleetToken.SnapHome();

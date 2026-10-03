@@ -1076,7 +1076,7 @@ namespace Core.Vfx
                     // Raiders leave on their own if nobody engages them.
                     if (f.IsPirate && f.PirateLeavesAt > now)
                         body.AppendLine(Trans.Format("vr.pirate.leaves", TravelPlanner.TimeText(f.PirateLeavesAt - now)));
-                    body.AppendLine(FleetOrderGate.CanMove(f) ? Trans.Get("vr.screen.idle") : Trans.Get(FleetOrderGate.BusyKey(f)));
+                    body.AppendLine(FleetOrderGate.IsIdle(f) ? Trans.Get("vr.screen.idle") : Trans.Get(FleetOrderGate.BusyKey(f)));
                     if (f.IsMoving(now))
                         body.AppendLine(Trans.Format("vr.travel.eta", TravelPlanner.TimeText(f.DestTime - now)));
                     break;
@@ -1137,7 +1137,7 @@ namespace Core.Vfx
             if (fleet == null)
                 return Trans.Format("vr.view.orbiting", StationPlanetName(_focus));
             var name = string.IsNullOrEmpty(fleet.Name) ? "#" + fleet.Id : fleet.Name;
-            var state = FleetOrderGate.CanMove(fleet) ? Trans.Get("vr.crew.standby") : Trans.Get(FleetOrderGate.BusyKey(fleet));
+            var state = FleetOrderGate.IsIdle(fleet) ? Trans.Get("vr.crew.standby") : Trans.Get(FleetOrderGate.BusyKey(fleet));
             return "<noparse>" + name + "</noparse>  ·  " + state;
         }
 

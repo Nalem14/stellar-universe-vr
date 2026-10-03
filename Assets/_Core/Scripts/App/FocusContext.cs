@@ -15,6 +15,13 @@ namespace Core.App
         public int Habitability;
     }
 
+    public enum ViewMode
+    {
+        Ship,
+        Station,
+        City
+    }
+
     public sealed class FocusShipModule
     {
         public int Id;
@@ -42,6 +49,11 @@ namespace Core.App
         public long ExploreEndTime;
         public bool IsInBattle;
         public bool IsPirate;
+        /// <summary>
+        /// Orbital fortress (fleets.isStation, StationCore hull): anchored to its planet for good —
+        /// no MoveFleet* / queue / gate / PRL, no propulsion, stance locked on ATTACK_ATTACKER.
+        /// </summary>
+        public bool IsStation;
         /// <summary>Pirate raiders only (fleets.level / expiresAt): strength, and when they leave if nobody engages.</summary>
         public int PirateLevel;
         public long PirateLeavesAt;
@@ -95,7 +107,10 @@ namespace Core.App
         public bool IsExploring(long unixNow) => ExploreEndTime > unixNow;
 
         /// <summary>Sourced interpret_game_state.can_issue_move (minus ships.length check).</summary>
-        public bool CanIssueMove(long unixNow) =>
+        public bool CanIssueMove(long unixNow) => !IsStation && IsIdle(unixNow);
+
+        /// <summary>No timer running and not fighting — what any order needs (a fortress included).</summary>
+        public bool IsIdle(long unixNow) =>
             !IsMoving(unixNow) && !IsExploring(unixNow) && !IsHarvesting(unixNow) &&
             !IsSieging(unixNow) && !IsInBattle;
 
@@ -165,8 +180,47 @@ namespace Core.App
         public string SystemTypeKey { get; private set; } = string.Empty;
         public int SystemType { get; private set; }
         public int ViewFleetId { get; private set; }
-        /// <summary>When &gt; 0 and ViewFleetId == 0: fake orbital station over this planet.</summary>
+        /// <summary>When &gt; 0 and ViewFleetId == 0: the citadel tower of this (owned) planet's city.</summary>
         public int ViewPlanetId { get; private set; }
+
+        /// <summary>
+        /// What the player inhabits: a ship's bridge, an orbital fortress (real isStation fleet, rotunda
+        /// over the planet) or the citadel at the top of one of our cities.
+        /// </summary>
+        public ViewMode Mode
+        {
+            get
+            {
+                if (ViewFleetId > 0)
+                {
+                    var fleet = FindFleet(ViewFleetId);
+                    return fleet != null && fleet.IsStation ? ViewMode.Station : ViewMode.Ship;
+                }
+
+                return ViewPlanetId > 0 ? ViewMode.City : ViewMode.Ship;
+            }
+        }
+
+        /// <summary>The rotunda room (station or citadel) instead of the ship bridge.</summary>
+        public bool IsRotundaView => Mode != ViewMode.Ship;
+
+        /// <summary>The planet under the rotunda: the city's world, or the station's anchor planet. 0 on a ship.</summary>
+        public int RotundaPlanetId
+        {
+            get
+            {
+                switch (Mode)
+                {
+                    case ViewMode.City:
+                        return ViewPlanetId;
+                    case ViewMode.Station:
+                        var fleet = FindFleet(ViewFleetId);
+                        return fleet != null ? fleet.PlanetId : 0;
+                    default:
+                        return 0;
+                }
+            }
+        }
         public IReadOnlyList<FocusPlanet> Planets => _planets;
         public IReadOnlyList<FocusAsteroid> Asteroids => _asteroids;
         /// <summary>Full GetAllFleets catalog. Filter with IsMine / VisibleInFocus.</summary>
@@ -306,6 +360,7 @@ namespace Core.App
                     h = h * 31 + f.HarvestEndTime.GetHashCode();
                     h = h * 31 + f.ExploreEndTime.GetHashCode();
                     h = h * 31 + (f.IsInBattle ? 1 : 0);
+                    h = h * 31 + (f.IsStation ? 5 : 2);
                     h = h * 31 + f.PrlBondReadyAt.GetHashCode();
                     h = h * 31 + f.CrystalCargo;
                     h = h * 31 + f.MineralCargo;
@@ -326,9 +381,9 @@ namespace Core.App
         }
 
         /// <summary>
-        /// Bridge is always inhabited: a real ship, or a virtual orbital station over a planet.
-        /// Ships win over station except when a planet view is explicitly requested (TP).
-        /// Station has no MoveFleet* — crew orders need a ship.
+        /// Bridge is always inhabited: a ship, an orbital fortress, or the citadel of one of our cities.
+        /// Ships win over fortresses, fortresses over the city, except when a planet view is explicitly
+        /// requested (TP). Neither a fortress nor a city has MoveFleet* — crew orders need a ship.
         /// </summary>
         public bool EnsureBridgeView(int preferredFleetId = 0, int preferredPlanetId = 0)
         {
@@ -343,7 +398,7 @@ namespace Core.App
                 }
             }
 
-            // Explicit planet TP (virtual station) — only when caller asked for it.
+            // Explicit planet TP (citadel) — only when caller asked for it.
             if (preferredPlanetId > 0 && FindPlanet(preferredPlanetId) != null)
             {
                 ViewFleetId = 0;
@@ -359,7 +414,7 @@ namespace Core.App
 
             ViewFleetId = 0;
 
-            // Prefer a real ship over staying/landing on a virtual station.
+            // Prefer a ship (then a fortress) over staying/landing in a city.
             var anyShip = ResolveViewFleetId(0);
             if (anyShip > 0)
             {
@@ -389,7 +444,7 @@ namespace Core.App
                         return planet.Id;
                 }
 
-                // The virtual station is always over one of OUR worlds, never someone else's.
+                // The citadel is always one of OUR cities, never someone else's world.
                 if (OwnedPlanets.All.Count > 0)
                     return 0;
             }
@@ -409,11 +464,19 @@ namespace Core.App
 
             if (owned > 0)
             {
+                // A ship first; an orbital fortress only when no ship is here.
+                var station = 0;
                 foreach (var fleet in _fleets)
                 {
-                    if (fleet.IsOwnedBy(owned) && (SystemId <= 0 || fleet.IsPresentIn(SystemId)))
+                    if (!fleet.IsOwnedBy(owned) || (SystemId > 0 && !fleet.IsPresentIn(SystemId)))
+                        continue;
+                    if (!fleet.IsStation)
                         return fleet.Id;
+                    if (station == 0)
+                        station = fleet.Id;
                 }
+
+                return station;
             }
 
             return 0;
@@ -595,6 +658,7 @@ namespace Core.App
                         ExploreEndTime = AsLong(fleet["exploreEndTime"]),
                         IsInBattle = AsBool(fleet["isInBattle"]),
                         IsPirate = AsBool(fleet["isPirate"]),
+                        IsStation = AsBool(fleet["isStation"]),
                         Pos = AsString(fleet["pos"])
                     };
                     if (row.IsPirate)
@@ -659,6 +723,19 @@ namespace Core.App
                     else if (HasGrid(row.Modules))
                     {
                         CacheLayout(row.Id, row.Modules);
+                    }
+
+                    // A layout whose core is a StationCore is a station even if the row predates the column.
+                    if (!row.IsStation)
+                    {
+                        foreach (var m in row.Modules)
+                        {
+                            if (m.Type == "StationCore")
+                            {
+                                row.IsStation = true;
+                                break;
+                            }
+                        }
                     }
 
                     _fleets.Add(row);

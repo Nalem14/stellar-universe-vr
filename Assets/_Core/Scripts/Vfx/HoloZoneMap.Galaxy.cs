@@ -604,7 +604,7 @@ namespace Core.Vfx
                     }
                     var name = string.IsNullOrEmpty(fleet.Name) ? "ship" : fleet.Name;
                     var go = PlaceFleet(1, fleet.Id, DiplomacyIndex.Tint(EmpireStance.Owned), fleet.Id * 17, true,
-                        !fleet.CanIssueMove(now), name, false, EmpireStance.Owned);
+                        !fleet.IsIdle(now), name, false, EmpireStance.Owned);
                     go.transform.localScale = Vector3.one * GalaxyFleetScale;
                     if (from > 0)
                         Core.Holo.HoloGlide.Follow(go, true, _art.MoveGhost);

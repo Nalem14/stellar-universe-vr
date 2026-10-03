@@ -42,19 +42,27 @@ namespace Core.Vfx
         public static bool CanJumpSystem(FocusFleet fleet) =>
             CanMove(fleet);
 
-        /// <summary>Stance buttons — docked at a planet.</summary>
+        /// <summary>Stance buttons — docked at a planet. A fortress's stance is locked (defends its planet).</summary>
         public static bool CanStance(FocusFleet fleet) =>
-            fleet != null && fleet.PlanetId > 0 && !fleet.IsInBattle;
+            fleet != null && !fleet.IsStation && fleet.PlanetId > 0 && !fleet.IsInBattle;
+
+        /// <summary>Nothing running on this hull (a fortress included) — survey, assault.</summary>
+        public static bool IsIdle(FocusFleet fleet) =>
+            fleet != null && fleet.IsIdle(UnixNow());
+
+        /// <summary>Orbital fortress: every MoveFleet* / queue / gate / PRL order is refused (stationCannotMove).</summary>
+        public static bool IsAnchored(FocusFleet fleet) =>
+            fleet != null && fleet.IsStation;
 
         public static bool CanMine(FocusFleet fleet) =>
             CanMove(fleet) && fleet.AsteroidId > 0;
 
         public static bool CanExplore(FocusFleet fleet) =>
-            CanMove(fleet) && fleet.PlanetId > 0;
+            IsIdle(fleet) && fleet.PlanetId > 0;
 
         public static bool CanSiege(FocusFleet fleet, FocusContext focus)
         {
-            if (!CanMove(fleet) || fleet.PlanetId <= 0 || focus == null)
+            if (!IsIdle(fleet) || fleet.PlanetId <= 0 || focus == null)
                 return false;
             var planet = focus.FindPlanet(fleet.PlanetId);
             if (planet == null)
@@ -90,6 +98,8 @@ namespace Core.Vfx
                 return "fleetIsHarvesting";
             if (fleet.IsExploring(now))
                 return "fleetIsExploring";
+            if (fleet.IsStation)
+                return "stationCannotMove";
             return "Loading";
         }
     }

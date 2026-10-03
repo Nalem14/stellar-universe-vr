@@ -171,12 +171,16 @@ namespace Core.Holo
         /// one if the ship is idle, so callers pass only the steps still to do (or the full loop).
         /// </summary>
         public static Task<ApiResult> Replace(FocusFleet fleet, JArray steps, bool loop) =>
-            ActionJs.Get("SetFleetOrderQueue", new Dictionary<string, string>
+            Anchored(fleet) ?? ActionJs.Get("SetFleetOrderQueue", new Dictionary<string, string>
             {
                 { "fleet", fleet.Id.ToString() },
                 { "queue", steps.ToString(Newtonsoft.Json.Formatting.None) },
                 { "loop", loop ? "1" : "0" }
             });
+
+        /// <summary>An orbital fortress has no order queue: the server refuses it (stationCannotMove).</summary>
+        static Task<ApiResult> Anchored(FocusFleet fleet) =>
+            fleet != null && fleet.IsStation ? Task.FromResult(ApiResult.Fail(Trans.Get("stationCannotMove"))) : null;
 
         /// <summary>A step JSON pointing at another target (keeps any extra server fields).</summary>
         public static JObject Retarget(FocusQueueStep step, string type, int targetId)
@@ -234,7 +238,7 @@ namespace Core.Holo
         public static bool TargetsAsteroid(string type) => type is "moveToAsteroid" or "harvestAsteroid";
 
         static Task<ApiResult> Add(FocusFleet fleet, JObject step) =>
-            ActionJs.Get("AddFleetOrderStep", new Dictionary<string, string>
+            Anchored(fleet) ?? ActionJs.Get("AddFleetOrderStep", new Dictionary<string, string>
             {
                 { "fleet", fleet.Id.ToString() },
                 { "step", step.ToString(Newtonsoft.Json.Formatting.None) }

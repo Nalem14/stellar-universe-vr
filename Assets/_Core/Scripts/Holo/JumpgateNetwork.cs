@@ -145,6 +145,8 @@ namespace Core.Holo
         {
             if (fleet == null || origin == null)
                 return "noJumpgate";
+            if (fleet.IsStation)
+                return "stationCannotMove";
             if (fleet.IsInBattle)
                 return "fleetAlreadyInBattle";
             if (!fleet.CanIssueMove(FleetOrderGate.UnixNow()))

@@ -377,6 +377,14 @@ namespace Core.Vfx
                     return;
                 }
 
+                if (fleet.IsStation && _role == Role.Helm)
+                {
+                    // Orbital fortress: no engine, no queue — the helm only keeps station over its world.
+                    AddStatus(Trans.Format("vr.helm.stationAnchored",
+                        PlanetLabel(focus.FindPlanet(fleet.PlanetId), fleet.PlanetId)));
+                    return;
+                }
+
                 if (!FleetOrderGate.CanMove(fleet) && _role == Role.Helm)
                 {
                     // Busy (under way, mining, surveying…): no new move now, but the travel can be finished for
@@ -749,6 +757,12 @@ namespace Core.Vfx
             if (_hex != null && _hex.IsActive)
                 AddAction(Trans.Get("vr.tactical.endTurn"), () => _hex.EndTurn());
 
+            // Current siege stance (web modal-fleet select). A fortress always defends its planet (locked).
+            if (fleet.PlanetId > 0)
+                AddStatus(ActionLabel("defendPosition", fleet.IsStation
+                    ? Trans.Get("defendPositionPlanet") + " (" + Trans.Get("stationFixedDefend") + ")"
+                    : Trans.Get(StanceKey(fleet.DefendPosition))));
+
             if (FleetOrderGate.CanStance(fleet))
             {
                 AddAction(ActionLabel("defendPositionRunOut", planetLabel),
@@ -760,7 +774,7 @@ namespace Core.Vfx
             }
 
             // Engage a hostile ship in system (web: right-click enemy fleet → startTacticalBattle).
-            if (_hex != null && !fleet.IsInBattle && FleetOrderGate.CanStance(fleet))
+            if (_hex != null && !fleet.IsInBattle && fleet.PlanetId > 0)
             {
                 var now = FleetOrderGate.UnixNow();
                 var shown = 0;
@@ -1018,6 +1032,14 @@ namespace Core.Vfx
             GetComponentInParent<CrewOfficer>()?.LookAt(Camera.main != null ? Camera.main.transform.position : (Vector3?)null);
             console.Open(_anchor, preferred);
         }
+
+        /// <summary>Native label of a defendPosition value (web modal-fleet options).</summary>
+        static string StanceKey(string position) => position switch
+        {
+            "RUN_AWAY" => "defendPositionRunOut",
+            "ATTACK_PLANET" => "defendPositionAttacker",
+            _ => "defendPositionPlanet"
+        };
 
         static string ActionLabel(string verbKey, string target)
         {

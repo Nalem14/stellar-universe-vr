@@ -175,7 +175,7 @@ namespace Core.Vfx
             var orbit = _focus.FindPlanet(fleet.PlanetId);
             _lines[0].text = orbit != null
                 ? Trans.Format("vr.screen.orbit", string.IsNullOrEmpty(orbit.Name) ? "#" + orbit.Id : orbit.Name)
-                : Trans.Get(FleetOrderGate.CanMove(fleet) ? "vr.screen.idle" : FleetOrderGate.BusyKey(fleet));
+                : Trans.Get(FleetOrderGate.IsIdle(fleet) ? "vr.screen.idle" : FleetOrderGate.BusyKey(fleet));
             _lines[1].text = Trans.Get("hyperdrive") + " · " + Trans.Get(fleet.HasHyperdrive && fleet.EnoughHyperdrive ? "vr.console.ready" : "vr.console.unavailable");
             if (fleet.Speed > 0f)
                 _lines[2].text = Trans.Get("speed") + " " + fleet.Speed.ToString("0.#", Fr);
