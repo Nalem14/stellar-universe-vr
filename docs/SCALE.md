@@ -138,9 +138,9 @@ Constantes : `WorldScale.CicTableCenterZ`, `CicCaptainChairZ`, `CicCaptainStand`
 
 **Vue habitée** : vaisseau réel (`ViewFleetId` > 0 → ordres de flotte ; le pont suit toujours le système **actuel** du vaisseau, y compris après un saut) **ou** fausse station en orbite (`ViewPlanetId` > 0 → la station ne bouge pas ; la table commande toujours les flottes autour ; station Helm retirée, on embarque via le TP).
 
-### Station orbitale (vue planète)
+### Rotonde (station orbitale et citadelle)
 
-Même repère intérieur et même table, mais pas de fauteuil : on commande **debout** sur un podium, et les six postes crew montent sur des gradins face aux murs de données. `BridgeDressing` bascule en direct sur `ViewFleetId <= 0` ; `StationCommandLayout` déplace les postes et les restaure à bord d'un vaisseau.
+Même repère intérieur et même table, mais pas de fauteuil : on commande **debout** sur un podium, et les six postes crew montent sur des gradins face aux murs de données. `BridgeDressing` bascule en direct sur `FocusContext.Mode` (Ship / Station / City) ; `StationCommandLayout` déplace les postes et les restaure à bord d'un vaisseau. À bord d'une **station orbitale** (flotte `isStation`), l'extérieur est son hub et son anneau ; dans une **citadelle**, la couronne de la tour et la cité (section suivante).
 
 | Élément | Valeur | Constante / source |
 |---|---|---|
@@ -161,6 +161,28 @@ Même repère intérieur et même table, mais pas de fauteuil : on commande **de
 | Mobilier | casiers 0.5 × 2.2 m à 169.8° / 190.2° (contre le portique), bancs 1.7 m face aux baies à 131° / 229° (r 7.05 m), grilles de service au sol r 6.6 m sous les gyrophares | `StationHallDressing` |
 | Socles holo (fosse) | r 3.75 m à 38° / 322°, r 4.3 m à 162° / 198° (hors du téléporteur et des lignes de la porte), plateau 0.78 m, hologramme ×1.5 à +0.45 m (monde, station, convoi, réseau d'anneaux) tournant lentement | `StationHallDressing.Plinths` |
 | Gyrophares station | 45 / 135 / 225 / 315°, `WallTop − 0.55` | `BridgeCombatFx.BuildBeacons` |
+
+| Modules montés (station) | sur la crête de l'anneau, au relèvement de leur case (atan2 du décalage à 4,4), plus loin pour les cases éloignées, ×3.2 | `StationExterior.Fit` |
+| Orbite d'une station dans le système | `StationStandoff(R)` vers l'extérieur, 60° de plus par station suivante de la même planète, rotation lente | `SystemExterior.IdleFleetPosition` |
+
+### Cité (vue planète)
+
+Une **quatrième couche**, jamais mélangée aux autres : la cité est posée `CityDepth` sous la scène système (au-delà de tous les plans lointains), sous la rotonde. Elle n'existe que pour **tes** planètes.
+
+| Élément | Valeur | Constante / source |
+|---|---|---|
+| Décalage sous le système | 6 000 m | `WorldScale.CityDepth` |
+| Plancher de la rotonde au-dessus du sol | 260 m | `CityTowerHeight` |
+| Tour | fût en gradins de r 54 m au pied à r 7.6 m sous la couronne, corniches et 8 lignes de lumière or | `CityExterior.BuildTower` |
+| Couronne | hub de la rotonde + **une aile** de l'anneau (255–289°, section 12 × 8 m, r 46 m) qui loge le hall, sur 3 arcs-boutants | `StationExterior` (citadelle), `CityExterior` |
+| Esplanade / ville | esplanade r 72 m, ville jusqu'à r 760 m en 3–6 anneaux (selon le total des niveaux de bâtiments), 8 boulevards | `CityPlazaRadius`, `CityRadius` |
+| Hauteurs | 1er anneau jusqu'à ~190 m, puis chute en (1 − t)^2.3 ; flèches repères ×1.55 | `CityExterior.BuildDistricts` |
+| Murs (usine de défense) | r 778 m, 16–28 m de haut, batteries selon niveau + unités | `BuildWalls` |
+| Horizon | collines dès 810 m, montagnes vers 1 150 m, terre jusqu'à 1 400 m | `CityHorizon`, `CityLandEdge` |
+| Ciel / plan lointain | dôme r 1 500 m qui suit l'œil ; far clip 1 700 m en cité (rétabli en sortant) | `CitySkyRadius`, `CityFarClip` |
+| Brume | exp², densité 0.00048 | `CityFogDensity` |
+| Stations dans le ciel | à 820 m d'altitude (+60 m par station), ×5, un tour en ~12 min | `CitySkyStationAltitude`, `CitySkyStationScale` |
+| Budget | ~100–125 k triangles, ~20 renderers, matériaux partagés, aucune ombre temps réel | `AgentScripts/CityViewVerify` |
 
 ### Cale sèche (salle de contrôle)
 

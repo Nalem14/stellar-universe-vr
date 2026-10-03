@@ -112,16 +112,18 @@ Tu ne pilotes pas à la main. Tu **habites un CIC** ; le serveur vole. Un geste 
 
 Priorité :
 
-1. **N’importe quel vaisseau à toi** (`fleets` dont `userid` = toi). Tu es sur **son** pont. Hublots = système de **cette** flotte (`fleet.systemid`) ; si `desttime > now`, hyperspace / tunnel. L’ordre « monter à bord » **ne déplace pas** la flotte.
-2. **À défaut, n’importe quelle planète** (y compris une que tu ne possèdes pas : observation). Tu n’atterris **pas**. Tu apparais dans une **fausse station en orbite** — intérieur CIC, hublots = la planète en contrebas + le système. Lore : relais d’observation / avant-poste fantôme, pas un bâtiment `stargate` réel.
+1. **N’importe quel vaisseau à toi** (`fleets` dont `userid` = toi, `isStation = 0`). Tu es sur **son** pont. Hublots = système de **cette** flotte (`fleet.systemid`) ; si `desttime > now`, hyperspace / tunnel. L’ordre « monter à bord » **ne déplace pas** la flotte.
+2. **Une de tes stations orbitales** (flotte `isStation = 1`, fondée sur un **StationCore**, web 69d40af). Tu es dans **sa** rotonde de commandement, au-dessus de sa planète d'ancrage. Elle ne bouge jamais (aucun `MoveFleet*`, file, portail, PRL ; pas de propulsion ; posture verrouillée « défendre la planète »).
+3. **Une de tes planètes** (seulement les tiennes, `OwnedPlanets`) : tu es au sommet de la **citadelle** de sa cité — une tour très haute, la ville en anneaux de plus en plus bas jusqu'aux murs, la terre de la planète jusqu'à l'horizon. Il n'y a plus de « fausse station » d'observation.
 
 | Mode | Quand | Intérieur 1:1 | Hublots | API (vue, pas mouvement) |
 |---|---|---|---|---|
-| **Pont vaisseau** | Token d’une de tes flottes, ou reprise de session sur l’amiral | Skin pont (Synty plus tard) | Système de **cette** flotte ; jump si busy | `changesystem(fleet.systemid)` ; `changeplanet` si `planetid > 0` |
-| **Fausse station** | Pas de flotte, ou drop sur une planète | **Centre de commandement** rond (rotonde Ø 17 m, dôme à anneaux lumineux, murs de données, monolithe du viewscreen) ; coursive = **hall** dans l'anneau habité (baie vitrée sur le hub, bancs, jardins de lumière, portes en baies de 3 m dont 2 libres pour de futures salles) | Orbite de **cette** planète + **la station elle-même** : hub, 4 rayons, anneau Ø 92 m | `changeplanet(planet.id)` + `changesystem(planet.systemid)` |
-| **Défaut boot** | Login | Amiral si une flotte existe, sinon station sur une planète possédée, sinon première planète connue | Comme ci-dessus | Boot API déjà prévu (`changesystem` vers un système possédé) |
+| **Pont vaisseau** | Onglet *Vaisseaux* du téléporteur, ou reprise de session sur l’amiral | Pont en fer à cheval | Système de **cette** flotte ; jump si busy | `changesystem(fleet.systemid)` ; `changeplanet` si `planetid > 0` |
+| **Station orbitale** | Onglet *Stations* (une flotte `isStation`) | **Centre de commandement** rond (rotonde Ø 17 m, dôme à anneaux lumineux, murs de données, monolithe du viewscreen) ; coursive = **hall** dans l'anneau habité | Orbite de sa planète + **la station elle-même** : hub, 4 rayons, anneau Ø 92 m, **ses modules montés sur l'anneau** (batteries, projecteurs de bouclier, brouilleurs, chantiers, réacteurs) | `changesystem(fleet.systemid)` |
+| **Citadelle (cité)** | Onglet *Planètes* (une de tes planètes) | La même rotonde, habillage or ; le hall dans l'aile de la couronne (à 272°, entre deux baies) | **La cité** vue du haut de la tour : districts tirés des vrais bâtiments, terre / dunes / glace / canyons / mer de nuages selon la planète, ciel jour-nuit, tes stations qui passent dans le ciel, dôme-bouclier, batteries en siège | `changeplanet(planet.id)` + `changesystem(planet.systemid)` |
+| **Défaut boot** | Login | Amiral si un vaisseau existe, sinon une station, sinon la citadelle d'une planète possédée | Comme ci-dessus | Boot API déjà prévu (`changesystem` vers un système possédé) |
 
-Même locomotion (room-scale **dans** la pièce). Changer de vaisseau / de planète = fade court + hublots / skybox d’orbite, **pas** une nouvelle scène « surface ».
+Même locomotion (room-scale **dans** la pièce). Changer de vaisseau / de station / de cité = fade court, **pas** une nouvelle scène Unity : la cité est un extérieur partagé (`CityExterior`) posé sous la scène système, comme la station l'est autour de la rotonde. Une cité perdue (siège) renvoie à bord d'un vaisseau ou dans une autre cité.
 
 Interdit : walker au sol, TP dans l’espace sans coque, god-cam entre les deux.
 
