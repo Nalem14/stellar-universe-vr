@@ -44,9 +44,8 @@ namespace Core.UI
             m._menu = new InputAction("QuickMenu", InputActionType.Button);
             m._menu.AddBinding("<XRController>{LeftHand}/menu");
             m._menu.AddBinding("<XRController>{LeftHand}/menuButton");
-#if UNITY_EDITOR
+            m._menu.AddBinding("<Keyboard>/escape");
             m._menu.AddBinding("<Keyboard>/m");
-#endif
             m._menu.performed += _ => m.Toggle();
             m._menu.Enable();
             return m;
@@ -64,6 +63,8 @@ namespace Core.UI
             {
                 _panel.SetActive(false);
                 CicCue.Ok(_panel.transform.position);
+                if (PcPlatformBoot.IsPcDesktop && !(CaptainCommandMode.Instance != null && CaptainCommandMode.Instance.IsCommandMode))
+                    PcDesktopController.Instance?.SetCursorLock(true);
                 return;
             }
 
@@ -79,6 +80,8 @@ namespace Core.UI
             var at = cam.transform.position + f * 0.62f + Vector3.down * 0.1f;
             _panel.transform.SetPositionAndRotation(at, Quaternion.LookRotation(at - cam.transform.position, Vector3.up));
             _panel.SetActive(true);
+            if (PcPlatformBoot.IsPcDesktop)
+                PcDesktopController.Instance?.SetCursorLock(false);
             Refresh();
             CicCue.Ok(at);
         }

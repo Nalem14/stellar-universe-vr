@@ -10,6 +10,7 @@ namespace Core.App
 
         async void Awake()
         {
+            PcPlatformBoot.Initialize();
             AuthManager.Ensure();
             await Trans.EnsureLoaded();
         }

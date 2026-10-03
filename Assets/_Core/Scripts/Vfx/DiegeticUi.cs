@@ -101,9 +101,29 @@ namespace Core.Vfx
 
         public static void EnsureEventSystem()
         {
-            if (Object.FindFirstObjectByType<EventSystem>() != null)
+            var es = Object.FindFirstObjectByType<EventSystem>();
+            if (es != null)
+            {
+                if (Core.App.PcPlatformBoot.IsPcDesktop)
+                {
+                    var xr = es.GetComponent<XRUIInputModule>();
+                    if (xr != null) xr.enabled = false;
+                    var inp = es.GetComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
+                    if (inp == null) inp = es.gameObject.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
+                    inp.enabled = true;
+                }
                 return;
-            var go = new GameObject("EventSystem", typeof(EventSystem), typeof(XRUIInputModule));
+            }
+
+            GameObject go;
+            if (Core.App.PcPlatformBoot.IsPcDesktop)
+            {
+                go = new GameObject("EventSystem", typeof(EventSystem), typeof(UnityEngine.InputSystem.UI.InputSystemUIInputModule));
+            }
+            else
+            {
+                go = new GameObject("EventSystem", typeof(EventSystem), typeof(XRUIInputModule));
+            }
             Object.DontDestroyOnLoad(go);
         }
 
@@ -124,6 +144,8 @@ namespace Core.Vfx
 
             var canvas = go.GetComponent<Canvas>();
             canvas.renderMode = RenderMode.WorldSpace;
+            if (Core.App.PcPlatformBoot.IsPcDesktop)
+                canvas.worldCamera = Camera.main;
             canvas.sortingOrder = 20;
             var rt = go.GetComponent<RectTransform>();
             rt.sizeDelta = pixelSize;

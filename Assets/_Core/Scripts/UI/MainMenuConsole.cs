@@ -462,6 +462,8 @@ namespace Core.UI
 
             var canvas = go.GetComponent<Canvas>();
             canvas.renderMode = RenderMode.WorldSpace;
+            if (Core.App.PcPlatformBoot.IsPcDesktop)
+                canvas.worldCamera = Camera.main;
             go.GetComponent<RectTransform>().sizeDelta = new Vector2(1100f, 660f);
             go.GetComponent<CanvasScaler>().dynamicPixelsPerUnit = 2.5f;
             return canvas;
@@ -555,10 +557,55 @@ namespace Core.UI
 
         static void EnsureEventSystem()
         {
-            if (FindFirstObjectByType<EventSystem>() != null)
+            DiegeticUi.EnsureEventSystem();
+        }
+
+        void Update()
+        {
+            if (!Core.App.PcPlatformBoot.IsPcDesktop)
                 return;
-            var go = new GameObject("EventSystem", typeof(EventSystem), typeof(XRUIInputModule));
-            DontDestroyOnLoad(go);
+
+            var kb = UnityEngine.InputSystem.Keyboard.current;
+            if (kb == null)
+                return;
+
+            if (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame)
+            {
+                if (_panel == PanelMode.Forms && !_busy)
+                    Submit();
+                else if (_panel == PanelMode.Hub && !_busy)
+                    EnterBridge();
+            }
+            else if (kb.tabKey.wasPressedThisFrame)
+            {
+                CycleFields();
+            }
+        }
+
+        void CycleFields()
+        {
+            if (_panel != PanelMode.Forms)
+                return;
+
+            if (_email != null && _email.isFocused)
+            {
+                _password?.Select();
+            }
+            else if (_password != null && _password.isFocused)
+            {
+                if (_mode == FormMode.SignUp && _username != null)
+                    _username.Select();
+                else
+                    _email?.Select();
+            }
+            else if (_username != null && _username.isFocused)
+            {
+                _email?.Select();
+            }
+            else
+            {
+                _email?.Select();
+            }
         }
     }
 }

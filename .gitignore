@@ -84,3 +84,4 @@ Database.sqlite
 # Build temp / Python cache
 .utmp/
 __pycache__/
+.vsconfig

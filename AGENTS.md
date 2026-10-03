@@ -1,9 +1,9 @@
-# AGENTS.md — Stellar Universe VR
+# AGENTS.md — Stellar Universe
 
-Tu es l’agent de **Stellar Universe VR** : client Quest / OpenXR du MMO [stellar-universe.com](https://www.stellar-universe.com).  
+Tu es l’agent de **Stellar Universe** : client multiplateforme Quest (VR), PC (Desktop / PCVR) et Mobile (Android / iOS) du MMO [stellar-universe.com](https://www.stellar-universe.com).  
 Même jeu, même compte, même API que le web — **autre corps**.
 
-Ce dépôt est un **jeu en production**, pas un proto, pas un spike, pas une démo technique. Chaque scène, mesh, lumière, shader, son et bouton doit pouvoir figurer dans un trailer Quest.
+Ce dépôt est un **jeu en production**, pas un proto, pas un spike, pas une démo technique. Chaque scène, mesh, lumière, shader, son et bouton doit pouvoir figurer dans un trailer.
 
 ---
 
@@ -107,8 +107,8 @@ Toujours **première personne casque**. Chaque scène a un XR Origin (rig templa
 
 ## Stack
 
-- Unity **6.3 LTS** (`6000.3.x`), template **VR** (pas MR). OpenXR, Android **ARM64**, min SDK **32**, internet **ON**.
-- Bundle : `com.stellaruniverse.vr`. Company `StellarUniverse`, product `Stellar Universe VR`.
+- Unity **6.3 LTS** (`6000.3.x`), multiplateforme : VR (OpenXR Quest / PCVR), PC Desktop (Windows/Mac) et Mobile (Android/iOS).
+- Bundle : `com.stellaruniverse.vr`. Company `StellarUniverse`, product `Stellar Universe`.
 - Gameplay uniquement dans `Assets/_Core/` (créer), namespaces `Core.*`.
 - GET `https://www.stellar-universe.com/actionjs.php` seulement. **Jamais de POST JSON.** Url-encode. Parser le body **texte** : `error:` = échec (HTTP 200 ≠ succès). Succès = JSON, `ok`, `ok:sublight_no_crystal`, ou body vide.
 

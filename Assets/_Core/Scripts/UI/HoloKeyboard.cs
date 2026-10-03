@@ -55,14 +55,14 @@ namespace Core.UI
 
         static readonly string[] Symbols = { "!?#$%&*()+", "=/:;,'\"<>|", "éèêàâçùô€~" };
 
-        static bool Active => Application.platform == RuntimePlatform.Android || (Application.isEditor && EditorHolo);
+        static bool Active => (Application.platform == RuntimePlatform.Android && Core.App.PcPlatformBoot.IsVr) || (Application.isEditor && EditorHolo);
 
         /// <summary>Route this field's text entry through the headset keyboard.</summary>
         public static void Attach(TMP_InputField field)
         {
             if (field == null)
                 return;
-            if (Application.platform == RuntimePlatform.Android)
+            if (Application.platform == RuntimePlatform.Android && Core.App.PcPlatformBoot.IsVr)
                 field.shouldHideSoftKeyboard = true;
             Attached.Add(field);
             // Open on the tap itself too, not only through the EventSystem's selection.

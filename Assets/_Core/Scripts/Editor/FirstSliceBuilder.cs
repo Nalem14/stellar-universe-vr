@@ -138,7 +138,7 @@ namespace Core.Editor
         static void ApplyPlayerIdentity()
         {
             PlayerSettings.companyName = "StellarUniverse";
-            PlayerSettings.productName = "Stellar Universe VR";
+            PlayerSettings.productName = "Stellar Universe";
             PlayerSettings.SetApplicationIdentifier(UnityEditor.Build.NamedBuildTarget.Android, "com.stellaruniverse.vr");
             PlayerSettings.SetApplicationIdentifier(UnityEditor.Build.NamedBuildTarget.Standalone, "com.stellaruniverse.vr");
             PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel32;

@@ -54,6 +54,8 @@ namespace Core.App
 
             var mapCtrl = interior.AddComponent<HoloMapController>();
             mapCtrl.Bind(_zoneMap, _focus, _poller);
+            interior.AddComponent<PcHoloMapInput>().Bind(mapCtrl, _zoneMap);
+            interior.AddComponent<MobileHoloMapInput>().Bind(mapCtrl, _zoneMap);
 
             var hex = interior.AddComponent<HexBattleController>();
             var tableMount = _zoneMap != null ? _zoneMap.transform : interior.transform;
@@ -229,6 +231,9 @@ namespace Core.App
             boot.BindPoller(_poller);
             boot.BindLoader(_loader);
             boot.Run();
+
+            PcPlatformBoot.SetupDesktopRig();
+            PcPlatformBoot.ConfigureWorldCanvases();
         }
 
         /// <summary>Top face of the 0.03 m arm console, a hair above it, slightly toward the knee.</summary>
