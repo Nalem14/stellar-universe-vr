@@ -324,18 +324,7 @@ namespace Core.Vfx
 
             Part("TowerLights", light.ToMesh("SU_CitadelLights"), StationExterior.CitadelGlass());
 
-            // Flying buttresses carrying the concourse wing (272°, between two bays) down to the shaft.
             var m = new CityMesh();
-            var stone = C(_pal.FacadeA * 0.82f);
-            foreach (var deg in new[] { 262f, 272f, 282f })
-            {
-                var d = LatheMesh.Dir(deg);
-                var top = axis + d * (WorldScale.StationRingRadius - 3f) + Vector3.up * (-WorldScale.StationRingDrop - 3.6f);
-                var foot = axis + d * 13.5f + Vector3.up * -62f;
-                m.Beam(top, foot, deg == 272f ? 4f : 2.6f, stone);
-                m.Beam(top + Vector3.up * 0.3f, foot + Vector3.up * 0.3f, 0.5f, C(CitadelGold), band: true);
-            }
-
             // The home world's crown: a tall gold spire on the dome.
             var spire = levels.Home > 0 ? 34f + levels.Home * 2f : 22f;
             m.Prism(axis + Vector3.up * 21f, 0.9f, 0.08f, spire, 6, 0f, C(CitadelGold), 0f, 0f, band: true, cap: false);

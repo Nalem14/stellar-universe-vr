@@ -94,6 +94,11 @@ namespace Core.Crew
                 life._hallStation = new Spot[spots.Length];
                 for (var i = 0; i < spots.Length; i++)
                     life._hallStation[i] = new Spot { At = spots[i].at, Facing = spots[i].facing.normalized, Post = spots[i].post };
+                var gallerySpots = Core.Stations.CitadelGallery.CrewSpots;
+                life._hallCitadel = new Spot[gallerySpots.Length];
+                for (var i = 0; i < gallerySpots.Length; i++)
+                    life._hallCitadel[i] = new Spot { At = gallerySpots[i].at, Facing = gallerySpots[i].facing.normalized, Post = gallerySpots[i].post };
+                Core.Stations.CorridorRoom.LayoutChanged += life.OnHallLayout;
             }
 
             AlertState.Changed += life.OnAlert;
@@ -101,7 +106,22 @@ namespace Core.Crew
             return life;
         }
 
-        void OnDestroy() => AlertState.Changed -= OnAlert;
+        void OnDestroy()
+        {
+            AlertState.Changed -= OnAlert;
+            Core.Stations.CorridorRoom.LayoutChanged -= OnHallLayout;
+        }
+
+        Spot[] _hallCitadel;
+
+        /// <summary>The corridor changed body (ship passage, fortress concourse, citadel gallery): its hand walks the new one.</summary>
+        void OnHallLayout(bool station, bool citadel)
+        {
+            var to = citadel ? _hallCitadel : station ? _hallStation : _hallShip;
+            foreach (var from in new[] { _hallShip, _hallStation, _hallCitadel })
+                if (from != to)
+                    Swap(from, to);
+        }
 
         Spot[] _shipRing;
         Spot[] _stationRing;

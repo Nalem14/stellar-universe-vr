@@ -25,9 +25,9 @@ namespace Core.Vfx
         static Material _cBeacon;
 
         /// <summary>
-        /// The same hub and ring as a city's crown (<see cref="CityExterior"/>): the rotunda on its tower, the
-        /// concourse ring round it on four bridges — warm stone-metal with gold light, no docking spire or
-        /// arms under the hub (the tower carries it).
+        /// A city's crown (<see cref="CityExterior"/>): the same hub as the rotunda on its tower, warm stone-metal
+        /// with gold light — no ring, no spokes, no docking spire or arms (the tower carries it). Its hall is inside:
+        /// the citadel gallery under the rotunda, whose arched windows are all that shows (<see cref="BuildGalleryWindows"/>).
         /// </summary>
         bool _citadel;
         static readonly int EmissionMulId = Shader.PropertyToID("_EmissionMul");
@@ -39,8 +39,14 @@ namespace Core.Vfx
             var ext = go.AddComponent<StationExterior>();
             ext._citadel = citadel;
             ext.BuildHub();
-            ext.BuildRing();
-            ext.BuildSpokes();
+            if (citadel)
+                ext.BuildGalleryWindows();
+            else
+            {
+                ext.BuildRing();
+                ext.BuildSpokes();
+            }
+
             ext.BuildBeacons();
             return ext;
         }
@@ -209,6 +215,55 @@ namespace Core.Vfx
             LatheMesh.Part(transform, "HubGlazing", glass.ToMesh("SU_StationHubGlazing"), bays);
         }
 
+        // ── Citadel gallery windows ─────────────────────────────────────────────
+
+        /// <summary>
+        /// The gallery's arched windows in the crown's flank, lit warm from inside (one per bay of
+        /// <see cref="Core.Stations.CitadelGallery"/>, on the hub's own surface: nothing is added to the tower).
+        /// One-sided, facing out: from inside the gallery they are not there, the city is.
+        /// </summary>
+        void BuildGalleryWindows()
+        {
+            const float deck = -Core.Stations.CitadelGallery.FloorBelowDeck;
+            const float sill = deck + 0.8f;
+            const float spring = deck + 2.55f;
+            const float hw = 0.7f;
+            const int arc = 10;
+            float R(float y) => 9.6f + 0.3f * Mathf.Clamp01((y + 8f) / 6.8f) + 0.035f;
+            var panes = new LatheMesh(Axis);
+            var rims = new LatheMesh(Axis);
+            for (var deg = Core.Stations.CitadelGallery.A0 + 7.5f; deg < Core.Stations.CitadelGallery.A1; deg += 15f)
+            {
+                var d = LatheMesh.Dir(deg);
+                var side = Vector3.Cross(Vector3.up, d);
+                Vector3 P(float u, float y, float lift = 0f) => Axis + d * (R(y) + lift) + side * u + Vector3.up * y;
+                panes.Quad(P(-hw, sill), P(hw, sill), P(hw, spring), P(-hw, spring), d, 1f);
+                for (var i = 0; i < arc; i++)
+                {
+                    var a0 = Mathf.PI * i / arc;
+                    var a1 = Mathf.PI * (i + 1) / arc;
+                    panes.Tri(P(0f, spring), P(-Mathf.Cos(a0) * hw, spring + Mathf.Sin(a0) * hw), P(-Mathf.Cos(a1) * hw, spring + Mathf.Sin(a1) * hw), d, 1f);
+                    var o0 = new Vector2(-Mathf.Cos(a0) * (hw + 0.09f), spring + Mathf.Sin(a0) * (hw + 0.09f));
+                    var o1 = new Vector2(-Mathf.Cos(a1) * (hw + 0.09f), spring + Mathf.Sin(a1) * (hw + 0.09f));
+                    var i0 = new Vector2(-Mathf.Cos(a0) * hw, spring + Mathf.Sin(a0) * hw);
+                    var i1 = new Vector2(-Mathf.Cos(a1) * hw, spring + Mathf.Sin(a1) * hw);
+                    rims.Quad(P(i0.x, i0.y, 0.01f), P(i1.x, i1.y, 0.01f), P(o1.x, o1.y, 0.01f), P(o0.x, o0.y, 0.01f), d, 1f);
+                }
+
+                foreach (var u in new[] { -hw - 0.09f, hw })
+                    rims.Quad(P(u, sill, 0.01f), P(u + 0.09f, sill, 0.01f), P(u + 0.09f, spring, 0.01f), P(u, spring, 0.01f), d, 1f);
+                rims.Quad(P(-hw - 0.15f, sill - 0.1f, 0.01f), P(hw + 0.15f, sill - 0.1f, 0.01f), P(hw + 0.15f, sill, 0.01f), P(-hw - 0.15f, sill, 0.01f), d, 1f);
+                // The tracery seen from outside: mullion and transom, dark against the lit pane.
+                rims.Quad(P(-0.025f, sill, 0.015f), P(0.025f, sill, 0.015f), P(0.025f, spring + hw, 0.015f), P(-0.025f, spring + hw, 0.015f), d, 1f);
+            }
+
+            var lit = new Material(Glass()) { name = "SU_CitadelGalleryWindows" };
+            Set(lit, "_Color", new Color(0.55f, 0.42f, 0.26f));
+            lit.SetFloat(EmissionMulId, 0.45f);
+            LatheMesh.Part(transform, "GalleryWindows", panes.ToMesh("SU_CitadelGalleryWindows"), lit);
+            LatheMesh.Part(transform, "GalleryWindowFrames", rims.ToMesh("SU_CitadelGalleryFrames"), Dark());
+        }
+
         // ── Ring ────────────────────────────────────────────────────────────────
 
         void BuildRing()
@@ -235,17 +290,11 @@ namespace Core.Vfx
             Corner(new Vector2(rc - half.x + corner, yc - half.y + corner), 180f, 270f);
             pts.Add(new Vector2(rc, yc - half.y));
 
-            // A citadel keeps only the wing that houses its concourse (between two bays of the rotunda, so the
-            // city and its horizon stay clear in every bay); a fortress, the whole ring.
-            var a0 = _citadel ? WingFrom : 0f;
-            var a1 = _citadel ? WingTo : 360f;
+            // A fortress only: a city's hall is inside its tower.
+            const float a0 = 0f;
+            const float a1 = 360f;
             var ring = new LatheMesh(Axis) { Step = 2.5f };
             ring.Revolve(pts.ToArray(), a0, a1, false);
-            if (_citadel)
-            {
-                ring.Cap(pts.ToArray(), a0, false);
-                ring.Cap(pts.ToArray(), a1, true);
-            }
             // Frames round the tube every 7.5° (a hand's breadth proud): they give the ring its scale.
             var ribs = new LatheMesh(Axis) { Step = 0.6f };
             var proud = new Vector2[pts.Count];
@@ -257,8 +306,7 @@ namespace Core.Vfx
             }
 
             for (var k = 0; k < 48; k++)
-                if (InRing(k * 7.5f, 0.5f))
-                    ribs.Revolve(proud, k * 7.5f - 0.5f, k * 7.5f + 0.5f, false);
+                ribs.Revolve(proud, k * 7.5f - 0.5f, k * 7.5f + 0.5f, false);
             LatheMesh.Part(transform, "Ring", ring.ToMesh("SU_StationRing"), Hull());
             LatheMesh.Part(transform, "RingFrames", ribs.ToMesh("SU_StationRingFrames"), Dark());
 
@@ -267,8 +315,7 @@ namespace Core.Vfx
             var panes = new LatheMesh(Axis) { Step = 2.5f };
             var inner = rc - half.x - 0.03f;
             for (var k = 0; k < 48; k++)
-                if (InRing(k * 7.5f + 0.9f, 0f) && InRing(k * 7.5f + 6.6f, 0f))
-                    panes.Revolve(new[] { new Vector2(inner, yc - 1.5f), new Vector2(inner, yc + 1.7f) }, k * 7.5f + 0.9f, k * 7.5f + 6.6f, true,
+                panes.Revolve(new[] { new Vector2(inner, yc - 1.5f), new Vector2(inner, yc + 1.7f) }, k * 7.5f + 0.9f, k * 7.5f + 6.6f, true,
                         LatheMesh.Uv.Normalised);
             LatheMesh.Part(transform, "RingWindows", panes.ToMesh("SU_StationRingWindows"), PaneMat());
             var glass = new LatheMesh(Axis) { Step = 2.5f };
@@ -276,12 +323,6 @@ namespace Core.Vfx
                 glass.Revolve(new[] { new Vector2(r + 0.15f, yc + half.y + 0.03f), new Vector2(r - 0.15f, yc + half.y + 0.03f) }, a0, a1, false);
             LatheMesh.Part(transform, "RingGlazing", glass.ToMesh("SU_StationRingGlazing"), Glass());
         }
-
-        /// <summary>The citadel's concourse wing: round the concourse's bearing, between the 246° and 294° bays.</summary>
-        const float WingFrom = 255f;
-        const float WingTo = 289f;
-
-        bool InRing(float deg, float pad) => !_citadel || deg - pad >= WingFrom && deg + pad <= WingTo;
 
         static Material _pane;
 
@@ -304,10 +345,10 @@ namespace Core.Vfx
             var r0 = 9.2f;
             var r1 = WorldScale.StationRingRadius - WorldScale.StationRingSection.x * 0.5f + 0.4f;
             var y = -WorldScale.StationRingDrop;
-            foreach (var deg in _citadel ? new[] { 272f } : new[] { 45f, 135f, 225f, 315f })
+            foreach (var deg in new[] { 45f, 135f, 225f, 315f })
             {
                 var d = LatheMesh.Dir(deg);
-                Tube(m, Axis + d * r0 + Vector3.up * y, Axis + d * r1 + Vector3.up * y, _citadel ? 2.2f : 1.35f, 10);
+                Tube(m, Axis + d * r0 + Vector3.up * y, Axis + d * r1 + Vector3.up * y, 1.35f, 10);
                 // Collars at both ends and an elevator housing halfway.
                 Tube(m, Axis + d * (r1 - 2.2f) + Vector3.up * y, Axis + d * r1 + Vector3.up * y, 2.1f, 10);
                 Tube(m, Axis + d * r0 + Vector3.up * y, Axis + d * (r0 + 1.6f) + Vector3.up * y, 2.0f, 10);
@@ -316,7 +357,7 @@ namespace Core.Vfx
             }
 
             // Docking arms under the hub, three ships' berths (a fortress only: the citadel's tower is under it).
-            foreach (var deg in _citadel ? System.Array.Empty<float>() : new[] { 30f, 150f, 270f })
+            foreach (var deg in new[] { 30f, 150f, 270f })
             {
                 var d = LatheMesh.Dir(deg);
                 var a = Axis + d * 6.4f + Vector3.up * -26.2f;
@@ -368,12 +409,7 @@ namespace Core.Vfx
             Lamp(Axis + Vector3.up * 21.2f, 0.35f);
             var rc = WorldScale.StationRingRadius;
             var top = -WorldScale.StationRingDrop + WorldScale.StationRingSection.y * 0.5f + 0.3f;
-            if (_citadel)
-            {
-                Lamp(Axis + LatheMesh.Dir(WingFrom + 1f) * (rc + WorldScale.StationRingSection.x * 0.5f - 0.6f) + Vector3.up * top, 0.3f);
-                Lamp(Axis + LatheMesh.Dir(WingTo - 1f) * (rc + WorldScale.StationRingSection.x * 0.5f - 0.6f) + Vector3.up * top, 0.3f);
-            }
-            else
+            if (!_citadel)
                 for (var k = 0; k < 8; k++)
                     Lamp(Axis + LatheMesh.Dir(k * 45f + 22.5f) * (rc + WorldScale.StationRingSection.x * 0.5f - 0.6f) + Vector3.up * top, 0.3f);
             if (!_citadel)

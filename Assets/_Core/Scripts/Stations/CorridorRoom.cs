@@ -49,6 +49,14 @@ namespace Core.Stations
         bool _station;
         Transform _shipHall;
         Transform _concourse;
+        Transform _gallery;
+        bool _layoutCitadel;
+
+        /// <summary>The hall is a city's citadel gallery (inside the tower, under the rotunda).</summary>
+        public static bool InCitadel => Inside && Instance != null && Instance._layoutCitadel;
+
+        /// <summary>(station, citadel) whenever the hall changes body (the corridor's deck hand follows it).</summary>
+        public static event System.Action<bool, bool> LayoutChanged;
         Light[] _lights;
         RoomLightRig _rig;
         bool _layoutStation;
@@ -62,7 +70,9 @@ namespace Core.Stations
 
         /// <summary>Where a room's door stands in the corridor (door local +z faces into the corridor).</summary>
         public static (Vector3 pos, float yaw) DoorPose(Slot slot) =>
-            Instance != null && Instance._layoutStation ? StationConcourse.DoorPose(slot) : ShipDoorPose(slot);
+            Instance == null || !Instance._layoutStation ? ShipDoorPose(slot)
+            : Instance._layoutCitadel ? CitadelGallery.DoorPose(slot)
+            : StationConcourse.DoorPose(slot);
 
         static (Vector3 pos, float yaw) ShipDoorPose(Slot slot) => slot switch
         {
@@ -92,6 +102,7 @@ namespace Core.Stations
             }
 
             room._concourse = StationConcourse.Build(go.transform, art);
+            room._gallery = CitadelGallery.Build(go.transform, art);
             room.BuildLights();
             RoomDoor.Build(go.transform, "DoorToBridge", new Vector3(0f, 0f, 0.12f), 0f, Trans.Get("CommandBridge"), CicArtKit.Cyan,
                 art, () => Inside, () => AsyncTap.Run(room.LeaveToBridge()));
@@ -373,23 +384,27 @@ namespace Core.Stations
             }
 
             _rig = RoomLightRig.Attach(transform, names);
-            ApplyLayout(false);
+            ApplyLayout(false, false);
         }
 
         /// <summary>
         /// Ship passage (cool, narrow, portholes) or station concourse (warm hall on the ring, a bay window on the
         /// hub): swaps the body, moves the doors to their bays and the lights to the hall's cove.
         /// </summary>
-        void ApplyLayout(bool station)
+        void ApplyLayout(bool station, bool citadel)
         {
-            if (_layoutSet && station == _layoutStation)
+            citadel &= station;
+            if (_layoutSet && station == _layoutStation && citadel == _layoutCitadel)
                 return;
             _layoutSet = true;
             _layoutStation = station;
+            _layoutCitadel = citadel;
             if (_shipHall != null)
                 _shipHall.gameObject.SetActive(!station);
             if (_concourse != null)
-                _concourse.gameObject.SetActive(station);
+                _concourse.gameObject.SetActive(station && !citadel);
+            if (_gallery != null)
+                _gallery.gameObject.SetActive(citadel);
             foreach (var (name, slot) in Doors)
             {
                 var door = transform.Find(name);
@@ -399,10 +414,25 @@ namespace Core.Stations
                 door.SetLocalPositionAndRotation(pos, Quaternion.Euler(0f, yaw, 0f));
             }
 
+            var bridgeDoor = transform.Find("DoorToBridge");
+            if (bridgeDoor != null)
+            {
+                var (pos, yaw) = citadel ? CitadelGallery.BridgeDoor : (new Vector3(0f, 0f, 0.12f), 0f);
+                bridgeDoor.SetLocalPositionAndRotation(pos, Quaternion.Euler(0f, yaw, 0f));
+            }
+
             for (var i = 0; i < _lights.Length; i++)
             {
                 var l = _lights[i];
-                if (station)
+                if (citadel)
+                {
+                    // Lantern-warm, spread along the curve.
+                    l.transform.localPosition = CitadelGallery.LightPos(i, _lights.Length);
+                    l.color = CitadelGallery.Lantern;
+                    l.intensity = 1.8f;
+                    l.range = 9f;
+                }
+                else if (station)
                 {
                     l.transform.localPosition = new Vector3(1.1f, 3.5f, 3f + i * 6f);
                     l.color = StationConcourse.Warm;
@@ -419,14 +449,15 @@ namespace Core.Stations
             }
 
             if (_rig != null)
-                _rig.Radius = station ? StationConcourse.Length : Length;
+                _rig.Radius = citadel ? CitadelGallery.ROut * 2f : station ? StationConcourse.Length : Length;
+            LayoutChanged?.Invoke(station, citadel);
         }
 
         /// <summary>Ship corridor = cyan passage; station = the concourse (its own lights and colours).</summary>
         void ApplyDressing()
         {
             var station = _focus == null || _focus.IsRotundaView;
-            ApplyLayout(station);
+            ApplyLayout(station, _focus != null && _focus.Mode == ViewMode.City);
             if (_accents == null || station == _station && _accents[0].sharedMaterial != null && _dressed)
                 return;
             _station = station;
@@ -446,7 +477,10 @@ namespace Core.Stations
                 return;
             var fade = ViewFade.Ensure();
             await fade.FadeOut();
-            Arrive(Stand, Vector3.forward);
+            if (_focus != null && _focus.Mode == ViewMode.City)
+                Arrive(CitadelGallery.Stand.pos, CitadelGallery.Stand.facing);
+            else
+                Arrive(Stand, Vector3.forward);
             await fade.FadeIn();
             CicCue.Ok(transform.position + Vector3.up);
         }
@@ -496,7 +530,9 @@ namespace Core.Stations
         /// <summary>A ship's passage is a wing over the bridge; the concourse lies in the fortress's ring, or in the citadel's crown.</summary>
         void PlaceOverShip()
         {
-            if (_focus == null || _focus.IsRotundaView)
+            if (_focus != null && _focus.Mode == ViewMode.City)
+                RoomPlacement.OnMount(transform, CitadelGallery.MountPose());
+            else if (_focus == null || _focus.IsRotundaView)
                 RoomPlacement.OnMount(transform, StationConcourse.MountPose());
             else
                 RoomPlacement.OverShip(transform, Vector3.right);

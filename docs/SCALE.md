@@ -174,7 +174,8 @@ Une **quatrième couche**, jamais mélangée aux autres : la cité est posée `C
 | Décalage sous le système | 6 000 m | `WorldScale.CityDepth` |
 | Plancher de la rotonde au-dessus du sol | 260 m | `CityTowerHeight` |
 | Tour | fût en gradins de r 54 m au pied à r 7.6 m sous la couronne, corniches et 8 lignes de lumière or | `CityExterior.BuildTower` |
-| Couronne | hub de la rotonde + **une aile** de l'anneau (255–289°, section 12 × 8 m, r 46 m) qui loge le hall, sur 3 arcs-boutants | `StationExterior` (citadelle), `CityExterior` |
+| Couronne | hub de la rotonde seul, **sans anneau ni rayon** : du dehors, seule la rangée de fenêtres en arc de la galerie (une par baie de 15°, 1.4 m, appui à −7.0 m, clé à −4.6 m sous le pont) se lit dans son flanc | `StationExterior` (citadelle), `CityExterior` |
+| Galerie de la citadelle (hall d'une cité) | dans la couronne, un étage sous la rotonde (sol à −7.8 m) : couloir courbe de 300° (186° → 486°) autour du noyau, r 4.6 → 9.0 m, ligne médiane r 6.8 m (35.6 m de long), voûte nervurée à 4.85 m ; portes sur le noyau à 5.5 / 10.5 / 15.5 / 20.5 / 25.5 m (labo, chantier, bourse, diplomatie, quartiers), porte des étoiles au bout, escalier vers la rotonde au départ ; fenêtres en arc côté ville (appui 0.8 m, naissance 2.55 m), lanterne à chaque baie, maquette de la citadelle à 30.5 m | `CitadelGallery`, `CorridorRoom` (3ᵉ disposition) |
 | Esplanade / ville | esplanade r 72 m, ville jusqu'à r 760 m en 3–6 anneaux (selon le total des niveaux de bâtiments), 8 boulevards | `CityPlazaRadius`, `CityRadius` |
 | Hauteurs | 1er anneau jusqu'à ~190 m, puis chute en (1 − t)^2.3 ; flèches repères ×1.55 | `CityExterior.BuildDistricts` |
 | Murs (usine de défense) | r 778 m, 16–28 m de haut, batteries selon niveau + unités | `BuildWalls` |

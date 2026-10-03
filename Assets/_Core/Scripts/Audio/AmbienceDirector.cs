@@ -140,6 +140,9 @@ namespace Core.Audio
                 return Zone.Diplomacy;
             if (MarketRoom.Inside)
                 return Zone.Market;
+            // The citadel's gallery is the city's: wind at the windows, the city's hum.
+            if (CorridorRoom.InCitadel)
+                return Zone.Citadel;
             if (CorridorRoom.Inside)
                 return Zone.Corridor;
             return FocusContext.Current != null && FocusContext.Current.Mode == ViewMode.City ? Zone.Citadel : Zone.Bridge;
