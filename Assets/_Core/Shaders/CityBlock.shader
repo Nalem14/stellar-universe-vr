@@ -77,7 +77,9 @@ Shader "SU/CityBlock"
                 // Light bands: self-lit, brighter at night, never dark.
                 if (i.data.w > 0.5)
                 {
+                    // Keep the hue at night (crystal violet, beacon red): a shoulder instead of a hard clip to white.
                     float3 band = albedo * _BandGlow * (0.55 + 1.15 * night);
+                    band = band * 1.6 / (1.0 + max(max(band.r, band.g), band.b) * 0.55);
                     return float4(SU_CityFog(band, i.worldPos), 1);
                 }
 

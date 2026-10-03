@@ -855,7 +855,8 @@ namespace Core.Vfx
             else
             {
                 // Idle: a station watches the world below; a ship looks ahead, with the system card.
-                title = station ? Trans.Get("vr.view.stationHeader") : Trans.Get("vr.screen.survey");
+                title = !station ? Trans.Get("vr.screen.survey")
+                    : _focus.Mode == ViewMode.City ? Trans.Get("vr.view.citadelHeader") : Trans.Get("vr.view.stationHeader");
                 subject = station ? FindTarget(1_000_000 + _focus.RotundaPlanetId) : null;
                 if (station && subject != null)
                     Describe(subject, body, now);
