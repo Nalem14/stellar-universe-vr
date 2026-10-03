@@ -1149,7 +1149,7 @@ namespace Core.Stations
 
         /// <summary>
         /// Gate activation procedure, as in any gate base: while the ring powers up and dials, and for a while once
-        /// the horizon stands, the activation horn sounds over the hall and the beacons turn yellow (an unscheduled
+        /// the horizon stands, the activation chime sounds over the hall (a procedure warning, not a danger alarm) and the beacons turn yellow (an unscheduled
         /// incoming wormhole is the red alarm above). The open gate keeps a slow reminder.
         /// </summary>
         void ActivationAlarm(float now)
@@ -1165,8 +1165,8 @@ namespace Core.Stations
             if (now < _hornAt)
                 return;
             var fresh = activating || now - _openedAt < 9f;
-            _hornAt = now + (fresh ? 1.5f : 12f);
-            var volume = fresh ? 0.55f : 0.3f;
+            _hornAt = now + (fresh ? 3.2f : 15f);
+            var volume = fresh ? 0.5f : 0.28f;
             // From the horns high on the hall walls, either side of the gate.
             foreach (var horn in _horns)
                 Core.Audio.SfxBus.Play(Core.Audio.SfxSynth.GateAlarm, horn.position, volume, range: 40f,

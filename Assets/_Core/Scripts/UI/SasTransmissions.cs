@@ -110,6 +110,9 @@ namespace Core.UI
 
         async Task Load()
         {
+            // The sas may be unloading (auto-login landing while the scene changes).
+            if (this == null || _body == null || (!_embedded && _screen == null))
+                return;
             if (!_embedded)
                 _screen.gameObject.SetActive(true);
             if (!_loaded)
@@ -120,7 +123,7 @@ namespace Core.UI
 
             var r = await ActionJs.Get("GetGameAnnouncements");
             var root = ScreenKit.Object(r);
-            if (this == null)
+            if (this == null || _body == null || (!_embedded && _screen == null))
                 return;
             if (root == null)
             {

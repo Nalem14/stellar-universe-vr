@@ -173,19 +173,20 @@ namespace Core.Vfx
             }
         }
 
-        // Four holo plinths in the pit, between the command disc and the tiers, each with a slow hologram.
+        // Four holo plinths in the pit, between the command disc and the tiers, each with a slow hologram; the aft
+        // pair sits wide of the view teleporter (port, by the podium) and of the door runners.
         static void Plinths(MeshBatch b, Transform root, CicArtKit art, Material frame, Material dark, Material glow)
         {
-            const float r = 3.75f;
             const float top = 0.78f;
             var cyan = new Color(0.45f, 0.9f, 1f);
             var wire = art.Lit(Texture2D.whiteTexture, cyan, 1.9f);
             var core = art.Holo(Texture2D.whiteTexture, new Color(cyan.r, cyan.g, cyan.b, 0.35f));
             var builders = new System.Func<Mesh>[] { WorldHolo, StationHolo, ConvoyHolo, LatticeHolo };
-            var degs = new[] { 38f, 322f, 142f, 218f };
+            var degs = new[] { 38f, 322f, 162f, 198f };
+            var radii = new[] { 3.75f, 3.75f, 4.3f, 4.3f };
             for (var i = 0; i < degs.Length; i++)
             {
-                var c = P(degs[i], r, 0f);
+                var c = P(degs[i], radii[i], 0f);
                 var rot = Face(degs[i]);
                 b.Tube(c + Vector3.up * 0.03f, Vector3.up, 0.3f, 0.06f, dark);
                 b.Tube(c + Vector3.up * 0.38f, Vector3.up, 0.13f, 0.64f, frame);

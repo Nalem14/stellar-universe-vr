@@ -133,7 +133,7 @@ Constantes : `WorldScale.CicTableCenterZ`, `CicCaptainChairZ`, `CicCaptainStand`
 | Viewscreen | au-dessus du hublot central, visé sur l'œil du captain debout | Système · vaisseau/station · contexte |
 | TP de vue | bâbord du dais `(-2.05, 0, -1.25)`, face au captain | ~2 m du point debout |
 | Répétiteur crew | ~0.95 m de l'œil, ≤ 28° du regard, vers l'officier interpellé | Jamais un billboard verrouillé sur la tête |
-| Sélecteur d'alerte | pied à `(0.62, 0, chairZ + 0.3)`, tête à 0.9 m inclinée 50° vers l'œil assis ; 4 touches 0.105 × 0.045 m (Auto · Repos · Jaune · Rouge) | `AlertConditionPanel` ; en station, posé à +38° du pupitre droit du podium (`StationCommandLayout.ConditionTurn`) |
+| Sélecteur d'alerte | pied à `(0.62, 0, chairZ + 0.3)`, tête à 0.9 m inclinée 50° vers l'œil assis ; 4 touches 0.105 × 0.045 m (Auto · Repos · Jaune · Rouge) | `AlertConditionPanel` ; en station, à 0.95 m du point debout, 80° à droite de l’avant (hors podium, hors cône de la table ; `StationCommandLayout.ConditionBearing` / `ConditionReach`) |
 | Gyrophares | 4 sur les arêtes 1/3/5/7 du pont à `WallTop − 0.3` ; faisceaux 2.4 m tournant à 250°/s (rouge) ou 160°/s (jaune) | `AlertBeacon`, `BridgeCombatFx.BuildBeacons` ; le balayage mural (`_SU_AlertSweep`, portée 24 m) suit le même angle |
 
 **Vue habitée** : vaisseau réel (`ViewFleetId` > 0 → ordres de flotte ; le pont suit toujours le système **actuel** du vaisseau, y compris après un saut) **ou** fausse station en orbite (`ViewPlanetId` > 0 → la station ne bouge pas ; la table commande toujours les flottes autour ; station Helm retirée, on embarque via le TP).
@@ -159,7 +159,7 @@ Même repère intérieur et même table, mais pas de fauteuil : on commande **de
 | Colonnes sous la coursive | aux jambages 66/114/148/212/246/294°, r 7.8 m, du sol au sous-face (3.04 m), arête intérieure lumineuse | `StationHallDressing` |
 | Tambour haut | pilastres tous les 15° (7.5° + 15k) de 3.25 à 5.35 m, grilles 1.0 × 0.62 m entre eux, terminaux 0.78 × 0.5 m à 60/120/240/300° (+1.5 m sur la coursive), double conduite sous la corniche | `StationHallDressing` |
 | Mobilier | casiers 0.5 × 2.2 m à 169.8° / 190.2° (contre le portique), bancs 1.7 m face aux baies à 131° / 229° (r 7.05 m), grilles de service au sol r 6.6 m sous les gyrophares | `StationHallDressing` |
-| Socles holo (fosse) | r 3.75 m à 38 / 322 / 142 / 218°, plateau 0.78 m, hologramme ×1.5 à +0.45 m (monde, station, convoi, réseau d'anneaux) tournant lentement | `StationHallDressing.Plinths` |
+| Socles holo (fosse) | r 3.75 m à 38° / 322°, r 4.3 m à 162° / 198° (hors du téléporteur et des lignes de la porte), plateau 0.78 m, hologramme ×1.5 à +0.45 m (monde, station, convoi, réseau d'anneaux) tournant lentement | `StationHallDressing.Plinths` |
 | Gyrophares station | 45 / 135 / 225 / 315°, `WallTop − 0.55` | `BridgeCombatFx.BuildBeacons` |
 
 ### Cale sèche (salle de contrôle)
@@ -183,6 +183,6 @@ Repère de la salle : galerie au niveau 0, hall 1.4 m plus bas, +z vers l'anneau
 | Anneau | z 10.5, estrade x ±4, z 9.3 → 11.7 | `GateRoom.GatePos` |
 | Plafond | fermes sur les nervures (z = −2.5 + 2.8k, k = 1…6), pannes, gaines murales, pont roulant (rails z 1.5 → 10.5, chariot garé à z 2.3), 6 suspensions, halo au-dessus de l'anneau | `GateRoomDecor.BuildStructure` |
 | Sol | armoires de transformateurs reliées à l'estrade, réservoirs de refroidissement z 12.95 / 13.95, conduites en pied de mur, grille lumineuse, chariot de sondes, ventilations sous la galerie | `GateRoomDecor.BuildStructure` |
-| Gyrophares / avertisseurs | 4 gyrophares (±(6.4), +3.0, 6.6) et (±4.6, 4.2, −3.39) ; 2 avertisseurs à (±6.38, +3.2, 8.2) | `GateRoomDecor.BuildStructure`, `GateRoom.ActivationAlarm` |
+| Gyrophares / avertisseurs | 4 gyrophares (±(6.4), +3.0, 6.6) et (±4.6, 4.2, −3.39) ; 2 haut-parleurs (carillon grave G3 → C3, toutes les 3.2 s pendant l’activation puis toutes les 15 s) à (±6.38, +3.2, 8.2) | `GateRoomDecor.BuildStructure`, `GateRoom.ActivationAlarm` |
 | Lumière de l'anneau | point lumineux à 1.8 m devant l'anneau, portée 22 m : violet pendant la charge (1.8 s) et la composition, bleu (rouge si entrant) ouvert, éclair blanc à l'ouverture | `GateRing.Lighting` → `_SU_FlashPos` / `_SU_FlashCol` |
 

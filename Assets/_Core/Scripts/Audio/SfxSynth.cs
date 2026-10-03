@@ -31,7 +31,7 @@ namespace Core.Audio
         public static AudioClip AmberChime => Shot("su_amber", 1.1f, d => Bell(d, new[] { 659.3f, 880f }, 0.22f, 0.2f));
         public static AudioClip AllClear => Shot("su_clear", 1.2f, d => Bell(d, new[] { 587.3f, 740f, 880f }, 0.16f, 0.15f));
         public static AudioClip Incoming => Shot("su_incoming", 0.75f, IncomingWave);
-        public static AudioClip GateAlarm => Shot("su_gate_alarm", 1.3f, GateAlarmWave);
+        public static AudioClip GateAlarm => Shot("su_gate_alarm", 2.6f, GateAlarmWave);
         public static AudioClip GateCharge => Shot("su_gate_charge", 2.4f, GateChargeWave);
         public static AudioClip Pip => Shot("su_pip", 0.09f, d => Bell(d, new[] { 1318.5f }, 0.1f, 0.12f));
         public static AudioClip Synth => Shot("su_synth", 1.6f, SynthWave);
@@ -228,44 +228,33 @@ namespace Core.Audio
         }
 
         /// <summary>
-        /// The base's gate-activation alarm, a containment alert rather than a horn: three FM pulses gliding down
-        /// (a metallic synthetic bell, its brightness decaying), warbled, through a swept comb (phaser shimmer), over
-        /// a sub drone, the last pulse ringing out. Not the battle whoop.
+        /// The base's gate-activation warning: a procedure notice, not a danger alarm. A low, soft two-note chime
+        /// falling a fifth (G3 then C3), each note two slightly detuned sines with a faint octave, slow bloom and long
+        /// decay, over a quiet sub swell. Calm and grave; the red incoming-wormhole klaxon stays the alarm.
         /// </summary>
         static void GateAlarmWave(float[] d)
         {
             var n = d.Length;
-            var dry = new float[n];
-            float carrier = 0f, mod = 0f, sub = 0f;
-            const float pulse = 0.36f;
+            (float at, float hz)[] notes = { (0f, 196f), (0.62f, 130.81f) };
             for (var i = 0; i < n; i++)
             {
                 var t = i / (float)Rate;
-                var k = Mathf.Min(2, (int)(t / pulse));
-                var local = t - k * pulse;
-                var last = k == 2;
-                var u = Mathf.Clamp01(local / pulse);
-                var glide = Mathf.Lerp(1f, 0.72f, last ? Mathf.Clamp01(local / 0.6f) : u);
-                var warble = 1f + 0.012f * Mathf.Sin(t * 2f * Mathf.PI * 7f);
-                var hz = 740f * glide * warble;
-                carrier += hz / Rate;
-                mod += hz * 1.414f / Rate;
-                var index = 2.4f * Mathf.Exp(-local * 6f) + 0.35f;
-                var fm = Mathf.Sin(carrier * 6.2832f + index * Mathf.Sin(mod * 6.2832f));
-                var env = last
-                    ? Mathf.Clamp01(local * 120f) * Mathf.Exp(-local * 2.6f)
-                    : Mathf.Clamp01(local * 120f) * Mathf.Clamp01((pulse - local) * 30f) * (0.55f + 0.45f * Mathf.Exp(-local * 5f));
-                sub += 92.5f / Rate;
-                var drone = Mathf.Sin(sub * 6.2832f) * Mathf.Clamp01(t * 6f) * Mathf.Clamp01((1.3f - t) * 3f);
-                dry[i] = fm * env * 0.17f + drone * 0.05f;
-            }
+                var s = 0f;
+                foreach (var (at, hz) in notes)
+                {
+                    var local = t - at;
+                    if (local < 0f)
+                        continue;
+                    var w = 2f * Mathf.PI * hz * local;
+                    var tone = Mathf.Sin(w) * 0.5f + Mathf.Sin(w * 1.004f) * 0.5f + Mathf.Sin(w * 2f) * 0.18f * Mathf.Exp(-local * 3f) +
+                               Mathf.Sin(w * 3f) * 0.05f * Mathf.Exp(-local * 5f);
+                    var env = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(local / 0.05f)) * Mathf.Exp(-local * 1.5f);
+                    s += tone * env;
+                }
 
-            for (var i = 0; i < n; i++)
-            {
-                var t = i / (float)Rate;
-                var delay = (int)(Rate * (0.004f + 0.0025f * (1f + Mathf.Sin(t * 2f * Mathf.PI * 0.9f))));
-                var wet = i >= delay ? dry[i - delay] : 0f;
-                d[i] = (float)Math.Tanh((dry[i] + wet * 0.7f) * 1.4f) * 0.75f;
+                var swell = Mathf.Sin(2f * Mathf.PI * 65.41f * t) * Mathf.Sin(Mathf.PI * Mathf.Clamp01(t / 2.4f)) * 0.25f;
+                var fade = Mathf.Clamp01((n - i) / (Rate * 0.15f));
+                d[i] = (s * 0.24f + swell * 0.24f) * fade;
             }
         }
 

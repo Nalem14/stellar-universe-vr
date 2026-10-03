@@ -205,6 +205,8 @@ namespace Core.UI
 
             SetStatus(Trans.Get("Loading"), Cyan);
             var result = await auth.LoginToken();
+            if (this == null)
+                return;
             if (!result.Ok)
             {
                 SetStatus(FriendlyError(result.Error), new Color(1f, 0.4f, 0.35f));

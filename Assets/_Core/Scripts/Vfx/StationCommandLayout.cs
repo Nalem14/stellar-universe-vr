@@ -35,8 +35,12 @@ namespace Core.Vfx
         /// <summary>How far each arm panel swings out to the commander's side, about the standing eye.</summary>
         const float PodiumTurn = 60f;
         const float PodiumEyeHeight = 1.5f;
-        /// <summary>The condition selector stands this far round from the right lectern, toward the commander's back.</summary>
-        const float ConditionTurn = 38f;
+        /// <summary>
+        /// The condition selector, from the standing point: ahead-right of the right lectern, outside the podium's
+        /// floor ring and lectern, clear of the table's projection cone (≈0.15 m).
+        /// </summary>
+        const float ConditionBearing = 80f;
+        const float ConditionReach = 0.95f;
 
         static readonly Dictionary<Transform, (Vector3 pos, Quaternion rot)> Ship = new();
         static Transform _room;
@@ -110,17 +114,14 @@ namespace Core.Vfx
                 pads.Add(pad);
             }
 
-            // The condition selector: off the dais, beside the right lectern, keys to the standing commander.
+            // The condition selector: ahead-right of the right lectern, keys to the standing commander.
             var condition = Find("ConditionPanel");
             if (condition != null)
             {
                 Remember(condition);
                 if (station && pads.Count == 2)
                 {
-                    var stand = WorldScale.CicCaptainStand;
-                    var off = pads[1].localPosition - stand;
-                    off.y = 0f;
-                    var at = stand + Quaternion.Euler(0f, ConditionTurn, 0f) * off;
+                    var at = WorldScale.CicCaptainStand + LatheMesh.Dir(ConditionBearing) * ConditionReach;
                     at.y = 0f;
                     condition.GetComponent<AlertConditionPanel>()?.Place(at, standEye);
                 }
