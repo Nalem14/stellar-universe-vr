@@ -57,7 +57,19 @@ namespace Core.UI
             }
 
             // Raycast against physical colliders
-            if (Physics.Raycast(ray, out var hit, MaxInteractionDistance))
+            var physical = Physics.Raycast(ray, out var hit, MaxInteractionDistance);
+
+            // FPS view: the cursor is captured and the UI module ignores a locked mouse, so the holo screens are
+            // aimed with the crosshair here (hover, press, click, field focus), whichever is nearer wins.
+            if (isLocked && AimUi(physical ? hit.distance : MaxInteractionDistance))
+            {
+                ClearHover(keepPrompt: true);
+                HandleUiInput();
+                return;
+            }
+
+            ReleaseUi();
+            if (physical)
             {
                 HandleHit(hit);
             }
@@ -67,6 +79,104 @@ namespace Core.UI
             }
 
             HandleInput();
+        }
+
+        // ── Crosshair on world-space UI (locked cursor) ─────────────────────────
+
+        readonly System.Collections.Generic.List<UnityEngine.EventSystems.RaycastResult> _uiHits = new();
+        UnityEngine.EventSystems.PointerEventData _ped;
+        GameObject _uiHover;
+        GameObject _uiPress;
+
+        /// <summary>The nearest UI element under the screen centre within reach, hovered; false if none (or a collider is nearer).</summary>
+        bool AimUi(float physicalDistance)
+        {
+            var es = UnityEngine.EventSystems.EventSystem.current;
+            if (es == null)
+                return false;
+            _ped ??= new UnityEngine.EventSystems.PointerEventData(es);
+            _ped.Reset();
+            _ped.position = new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
+            _ped.button = UnityEngine.EventSystems.PointerEventData.InputButton.Left;
+            _uiHits.Clear();
+            es.RaycastAll(_ped, _uiHits);
+            GameObject target = null;
+            foreach (var r in _uiHits)
+            {
+                if (r.gameObject == null || r.distance > MaxInteractionDistance || r.distance > physicalDistance + 0.05f)
+                    continue;
+                // Only what reacts: a selectable / clickable / field up the hierarchy.
+                var handler = UnityEngine.EventSystems.ExecuteEvents.GetEventHandler<UnityEngine.EventSystems.IPointerClickHandler>(r.gameObject) ??
+                              UnityEngine.EventSystems.ExecuteEvents.GetEventHandler<UnityEngine.EventSystems.IPointerDownHandler>(r.gameObject);
+                if (handler == null)
+                    continue;
+                _ped.pointerCurrentRaycast = r;
+                target = handler;
+                break;
+            }
+
+            if (target != _uiHover)
+            {
+                if (_uiHover != null)
+                    UnityEngine.EventSystems.ExecuteEvents.ExecuteHierarchy(_uiHover, _ped, UnityEngine.EventSystems.ExecuteEvents.pointerExitHandler);
+                _uiHover = target;
+                if (_uiHover != null)
+                    UnityEngine.EventSystems.ExecuteEvents.ExecuteHierarchy(_uiHover, _ped, UnityEngine.EventSystems.ExecuteEvents.pointerEnterHandler);
+            }
+
+            if (target == null)
+                return false;
+            if (PcHud.Instance != null)
+            {
+                var label = target.GetComponentInChildren<TMPro.TMP_Text>();
+                var field = target.GetComponent<TMPro.TMP_InputField>();
+                var what = field == null && label != null && !string.IsNullOrEmpty(label.text) ? label.text : Trans.Get("vr.pc.interact");
+                PcHud.Instance.SetHover(true, Prompt(what));
+            }
+
+            return true;
+        }
+
+        void HandleUiInput()
+        {
+            var mouse = Mouse.current;
+            var kb = PcPlatformBoot.IsTyping ? null : Keyboard.current;
+            var down = mouse != null && mouse.leftButton.wasPressedThisFrame || kb != null && kb.eKey.wasPressedThisFrame;
+            var up = mouse != null && mouse.leftButton.wasReleasedThisFrame || kb != null && kb.eKey.wasReleasedThisFrame;
+            var es = UnityEngine.EventSystems.EventSystem.current;
+            if (down && _uiHover != null)
+            {
+                _ped.pressPosition = _ped.position;
+                _ped.pointerPressRaycast = _ped.pointerCurrentRaycast;
+                _ped.eligibleForClick = true;
+                _uiPress = UnityEngine.EventSystems.ExecuteEvents.ExecuteHierarchy(_uiHover, _ped, UnityEngine.EventSystems.ExecuteEvents.pointerDownHandler) ?? _uiHover;
+                _ped.pointerPress = _uiPress;
+                // A field takes the keyboard (the module would select on press; it does not see a locked mouse).
+                var selectable = UnityEngine.EventSystems.ExecuteEvents.GetEventHandler<UnityEngine.EventSystems.ISelectHandler>(_uiHover);
+                if (es != null && selectable != null)
+                    es.SetSelectedGameObject(selectable, _ped);
+            }
+
+            if (up && _uiPress != null)
+            {
+                UnityEngine.EventSystems.ExecuteEvents.Execute(_uiPress, _ped, UnityEngine.EventSystems.ExecuteEvents.pointerUpHandler);
+                var click = UnityEngine.EventSystems.ExecuteEvents.GetEventHandler<UnityEngine.EventSystems.IPointerClickHandler>(_uiHover);
+                if (click != null && click == UnityEngine.EventSystems.ExecuteEvents.GetEventHandler<UnityEngine.EventSystems.IPointerClickHandler>(_uiPress))
+                    UnityEngine.EventSystems.ExecuteEvents.Execute(click, _ped, UnityEngine.EventSystems.ExecuteEvents.pointerClickHandler);
+                _uiPress = null;
+                _ped.pointerPress = null;
+                _ped.eligibleForClick = false;
+            }
+        }
+
+        void ReleaseUi()
+        {
+            if (_uiPress != null && _ped != null)
+                UnityEngine.EventSystems.ExecuteEvents.Execute(_uiPress, _ped, UnityEngine.EventSystems.ExecuteEvents.pointerUpHandler);
+            _uiPress = null;
+            if (_uiHover != null && _ped != null)
+                UnityEngine.EventSystems.ExecuteEvents.ExecuteHierarchy(_uiHover, _ped, UnityEngine.EventSystems.ExecuteEvents.pointerExitHandler);
+            _uiHover = null;
         }
 
         void HandleHit(RaycastHit hit)
@@ -143,7 +253,7 @@ namespace Core.UI
             }
         }
 
-        void ClearHover()
+        void ClearHover(bool keepPrompt = false)
         {
             if (_hoveredInteractable != null)
             {
@@ -153,7 +263,7 @@ namespace Core.UI
 
             _hoveredButton = null;
 
-            if (PcHud.Instance != null)
+            if (PcHud.Instance != null && !keepPrompt)
             {
                 PcHud.Instance.SetHover(false, null);
             }
@@ -208,6 +318,7 @@ namespace Core.UI
 
         void OnDisable()
         {
+            ReleaseUi();
             ClearHover();
         }
     }
