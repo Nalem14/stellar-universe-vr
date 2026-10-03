@@ -195,6 +195,16 @@ namespace Core.Vfx
                 b.Box(c + Vector3.up * 0.38f + rot * new Vector3(0f, 0f, -0.131f), new Vector3(0.03f, 0.5f, 0.006f), glow, rot);
 
                 var holo = LatheMesh.Part(root, "PlinthHolo", builders[i](), wire).transform;
+                if (i == 1)
+                {
+                    // The station plinth shows the citadel in a city (ApplyMode).
+                    _modeHolo = holo.GetComponent<MeshFilter>();
+                    _modeRenderer = holo.GetComponent<MeshRenderer>();
+                    _stationMesh = _modeHolo.sharedMesh;
+                    _stationWire = wire;
+                    _citadelWire = art.Lit(Texture2D.whiteTexture, new Color(1f, 0.78f, 0.42f), 1.9f);
+                }
+
                 holo.localPosition = c + Vector3.up * (top + 0.45f);
                 holo.localScale = Vector3.one * 1.5f;
                 holo.gameObject.AddComponent<HoloSpin>().DegreesPerSecond = i % 2 == 0 ? 9f : -7f;
@@ -279,6 +289,55 @@ namespace Core.Vfx
             w.Circle(Vector3.zero, tilt, 0.3f, 48);
             w.Circle(Vector3.zero, tilt, 0.33f, 48);
             return w.ToMesh("SU_HoloWorld");
+        }
+
+        static MeshFilter _modeHolo;
+        static MeshRenderer _modeRenderer;
+        static Mesh _stationMesh;
+        static Mesh _citadelMesh;
+        static Material _stationWire;
+        static Material _citadelWire;
+
+        /// <summary>
+        /// In a city's citadel the station plinth shows the citadel (gold tower over its district rings); aboard an
+        /// orbital fortress, the fortress (cyan).
+        /// </summary>
+        public static void ApplyMode(bool city)
+        {
+            if (_modeHolo == null)
+                return;
+            _citadelMesh ??= CitadelHolo();
+            _modeHolo.sharedMesh = city ? _citadelMesh : _stationMesh;
+            if (_modeRenderer != null)
+                _modeRenderer.sharedMaterial = city ? _citadelWire : _stationWire;
+        }
+
+        static Mesh CitadelHolo()
+        {
+            var w = new Wire(0.008f);
+            // District rings on the ground, eight boulevards, the stepped tower and its crown.
+            foreach (var r in new[] { 0.09f, 0.15f, 0.22f, 0.3f })
+                w.Circle(Vector3.down * 0.2f, Vector3.up, r, 40);
+            for (var k = 0; k < 8; k++)
+            {
+                var d = Quaternion.Euler(0f, k * 45f + 22.5f, 0f) * Vector3.forward;
+                w.Line(Vector3.down * 0.2f + d * 0.06f, Vector3.down * 0.2f + d * 0.3f, Vector3.up);
+            }
+
+            float[] ys = { -0.2f, -0.1f, 0.02f, 0.12f, 0.2f };
+            float[] rs = { 0.05f, 0.04f, 0.03f, 0.02f, 0.016f };
+            for (var k = 0; k < ys.Length; k++)
+                w.Circle(Vector3.up * ys[k], Vector3.up, rs[k], 16);
+            for (var k = 0; k < 4; k++)
+            {
+                var d = Quaternion.Euler(0f, k * 90f, 0f) * Vector3.forward;
+                for (var j = 0; j < ys.Length - 1; j++)
+                    w.Line(Vector3.up * ys[j] + d * rs[j], Vector3.up * ys[j + 1] + d * rs[j + 1], d);
+            }
+
+            w.Circle(Vector3.up * 0.21f, Vector3.up, 0.07f, 24);
+            w.Line(Vector3.up * 0.2f, Vector3.up * 0.32f, Vector3.forward);
+            return w.ToMesh("SU_HoloCitadel");
         }
 
         static Mesh StationHolo()

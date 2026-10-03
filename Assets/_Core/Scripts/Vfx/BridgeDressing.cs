@@ -61,6 +61,7 @@ namespace Core.Vfx
             var view = Object.FindFirstObjectByType<BridgeViewRig>();
             if (view != null)
                 view.SetViewMode(mode);
+            StationHallDressing.ApplyMode(mode == ViewMode.City);
             if (_exteriorMode == mode && _exteriorHost == host)
                 return;
             _exteriorMode = mode;
