@@ -195,6 +195,22 @@ Un chemin par geste : on **imprime** à la console de l'imprimante, on **range**
 | Console de l'imprimante (chantier + file) | mur tribord, z = −4.15, face à la salle | `DryDock.YardDeskZ`, `ShipyardPanel` |
 | Recycleur / imprimante | z = −5.02 / −6.15 | `DryDock.RecyclerZ`, `PrinterZ` |
 
+### Salle des marchés (Bourse)
+
+Station et cité seulement : la porte est la 3ᵉ baie du hall (`CorridorRoom.Slot.MarketPort`, `StationConcourse` z 10.5) ; à bord d'un vaisseau, pas de porte. Repère : le joueur entre à (0, 0, 0) face à +z, la baie sur l'espace au fond. Décor fusionné par matériau (`MeshBatch`), une seule lumière ponctuelle.
+
+| Élément | Valeur | Constante / source |
+|---|---|---|
+| Hall | 12 m de large, 5.6 m de haut, du mur d’entrée (z −2.2, porte 2 m derrière le joueur) à la baie (z 10.6) ; baie ouverte de 1.2 à 4.8 m | `MarketDecor.HalfWidth`, `Height`, `Depth` |
+| Tableaux de cotations | 7 × 2.8 m sur chaque mur latéral (centre z 5, y 2.9), défilement par offset de texture | `MarketDecor.TickerTexture` |
+| Fosse d'échange | centre (0, 0, 5.4), marche r 2.55 → 2.7 m, socle émetteur r 0.95 m, haut 0.95 m | `MarketDecor.Pit` |
+| Carrousel | 5 caisses de 0.45 m, r 1.45 m à +1.62 m au-dessus de la fosse, 6°/s | `MarketPit.CrateOrbit`, `CrateHeight` |
+| Carte stellaire | disque r 1.35 m à +3.25 m au-dessus de la fosse, incliné de 25° vers l'entrée ; distance en échelle log (max = étoile la plus lointaine affichée, ≥ 10 al), vrai cap depuis notre système | `MarketPit.MapRadius`, `MapPoint` |
+| Berceau | (0, 0, 1.2), caisse posée à +1.08 m, fiche 0.64 × 0.26 m à +1.47 m, touches sur le rebord | `MarketPit.Cradle` |
+| Pad de séquestre | (2.05, 0, −0.02), à droite du joueur, plateau à 0.8 m | `MarketPit.Pad` |
+| Pupitres | Bourse (−1.15, 0, 0.8), Comptoir (1.15, 0, 0.8), tournés vers l'entrée | `MarketDecor.Refs` |
+| Cargos de lancement | 6 au plus, 4.2 s : montée de l'émetteur à +2.2 m puis sortie par la baie (z ≈ 100) | `MarketPit.AnimateFreighters` |
+
 ### Salle de la porte des étoiles
 
 Repère de la salle : galerie au niveau 0, hall 1.4 m plus bas, +z vers l'anneau. Décor fusionné par matériau (`MeshBatch`, une poignée de draw calls).

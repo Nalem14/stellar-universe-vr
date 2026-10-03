@@ -219,9 +219,11 @@ namespace Core.Vfx
         static FleetView DescribeFleet(FocusFleet fleet, FocusContext focus, long now, int viewId)
         {
             var stance = DiplomacyIndex.ResolveFleet(fleet);
-            return new FleetView(ResolveFleetSlot(fleet, focus), DiplomacyIndex.Tint(stance),
+            // Our marketplace convoys read in the exchange's green.
+            var tint = stance == EmpireStance.Owned && fleet.IsTrading ? Core.Stations.MarketRoom.Accent : DiplomacyIndex.Tint(stance);
+            return new FleetView(ResolveFleetSlot(fleet, focus), tint,
                 stance == EmpireStance.Owned, !fleet.IsIdle(now), viewId > 0 && fleet.Id == viewId, stance,
-                string.IsNullOrEmpty(fleet.Name) ? Trans.Get(fleet.IsStation ? "orbitalStation" : "fleet") : fleet.Name, fleet.PlanetId + ":" + fleet.AsteroidId);
+                string.IsNullOrEmpty(fleet.Name) ? Trans.Get(fleet.IsStation ? "orbitalStation" : "fleet") : fleet.Name, fleet.PlanetId + ":" + fleet.AsteroidId + (fleet.IsTrading ? ":t" : string.Empty));
         }
 
         void AddFleetView(int id, in FleetView v)

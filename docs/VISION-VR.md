@@ -142,6 +142,7 @@ Marcher 2 m, ce n’est pas changer de scène Unity. Ce sont des **stations dieg
 | **Comms** | Chat, mail, MP, news, activity | Grand écran mural, clavier VR / dictée plus tard |
 | **Diplomatie** | Relations, alliance, guerres | Cartes d’empires sur un second plateau |
 | **Intendance** | Shop Nova, objectifs, flag | Vitrine / console |
+| **Bourse** (station / cité seulement) | Marché galactique : offres, ventes, convois de fret | Caisses en orbite autour d'une fosse : on en vise une, elle vient au berceau et s'ouvre ; la marchandise vendue naît sur un pad de séquestre ; carte stellaire des routes et des convois en vol, cargos qui décollent par la baie |
 
 Pas de menu hamburger. Si une feature n’a pas de **meuble**, elle n’est pas encore dans le jeu VR.
 

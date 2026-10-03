@@ -45,6 +45,8 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 - `vr.dock.recycler.confirm`, `vr.dock.recycler.go`, `vr.dock.recycler.hint`, `vr.dock.recycler.title`, `vr.dock.store.empty`, `vr.dock.store.title`, `vr.dock.takeFromStore` dans **les dix langues**.
 - `vr.alert.auto`, `vr.alert.manual`, `vr.alert.normal`, `vr.alert.standDown` dans **les dix langues**.
 - `battleSkill_aegis_bubble`, `battleSkill_dock_repair`, `battleSkill_flak_barrage`, `battleSkill_garrison_counter`, `battleSkill_orbital_blackout`, `battleSkill_orbital_cannonade`, `battleSkill_planetary_battery`, `battleSkill_reactor_overcharge`, `battleSkill_station_command`, `vr.battle.err.cannot_move`, `vr.battle.immobile`, `vr.battle.overcharge`, `vr.battle.retreated`, `vr.dock.immobile`, `vr.dock.needStationCore`, `vr.dock.newStation`, `vr.dock.templateStation`, `vr.helm.stationAnchored`, `vr.menu.community`, `vr.menu.discord`, `vr.menu.open`, `vr.menu.website`, `vr.module.compatShip`, `vr.module.compatStation`, `vr.module.filterShip`, `vr.module.filterStation`, `vr.view.citadelHeader`, `vr.view.city`, `vr.view.noStation` dans **les dix langues**.
+- `conventionalDrive`, `sublightWithCrystal` dans **les dix langues** (elles n'existaient qu'en fr/en après `f03197d`).
+- `crew.engineering.cargoLooted.1`, `crew.ops.marketDispatch.1`, `crew.ops.marketReturned.1`, `crew.tactical.convoyLost.1`, `listingNotActive`, `listingNotFoundOrNotYours`, `originPlanetNotFound` dans **les dix langues**.
 
 
 ## Anomalies (intégré web)

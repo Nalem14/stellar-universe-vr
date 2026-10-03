@@ -285,6 +285,26 @@ namespace Core.Vfx
             free.Root.gameObject.SetActive(true);
         }
 
+        /// <summary>
+        /// Loot: the wreck's cargo came into our hull's hold (read on the fleet snapshot once the fight is over).
+        /// Amber containers' flare over its token; false when the board no longer shows that hull.
+        /// </summary>
+        public bool ShowLoot(int fleetId, string text)
+        {
+            foreach (var v in _ships.Values)
+            {
+                if (v.Root == null || v.Data == null || v.Data.FleetId != fleetId || !v.Root.activeInHierarchy)
+                    continue;
+                var at = v.Root.transform.position;
+                Flash(at, UiKit.Amber, 0.12f);
+                CicCue.Success(at);
+                Floater(at + Vector3.up * 0.09f, text, UiKit.Amber);
+                return true;
+            }
+
+            return false;
+        }
+
         /// <summary>Retreat: a yellow jump flare, the hull stretches up and out — no wreck, no destroyed tag.</summary>
         void Fled(ShipView v)
         {

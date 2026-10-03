@@ -90,6 +90,9 @@ namespace Core.Vfx
             var now = UnixNow();
             if (fleet.IsInBattle)
                 return "fleetIsInBattle";
+            // A marketplace convoy flies the guild's route until it is home (the server lets it be re-ordered).
+            if (fleet.IsTrading)
+                return "fleetIsBusy";
             if (fleet.IsMoving(now))
                 return "fleetIsMoving";
             if (fleet.IsSieging(now))

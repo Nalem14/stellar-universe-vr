@@ -30,8 +30,8 @@ Généré depuis `action-api.json` (172 actions), `actionjs.php` et un grep des 
 | Alliance | 17 | 17 | 100 % |
 | Empire / progression / shop | 24 | 27 | 89 % |
 | Saisons de suprématie | 5 | 5 | 100 % |
-| Marché galactique / convois | 0 | 5 | 0 % |
-| **Total** | **159** | **172** | **92 %** |
+| Marché galactique / convois | 5 | 5 | 100 % |
+| **Total** | **164** | **172** | **95 %** |
 
 Appelées par le client web : 151/172. « Appelée » ≠ « finie » : voir la colonne *Statut*.
 
@@ -281,11 +281,11 @@ Appelées par le client web : 151/172. « Appelée » ≠ « finie » : voir la 
 
 | Action | R/W | Params | VR | Web | Station | Phase | Statut | Notes |
 |---|---|---|---|---|---|---|---|---|
-| `CancelMarketOffer` | W | listing_id, planet | — | `ui/MarketplaceUI.js` | Salle des marchés | P5 | À faire |  |
-| `CreateMarketOffer` | W | planet, listing_type, category, item_key, quantity, price_currency, price_amount | — | `ui/MarketplaceUI.js` | Salle des marchés | P5 | À faire |  |
-| `DispatchMarketConvoy` | W | listing_id, origin_planet, fleet_ids | — | `ui/MarketplaceUI.js` | Salle des marchés | P5 | À faire |  |
-| `GetMarketplaceData` | R | category, search, sort, page, limit, planet | — | `ui/MarketplaceUI.js` | Salle des marchés | P5 | À faire |  |
-| `GetPlanetTradeStatus` | R | planet | — | `ui/MarketplaceUI.js` | Salle des marchés | P5 | À faire |  |
+| `CancelMarketOffer` | W | listing_id, planet | `App/MarketService.cs` | `ui/MarketplaceUI.js` | Salle des marchés | P5 | Branché | Comptoir › convois & ventes : deux pressions ; la caisse redescend sur le pad et se dissout (biens rendus au monde). |
+| `CreateMarketOffer` | W | planet, listing_type, category, item_key, quantity, price_currency, price_amount | `App/MarketService.cs` | `ui/MarketplaceUI.js` | Salle des marchés | P5 | Branché | Comptoir › créer : type (3 ressources ou module du hangar), quantité et prix au pas-à-pas, devise ; la marchandise se matérialise sur le pad de séquestre puis monte au carrousel à la publication. |
+| `DispatchMarketConvoy` | W | listing_id, origin_planet, fleet_ids | `App/MarketService.cs` | `ui/MarketplaceUI.js` | Salle des marchés | P5 | Branché | Caisse saisie au rayon → berceau (couvercle ouvert, fiche) → touche Acheter → composeur du comptoir : vaisseaux en orbite (stations exclues), soute requise = max(volume, prix), solde, durée d'un trajet calculée comme le serveur ; `fleet_ids` csv. Lancement : cargos holo qui sortent par la baie. Un vaisseau en mission (`tradeMissionId`) n'accepte plus d'ordre de mouvement (`fleetIsBusy`). |
+| `GetMarketplaceData` | R | category, search, sort, page, limit, planet | `App/MarketService.cs` | `ui/MarketplaceUI.js` | Salle des marchés | P5 | Branché | Bourse (pupitre gauche de la salle des marchés, station ou cité seulement) : catégorie, tri, recherche au clavier, pages de 5 — l'offre de la page flotte en caisse sur le carrousel de la fosse ; `currentSystemId` = système de notre monde (distances, carte stellaire). |
+| `GetPlanetTradeStatus` | R | planet | `App/MarketService.cs` | `ui/MarketplaceUI.js` | Salle des marchés | P5 | Branché | Comptoir (pupitre droit) : stocks, hangar, vaisseaux en orbite et soute libre, nos offres, convois en vol (carte stellaire : cargos sur leurs arcs). Lu à l'entrée puis toutes les 20 s tant qu'on est dans la salle ; monde = celui de la station / cité. |
 
 ## Écarts serveur à traiter côté web
 
@@ -522,11 +522,19 @@ Miroir de `controller/create-empire.php` via `CreateEmpireForUser` : mêmes vali
 - **Contrat de réponse différent du reste de l'API** : ✅ `GetPlanetTradeStatus`, `CreateMarketOffer`, `CancelMarketOffer` et `DispatchMarketConvoy` échouent par `error:` + `Lang(clé)`. Les codes (`planetNotFound`, `stationCannotMove`, `listingAlreadyTakenOrExpired`, …) sont dans les dix langues. Le succès reste du JSON.
 - **Textes français en dur** : ✅ serveur et panneau. Nom `market_convoy_name`, courriers `SendNotificationMail` (`market_mail_*`, langue du lecteur), journal `market_activity_*`, minerais via `mineralResource` / `crystalResource` / `biomassResource`. `MarketplaceUI.js` passe par `Helper.lang` (`market_*`, `close`, `cancel`, `previous`, `next`) — les clés sont dans les dix langues.
 
+### À corriger côté web (marché — relevés en branchant la salle des marchés VR, 2026-10-03)
+
+- **Le panneau web ne peut jamais acheter** : ✅ `GetMarketListings` et `my_active_listings` envoient `required_cargo` = `max(cargo_volume, ceil(price_amount))`, la même formule que `DispatchTradeConvoy`.
+- **Compte à rebours des convois vide** : ✅ chaque mission active expose `dest_time` = `outbound_arrival` si `phase` vaut `outbound`, sinon `inbound_arrival`.
+- **Distances et tri « proximité » morts sur le web** : ✅ `GetMarketplaceData` ancre la distance sur `currentSystemId`, sinon sur le `systemid` de `planet`. Le contrat dit `all | mineral | module` et `recent | price_asc | price_desc | distance_asc`. Le panneau envoie ces valeurs ; `minerals`, `modules` et `distance` restent compris.
+- **Trois codes d'erreur du marché sans traduction** : ✅ `listingNotActive`, `listingNotFoundOrNotYours` et `originPlanetNotFound` sont dans les dix langues.
+- **Un vaisseau en convoi accepte n'importe quel ordre** : ✅ `MoveFleetToAsteroid`, `MoveFleetToSystem`, `MoveFleetToPlanet`, `SetFleetOrderQueue`, `AddFleetOrderStep`, `ProcessFleetOrderQueue`, `SendFleetToJumpgate`, `ToggleFleetAutoMine`, `ToggleFleetAutoExplore`, `DepositCargo` et `WithdrawCargo` répondent `fleetIsBusy` tant que `tradeMissionId > 0`. La file d'ordres et le minage ou l'exploration auto ne déplacent pas ce vaisseau. `ProcessTradeMissions` ne crédite que le paiement réellement déchargé de la soute.
+
 ### À corriger côté web (sous-lumière payante — `f03197d`, 2026-10-03)
 
-- **`GetConfigs` n'expose pas `FLEET.SUBLIGHT_CRYSTAL_COST_PER_DISTANCE`** : un client ne peut pas chiffrer un trajet sous-lumière ni prévoir le repli en propulsion conventionnelle sans recopier la constante. À ajouter dans `fleet` (`sublightCrystalCostPerDistance`) à côté de `hyperspaceCrystalCostPerDistance` ; la VR la lit déjà si elle est présente (devis du pupitre), sinon elle ne peut qu'annoncer le repli après coup.
-- **`ok:conventional_drive` absent du contrat** : `MoveFleetToSystem`, `MoveFleetToPlanet` et `MoveFleetToAsteroid` peuvent le renvoyer, mais `action-api.json` n'annonce que `ok` / `ok:sublight_no_crystal` (`response.success_forms` et les `success` de chaque action).
+- **`GetConfigs` n'expose pas `FLEET.SUBLIGHT_CRYSTAL_COST_PER_DISTANCE`** : ✅ `fleet.sublightCrystalCostPerDistance`, à côté de `hyperspaceCrystalCostPerDistance`. La VR le lit déjà pour le devis du pupitre (`GameConfig.SublightCrystalPerDistance`).
+- **`ok:conventional_drive` absent du contrat** : ✅ annoncé dans `response.success_forms` et sur `MoveFleetToSystem`, `MoveFleetToPlanet`, `MoveFleetToAsteroid`. Le drapeau `conventionalDriveActive` est écrit sur les trois déplacements, pas seulement le saut de système. `conventionalDrive` et `sublightWithCrystal` sont dans les dix langues.
 
 ### À corriger côté web (minage auto — `ade97ca`, 2026-10-03)
 
-- **Une station orbitale peut partir seule en mode automatique** : `ToggleFleetAutoMine` n'accepte que des coques à soute et une station en a (StationCore : 5 000) ; `ToggleFleetAutoExplore` ne regarde que le module scientifique. Aucun des deux ne teste `isStation`, et les exécuteurs de file (`ExecuteQueueMoveToPlanet` / `ExecuteQueueMoveToAsteroid`, `model/fleet_queue.php`) non plus : la station décolle vers un astéroïde ou une étoile inconnue, alors que tous les `MoveFleet*` la refusent. La VR ne propose aucun des deux modes à une station ; le serveur doit refuser (`stationCannotMove`) et les exécuteurs ignorer une station.
+- **Une station orbitale peut partir seule en mode automatique** : ✅ `ToggleFleetAutoMine` et `ToggleFleetAutoExplore` refusent `isStation` avec `stationCannotMove`. `ProcessFleetAutoMine` / `ProcessFleetAutoExplore` éteignent le drapeau s'il était déjà allumé. `ExecuteQueueMoveToPlanet`, `ExecuteQueueMoveToAsteroid` et `ExecuteQueueMoveToSystem` ne déplacent pas une station : l'étape est sautée.

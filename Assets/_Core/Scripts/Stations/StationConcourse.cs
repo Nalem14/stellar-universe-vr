@@ -26,7 +26,7 @@ namespace Core.Stations
 
         /// <summary>Door bays on the +x wall (centres, z). Rooms use 0, 1, 3, 4; 2 and 5 wait for new rooms.</summary>
         static readonly float[] Bays = { 4.5f, 7.5f, 10.5f, 13.5f, 16.5f, 19.5f };
-        static readonly int[] FreeBays = { 2, 5 };
+        static readonly int[] FreeBays = { 5 };
         static readonly float[] Benches = { 6f, 12f, 18f };
         static readonly Vector2[] Planters = { new(-0.9f, 9f), new(-0.9f, 15f), new(2.3f, 1.6f), new(2.3f, 22.4f) };
 
@@ -45,6 +45,7 @@ namespace Core.Stations
             CorridorRoom.Slot.DockStarboard => (OnDoorWall(Bays[1]), -90f),
             CorridorRoom.Slot.DiplomacyPort => (OnDoorWall(Bays[3]), -90f),
             CorridorRoom.Slot.QuartersStarboard => (OnDoorWall(Bays[4]), -90f),
+            CorridorRoom.Slot.MarketPort => (OnDoorWall(Bays[2]), -90f),
             _ => (new Vector3(0f, 0f, Length - 0.12f), 180f)
         };
 
@@ -55,7 +56,7 @@ namespace Core.Stations
         {
             (new Vector3(-2.3f, 0f, 2.6f), Vector3.left, false),
             (new Vector3(-2.4f, 0f, 9.9f), new Vector3(-1f, 0f, 0.4f), false),
-            (new Vector3(2.4f, 0f, 10.4f), Vector3.right, true),
+            (new Vector3(2.4f, 0f, 12f), Vector3.right, true),
             (new Vector3(1.8f, 0f, 19.5f), Vector3.right, true),
             (new Vector3(-2.3f, 0f, 21.6f), new Vector3(-1f, 0f, -0.3f), false)
         };

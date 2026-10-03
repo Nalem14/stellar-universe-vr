@@ -36,6 +36,7 @@ namespace Core.Stations
             DockStarboard,
             DiplomacyPort,
             QuartersStarboard,
+            MarketPort,
             GateEnd
         }
 
@@ -56,7 +57,7 @@ namespace Core.Stations
         static readonly (string door, Slot slot)[] Doors =
         {
             ("LabDoor", Slot.LabPort), ("DockDoor", Slot.DockStarboard), ("DiplomacyDoor", Slot.DiplomacyPort),
-            ("QuartersDoor", Slot.QuartersStarboard), ("GateDoor", Slot.GateEnd)
+            ("QuartersDoor", Slot.QuartersStarboard), ("MarketDoor", Slot.MarketPort), ("GateDoor", Slot.GateEnd)
         };
 
         /// <summary>Where a room's door stands in the corridor (door local +z faces into the corridor).</summary>

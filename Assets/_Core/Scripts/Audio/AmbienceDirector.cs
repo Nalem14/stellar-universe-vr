@@ -27,6 +27,8 @@ namespace Core.Audio
             Corridor,
             Quarters,
             Diplomacy,
+            /// <summary>The galactic exchange: a busy floor, cargo lifts in the walls.</summary>
+            Market,
             Gate,
             Lab,
             Dock,
@@ -136,6 +138,8 @@ namespace Core.Audio
                 return Zone.Quarters;
             if (DiplomacyRoom.Inside)
                 return Zone.Diplomacy;
+            if (MarketRoom.Inside)
+                return Zone.Market;
             if (CorridorRoom.Inside)
                 return Zone.Corridor;
             return FocusContext.Current != null && FocusContext.Current.Mode == ViewMode.City ? Zone.Citadel : Zone.Bridge;
@@ -179,6 +183,12 @@ namespace Core.Audio
                     Set(Layer.Ship, 0.12f);
                     Set(Layer.Air, 0.08f);
                     Set(Layer.Reactor, 0.04f);
+                    break;
+                case Zone.Market:
+                    Set(Layer.Ship, 0.14f);
+                    Set(Layer.Air, 0.1f);
+                    Set(Layer.Lab, 0.07f);
+                    Set(Layer.Reactor, 0.05f);
                     break;
                 case Zone.Diplomacy:
                     Set(Layer.Ship, 0.16f);

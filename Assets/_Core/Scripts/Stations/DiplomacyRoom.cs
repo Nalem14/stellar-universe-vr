@@ -224,7 +224,7 @@ namespace Core.Stations
         // ── Enter / leave ─────────────────────────────────────────────────────────
 
         public static bool AnyRoomInside =>
-            Inside || GateRoom.Inside || ResearchLab.Inside || DryDock.Inside || QuartersRoom.Inside || CorridorRoom.Inside ||
+            Inside || GateRoom.Inside || ResearchLab.Inside || DryDock.Inside || QuartersRoom.Inside || MarketRoom.Inside || CorridorRoom.Inside ||
             Core.App.WatchMode.Inside;
 
         /// <summary>In a room other than the corridor (the corridor is where rooms are entered from).</summary>

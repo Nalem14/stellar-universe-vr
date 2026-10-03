@@ -25,10 +25,10 @@ namespace Core.Crew
             { "tactical.recruit", 1 }, { "tactical.defenseBuilt", 1 }, { "tactical.troopsLoaded", 1 },
             { "tactical.troopsUnloaded", 1 }, { "tactical.reinforce", 1 }, { "tactical.siegeWon", 1 },
             { "tactical.siegeFailed", 1 }, { "tactical.planetHeld", 1 }, { "tactical.planetLost", 1 }, { "tactical.onScreen", 1 }, { "tactical.noScreen", 1 },
-            { "tactical.alertRed", 2 }, { "tactical.alertAmber", 2 }, { "tactical.alertClear", 2 },
+            { "tactical.convoyLost", 1 }, { "tactical.alertRed", 2 }, { "tactical.alertAmber", 2 }, { "tactical.alertClear", 2 },
 
             { "engineering.greet", 1 }, { "engineering.ack", 1 }, { "engineering.harvest", 1 },
-            { "engineering.cargoFull", 1 }, { "engineering.moduleBuilt", 1 }, { "engineering.modulePlaced", 1 },
+            { "engineering.cargoFull", 1 }, { "engineering.cargoLooted", 1 }, { "engineering.moduleBuilt", 1 }, { "engineering.modulePlaced", 1 },
             { "engineering.queueDone", 1 }, { "engineering.queueFull", 1 }, { "engineering.fail", 1 },
             { "engineering.idle", 2 }, { "engineering.onScreen", 1 }, { "engineering.noScreen", 1 },
 
@@ -44,7 +44,7 @@ namespace Core.Crew
             { "comms.warLost", 1 }, { "comms.application", 1 },
 
             { "ops.greet", 1 }, { "ops.buildStart", 1 }, { "ops.buildDone", 1 }, { "ops.queueFull", 1 },
-            { "ops.decision", 1 }, { "ops.colonize", 1 }, { "ops.lowResources", 1 }, { "ops.cargoDeposited", 1 },
+            { "ops.decision", 1 }, { "ops.colonize", 1 }, { "ops.lowResources", 1 }, { "ops.cargoDeposited", 1 }, { "ops.marketDispatch", 1 }, { "ops.marketReturned", 1 },
             { "ops.fail", 1 }, { "ops.idle", 1 }, { "ops.onScreen", 1 }, { "ops.noScreen", 1 }
         };
 

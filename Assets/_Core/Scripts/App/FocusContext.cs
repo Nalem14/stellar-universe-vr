@@ -108,6 +108,9 @@ namespace Core.App
         /// </summary>
         public bool AutoMine;
         public int AutoMinePlanetId;
+        /// <summary>Marketplace convoy this hull flies for (fleets.tradeMissionId, web 57e1074); 0 = none.</summary>
+        public int TradeMissionId;
+        public bool IsTrading => TradeMissionId > 0;
 
         public bool IsMoving(long unixNow) => DestTime > unixNow;
         public bool IsSieging(long unixNow) => AttackEndTime > unixNow;
@@ -120,7 +123,7 @@ namespace Core.App
         /// <summary>No timer running and not fighting — what any order needs (a fortress included).</summary>
         public bool IsIdle(long unixNow) =>
             !IsMoving(unixNow) && !IsExploring(unixNow) && !IsHarvesting(unixNow) &&
-            !IsSieging(unixNow) && !IsInBattle;
+            !IsSieging(unixNow) && !IsInBattle && !IsTrading;
 
         public bool IsOwnedBy(int userId) => userId > 0 && UserId == userId;
 
@@ -369,6 +372,7 @@ namespace Core.App
                     h = h * 31 + f.ExploreEndTime.GetHashCode();
                     h = h * 31 + (f.IsInBattle ? 1 : 0);
                     h = h * 31 + (f.IsStation ? 5 : 2);
+                    h = h * 31 + f.TradeMissionId;
                     h = h * 31 + f.PrlBondReadyAt.GetHashCode();
                     h = h * 31 + f.CrystalCargo;
                     h = h * 31 + f.MineralCargo;
@@ -723,6 +727,7 @@ namespace Core.App
                     row.AutoExplore = AsInt(fleet["autoExplore"]) == 1;
                     row.AutoMine = AsInt(fleet["autoMine"]) == 1;
                     row.AutoMinePlanetId = AsInt(fleet["autoMinePlanetId"]);
+                    row.TradeMissionId = AsInt(fleet["tradeMissionId"]);
                     if (fleet["orderQueueList"] is JArray steps)
                     {
                         foreach (var st in steps)
