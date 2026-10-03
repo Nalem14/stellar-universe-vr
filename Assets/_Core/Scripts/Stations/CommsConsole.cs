@@ -18,7 +18,7 @@ namespace Core.Stations
     /// Channel: GetChat every 3 s while shown (lastid), AddChat ("console:" = server notice, "pm_sent:" =
     /// /w whisper). Private: GetPrivateConversations, SearchPlayers to start one, thread by
     /// GetPrivateMessages (lastid) + SendPrivateMessage. Mail: GetMails (folder, inbox filter), GetMail
-    /// (marks read), SendMail (recipient = name or id), DeleteMail in two presses, reply prefills "Re:".
+    /// (marks read), MarkAllMailRead, SendMail (recipient = name or id), DeleteMail in two presses, reply prefills "Re:".
     /// Text typed with the Quest keyboard; player text is shown verbatim (no rich-text injection).
     /// </summary>
     public sealed class CommsConsole : MonoBehaviour
@@ -937,10 +937,20 @@ namespace Core.Stations
                 SetMailView(MailView.Inbox);
         }
 
+        static int ReadCount(string body)
+        {
+            try
+            {
+                return FocusContext.AsInt(JObject.Parse(body)["read"]);
+            }
+            catch (Exception)
+            {
+                return 0;
+            }
+        }
+
         /// <summary>
-        /// Everything unread marked read, mail and private threads. The server has no bulk action: GetMail marks
-        /// one mail, GetPrivateMessages the messages it returns. GetMails answers the newest 50 per folder, so
-        /// the inbox is read once unfiltered and once per mail type to reach the older unread ones.
+        /// Everything unread marked read: one MarkAllMailRead for the inbox, then one per private thread.
         /// </summary>
         async Task ReadAll()
         {
@@ -952,35 +962,21 @@ namespace Core.Stations
             var read = 0;
             try
             {
-                var seen = new HashSet<int>();
-                foreach (var filter in Filters)
-                {
-                    var args = new Dictionary<string, string> { { "folder", "inbox" } };
-                    if (filter.Length > 0)
-                        args["filter"] = filter;
-                    foreach (var m in ParseArray(await ActionJs.Get("GetMails", args)))
-                    {
-                        var id = FocusContext.AsInt(m["id"]);
-                        if (id <= 0 || FocusContext.AsInt(m["is_read"]) != 0 || !seen.Add(id))
-                            continue;
-                        if ((await ActionJs.Get("GetMail", new Dictionary<string, string> { { "id", id.ToString() } })).Ok)
-                            read++;
-                    }
-                }
+                var inbox = await ActionJs.Get("MarkAllMailRead", new Dictionary<string, string> { { "folder", "inbox" } });
+                if (inbox.Ok)
+                    read += ReadCount(inbox.Body);
 
                 foreach (var c in ParseArray(await ActionJs.Get("GetPrivateConversations")))
                 {
-                    var unread = FocusContext.AsInt(c["unread_count"]);
                     var contact = FocusContext.AsInt(c["contact_id"]);
-                    if (unread <= 0 || contact <= 0)
+                    if (FocusContext.AsInt(c["unread_count"]) <= 0 || contact <= 0)
                         continue;
-                    var r = await ActionJs.Get("GetPrivateMessages", new Dictionary<string, string>
+                    var r = await ActionJs.Get("MarkAllMailRead", new Dictionary<string, string>
                     {
-                        { "contact_id", contact.ToString() },
-                        { "lastid", "0" }
+                        { "contact_id", contact.ToString() }
                     });
                     if (r.Ok)
-                        read += unread;
+                        read += ReadCount(r.Body);
                 }
 
                 if (CommsService.Instance != null)

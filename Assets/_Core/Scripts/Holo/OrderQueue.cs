@@ -233,7 +233,7 @@ namespace Core.Holo
         }
 
         public static bool TargetsPlanet(string type) =>
-            type is "moveToPlanet" or "explorePlanet" or "depositCargo" or "withdrawCargo";
+            type is "moveToPlanet" or "explorePlanet" or "colonizePlanet" or "depositCargo" or "withdrawCargo";
 
         public static bool TargetsAsteroid(string type) => type is "moveToAsteroid" or "harvestAsteroid";
 
@@ -254,6 +254,8 @@ namespace Core.Holo
             "depositCargo" => "stepDepositCargo",
             "withdrawCargo" => "stepWithdrawCargo",
             "explorePlanet" => "stepExplorePlanet",
+            "scanAnomaly" => "stepScanAnomaly",
+            "colonizePlanet" => "stepColonizePlanet",
             _ => "orderQueue"
         };
 
@@ -266,9 +268,11 @@ namespace Core.Holo
                     return verb + "  " + GalaxyCatalog.Coordinates(step.X, step.Y);
                 case "moveToAsteroid":
                 case "harvestAsteroid":
+                case "scanAnomaly":
                     return verb + "  #" + step.TargetId;
                 case "moveToPlanet":
                 case "explorePlanet":
+                case "colonizePlanet":
                     var p = focus?.FindPlanet(step.TargetId);
                     return verb + "  " + (p != null && !string.IsNullOrEmpty(p.Name) ? p.Name : "#" + step.TargetId);
                 default:

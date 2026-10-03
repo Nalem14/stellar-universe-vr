@@ -77,6 +77,7 @@ namespace Core.App
                 // A server without GetEmpirePlanets.systemid (before web c94c803) falls through to GetSystems.
                 if (fresh.Count > 0 || rows.Count == 0)
                 {
+                    PlanetFavorites.ApplyServer(rows);
                     Set(fresh, user);
                     _fresh = true;
                     return;

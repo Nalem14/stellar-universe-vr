@@ -577,12 +577,20 @@ namespace Core.Stations
         }
 
         /// <summary>
-        /// equippedTitle is a shop title key (EquipShopItem) or, since the seasons, the label of an imperial
-        /// honour as the server wrote it (EquipEmpireTitle stores title_label): the key is translated, the label
-        /// shown verbatim.
+        /// equippedTitle is shop:&lt;key&gt;, accolade:&lt;id&gt;, a legacy shop key, or a legacy English label.
+        /// Shop keys use shopItemName_; an accolade uses the resolved equippedTitleLabel.
         /// </summary>
         string TitleText(string title)
         {
+            if (string.IsNullOrEmpty(title))
+                return string.Empty;
+            if (title.StartsWith("shop:"))
+                return Trans.Get("shopItemName_" + title.Substring(5));
+            if (title.StartsWith("accolade:"))
+            {
+                var label = FocusContext.AsString(_me?["equippedTitleLabel"]);
+                return label.Length > 0 ? ScreenKit.Verbatim(label) : title;
+            }
             var catalog = _shopData?["catalog"] as JObject;
             if (catalog?[title] != null || (catalog == null && title.IndexOf(' ') < 0))
                 return Trans.Get("shopItemName_" + title);
@@ -1333,7 +1341,10 @@ namespace Core.Stations
                 }
 
                 var isOwned = owned.Contains(key);
-                var equipped = category == "title" ? equippedTitle == key
+                var titleKey = equippedTitle != null && equippedTitle.StartsWith("shop:")
+                    ? equippedTitle.Substring(5)
+                    : equippedTitle;
+                var equipped = category == "title" ? titleKey == key
                     : category == "cosmetic" && string.Equals(colour, FocusContext.AsString(def["value"]), StringComparison.OrdinalIgnoreCase);
                 if (equipped)
                     L(_shopBody, "<b>" + Trans.Get("shopEquipped") + "</b>", bx, y, 16f, UiKit.Ok, 200f, TextAlignmentOptions.Center);

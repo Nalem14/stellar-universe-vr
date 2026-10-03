@@ -34,11 +34,8 @@ namespace Core.Stations
         static readonly Color Gold = new(1f, 0.84f, 0.3f, 1f);
         static readonly string[] PodiumHex = { "#ffd700", "#cbd5e1", "#cd7f32" };
 
-        /// <summary>
-        /// model/season.php SEASON_TIERS, top first (name key, threshold, Nova granted on reaching it, colour).
-        /// GetActiveSeason only gives the current and next tier, not the ladder (docs/PARITY.md).
-        /// </summary>
-        static readonly (string Key, int MinScore, int Nova, string Hex)[] Tiers =
+        /// <summary>Fallback ladder until GetActiveSeason sends tiers / scoring / end_rewards.</summary>
+        static readonly (string Key, int MinScore, int Nova, string Hex)[] DefaultTiers =
         {
             ("grandmaster", 20000, 500, "#ffd700"),
             ("master", 12000, 300, "#a855f7"),
@@ -50,14 +47,14 @@ namespace Core.Stations
         };
 
         /// <summary>Supremacy points per deed (AddEmpireSupremacyScore call sites: battle, stargate, anomaly, bounty, objectives).</summary>
-        static readonly (string Key, int Points)[] Scoring =
+        static readonly (string Key, int Points)[] DefaultScoring =
         {
             ("battleWon", 30), ("planetConquered", 100), ("defenseHeld", 60), ("stargateCapture", 50),
             ("stargateColony", 40), ("anomaly", 15), ("bounty", 25), ("daily", 10), ("weekly", 30), ("monthly", 100)
         };
 
         /// <summary>End-of-season rewards by final rank (RunSeasonCheckCycle), with the title each one carries.</summary>
-        static readonly (string Key, int Nova, int Credits)[] Podium =
+        static readonly (string Key, int Nova, int Credits)[] DefaultPodium =
         {
             ("first", 1000, 3000000), ("second", 600, 1500000), ("third", 400, 800000),
             ("top10", 200, 400000), ("top20", 100, 200000)
@@ -77,6 +74,10 @@ namespace Core.Stations
         bool _loading;
         float _refreshAt;
         float _loadedAt;
+
+        (string Key, int MinScore, int Nova, string Hex)[] Tiers = DefaultTiers;
+        (string Key, int Points)[] Scoring = DefaultScoring;
+        (string Key, int Nova, int Credits)[] Podium = DefaultPodium;
 
         JObject _season;
         JObject _stats;
@@ -124,6 +125,71 @@ namespace Core.Stations
             AsyncTap.Run(Load(false));
         }
 
+        void ApplyCatalog(JObject payload)
+        {
+            var tiers = payload["tiers"] as JArray;
+            if (tiers != null && tiers.Count > 0)
+            {
+                var list = new List<(string Key, int MinScore, int Nova, string Hex)>();
+                foreach (var row in tiers)
+                    list.Add((FocusContext.AsString(row["key"]), FocusContext.AsInt(row["min_score"]),
+                        FocusContext.AsInt(row["nova_reward"]), FocusContext.AsString(row["color"])));
+                Tiers = list.ToArray();
+            }
+
+            var scoring = payload["scoring"] as JArray;
+            if (scoring != null && scoring.Count > 0)
+            {
+                var list = new List<(string Key, int Points)>();
+                foreach (var row in scoring)
+                {
+                    var id = FocusContext.AsString(row["id"]);
+                    list.Add((ScoreLabel(id), FocusContext.AsInt(row["points"])));
+                }
+                Scoring = list.ToArray();
+            }
+
+            var rewards = payload["end_rewards"] as JArray;
+            if (rewards != null && rewards.Count > 0)
+            {
+                var list = new List<(string Key, int Nova, int Credits)>();
+                foreach (var row in rewards)
+                    list.Add((PodiumLabel(FocusContext.AsInt(row["max_rank"])), FocusContext.AsInt(row["nova"]),
+                        FocusContext.AsInt(row["credits"])));
+                Podium = list.ToArray();
+            }
+        }
+
+        static string ScoreLabel(string id)
+        {
+            switch (id)
+            {
+                case "battle_win": return "battleWon";
+                case "conquest": return "planetConquered";
+                case "defense": return "defenseHeld";
+                case "stargate_capture": return "stargateCapture";
+                case "stargate_colony": return "stargateColony";
+                case "stargate_explore": return "stargateExplore";
+                case "objective_daily": return "daily";
+                case "objective_weekly": return "weekly";
+                case "objective_monthly": return "monthly";
+                default: return id;
+            }
+        }
+
+        static string PodiumLabel(int maxRank)
+        {
+            switch (maxRank)
+            {
+                case 1: return "first";
+                case 2: return "second";
+                case 3: return "third";
+                case 10: return "top10";
+                case 20: return "top20";
+                default: return "top" + maxRank;
+            }
+        }
+
         async Task Load(bool all)
         {
             if (_loading)
@@ -146,6 +212,7 @@ namespace Core.Stations
                 {
                     _season = s["season"] as JObject;
                     _stats = s["player_stats"] as JObject;
+                    ApplyCatalog(s);
                     _loadedAt = Time.unscaledTime;
                 }
 
@@ -548,7 +615,7 @@ namespace Core.Stations
             rank >= 1 && rank <= 3 ? "<color=" + PodiumHex[rank - 1] + "><b>#" + rank + "</b></color>" : "#" + rank;
 
         /// <summary>DetermineSeasonTier: the highest tier whose threshold the score reaches.</summary>
-        static int TierOf(int score)
+        int TierOf(int score)
         {
             for (var i = 0; i < Tiers.Length; i++)
                 if (score >= Tiers[i].MinScore)
@@ -556,7 +623,7 @@ namespace Core.Stations
             return Tiers.Length - 1;
         }
 
-        static int TierIndex(string key)
+        int TierIndex(string key)
         {
             for (var i = 0; i < Tiers.Length; i++)
                 if (Tiers[i].Key == key)
