@@ -822,6 +822,106 @@ namespace Core.Vfx
                     () => QueueCall(Core.Holo.OrderQueue.AddAsteroidStep(fleet, "harvestAsteroid", aid), "stepAdded"),
                     DiegeticUi.BtnStyle.Amber);
             }
+
+            // Auto-mining (ToggleFleetAutoMine, web ade97ca): any hull with a hold, never a fortress.
+            if (fleet.Cargo > 0 && !fleet.IsStation)
+            {
+                var on = fleet.AutoMine;
+                AddAction(Trans.Get("autoMineMode") + "  ·  " + Trans.Get(on ? "autoMineActive" : "autoMineDisabled"),
+                    () => on ? ToggleAutoMine(fleet, false, 0) : PickAutoMinePlanet(fleet),
+                    on ? DiegeticUi.BtnStyle.Amber : DiegeticUi.BtnStyle.Cyan);
+                if (on)
+                {
+                    var target = fleet.AutoMinePlanetId;
+                    AddAction(Trans.Get("autoMineTargetPlanet") + "  ·  " + OwnedPlanetName(target), () => PickAutoMinePlanet(fleet));
+                    // The server pauses it while the player is offline (last_online < 5 min), like auto-exploration.
+                    AddStatus(Trans.Get("autoMineDesc"));
+                }
+            }
+        }
+
+        static string OwnedPlanetName(int planetId)
+        {
+            foreach (var p in OwnedPlanets.All)
+                if (p.Id == planetId)
+                    return string.IsNullOrEmpty(p.Name) ? "#" + p.Id : p.Name;
+            return planetId > 0 ? "#" + planetId : Trans.Get("autoMineNoPlanets");
+        }
+
+        /// <summary>Unloading planet on the lectern (our worlds, the current one first), then auto-mine on.</summary>
+        async Task PickAutoMinePlanet(FocusFleet fleet)
+        {
+            var console = Core.Holo.OrderConsole.Instance;
+            if (console == null || OwnedPlanets.All.Count == 0)
+            {
+                _map?.SetReadout(Trans.Get("autoMineNoPlanets"));
+                return;
+            }
+
+            var options = new List<Core.Holo.OrderConsole.Option>();
+            foreach (var p in OwnedPlanets.All)
+            {
+                if (options.Count >= 6)
+                    break;
+                var name = string.IsNullOrEmpty(p.Name) ? "#" + p.Id : p.Name;
+                var current = p.Id == fleet.AutoMinePlanetId;
+                var item = new Core.Holo.OrderConsole.Option(name + "  ·  " + GalaxyCatalog.Label(p.SystemId), true,
+                    current ? Core.UI.UiKit.Amber : Core.UI.UiKit.Cyan, p.Id);
+                if (current)
+                    options.Insert(0, item);
+                else
+                    options.Add(item);
+            }
+
+            var choice = await console.AskHere(Trans.Get("autoMineTargetPlanet"), options);
+            if (choice is int planetId)
+                await ToggleAutoMine(fleet, true, planetId);
+            else
+                _map?.SetReadout(Trans.Get("cancel"));
+        }
+
+        async Task ToggleAutoMine(FocusFleet fleet, bool enable, int planetId)
+        {
+            _map?.SetReadout(Trans.Get("Loading"));
+            // Explicit value (never a blind toggle), and the unloading planet when switching on.
+            var query = new Dictionary<string, string>
+            {
+                { "fleet", fleet.Id.ToString() },
+                { "enabled", enable ? "1" : "0" }
+            };
+            if (enable && planetId > 0)
+                query["planet"] = planetId.ToString();
+            var result = await ActionJs.Get("ToggleFleetAutoMine", query);
+            Core.Crew.BarkDirector.Instance?.OrderResult(_role, "ToggleFleetAutoMine", result, fleet.Name);
+            if (!result.Ok)
+            {
+                CicCue.Fail(transform.position);
+                _map?.SetReadout(string.IsNullOrEmpty(result.Error) ? Trans.Get("vr.common.error") : result.Error);
+                return;
+            }
+
+            var now = enable;
+            try
+            {
+                if (!string.IsNullOrEmpty(result.Body) && result.Body[0] == '{')
+                {
+                    var o = Newtonsoft.Json.Linq.JObject.Parse(result.Body);
+                    now = FocusContext.AsInt(o["autoMine"]) == 1;
+                    fleet.AutoMinePlanetId = FocusContext.AsInt(o["autoMinePlanetId"]);
+                }
+            }
+            catch
+            {
+                // Keep the requested state.
+            }
+
+            fleet.AutoMine = now;
+            if (now)
+                fleet.AutoExplore = false; // one automatic mode at a time
+            CicCue.Ok(transform.position);
+            _map?.SetReadout(Trans.Get(now ? "autoMineActive" : "autoMineDisabled"));
+            if (_poller != null)
+                await _poller.PollNow();
         }
 
         /// <summary>Planetary survey screen (GetPlanet) on the planet in orbit / the station's world first.</summary>
@@ -914,8 +1014,9 @@ namespace Core.Vfx
             }
 
             // Auto-exploration (ToggleFleetAutoExplore): the ship surveys every planet here, then hops on to
-            // unknown stars by itself. Offered to ships with a science module, as on the web order panel.
-            if (HasScienceModule(fleet))
+            // unknown stars by itself. Offered to ships with a science module, as on the web order panel — never
+            // to an orbital fortress (it would fly off: see PARITY).
+            if (HasScienceModule(fleet) && !fleet.IsStation)
             {
                 var on = fleet.AutoExplore;
                 AddAction(Trans.Get("autoExploreMode") + "  ·  " + Trans.Get(on ? "autoExploreActive" : "autoExploreDisabled"),
@@ -964,6 +1065,8 @@ namespace Core.Vfx
             }
 
             fleet.AutoExplore = now;
+            if (now)
+                fleet.AutoMine = false; // the server keeps one automatic mode at a time
             CicCue.Ok(transform.position);
             _map?.SetReadout(Trans.Get(now ? "autoExploreActive" : "autoExploreDisabled"));
             Core.Crew.BarkDirector.Instance?.OrderResult(_role, "ToggleFleetAutoExplore", result, fleet.Name);

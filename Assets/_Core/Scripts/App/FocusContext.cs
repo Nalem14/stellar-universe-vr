@@ -102,6 +102,12 @@ namespace Core.App
         public bool QueueLoop;
         /// <summary>Server auto-exploration (GetAllFleets autoExplore): a science ship surveying on its own.</summary>
         public bool AutoExplore;
+        /// <summary>
+        /// Server auto-mining (web ade97ca, GetAllFleets autoMine / autoMinePlanetId): the hauler mines the richest
+        /// field here or nearby and unloads at that planet when its hold is full, while the player is online.
+        /// </summary>
+        public bool AutoMine;
+        public int AutoMinePlanetId;
 
         public bool IsMoving(long unixNow) => DestTime > unixNow;
         public bool IsSieging(long unixNow) => AttackEndTime > unixNow;
@@ -715,6 +721,8 @@ namespace Core.App
                     row.QueueIndex = AsInt(fleet["orderQueueIndex"]);
                     row.QueueLoop = AsInt(fleet["orderQueueLoop"]) == 1;
                     row.AutoExplore = AsInt(fleet["autoExplore"]) == 1;
+                    row.AutoMine = AsInt(fleet["autoMine"]) == 1;
+                    row.AutoMinePlanetId = AsInt(fleet["autoMinePlanetId"]);
                     if (fleet["orderQueueList"] is JArray steps)
                     {
                         foreach (var st in steps)

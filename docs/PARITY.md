@@ -1,6 +1,6 @@
 # PARITY — Stellar Universe VR ↔ `actionjs.php`
 
-Généré depuis `action-api.json` (171 actions), `actionjs.php` et un grep des deux clients. Référence web : `/Users/thommy/Websites/stellar-universe`. Roadmap : [`ROADMAP.md`](ROADMAP.md).
+Généré depuis `action-api.json` (172 actions), `actionjs.php` et un grep des deux clients. Référence web : `/Users/thommy/Websites/stellar-universe`. Roadmap : [`ROADMAP.md`](ROADMAP.md).
 
 **Règle** : chaque feature livrée met à jour sa ligne. Avant de coder, lire l'implémentation web (colonne *Web*) + `model/*.php`. On adapte la jouabilité au pont VR ; le contrat serveur reste strict. La VR ne renvoie **jamais** au web.
 
@@ -19,7 +19,7 @@ Généré depuis `action-api.json` (171 actions), `actionjs.php` et un grep des 
 | Méta / boot | 5 | 5 | 100 % |
 | Caméra (vue) | 2 | 2 | 100 % |
 | Galaxie | 8 | 8 | 100 % |
-| Flotte | 22 | 24 | 92 % |
+| Flotte | 23 | 25 | 92 % |
 | Vaisseau / chantier | 12 | 13 | 92 % |
 | Planète / bâtiments / recherche | 18 | 18 | 100 % |
 | Combat | 12 | 14 | 86 % |
@@ -31,9 +31,9 @@ Généré depuis `action-api.json` (171 actions), `actionjs.php` et un grep des 
 | Empire / progression / shop | 24 | 27 | 89 % |
 | Saisons de suprématie | 5 | 5 | 100 % |
 | Marché galactique / convois | 0 | 5 | 0 % |
-| **Total** | **158** | **171** | **92 %** |
+| **Total** | **159** | **172** | **92 %** |
 
-Appelées par le client web : 150/171. « Appelée » ≠ « finie » : voir la colonne *Statut*.
+Appelées par le client web : 151/172. « Appelée » ≠ « finie » : voir la colonne *Statut*.
 
 ## Auth
 
@@ -97,6 +97,7 @@ Appelées par le client web : 150/171. « Appelée » ≠ « finie » : voir la 
 | `SetFleetOrderQueue` | W | fleet, queue, loop? | `Audio/OrderCues.cs` +1 | `objects/fleet.js` | Helm | P4 | Branché | Balise de la file lâchée sur une autre planète / un autre champ : on renvoie les étapes restantes (le serveur remet l’index à 0), champs du serveur conservés |
 | `SpeedupFleetTravel` | W | fleet | `Crew/CrewLines.cs` +3 | `scripts/helper.js` | Helm | P5 | Branché | Vaisseau en route sélectionné sur la table (ou répéteur Helm) : pupitre « Terminer le voyage · N Nova » (gratuit < 1 min, même courbe que les autres accélérations), refus si Nova insuffisant ; **aucun handler serveur** (voir écarts) |
 | `ToggleFleetAutoExplore` | W | fleet, enabled? | `Vfx/CrewDialogue.cs` | `objects/fleet.js` | Science | P5 | Branché | Répéteur Science d'un vaisseau à module scientifique (ScienceModule / SensorArray / DeepSpaceScanner) : `enabled` explicite 0/1, état lu sur `GetAllFleets.autoExplore` |
+| `ToggleFleetAutoMine` | W | fleet, planet?, enabled? | `Vfx/CrewDialogue.cs` | `objects/fleet.js` | Engineering | P5 | Branché | Répéteur Ingénierie de tout vaisseau à soute (jamais une station) : `enabled` explicite, planète de déchargement choisie au pupitre (nos mondes, l'actuelle en tête) ; état `GetAllFleets.autoMine` / `autoMinePlanetId` ; exclusif avec l'exploration auto (le serveur coupe l'autre) |
 | `ToggleFleetQueueLoop` | W | fleet, loop? | `Holo/OrderQueue.cs` | `objects/fleet.js` | Helm | P4 | Branché | `loop` explicite 0/1 |
 | `UnloadTroops` | W | fleet, planet, troops | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Tactical | P5 | Branché | Idem, vers la garnison de nos planètes seulement |
 | `UpdateFleetDefendPosition` | W | id, position | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Tactical | P5 | Branché | Répéteur Tactique : posture courante affichée, trois choix (fuir / défendre la planète / rejoindre l'attaque) ; une station n'a que « défendre la planète (Défense fixe) », verrouillée (`stationMustDefendPlanet`) |
@@ -525,3 +526,7 @@ Miroir de `controller/create-empire.php` via `CreateEmpireForUser` : mêmes vali
 
 - **`GetConfigs` n'expose pas `FLEET.SUBLIGHT_CRYSTAL_COST_PER_DISTANCE`** : un client ne peut pas chiffrer un trajet sous-lumière ni prévoir le repli en propulsion conventionnelle sans recopier la constante. À ajouter dans `fleet` (`sublightCrystalCostPerDistance`) à côté de `hyperspaceCrystalCostPerDistance` ; la VR la lit déjà si elle est présente (devis du pupitre), sinon elle ne peut qu'annoncer le repli après coup.
 - **`ok:conventional_drive` absent du contrat** : `MoveFleetToSystem`, `MoveFleetToPlanet` et `MoveFleetToAsteroid` peuvent le renvoyer, mais `action-api.json` n'annonce que `ok` / `ok:sublight_no_crystal` (`response.success_forms` et les `success` de chaque action).
+
+### À corriger côté web (minage auto — `ade97ca`, 2026-10-03)
+
+- **Une station orbitale peut partir seule en mode automatique** : `ToggleFleetAutoMine` n'accepte que des coques à soute et une station en a (StationCore : 5 000) ; `ToggleFleetAutoExplore` ne regarde que le module scientifique. Aucun des deux ne teste `isStation`, et les exécuteurs de file (`ExecuteQueueMoveToPlanet` / `ExecuteQueueMoveToAsteroid`, `model/fleet_queue.php`) non plus : la station décolle vers un astéroïde ou une étoile inconnue, alors que tous les `MoveFleet*` la refusent. La VR ne propose aucun des deux modes à une station ; le serveur doit refuser (`stationCannotMove`) et les exécuteurs ignorer une station.
