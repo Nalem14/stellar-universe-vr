@@ -712,9 +712,13 @@ namespace Core.Vfx
             }
             else if (s.State == BattleSnapshot.Pending)
             {
-                if (!s.MyReady)
-                    Button(Trans.Get("vr.battle.ready"), 0, 0, 2, w * 1.4f, h, UiKit.Ok, () => AsyncTap.Run(ReadyUp()));
-                Button(Trans.Get("vr.battle.withdraw"), 1, 0, 2, w * 1.4f, h, UiKit.Danger, () => AsyncTap.Run(Withdraw()));
+                // Ready and withdraw are fleet orders. A planet defended with no ship has nothing to pull out.
+                if (_fleetId > 0)
+                {
+                    if (!s.MyReady)
+                        Button(Trans.Get("vr.battle.ready"), 0, 0, 2, w * 1.4f, h, UiKit.Ok, () => AsyncTap.Run(ReadyUp()));
+                    Button(Trans.Get("vr.battle.withdraw"), 1, 0, 2, w * 1.4f, h, UiKit.Danger, () => AsyncTap.Run(Withdraw()));
+                }
                 Button(Trans.Get("vr.battle.leave"), 0, 2, 1, w * 1.4f, h, UiKit.Cyan, Leave);
             }
             else

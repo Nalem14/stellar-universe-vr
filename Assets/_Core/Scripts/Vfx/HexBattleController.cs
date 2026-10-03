@@ -127,7 +127,8 @@ namespace Core.Vfx
         /// <summary>Put <paramref name="battleId"/> on the table, playing as <paramref name="fleetId"/>.</summary>
         public void Open(int battleId, int fleetId)
         {
-            if (battleId <= 0 || fleetId <= 0)
+            // fleetId 0 is a planet the player owns and defends with no ship engaged.
+            if (battleId <= 0 || fleetId < 0)
                 return;
             if (_visible && _battleId == battleId)
                 return;
@@ -307,7 +308,7 @@ namespace Core.Vfx
 
         async Task PollState()
         {
-            if (_battleId <= 0 || _fleetId <= 0)
+            if (_battleId <= 0 || _fleetId < 0)
                 return;
             _polling = true;
             var battle = _battleId;
@@ -486,7 +487,7 @@ namespace Core.Vfx
 
         public async Task EndTurn()
         {
-            if (_battleId <= 0 || _fleetId <= 0 || _acting)
+            if (_battleId <= 0 || _fleetId < 0 || _acting)
                 return;
             _acting = true;
             try

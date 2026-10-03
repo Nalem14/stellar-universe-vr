@@ -820,11 +820,15 @@ namespace Core.Stations
             DiegeticUi.HoloSelectTray(_body, new Vector2(0f, y), new Vector2(1060f, 48f));
             AccentBar(y, pending ? UiKit.Amber : UiKit.Danger);
             var shipName = b["nearby"] != null ? Trans.Get("vr.armory.nearby")
-                : me != null && !string.IsNullOrEmpty(me.Name) ? me.Name : "#" + myFleet;
+                : me != null && !string.IsNullOrEmpty(me.Name) ? me.Name
+                : myFleet > 0 ? "#" + myFleet
+                : planet > 0 && GalaxyCatalog.TryGetPlanet(planet, out var held) && !string.IsNullOrEmpty(held.Name)
+                    ? held.Name
+                    : Trans.Get("planet");
             Line(Trans.Format(pending ? "vr.armory.pending" : "vr.armory.active", where) +
                  "   <size=75%><color=#7fd8ff>" + shipName + "</color></size>", -230f, y, 19f, UiKit.TextBright, 560f,
                 TextAlignmentOptions.MidlineLeft);
-            if (_hex != null && myFleet > 0)
+            if (_hex != null && (myFleet > 0 || planet > 0))
                 DiegeticUi.HoloButton(_body, Trans.Get("vr.battle.rejoin"), new Vector2(420f, y),
                     new Vector2(200f, 42f), () =>
                     {
