@@ -29,6 +29,8 @@ namespace Core.Vfx
         public Vector3 Centre;
         /// <summary>Largest step between two meridians (degrees).</summary>
         public float Step = 3.75f;
+        /// <summary>Optional UV projection for <see cref="Quad"/> (metres): walls built in strips keep one continuous texture.</summary>
+        public System.Func<Vector3, Vector2> UvOf;
 
         public LatheMesh(Vector3 centre) => Centre = centre;
 
@@ -162,7 +164,10 @@ namespace Core.Vfx
             _n.AddRange(new[] { n, n, n, n });
             var w = Vector3.Distance(a, b);
             var h = Vector3.Distance(a, d);
-            _uv.AddRange(new[] { Vector2.zero, new Vector2(w, 0f), new Vector2(w, h), new Vector2(0f, h) });
+            if (UvOf != null)
+                _uv.AddRange(new[] { UvOf(a), UvOf(b), UvOf(c), UvOf(d) });
+            else
+                _uv.AddRange(new[] { Vector2.zero, new Vector2(w, 0f), new Vector2(w, h), new Vector2(0f, h) });
             var col = new Color(ao, ao, ao, 1f);
             _c.AddRange(new[] { col, col, col, col });
             _t.AddRange(flip ? new[] { i, i + 3, i + 2, i, i + 2, i + 1 } : new[] { i, i + 1, i + 2, i, i + 2, i + 3 });

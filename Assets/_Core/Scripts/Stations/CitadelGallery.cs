@@ -409,7 +409,7 @@ namespace Core.Stations
         static Mesh _cone;
 
         /// <summary>An eight-sided foliage cone, base radius 0.5, height 1 (y 0 → 1).</summary>
-        static Mesh Cone()
+        internal static Mesh Cone()
         {
             if (_cone != null)
                 return _cone;

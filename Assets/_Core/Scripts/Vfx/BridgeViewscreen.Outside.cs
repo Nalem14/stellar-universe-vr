@@ -41,6 +41,9 @@ namespace Core.Vfx
             // The room's renderers all sit within ±7 m, deck −0.6 m to coffer 4.4 m (measured).
             box.transform.localPosition = new Vector3(0f, 1.9f, 0f);
             box.transform.localScale = new Vector3(14.6f, 5.4f, 14.6f);
+            // Not in the citadel's hall, closed by the palace's walls (BridgeDressing toggles it with the layout).
+            var hall = room.Find("CitadelShell");
+            box.SetActive(hall == null || !hall.gameObject.activeSelf);
             var r = box.GetComponent<MeshRenderer>();
             r.sharedMaterial = MaskMaterial();
             r.shadowCastingMode = ShadowCastingMode.Off;

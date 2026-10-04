@@ -46,8 +46,10 @@ namespace Core.Vfx
         static Transform _room;
         static Transform _podium;
 
-        public static void Apply(Transform room, CicArtKit art, bool station)
+        public static void Apply(Transform room, CicArtKit art, ViewMode mode)
         {
+            var station = mode == ViewMode.Station;
+            var city = mode == ViewMode.City;
             if (room == null)
                 return;
             if (_room != room)
@@ -62,11 +64,16 @@ namespace Core.Vfx
             var cmd = CaptainCommandMode.Instance;
             if (station && cmd != null && cmd.IsCommandMode)
                 Core.Utils.AsyncTap.Run(cmd.ExitCommandMode());
+            // In the citadel the chair is the throne (CitadelHall): same seat, same arm consoles, same stand-up
+            // key — only the bridge chair's own shell is hidden, its colliders kept.
             foreach (var name in ChairParts)
             {
                 var t = Find(name);
-                if (t != null)
-                    t.gameObject.SetActive(!station);
+                if (t == null)
+                    continue;
+                t.gameObject.SetActive(!station);
+                foreach (var r in t.GetComponentsInChildren<Renderer>(true))
+                    r.enabled = !city;
             }
 
             var sit = Find("ExitCommand");
@@ -79,7 +86,11 @@ namespace Core.Vfx
                 if (t == null)
                     continue;
                 Remember(t);
-                if (station)
+                if (city && CitadelHall.PostPose(name, out var at, out var face))
+                {
+                    t.SetLocalPositionAndRotation(at, face);
+                }
+                else if (station)
                 {
                     var dir = LatheMesh.Dir(deg);
                     t.localPosition = StationCommandShell.OnTier(deg, PostRadius);

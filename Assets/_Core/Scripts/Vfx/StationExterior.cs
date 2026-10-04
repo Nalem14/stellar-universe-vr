@@ -25,9 +25,10 @@ namespace Core.Vfx
         static Material _cBeacon;
 
         /// <summary>
-        /// A city's crown (<see cref="CityExterior"/>): the same hub as the rotunda on its tower, warm stone-metal
-        /// with gold light — no ring, no spokes, no docking spire or arms (the tower carries it). Its hall is inside:
-        /// the citadel gallery under the rotunda, whose arched windows are all that shows (<see cref="BuildGalleryWindows"/>).
+        /// A city's crown (<see cref="CityExterior"/>): the tower's flared head in warm stone-metal, the citadel
+        /// gallery's arched windows in its flank (<see cref="BuildGalleryWindows"/>), a broad terrace on top, and on
+        /// it the palace that holds the throne hall (<see cref="CitadelHall"/>) — aisles and clerestory, buttresses,
+        /// a rose on the west front, an apse, a gilt flèche (<see cref="BuildPalace"/>). No ring, spokes or arms.
         /// </summary>
         bool _citadel;
         static readonly int EmissionMulId = Shader.PropertyToID("_EmissionMul");
@@ -38,11 +39,15 @@ namespace Core.Vfx
             go.transform.SetParent(ride, false);
             var ext = go.AddComponent<StationExterior>();
             ext._citadel = citadel;
-            ext.BuildHub();
             if (citadel)
+            {
+                ext.BuildCrownBase();
                 ext.BuildGalleryWindows();
+                ext.BuildPalace();
+            }
             else
             {
+                ext.BuildHub();
                 ext.BuildRing();
                 ext.BuildSpokes();
             }
@@ -93,6 +98,19 @@ namespace Core.Vfx
             Set(_cGlass, "_Emission", CityExterior.CitadelGold);
             _cGlass.SetFloat(EmissionMulId, 0.55f);
             return _cGlass;
+        }
+
+        static Material _cStone;
+
+        /// <summary>The palace's dressed stone: the citadel plating without its hull windows (the lancets are its windows).</summary>
+        static Material PalaceStone()
+        {
+            if (_cStone != null)
+                return _cStone;
+            _cStone = new Material(CitadelHull()) { name = "SU_CitadelPalaceStone" };
+            Set(_cStone, "_Windows", 0f);
+            Set(_cStone, "_PanelScale", 0.6f);
+            return _cStone;
         }
 
         static Material CitadelBeacon()
@@ -213,6 +231,210 @@ namespace Core.Vfx
             Set(bays, "_Color", new Color(0.16f, 0.32f, 0.42f));
             bays.SetFloat(EmissionMulId, 0.22f);
             LatheMesh.Part(transform, "HubGlazing", glass.ToMesh("SU_StationHubGlazing"), bays);
+        }
+
+        // ── Citadel crown: the tower's head and its terrace ──────────────────────
+
+        /// <summary>Terrace (the palace's ground) over the tower's flared head.</summary>
+        const float TerraceR = 12.8f;
+        const float TerraceY = -0.62f;
+
+        void BuildCrownBase()
+        {
+            var head = new LatheMesh(Axis) { Step = 6f };
+            Vector2[][] runs =
+            {
+                new[] { new Vector2(7.6f, CrownFoot), new Vector2(9.6f, -8f) },
+                new[] { new Vector2(9.6f, -8f), new Vector2(9.9f, -1.2f) },
+                new[] { new Vector2(9.9f, -1.2f), new Vector2(TerraceR, -1.0f) },
+                new[] { new Vector2(TerraceR, -1.0f), new Vector2(TerraceR, TerraceY) },
+                new[] { new Vector2(TerraceR, TerraceY), new Vector2(0f, TerraceY) }
+            };
+            foreach (var run in runs)
+                head.Revolve(run, 0f, 360f, false);
+            LatheMesh.Part(transform, "Hub", head.ToMesh("SU_CitadelCrown"), Dark());
+
+            // Light lines round the head and the terrace's lit edge, a parapet of merlons round it.
+            var lines = new LatheMesh(Axis) { Step = 4f };
+            lines.Revolve(new[] { new Vector2(9.66f, -7.4f), new Vector2(9.66f, -7.22f) }, 0f, 360f, false);
+            lines.Revolve(new[] { new Vector2(TerraceR + 0.01f, -0.92f), new Vector2(TerraceR + 0.01f, -0.82f) }, 0f, 360f, false);
+            LatheMesh.Part(transform, "HubLights", lines.ToMesh("SU_CitadelCrownLights"), Glass());
+            var parapet = new MeshBatch();
+            for (var deg = 0f; deg < 360f; deg += 6f)
+                parapet.Box(Axis + LatheMesh.Dir(deg) * (TerraceR - 0.15f) + Vector3.up * (TerraceY + 0.45f), new Vector3(0.7f, 0.9f, 0.3f), Dark(),
+                    Quaternion.LookRotation(LatheMesh.Dir(deg)));
+            parapet.Build(transform, "Parapet");
+        }
+
+        // ── Citadel palace (the throne hall's outside) ──────────────────────────
+
+        /// <summary>
+        /// The throne hall seen from the city: one-sided outward shells round <see cref="CitadelHall"/>'s volume
+        /// (invisible from inside, where the hall's own walls are), its windows lit gold from within.
+        /// </summary>
+        void BuildPalace()
+        {
+            const float wx = CitadelHall.WallX + 0.3f;
+            const float nx = CitadelHall.NaveX + 0.75f;
+            const float z0 = CitadelHall.NarthexZ - 0.55f;
+            const float z1 = CitadelHall.ApseZ;
+            const float y0 = TerraceY;
+            const float eaves = 7.9f;
+            const float lean = 8.8f;
+            const float naveTop = 11.0f;
+            const float ridge = 14.8f;
+            const float apseR = CitadelHall.ApseR + 0.5f;
+            var walls = new LatheMesh(Vector3.zero) { UvOf = p => new Vector2(p.x + p.z, p.y) };
+            var roofs = new LatheMesh(Vector3.zero) { UvOf = p => new Vector2(p.x + p.y, p.z) };
+            var panes = new LatheMesh(Vector3.zero);
+            var gold = new LatheMesh(Vector3.zero);
+
+            foreach (var s in new[] { -1f, 1f })
+            {
+                var o = new Vector3(s, 0f, 0f);
+                // Aisle wall, clerestory wall, the aisle's lean-to roof.
+                walls.Quad(new Vector3(s * wx, y0, z0), new Vector3(s * wx, y0, z1), new Vector3(s * wx, eaves, z1), new Vector3(s * wx, eaves, z0), o, 1f);
+                walls.Quad(new Vector3(s * nx, lean - 0.1f, z0), new Vector3(s * nx, lean - 0.1f, z1), new Vector3(s * nx, naveTop, z1),
+                    new Vector3(s * nx, naveTop, z0), o, 1f);
+                roofs.Quad(new Vector3(s * (wx + 0.35f), eaves - 0.2f, z0 - 0.3f), new Vector3(s * (wx + 0.35f), eaves - 0.2f, z1),
+                    new Vector3(s * nx, lean, z1), new Vector3(s * nx, lean, z0 - 0.3f), Vector3.up + o * 0.3f, 1f);
+                // Nave roof slope, gold cresting along the eaves.
+                roofs.Quad(new Vector3(s * (nx + 0.4f), naveTop - 0.25f, z0 - 0.4f), new Vector3(s * (nx + 0.4f), naveTop - 0.25f, z1 + 0.2f),
+                    new Vector3(0f, ridge, z1 + 0.2f), new Vector3(0f, ridge, z0 - 0.4f), Vector3.up + o * 0.5f, 1f);
+                gold.Quad(new Vector3(s * (nx + 0.41f), naveTop - 0.33f, z0 - 0.4f), new Vector3(s * (nx + 0.41f), naveTop - 0.33f, z1 + 0.2f),
+                    new Vector3(s * (nx + 0.41f), naveTop - 0.22f, z1 + 0.2f), new Vector3(s * (nx + 0.41f), naveTop - 0.22f, z0 - 0.4f), o, 1f);
+
+                // The east face between the aisle's wall and the apse, and between the clerestory and the apse.
+                walls.Quad(new Vector3(s * wx, y0, z1), new Vector3(s * apseR, y0, z1), new Vector3(s * apseR, eaves, z1), new Vector3(s * wx, eaves, z1),
+                    Vector3.forward, 1f);
+                walls.Quad(new Vector3(s * nx, eaves, z1), new Vector3(s * apseR, eaves, z1), new Vector3(s * apseR, naveTop, z1), new Vector3(s * nx, naveTop, z1),
+                    Vector3.forward, 1f);
+                walls.Tri(new Vector3(s * wx, eaves, z1), new Vector3(s * nx, eaves, z1), new Vector3(s * nx, lean, z1), Vector3.forward, 1f);
+                walls.Tri(new Vector3(s * wx, eaves, z0), new Vector3(s * nx, eaves, z0), new Vector3(s * nx, lean, z0), Vector3.back, 1f);
+
+                // Lancets: aisle and tribune on the outer wall, the clerestory above.
+                for (var i = 0; i < Piers.Length - 1; i++)
+                {
+                    var zc = (Piers[i] + Piers[i + 1]) * 0.5f;
+                    var bay = Piers[i + 1] - Piers[i];
+                    Lancet(panes, gold, new Vector3(s * (wx + 0.01f), 0f, zc), Vector3.forward, o, Mathf.Min(0.62f, bay * 0.28f), 0.8f, 3.5f);
+                    Lancet(panes, gold, new Vector3(s * (wx + 0.01f), 0f, zc), Vector3.forward, o, Mathf.Min(0.42f, bay * 0.2f), 5.8f, 6.5f);
+                    Lancet(panes, gold, new Vector3(s * (nx + 0.01f), 0f, zc), Vector3.forward, o, Mathf.Min(0.55f, bay * 0.22f), 8.3f, 9.7f);
+                }
+            }
+
+            // West front: the aisles' fronts, the nave's front and its gable, the rose; the east gable over the apse.
+            walls.Quad(new Vector3(-wx, y0, z0), new Vector3(wx, y0, z0), new Vector3(wx, eaves, z0), new Vector3(-wx, eaves, z0), Vector3.back, 1f);
+            walls.Quad(new Vector3(-nx, eaves, z0), new Vector3(nx, eaves, z0), new Vector3(nx, naveTop, z0), new Vector3(-nx, naveTop, z0), Vector3.back, 1f);
+            walls.Tri(new Vector3(-nx - 0.4f, naveTop - 0.25f, z0 - 0.01f), new Vector3(nx + 0.4f, naveTop - 0.25f, z0 - 0.01f), new Vector3(0f, ridge, z0 - 0.01f),
+                Vector3.back, 1f);
+            walls.Tri(new Vector3(-nx - 0.4f, naveTop - 0.25f, z1 + 0.2f), new Vector3(nx + 0.4f, naveTop - 0.25f, z1 + 0.2f), new Vector3(0f, ridge, z1 + 0.2f),
+                Vector3.forward, 1f);
+            // Its back too: seen over the ridge, above the apse's roof.
+            roofs.Tri(new Vector3(-nx - 0.4f, naveTop - 0.25f, z1 + 0.19f), new Vector3(nx + 0.4f, naveTop - 0.25f, z1 + 0.19f), new Vector3(0f, ridge, z1 + 0.19f),
+                Vector3.back, 0.7f);
+            Rose(panes, gold, new Vector3(0f, 8.4f, z0 - 0.02f), 1.9f);
+            Lancet(panes, gold, new Vector3(0f, 0f, z0 - 0.02f), Vector3.right, Vector3.back, 1.0f, y0 + 0.1f, 2.9f);
+
+            // The apse: its drum, a ribbed half-dome roof, five tall lancets.
+            var apse = new LatheMesh(new Vector3(0f, 0f, z1));
+            apse.Revolve(new[] { new Vector2(apseR, y0), new Vector2(apseR, naveTop) }, -90f, 90f, false);
+            var dome = new Vector2[9];
+            for (var i = 0; i < dome.Length; i++)
+            {
+                var t = i / (dome.Length - 1f);
+                dome[i] = new Vector2((apseR + 0.3f) * Mathf.Cos(t * Mathf.PI * 0.5f), naveTop - 0.1f + 2.9f * Mathf.Sin(t * Mathf.PI * 0.5f));
+            }
+
+            apse.Revolve(dome, -90f, 90f, false);
+            LatheMesh.Part(transform, "PalaceApse", apse.ToMesh("SU_CitadelPalaceApse"), Dark());
+            foreach (var deg in new[] { -60f, -30f, 0f, 30f, 60f })
+            {
+                var d = LatheMesh.Dir(deg);
+                Lancet(panes, gold, new Vector3(0f, 0f, z1) + d * (apseR + 0.01f), Vector3.Cross(Vector3.up, d) * -1f, d, 0.62f, 3.2f, 7.6f);
+            }
+
+            LatheMesh.Part(transform, "PalaceWalls", walls.ToMesh("SU_CitadelPalaceWalls"), PalaceStone());
+            LatheMesh.Part(transform, "PalaceRoofs", roofs.ToMesh("SU_CitadelPalaceRoofs"), Dark());
+            var lit = new Material(Glass()) { name = "SU_CitadelPalaceWindows" };
+            Set(lit, "_Color", new Color(0.62f, 0.46f, 0.26f));
+            lit.SetFloat(EmissionMulId, 0.55f);
+            LatheMesh.Part(transform, "PalaceWindows", panes.ToMesh("SU_CitadelPalaceWindows"), lit);
+            LatheMesh.Part(transform, "PalaceTracery", gold.ToMesh("SU_CitadelPalaceTracery"), Dark());
+
+            // Buttresses at every pier: a stepped pier on the aisle wall with a pinnacle, a flyer to the clerestory.
+            var b = new MeshBatch();
+            foreach (var s in new[] { -1f, 1f })
+                foreach (var z in Piers)
+                {
+                    var px = s * (wx + 0.4f);
+                    b.Box(new Vector3(px, (y0 + 6f) * 0.5f, z), new Vector3(0.8f, 6f - y0, 0.7f), Dark());
+                    b.Box(new Vector3(px - s * 0.1f, 7.4f, z), new Vector3(0.6f, 2.8f, 0.6f), Dark());
+                    b.Strut(new Vector3(px, 8.8f, z), new Vector3(px, 10.6f, z), 0.32f, Dark());
+                    b.Strut(new Vector3(px, 10.6f, z), new Vector3(px, 11.3f, z), 0.12f, Glass());
+                    b.Strut(new Vector3(px - s * 0.2f, 8.4f, z), new Vector3(s * (nx + 0.05f), 10.3f, z), 0.3f, Dark());
+                }
+
+            // The flèche over the apse's chord: an octagonal gilt spire, lit rings, the beacon at its tip.
+            var spire = new LatheMesh(new Vector3(0f, 0f, z1 - 0.6f)) { Step = 45f };
+            spire.Revolve(new[]
+            {
+                new Vector2(1.1f, ridge - 0.8f), new Vector2(1.1f, ridge + 1.6f), new Vector2(0.8f, ridge + 1.9f), new Vector2(0.8f, ridge + 3.4f),
+                new Vector2(0.55f, ridge + 3.6f), new Vector2(0.06f, ridge + 10.5f)
+            }, 0f, 360f, false);
+            LatheMesh.Part(transform, "Fleche", spire.ToMesh("SU_CitadelFleche"), Glass());
+            b.Build(transform, "Buttresses");
+        }
+
+        /// <summary>The tip of the palace's flèche (exterior local metres), where a home world's mast rises.</summary>
+        public static Vector3 FlecheTip => new(0f, 14.8f + 10.7f, CitadelHall.ApseZ - 0.6f);
+        static readonly float[] Piers = { -8.6f, -6.0f, -3.4f, -0.8f, 1.8f, 4.4f, 6.0f };
+
+        /// <summary>A pointed lit pane at <paramref name="foot"/> (x/z), along <paramref name="along"/>, facing <paramref name="face"/>, gold-framed.</summary>
+        static void Lancet(LatheMesh panes, LatheMesh gold, Vector3 foot, Vector3 along, Vector3 face, float half, float sill, float spring)
+        {
+            var apex = spring + half * 1.7f;
+            Vector3 P(float u, float y, float lift = 0f) => new Vector3(foot.x, y, foot.z) + along * u + face * lift;
+            float W(float y) => y <= spring ? half : half * Mathf.Pow(Mathf.Max(0f, 1f - Mathf.Pow((y - spring) / (apex - spring), 1.7f)), 0.62f);
+            panes.Quad(P(-half, sill), P(half, sill), P(half, spring), P(-half, spring), face, 1f);
+            var py = spring;
+            var pw = half;
+            for (var k = 1; k <= 6; k++)
+            {
+                var y = spring + (apex - spring) * k / 6f;
+                var w = W(Mathf.Min(y, apex - 0.001f));
+                panes.Quad(P(-pw, py), P(pw, py), P(w, y), P(-w, y), face, 1f);
+                foreach (var sd in new[] { -1f, 1f })
+                    gold.Quad(P(sd * pw, py, 0.01f), P(sd * (pw + 0.08f), py, 0.01f), P(sd * (w + 0.08f), y, 0.01f), P(sd * w, y, 0.01f), face, 1f);
+                py = y;
+                pw = w;
+            }
+
+            foreach (var sd in new[] { -1f, 1f })
+                gold.Quad(P(sd * half, sill, 0.01f), P(sd * (half + 0.08f), sill, 0.01f), P(sd * (half + 0.08f), spring, 0.01f), P(sd * half, spring, 0.01f), face, 1f);
+            gold.Quad(P(-0.03f, sill, 0.015f), P(0.03f, sill, 0.015f), P(0.03f, apex - 0.05f, 0.015f), P(-0.03f, apex - 0.05f, 0.015f), face, 1f);
+            gold.Quad(P(-half - 0.12f, sill - 0.12f, 0.01f), P(half + 0.12f, sill - 0.12f, 0.01f), P(half + 0.12f, sill, 0.01f), P(-half - 0.12f, sill, 0.01f), face, 1f);
+        }
+
+        /// <summary>The west front's rose: a lit disc, gold spokes and rings, facing −z.</summary>
+        static void Rose(LatheMesh panes, LatheMesh gold, Vector3 c, float r)
+        {
+            Vector3 P(float a, float rr, float lift = 0f) => c + new Vector3(Mathf.Sin(a) * rr, Mathf.Cos(a) * rr, -lift);
+            for (var k = 0; k < 32; k++)
+            {
+                var a0 = k * Mathf.PI / 16f;
+                var a1 = (k + 1) * Mathf.PI / 16f;
+                panes.Tri(c, P(a0, r), P(a1, r), Vector3.back, 1f);
+                gold.Quad(P(a0, r, 0.01f), P(a1, r, 0.01f), P(a1, r + 0.16f, 0.01f), P(a0, r + 0.16f, 0.01f), Vector3.back, 1f);
+                gold.Quad(P(a0, r * 0.6f, 0.01f), P(a1, r * 0.6f, 0.01f), P(a1, r * 0.6f + 0.06f, 0.01f), P(a0, r * 0.6f + 0.06f, 0.01f), Vector3.back, 1f);
+            }
+
+            for (var k = 0; k < 12; k++)
+            {
+                var a = k * Mathf.PI / 6f;
+                var n = new Vector3(Mathf.Cos(a), -Mathf.Sin(a), 0f) * 0.035f;
+                gold.Quad(P(a, 0.3f, 0.012f) - n, P(a, 0.3f, 0.012f) + n, P(a, r, 0.012f) + n, P(a, r, 0.012f) - n, Vector3.back, 1f);
+            }
         }
 
         // ── Citadel gallery windows ─────────────────────────────────────────────
@@ -406,7 +628,7 @@ namespace Core.Vfx
                 }
             }
 
-            Lamp(Axis + Vector3.up * 21.2f, 0.35f);
+            Lamp(_citadel ? FlecheTip : Axis + Vector3.up * 21.2f, 0.35f);
             var rc = WorldScale.StationRingRadius;
             var top = -WorldScale.StationRingDrop + WorldScale.StationRingSection.y * 0.5f + 0.3f;
             if (!_citadel)

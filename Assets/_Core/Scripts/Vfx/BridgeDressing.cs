@@ -4,12 +4,13 @@ using UnityEngine;
 namespace Core.Vfx
 {
     /// <summary>
-    /// Ship bridge vs rotunda on the same CIC kit. Aboard a ship: the horseshoe bridge, cyan. Aboard an orbital
-    /// fortress or in a city's citadel: the round command hall (<see cref="StationCommandShell"/>), the
-    /// commander's podium and the crew tiers (<see cref="StationCommandLayout"/>), the door and aft displays on
-    /// its curved wall, the lights lifted into the dome. Outside the bays: the fortress's hub and ring with cool
-    /// white-cyan accents (<see cref="StationExterior"/>), or the city falling away below the tower with warm
-    /// citadel gold (<see cref="CityExterior"/>).
+    /// Three command rooms on the same CIC kit. Aboard a ship: the horseshoe bridge, cyan. Aboard an orbital
+    /// fortress: the round command hall (<see cref="StationCommandShell"/>), the commander's podium and the crew
+    /// tiers (<see cref="StationCommandLayout"/>), the door and aft displays on its curved wall, the lights lifted
+    /// into the dome; outside, the fortress's hub and ring (<see cref="StationExterior"/>). In a city: the
+    /// citadel's throne hall (<see cref="CitadelHall"/>) — nave, throne under its baldachin, ministers at council
+    /// stalls, the door in the narthex, chandeliers' light; outside, the palace on its tower and the city falling
+    /// away below (<see cref="CityExterior"/>).
     /// </summary>
     public static class BridgeDressing
     {
@@ -22,7 +23,7 @@ namespace Core.Vfx
             var mode = focus != null ? focus.Mode : ViewMode.Ship;
             var ship = mode == ViewMode.Ship;
             var city = mode == ViewMode.City;
-            ApplyLayout(host, !ship);
+            ApplyLayout(host, mode);
             ApplyExterior(host, mode);
             var accent = ship ? CicArtKit.Cyan : city ? CityExterior.CitadelGold : StationCommandShell.Glow;
             foreach (var r in host.GetComponentsInChildren<MeshRenderer>(true))
@@ -80,32 +81,57 @@ namespace Core.Vfx
         }
 
         static bool _layoutSet;
-        static bool _station;
+        static ViewMode _layout;
         static CicEnvironment _host;
 
-        static void ApplyLayout(CicEnvironment host, bool station)
+        static void ApplyLayout(CicEnvironment host, ViewMode mode)
         {
-            if (_layoutSet && _station == station && _host == host)
+            if (_layoutSet && _layout == mode && _host == host)
                 return;
             _layoutSet = true;
-            _station = station;
+            _layout = mode;
             _host = host;
+            var station = mode == ViewMode.Station;
+            var city = mode == ViewMode.City;
             var room = host.transform;
             foreach (var name in ShipOnly)
             {
                 var t = room.Find(name);
                 if (t != null)
-                    t.gameObject.SetActive(!station);
+                    t.gameObject.SetActive(mode == ViewMode.Ship);
             }
 
             var hall = room.Find("StationShell");
             if (hall != null)
                 hall.gameObject.SetActive(station);
+            var throne = room.Find("CitadelShell");
+            if (throne != null)
+                throne.gameObject.SetActive(city);
+            // The depth box that hides the bridge from the screen's drone shots: the palace's own walls do that in a
+            // city (and the box would cut into them).
+            var mask = room.Find("OutsideMask");
+            if (mask != null)
+                mask.gameObject.SetActive(!city);
 
-            // The corridor door: in the aft bulkhead, or in its portal on the hall's curved wall.
+            // The corridor door: in the aft bulkhead, in its portal on the hall's curved wall, or in the narthex.
             var door = room.Find("CorridorDoor");
             if (door != null)
-                door.localPosition = station ? StationCommandShell.OnWall(180f, 0.12f, 0f) : new Vector3(0f, 0f, -WorldScale.CicDeck * 0.5f + 0.12f);
+                door.localPosition = city ? CitadelHall.DoorPose
+                    : station ? StationCommandShell.OnWall(180f, 0.12f, 0f) : new Vector3(0f, 0f, -WorldScale.CicDeck * 0.5f + 0.12f);
+
+            if (city)
+            {
+                // Chandeliers' warm light down the nave, the apse's gold over the screen, the narthex's two pools.
+                Light("Fill", new Vector3(0f, 9.2f, WorldScale.CicTableCenterZ), new Color(1f, 0.88f, 0.7f), 2.1f, 19f);
+                Light("HublotWash", new Vector3(0f, 4.6f, CitadelHall.ApseZ + 2.4f), CityExterior.CitadelGold, 1.3f, 9f);
+                Light("Warm", new Vector3(-4.2f, 3.4f, CitadelHall.NarthexZ + 2.2f), new Color(1f, 0.8f, 0.55f), 1.1f, 8.5f);
+                Light("WarmStbd", new Vector3(4.2f, 3.4f, CitadelHall.NarthexZ + 2.2f), new Color(1f, 0.8f, 0.55f), 1.1f, 8.5f);
+                var cityRig = host.GetComponent<RoomLightRig>();
+                if (cityRig != null)
+                    cityRig.Radius = 17f;
+                Relayout(host, mode);
+                return;
+            }
 
             // The four room lights: under the bridge's sky panel, the bow wash, two warm pools aft — or high in
             // the dome, the monolith's wash, and the credenzas either side of the door.
@@ -121,18 +147,7 @@ namespace Core.Vfx
             if (rig != null)
                 rig.Radius = station ? WorldScale.StationHallRadius + 3f : 10f;
 
-            // No command chair at a station: a standing podium, the crew up on the tiers.
-            StationCommandLayout.Apply(room, host.Art, station);
-
-            var displays = host.GetComponentInChildren<BridgeWallDisplays>(true);
-            if (displays != null)
-                displays.SetStationLayout(station);
-            var fx = host.GetComponentInChildren<BridgeCombatFx>(true);
-            if (fx != null)
-                fx.SetStationLayout(station);
-            var crew = host.GetComponentInChildren<Core.Crew.CrewLife>(true);
-            if (crew != null)
-                crew.SetStationLayout(station);
+            Relayout(host, mode);
 
             void Light(string name, Vector3 pos, Color color, float intensity, float range)
             {
@@ -145,6 +160,24 @@ namespace Core.Vfx
                 l.intensity = intensity;
                 l.range = range;
             }
+        }
+
+        /// <summary>
+        /// Posts, pads, displays, alert bars and the watch to their places in this room: no chair at a station (a
+        /// standing podium, the crew up on the tiers); the throne and the council stalls in a city.
+        /// </summary>
+        static void Relayout(CicEnvironment host, ViewMode mode)
+        {
+            StationCommandLayout.Apply(host.transform, host.Art, mode);
+            var displays = host.GetComponentInChildren<BridgeWallDisplays>(true);
+            if (displays != null)
+                displays.SetLayout(mode);
+            var fx = host.GetComponentInChildren<BridgeCombatFx>(true);
+            if (fx != null)
+                fx.SetLayout(mode);
+            var crew = host.GetComponentInChildren<Core.Crew.CrewLife>(true);
+            if (crew != null)
+                crew.SetLayout(mode);
         }
     }
 }

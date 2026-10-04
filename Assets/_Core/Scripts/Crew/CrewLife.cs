@@ -69,12 +69,26 @@ namespace Core.Crew
             life.Walk(bridge, "DeckHandTactical", ring, 6, Tactical, family, false);
             life._shipRing = ring;
             life._stationRing = StationRing();
+            life._cityRing = Spots(Core.Vfx.CitadelHall.FloorSpots());
 
             // The station hall's gallery has its own hand, there only at a station.
             var gallery = Core.Vfx.StationCommandShell.GallerySpots();
             var galleryRing = new Spot[gallery.Length];
             for (var i = 0; i < gallery.Length; i++)
                 galleryRing[i] = new Spot { At = gallery[i].at, Facing = gallery[i].facing.normalized, Post = gallery[i].post };
+            // Two councillors at the citadel's council table, there only in a city.
+            for (var i = 0; i < 2; i++)
+            {
+                var (pos, rot) = Core.Vfx.CitadelHall.CouncillorPose(i);
+                var c = CrewExtra.Build(bridge, "Councillor" + i, i == 0 ? Science : Ops, family);
+                c.transform.SetLocalPositionAndRotation(pos, rot);
+                c.Current = CrewExtra.Pose.Work;
+                c.gameObject.SetActive(false);
+                life._council.Add(c);
+            }
+
+            life._galleryRing = galleryRing;
+            life._tribuneRing = Spots(Core.Vfx.CitadelHall.TribuneSpots());
             life.Walk(bridge, "GalleryHand", galleryRing, 2, Comms, family, true);
             life._galleryHand = life._walkers[life._walkers.Count - 1].Body;
             life._galleryHand.gameObject.SetActive(false);
@@ -125,6 +139,18 @@ namespace Core.Crew
 
         Spot[] _shipRing;
         Spot[] _stationRing;
+        Spot[] _cityRing;
+        readonly List<CrewExtra> _council = new();
+        Spot[] _galleryRing;
+        Spot[] _tribuneRing;
+
+        static Spot[] Spots((Vector3 at, Vector3 facing, bool post)[] from)
+        {
+            var spots = new Spot[from.Length];
+            for (var i = 0; i < from.Length; i++)
+                spots[i] = new Spot { At = from[i].at, Facing = from[i].facing.normalized, Post = from[i].post };
+            return spots;
+        }
         CrewExtra _galleryHand;
         readonly List<(Vector3 pos, Quaternion rot)> _operatorShipPoses = new();
         Spot[] _hallShip;
@@ -148,13 +174,24 @@ namespace Core.Crew
             };
         }
 
-        /// <summary>Swap the deck hands' round between the ship bridge and the station hall (behind the view's fade).</summary>
-        public void SetStationLayout(bool station)
+        /// <summary>
+        /// Swap the deck hands' round between the ship bridge, the station hall and the citadel's throne hall
+        /// (behind the view's fade): the hall's aisles in a city, its upper hand on the tribunes.
+        /// </summary>
+        public void SetLayout(ViewMode mode)
         {
-            Swap(station ? _shipRing : _stationRing, station ? _stationRing : _shipRing);
+            var station = mode != ViewMode.Ship;
+            var ring = mode == ViewMode.City ? _cityRing : station ? _stationRing : _shipRing;
+            foreach (var from in new[] { _shipRing, _stationRing, _cityRing })
+                if (from != ring)
+                    Swap(from, ring);
             Swap(station ? _hallShip : _hallStation, station ? _hallStation : _hallShip);
+            var upper = mode == ViewMode.City ? _tribuneRing : _galleryRing;
+            Swap(upper == _tribuneRing ? _galleryRing : _tribuneRing, upper);
             if (_galleryHand != null)
                 _galleryHand.gameObject.SetActive(station);
+            foreach (var c in _council)
+                c.gameObject.SetActive(mode == ViewMode.City);
 
             // The two auxiliary operators: at the bridge's side banks, or up on the tiers at the data walls.
             if (_operatorShipPoses.Count == 0)
@@ -166,6 +203,14 @@ namespace Core.Crew
                 if (!station)
                 {
                     t.SetLocalPositionAndRotation(_operatorShipPoses[i].pos, _operatorShipPoses[i].rot);
+                    continue;
+                }
+
+                if (mode == ViewMode.City)
+                {
+                    // Ministers' aides in the aisles by the apse, at the lancets.
+                    var (pos, rot) = Core.Vfx.CitadelHall.AidePose(i);
+                    t.SetLocalPositionAndRotation(pos, rot);
                     continue;
                 }
 
@@ -221,6 +266,8 @@ namespace Core.Crew
             _alert = to;
             foreach (var o in _operators)
                 o.Urgency = to == AlertLevel.Red ? 1f : to == AlertLevel.Amber ? 0.4f : 0f;
+            foreach (var c in _council)
+                c.Urgency = to == AlertLevel.Red ? 1f : to == AlertLevel.Amber ? 0.4f : 0f;
             // Red: whoever is between posts cuts the stop short and heads for the nearest one.
             if (to != AlertLevel.Red)
                 return;

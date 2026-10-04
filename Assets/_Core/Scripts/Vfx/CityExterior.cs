@@ -324,10 +324,11 @@ namespace Core.Vfx
 
             Part("TowerLights", light.ToMesh("SU_CitadelLights"), StationExterior.CitadelGlass());
 
+            // The home world's crown: a gold mast lifting the palace's flèche higher.
+            if (levels.Home <= 0)
+                return;
             var m = new CityMesh();
-            // The home world's crown: a tall gold spire on the dome.
-            var spire = levels.Home > 0 ? 34f + levels.Home * 2f : 22f;
-            m.Prism(axis + Vector3.up * 21f, 0.9f, 0.08f, spire, 6, 0f, C(CitadelGold), 0f, 0f, band: true, cap: false);
+            m.Prism(StationExterior.FlecheTip + Vector3.down * 1.5f, 0.3f, 0.04f, 8f + levels.Home * 1.5f, 6, 0f, C(CitadelGold), 0f, 0f, band: true, cap: false);
             Part("TowerTrim", m.ToMesh("SU_CitadelTrim"), CityKit.Blocks());
         }
 

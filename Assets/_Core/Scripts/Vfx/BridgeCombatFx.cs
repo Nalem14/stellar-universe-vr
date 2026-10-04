@@ -104,6 +104,14 @@ namespace Core.Vfx
             ring.Revolve(new[] { new Vector2(r, StationCommandShell.WallTop - 0.12f), new Vector2(r, StationCommandShell.WallTop - 0.04f) },
                 0f, 360f, true);
             _stationStrips = LatheMesh.Part(_strips.transform, "Station", ring.ToMesh("SU_StationAlertRing"), _stripMat).transform;
+
+            // The citadel's throne hall: along the nave's cornices under the vault and over the aisles' arcades.
+            var hall = new LatheMesh(Vector3.zero);
+            foreach (var side in new[] { -1f, 1f })
+                foreach (var (x, y) in new[] { (CitadelHall.NaveX - 0.04f, 10.62f), (CitadelHall.NaveX - 0.04f, 5.05f), (CitadelHall.WallX - 0.04f, 4.75f) })
+                    hall.Quad(new Vector3(side * x, y, CitadelHall.NarthexZ + 0.2f), new Vector3(side * x, y + 0.07f, CitadelHall.NarthexZ + 0.2f),
+                        new Vector3(side * x, y + 0.07f, CitadelHall.ApseZ - 0.2f), new Vector3(side * x, y, CitadelHall.ApseZ - 0.2f), new Vector3(-side, 0f, 0f), 1f);
+            _cityStrips = LatheMesh.Part(_strips.transform, "Citadel", hall.ToMesh("SU_CitadelAlertBars"), _stripMat).transform;
             BuildBeacons();
             ApplyLayout();
             _strips.SetActive(false);
@@ -136,19 +144,34 @@ namespace Core.Vfx
                 AlertBeacon.MountOnWall(_stationBeacons, "Beacon", wall, -LatheMesh.Dir(deg), _art, phase);
                 phase += 90f;
             }
+
+            // In the citadel: on the nave's walls at the tribunes' height, two either side.
+            _cityBeacons = new GameObject("CitadelBeacons").transform;
+            _cityBeacons.SetParent(transform, false);
+            phase = 0f;
+            foreach (var (x, z) in new[] { (-1f, -4.7f), (1f, -4.7f), (1f, 3.1f), (-1f, 3.1f) })
+            {
+                var wall = new Vector3(x * (CitadelHall.NaveX + 0.6f), 7.4f, z);
+                AlertBeacon.MountOnWall(_cityBeacons, "Beacon", wall, new Vector3(-x, 0f, 0f), _art, phase);
+                phase += 90f;
+            }
         }
 
         CicArtKit _art;
+        Transform _cityStrips;
+        Transform _cityBeacons;
+        ViewMode _mode;
         Transform _shipStrips;
         Transform _stationStrips;
         Transform _shipBeacons;
         Transform _stationBeacons;
         bool _station;
 
-        /// <summary>Ship bridge or station command hall: which room the alert bars run round.</summary>
-        public void SetStationLayout(bool station)
+        /// <summary>Ship bridge, station command hall or citadel throne hall: which room the alert bars run round.</summary>
+        public void SetLayout(ViewMode mode)
         {
-            _station = station;
+            _mode = mode;
+            _station = mode == ViewMode.Station;
             ApplyLayout();
             // The room's lights were just re-dressed for this layout: that is their rest state now.
             if (_lights != null)
@@ -158,13 +181,17 @@ namespace Core.Vfx
         void ApplyLayout()
         {
             if (_shipStrips != null)
-                _shipStrips.gameObject.SetActive(!_station);
+                _shipStrips.gameObject.SetActive(_mode == ViewMode.Ship);
             if (_stationStrips != null)
                 _stationStrips.gameObject.SetActive(_station);
             if (_shipBeacons != null)
-                _shipBeacons.gameObject.SetActive(!_station);
+                _shipBeacons.gameObject.SetActive(_mode == ViewMode.Ship);
             if (_stationBeacons != null)
                 _stationBeacons.gameObject.SetActive(_station);
+            if (_cityStrips != null)
+                _cityStrips.gameObject.SetActive(_mode == ViewMode.City);
+            if (_cityBeacons != null)
+                _cityBeacons.gameObject.SetActive(_mode == ViewMode.City);
         }
 
         Transform Strip(Vector3 pos, Vector3 size)

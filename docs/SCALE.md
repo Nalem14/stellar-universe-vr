@@ -150,9 +150,26 @@ Constantes : `WorldScale.CicTableCenterZ`, `CicCaptainChairZ`, `CicCaptainStand`
 
 **Vue habitée** : vaisseau réel (`ViewFleetId` > 0 → ordres de flotte ; le pont suit toujours le système **actuel** du vaisseau, y compris après un saut) **ou** fausse station en orbite (`ViewPlanetId` > 0 → la station ne bouge pas ; la table commande toujours les flottes autour ; station Helm retirée, on embarque via le TP).
 
-### Rotonde (station orbitale et citadelle)
+### Rotonde (station orbitale)
 
-Même repère intérieur et même table, mais pas de fauteuil : on commande **debout** sur un podium, et les six postes crew montent sur des gradins face aux murs de données. `BridgeDressing` bascule en direct sur `FocusContext.Mode` (Ship / Station / City) ; `StationCommandLayout` déplace les postes et les restaure à bord d'un vaisseau. À bord d'une **station orbitale** (flotte `isStation`), l'extérieur est son hub et son anneau ; dans une **citadelle**, la couronne de la tour et la cité (section suivante).
+Même repère intérieur et même table, mais pas de fauteuil : on commande **debout** sur un podium, et les six postes crew montent sur des gradins face aux murs de données. `BridgeDressing` bascule en direct sur `FocusContext.Mode` (Ship / Station / City) ; `StationCommandLayout` déplace les postes et les restaure à bord d'un vaisseau. À bord d'une **station orbitale** (flotte `isStation`), l'extérieur est son hub et son anneau. Une **citadelle** a sa propre salle (section suivante).
+
+### Salle du trône (citadelle)
+
+Même repère (table holo `(0, 0, 0.6)`, fauteuil à z −2.0, écran principal à z 6), autre lieu : `CitadelHall`.
+
+| Élément | Valeur | Code |
+|---|---|---|
+| Nef | entre les arcades x ±5.4 m, du narthex z −8.6 à la corde de l'abside z 6.0 ; colonnes à z −6.0 / −3.4 / −0.8 / 1.8 / 4.4 | `CitadelHall.NaveX`, `Piers` |
+| Bas-côtés | x ±6.0 → ±7.6 m, plafond 4.9 m ; lancettes (appui 0.8, naissance 3.5 m) | `WallX` |
+| Tribunes | sol 5.2 m, toit 7.6 → 8.2 m ; claire-voie 8.3 → 10.6 m | `TribuneY` |
+| Voûte | berceau brisé 10.8 → 13.2 m, ciel étoilé peint, doubleaux sur chaque colonne | `VaultY` |
+| Abside | demi-cercle r 5.4 m centré z 6, marche 0.16 m, cinq lancettes 3.2 → 9.3 m, cul-de-four ; écran dans un retable doré | `ApseR` |
+| Narthex | porte du couloir à z −8.48, rosace r 1.9 m à 8.4 m, deux gardiens | `DoorPose`, `DoorStep` |
+| Trône | à la place du fauteuil (assise 0.63 m, consoles d'accoudoir ±0.34 m), dais 0.16 m, baldaquin 3.9 m | `Throne` |
+| Table du conseil | anneau r 1.36 → 1.98 m autour de la table holo, plateau 0.76 m, ouvert ±68° côté trône ; six sièges à r 2.42 m (dossier 1.15 m) | `BuildCouncil` |
+| Stalles des ministres | postes à x ±4.0, z 2.9 / 0.6 / −1.7, face à la nef | `PostPose` |
+| Palais (extérieur) | terrasse r 12.8 m à −0.62 m ; murs x ±7.9, façade z −9.15, abside r 5.9 m ; faîtage 14.8 m ; flèche jusqu'à 25.5 m | `StationExterior.BuildPalace` |
 
 | Élément | Valeur | Constante / source |
 |---|---|---|
@@ -186,7 +203,7 @@ Une **quatrième couche**, jamais mélangée aux autres : la cité est posée `C
 | Décalage sous le système | 6 000 m | `WorldScale.CityDepth` |
 | Plancher de la rotonde au-dessus du sol | 260 m | `CityTowerHeight` |
 | Tour | fût en gradins de r 54 m au pied à r 7.6 m sous la couronne, corniches et 8 lignes de lumière or | `CityExterior.BuildTower` |
-| Couronne | hub de la rotonde seul, **sans anneau ni rayon** : du dehors, seule la rangée de fenêtres en arc de la galerie (une par baie de 15°, 1.4 m, appui à −7.0 m, clé à −4.6 m sous le pont) se lit dans son flanc | `StationExterior` (citadelle), `CityExterior` |
+| Couronne | tête évasée de la tour (r 9.9 m) portant la terrasse et le palais de la salle du trône, **sans anneau ni rayon** ; dans son flanc, la rangée de fenêtres en arc de la galerie (une par baie de 15°, 1.4 m, appui à −7.0 m, clé à −4.6 m sous le pont) | `StationExterior` (citadelle), `CityExterior` |
 | Galerie de la citadelle (hall d'une cité) | dans la couronne, un étage sous la rotonde (sol à −7.8 m) : couloir courbe de 300° (186° → 486°) autour du noyau, r 4.6 → 9.0 m, ligne médiane r 6.8 m (35.6 m de long), voûte nervurée à 4.85 m ; portes sur le noyau à 5.5 / 10.5 / 15.5 / 20.5 / 25.5 m (labo, chantier, bourse, diplomatie, quartiers), porte des étoiles au bout, escalier vers la rotonde au départ ; fenêtres en arc côté ville (appui 0.8 m, naissance 2.55 m), lanterne à chaque baie, maquette de la citadelle à 30.5 m | `CitadelGallery`, `CorridorRoom` (3ᵉ disposition) |
 | Esplanade / ville | esplanade r 72 m, ville jusqu'à r 760 m en 3–6 anneaux (selon le total des niveaux de bâtiments), 8 boulevards | `CityPlazaRadius`, `CityRadius` |
 | Hauteurs | 1er anneau jusqu'à ~190 m, puis chute en (1 − t)^2.3 ; flèches repères ×1.55 | `CityExterior.BuildDistricts` |

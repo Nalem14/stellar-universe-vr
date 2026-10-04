@@ -79,9 +79,9 @@ namespace Core.Vfx
 
         /// <summary>
         /// On the aft bulkhead of a ship; on the station's curved wall over the two credenzas, either side of
-        /// the door (port display to port).
+        /// the door (port display to port); on the citadel's narthex wall between the portal and the guardians.
         /// </summary>
-        public void SetStationLayout(bool station)
+        public void SetLayout(ViewMode mode)
         {
             if (_msd == null || _plot == null)
                 return;
@@ -92,15 +92,21 @@ namespace Core.Vfx
                 _posed = true;
             }
 
-            Place(_msd.transform, _msdShip, station);
-            Place(_plot.transform, _plotShip, station);
+            Place(_msd.transform, _msdShip, mode);
+            Place(_plot.transform, _plotShip, mode);
         }
 
-        static void Place(Transform t, Pose ship, bool station)
+        static void Place(Transform t, Pose ship, ViewMode mode)
         {
-            if (!station)
+            if (mode == ViewMode.Ship)
             {
                 t.SetLocalPositionAndRotation(ship.position, ship.rotation);
+                return;
+            }
+
+            if (mode == ViewMode.City)
+            {
+                t.SetLocalPositionAndRotation(new Vector3(Mathf.Sign(ship.position.x) * 2.8f, ship.position.y + 0.2f, CitadelHall.NarthexZ + 0.14f), ship.rotation);
                 return;
             }
 

@@ -15,6 +15,8 @@ namespace Core.Vfx
             BuildDeckInlays(host, art);
             // At an orbital station the same crew posts stand in a round command hall (BridgeDressing swaps them).
             StationCommandShell.Build(host.transform, art);
+            // In a city the command room is the citadel's throne hall, a place of its own (BridgeDressing swaps it in).
+            CitadelHall.Build(host.transform, art);
             BuildCaptainStation(host, art);
             var map = BuildHoloTable(host, art);
             Core.Audio.AmbienceDirector.Ensure();

@@ -551,9 +551,9 @@ namespace Core.Stations
             {
                 rig.transform.SetParent(bridge.BridgeMount, false);
                 bridge.PutPlayerOnDeck();
-                // In through the aft door, not teleported to the chair.
-                var inside = _layoutStation
-                    ? StationCommandShell.OnWall(180f, 1.1f, 0f)
+                // In through the aft door (the narthex's in the citadel), not teleported to the chair.
+                var inside = _layoutCitadel ? CitadelHall.DoorStep
+                    : _layoutStation ? StationCommandShell.OnWall(180f, 1.1f, 0f)
                     : new Vector3(0f, 0f, -WorldScale.CicDeck * 0.5f + 1.1f);
                 XrPlacement.PlaceHead(rig, bridge.BridgeMount.TransformPoint(inside), bridge.BridgeMount.forward);
             }
