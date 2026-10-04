@@ -118,12 +118,18 @@ namespace Core.Holo
             _withdraw = withdraw;
             _free = fleet.CargoFree;
             var aboard = new[] { fleet.MineralCargo, fleet.CrystalCargo, fleet.BiomassCargo };
+            // Unloading never touches the ship's fuel reserve (the server keeps it aboard anyway).
+            var unloadable = new[] { aboard[0], Mathf.Max(0, aboard[1] - fleet.CrystalReserve), aboard[2] };
             var onPlanet = new[] { Mathf.Max(0, stock.mineral), Mathf.Max(0, stock.crystal), Mathf.Max(0, stock.biomass) };
             _header.text = Trans.Get(withdraw ? "withdrawCargo" : "depositCargo") + "  ·  " + planetName;
             _hold.text = Trans.Get("cargo") + "  " + fleet.CargoUsed.ToString("N0", Fr) + " / " + fleet.Cargo.ToString("N0", Fr) +
                          "   —   " + Trans.Get("vr.res.mineral") + " " + aboard[0].ToString("N0", Fr) + " · " +
                          Trans.Get("vr.res.crystal") + " " + aboard[1].ToString("N0", Fr) + " · " +
-                         Trans.Get("vr.res.biomass") + " " + aboard[2].ToString("N0", Fr);
+                         Trans.Get("vr.res.biomass") + " " + aboard[2].ToString("N0", Fr) +
+                         (!withdraw && fleet.CrystalReserve > 0
+                             ? "\n<size=80%><color=#ffc766>" + Trans.Format("vr.fuel.kept", fleet.CrystalReserve.ToString("N0", Fr),
+                                 fleet.FuelReserve) + "</color></size>"
+                             : string.Empty);
             _stock.text = planetName + "  —   " + Trans.Get("vr.res.mineral") + " " + onPlanet[0].ToString("N0", Fr) + " · " +
                           Trans.Get("vr.res.crystal") + " " + onPlanet[1].ToString("N0", Fr) + " · " +
                           Trans.Get("vr.res.biomass") + " " + onPlanet[2].ToString("N0", Fr);
@@ -132,7 +138,7 @@ namespace Core.Holo
             var room = _free;
             for (var i = 0; i < 3; i++)
             {
-                _max[i] = withdraw ? onPlanet[i] : aboard[i];
+                _max[i] = withdraw ? onPlanet[i] : unloadable[i];
                 if (withdraw)
                 {
                     _amount[i] = Mathf.Min(_max[i], room);

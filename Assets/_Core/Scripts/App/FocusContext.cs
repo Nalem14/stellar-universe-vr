@@ -111,6 +111,10 @@ namespace Core.App
         /// </summary>
         public bool AutoMine;
         public int AutoMinePlanetId;
+        /// <summary>fleets.fuelReserve: % of the hold kept aboard as crystal on every unload (SetFleetFuelReserve).</summary>
+        public int FuelReserve;
+        /// <summary>Crystal the server keeps aboard on an unload: ⌊hold × reserve %⌋ (model/ship.php FleetCrystalReserve).</summary>
+        public int CrystalReserve => FuelReserve <= 0 ? 0 : Cargo * Math.Clamp(FuelReserve, 0, 100) / 100;
         /// <summary>Marketplace convoy this hull flies for (fleets.tradeMissionId, web 57e1074); 0 = none.</summary>
         public int TradeMissionId;
         public bool IsTrading => TradeMissionId > 0;
@@ -378,6 +382,7 @@ namespace Core.App
                     h = h * 31 + (f.HasScanner ? 7 : 3);
                     h = h * 31 + f.TradeMissionId;
                     h = h * 31 + f.PrlBondReadyAt.GetHashCode();
+                    h = h * 31 + f.FuelReserve;
                     h = h * 31 + f.CrystalCargo;
                     h = h * 31 + f.MineralCargo;
                     h = h * 31 + f.BiomassCargo;
@@ -732,6 +737,7 @@ namespace Core.App
                     row.AutoExplore = AsInt(fleet["autoExplore"]) == 1;
                     row.AutoMine = AsInt(fleet["autoMine"]) == 1;
                     row.AutoMinePlanetId = AsInt(fleet["autoMinePlanetId"]);
+                    row.FuelReserve = AsInt(fleet["fuelReserve"]);
                     row.TradeMissionId = AsInt(fleet["tradeMissionId"]);
                     if (fleet["orderQueueList"] is JArray steps)
                     {

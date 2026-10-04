@@ -25,6 +25,7 @@ namespace Core.Vfx
         static readonly int BlendId = Shader.PropertyToID("_Blend");
 
         GameObject _radarQuad;
+        int _radarCount;
         Material _radarMat;
         readonly List<(int SystemId, bool Scanner)> _radarWanted = new();
         readonly HashSet<long> _radarSeen = new();
@@ -126,11 +127,50 @@ namespace Core.Vfx
                 RadarSources[i] = i < n ? _radarRanked[i].Src : Vector4.zero;
             _radarMat.SetVectorArray(SrcId, RadarSources);
             _radarMat.SetFloat(SrcCountId, n);
+            _radarCount = n;
             _radarMat.SetFloat(RadiusId, plate);
             // Fuse neighbours a little more when zoomed out (bubbles are small then).
             _radarMat.SetFloat(BlendId, Mathf.Clamp(bubble * 0.6f, 0.008f, 0.04f));
             if (_radarQuad.activeSelf != n > 0)
                 _radarQuad.SetActive(n > 0);
+        }
+
+        /// <summary>
+        /// A foreign ship between stars is known only by where it is bound (the server keys its vision on systemid,
+        /// which is the destination in flight): along its course a → b (table-local), the first point inside our
+        /// field. The token waits there, on the rim, as an inbound contact, instead of showing where no radar
+        /// reaches. 0 = already inside (or no field drawn: nothing to clamp to).
+        /// </summary>
+        float RadarEntry(Vector3 a, Vector3 b)
+        {
+            if (_radarCount <= 0 || _radarQuad == null || !_radarQuad.activeSelf)
+                return 0f;
+            var pa = new Vector2(a.x, a.z);
+            var d = new Vector2(b.x - a.x, b.z - a.z);
+            var dd = Vector2.Dot(d, d);
+            var best = 1f;
+            var any = false;
+            for (var i = 0; i < _radarCount; i++)
+            {
+                var src = RadarSources[i];
+                var m = pa - new Vector2(src.x, src.y);
+                var c = Vector2.Dot(m, m) - src.z * src.z;
+                if (c <= 0f)
+                    return 0f;
+                if (dd < 1e-8f)
+                    continue;
+                var bq = Vector2.Dot(m, d);
+                var disc = bq * bq - dd * c;
+                if (disc < 0f)
+                    continue;
+                var t = (-bq - Mathf.Sqrt(disc)) / dd;
+                if (t < 0f || t > 1f)
+                    continue;
+                any = true;
+                best = Mathf.Min(best, t);
+            }
+
+            return any ? best : 0f;
         }
 
         void AddRadarSource(int systemId, bool scanner)

@@ -653,6 +653,10 @@ namespace Core.Vfx
                 var b = StarLocal(to, DioramaLift + 0.025f);
                 var glide = f.Root.GetComponent<Core.Holo.HoloGlide>();
                 var t = GalaxyTripProgress(FleetIdOf(f.Root), f.DestTime);
+                // Not ours: shown from where our radar picks it up (an inbound contact on the field's rim).
+                var token = f.Root.GetComponent<HoloToken>();
+                if (token != null && !token.Owned)
+                    t = Mathf.Max(t, RadarEntry(a, b));
                 if (glide != null)
                     glide.Drive(a, b, t);
                 var p = Vector3.Lerp(a, b, t);

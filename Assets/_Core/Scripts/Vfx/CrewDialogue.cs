@@ -1107,6 +1107,41 @@ namespace Core.Vfx
                 AddAction(ActionLabel("depositCargo", planetLabel), () => TransferCargo(fleet, planetLabel, false));
                 AddAction(ActionLabel("withdrawCargo", planetLabel), () => TransferCargo(fleet, planetLabel, true));
             }
+
+            // Fuel reserve of this ship: crystal it keeps aboard on every unload (by hand, queue or auto-mining).
+            if (!fleet.IsStation && fleet.Cargo > 0)
+                AddAction(Trans.Format("vr.fuel.reserve", fleet.FuelReserve, fleet.CrystalReserve), () => CycleFuelReserve(fleet),
+                    DiegeticUi.BtnStyle.Cyan);
+        }
+
+        static readonly int[] FuelSteps = { 0, 10, 20, 30, 50 };
+
+        /// <summary>Next reserve step (0 → 10 → 20 → 30 → 50 → 0 %), sent as an explicit value.</summary>
+        async Task CycleFuelReserve(FocusFleet fleet)
+        {
+            var next = FuelSteps[0];
+            foreach (var step in FuelSteps)
+                if (step > fleet.FuelReserve)
+                {
+                    next = step;
+                    break;
+                }
+
+            var result = await ActionJs.Get("SetFleetFuelReserve", new Dictionary<string, string>
+            {
+                { "fleet", fleet.Id.ToString() },
+                { "percent", next.ToString() }
+            });
+            if (!result.Ok)
+            {
+                CicCue.Fail(transform.position);
+                _map?.SetReadout(string.IsNullOrEmpty(result.Error) ? Trans.Get("vr.common.error") : result.Error);
+                return;
+            }
+
+            fleet.FuelReserve = next;
+            CicCue.Ok(transform.position);
+            _map?.SetReadout(Trans.Format("vr.fuel.reserve", next, fleet.CrystalReserve));
         }
 
         /// <summary>Deposit / withdraw: the amounts on the cargo pad first, then the order.</summary>

@@ -50,6 +50,7 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 - `vr.menu.invertY`, `vr.menu.mouseSens`, `vr.mobile.dropHint`, `vr.mobile.map`, `vr.mobile.wrist`, `vr.pc.commandBar`, `vr.pc.cursorHint`, `vr.pc.door`, `vr.pc.dropHint`, `vr.pc.grabOnly`, `vr.pc.grabPrompt`, `vr.pc.interact`, `vr.pc.prompt`, `vr.pc.sit`, `vr.pc.standUp` dans **les dix langues**.
 - `vr.dock.filter.family`, `vr.dock.filter.hull`, `vr.dock.guide.bow`, `vr.dock.guide.cells`, `vr.dock.guide.pickShip`, `vr.dock.guide.place`, `vr.dock.guide.preview`, `vr.dock.guide.remove`, `vr.dock.guide.take`, `vr.research.feature.radarRange` dans **les dix langues**.
 - `vr.travel.warn.conventional`, `vr.travel.warn.hyperCrystal`, `vr.travel.warn.hyperModules`, `vr.travel.warn.speedOne` dans **les dix langues**.
+- `cargoOnlyFuelReserve`, `vr.fuel.kept`, `vr.fuel.reserve` dans **les dix langues** (réserve carburant par vaisseau, `SetFleetFuelReserve`).
 
 
 ## Anomalies (intégré web)

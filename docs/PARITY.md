@@ -1,6 +1,6 @@
 # PARITY — Stellar Universe (casque · PC · mobile) ↔ `actionjs.php`
 
-Généré depuis `action-api.json` (172 actions), `actionjs.php` et un grep des deux clients. Référence web : `/Users/thommy/Websites/stellar-universe`. Roadmap : [`ROADMAP.md`](ROADMAP.md).
+Généré depuis `action-api.json` (173 actions), `actionjs.php` et un grep des deux clients. Référence web : `/Users/thommy/Websites/stellar-universe`. Roadmap : [`ROADMAP.md`](ROADMAP.md).
 
 **Règle** : chaque feature livrée met à jour sa ligne. Avant de coder, lire l'implémentation web (colonne *Web*) + `model/*.php`. On adapte la jouabilité au pont (casque, souris, tactile : voir `PLATFORMS.md`) ; le contrat serveur reste strict. Le jeu ne renvoie **jamais** au web.
 
@@ -19,7 +19,7 @@ Généré depuis `action-api.json` (172 actions), `actionjs.php` et un grep des 
 | Méta / boot | 5 | 5 | 100 % |
 | Caméra (vue) | 2 | 2 | 100 % |
 | Galaxie | 8 | 8 | 100 % |
-| Flotte | 23 | 25 | 92 % |
+| Flotte | 24 | 26 | 92 % |
 | Vaisseau / chantier | 12 | 13 | 92 % |
 | Planète / bâtiments / recherche | 18 | 18 | 100 % |
 | Combat | 12 | 14 | 86 % |
@@ -31,9 +31,9 @@ Généré depuis `action-api.json` (172 actions), `actionjs.php` et un grep des 
 | Empire / progression / shop | 24 | 27 | 89 % |
 | Saisons de suprématie | 5 | 5 | 100 % |
 | Marché galactique / convois | 5 | 5 | 100 % |
-| **Total** | **164** | **172** | **95 %** |
+| **Total** | **165** | **173** | **95 %** |
 
-Appelées par le client web : 151/172. « Appelée » ≠ « finie » : voir la colonne *Statut*.
+Appelées par le client web : 151/173. « Appelée » ≠ « finie » : voir la colonne *Statut*.
 
 ## Auth
 
@@ -94,6 +94,7 @@ Appelées par le client web : 151/172. « Appelée » ≠ « finie » : voir la 
 | `ProcessFleetOrderQueue` | W | fleet | — | — | Helm | — | Hors scope | Géré par cron + `GetAllFleets` ; pas d'UI |
 | `RemoveFleetOrderStep` | W | fleet, stepIndex | `Holo/OrderQueue.cs` | `objects/fleet.js` | Helm | P4 | Branché | `stepIndex` 0-based : répéteur Helm, ou plaque ouverte sur une balise de la file (table) |
 | `RenameFleet` | W | id, name | `Stations/DryDock.cs` | `objects/fleet.js` | Helm | P5 | Branché | Cale sèche, clavier Quest |
+| `SetFleetFuelReserve` | W | fleet, percent | `Vfx/CrewDialogue.cs` | — | Helm | P5 | Branché |  |
 | `SetFleetOrderQueue` | W | fleet, queue, loop? | `Audio/OrderCues.cs` +1 | `objects/fleet.js` | Helm | P4 | Branché | Balise de la file lâchée sur une autre planète / un autre champ : on renvoie les étapes restantes (le serveur remet l’index à 0), champs du serveur conservés |
 | `SpeedupFleetTravel` | W | fleet | `Crew/CrewLines.cs` +3 | `scripts/helper.js` | Helm | P5 | Branché | Vaisseau en route sélectionné sur la table (ou répéteur Helm) : pupitre « Terminer le voyage · N Nova » (gratuit < 1 min, même courbe que les autres accélérations), refus si Nova insuffisant ; **aucun handler serveur** (voir écarts) |
 | `ToggleFleetAutoExplore` | W | fleet, enabled? | `Vfx/CrewDialogue.cs` | `objects/fleet.js` | Science | P5 | Branché | Répéteur Science d'un vaisseau à module scientifique (ScienceModule / SensorArray / DeepSpaceScanner) : `enabled` explicite 0/1, état lu sur `GetAllFleets.autoExplore` |
