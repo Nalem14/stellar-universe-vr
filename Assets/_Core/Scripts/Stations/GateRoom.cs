@@ -780,12 +780,18 @@ namespace Core.Stations
             var list = new List<JToken>();
             if (_composed != null)
                 list.Add(_composed);
-            // Never the base itself: the server refuses a connection to its own origin.
+            // Never the base itself: the server refuses a connection to its own origin. Favourite worlds first
+            // (as on the teleporter and the planet lists), each group in the server's order.
             if (_known != null)
-                foreach (var t in _known)
-                    if (FocusContext.AsInt(t["id"]) != _planetId &&
-                        (_composed == null || FocusContext.AsInt(t["id"]) != FocusContext.AsInt(_composed["id"])))
-                        list.Add(t);
+                for (var pass = 0; pass < 2; pass++)
+                    foreach (var t in _known)
+                    {
+                        var id = FocusContext.AsInt(t["id"]);
+                        if (id == _planetId || (_composed != null && id == FocusContext.AsInt(_composed["id"])))
+                            continue;
+                        if (PlanetFavorites.Contains(id) == (pass == 0))
+                            list.Add(t);
+                    }
 
             if (_known == null && _composed == null)
             {
@@ -817,7 +823,9 @@ namespace Core.Stations
                 row.GetComponent<Image>().color = picked ? new Color(0.6f, 1f, 1f, 0.85f) : new Color(1f, 1f, 1f, 0.22f);
                 var status = FocusContext.AsString(t["status"]);
                 var owner = FocusContext.AsString(t["ownerName"]);
-                Line(_consoleBody, "<b>" + Name(t) + "</b>  <size=80%><color=" + StatusColor(status) + ">" +
+                // A favourite world reads in the favourites' amber (it heads the list for that reason).
+                var name = PlanetFavorites.Contains(id) ? "<color=#ffc766>" + Name(t) + "</color>" : Name(t);
+                Line(_consoleBody, "<b>" + name + "</b>  <size=80%><color=" + StatusColor(status) + ">" +
                                    Trans.Get("vr.gate.status." + status) + "</color>" +
                                    (string.IsNullOrEmpty(owner) ? string.Empty : " · <noparse>" + owner + "</noparse>") +
                                    "</size>", -300f, y, 19f, UiKit.TextBright, 440f);
