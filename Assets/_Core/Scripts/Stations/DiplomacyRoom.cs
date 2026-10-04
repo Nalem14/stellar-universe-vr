@@ -81,6 +81,9 @@ namespace Core.Stations
         JArray _empires = new();
         /// <summary>GetEmpire of the empire in the dossier (authority, ethics).</summary>
         JObject _dossierDetail;
+        /// <summary>GetDiplomaticGestures for the empire in the dossier: {gesture: {relation, cooldown, cost, readyAt}}.</summary>
+        JObject _gestures;
+        static readonly string[] Gestures = { "compliment", "gift", "threat", "blackmail" };
         readonly Dictionary<int, string> _policyNames = new();
         JArray _alliances = new();
         int _selected;
@@ -406,20 +409,35 @@ namespace Core.Stations
         {
             _relation = -1f;
             _dossierDetail = null;
+            _gestures = null;
             var e = Empire(_selected);
             var me = AuthManager.Ensure().User?.id ?? 0;
             if (e == null || me <= 0)
                 return;
             var id = _selected;
             var detail = ActionJs.Get("GetEmpire", new Dictionary<string, string> { { "user", FocusContext.AsString(e["userid"]) } });
+            var gestures = ActionJs.Get("GetDiplomaticGestures", new Dictionary<string, string> { { "target", id.ToString() } });
             var res = await ActionJs.Get("GetRelation", new Dictionary<string, string>
             {
                 { "user1", me.ToString() },
                 { "user2", FocusContext.AsString(e["userid"]) }
             });
             await detail;
+            await gestures;
             if (id != _selected)
                 return;
+            if (gestures.Result.Ok)
+            {
+                try
+                {
+                    _gestures = JObject.Parse(gestures.Result.Body);
+                }
+                catch
+                {
+                    _gestures = null;
+                }
+            }
+
             if (detail.Result.Ok)
             {
                 try
@@ -1024,8 +1042,68 @@ namespace Core.Stations
                         new Vector2(400f, 58f), () => Run(Invite()), DiegeticUi.BtnStyle.Cyan), 14f, 22f);
             }
 
-            Line(_dossierBody, Trans.Get("vr.diplo.dossierHint"), 0f, -120f, 16f, UiKit.TextDim, 1000f,
+            RenderGestures(id);
+            Line(_dossierBody, Trans.Get("vr.diplo.dossierHint"), 0f, -205f, 16f, UiKit.TextDim, 1000f,
                 TextAlignmentOptions.Center);
+        }
+
+        /// <summary>
+        /// The envoys' desk: a letter of compliments or a gift to warm the relation, a threat or blackmail to sour it
+        /// (DiplomaticGesture). Each shows what it moves and, while it cannot be repeated, how long until it can;
+        /// the hostile ones ask to be confirmed. The gift's price is written under the row.
+        /// </summary>
+        void RenderGestures(int target)
+        {
+            // Not read (yet, or a server without gestures): no desk rather than dead buttons.
+            if (_gestures == null)
+                return;
+            Line(_dossierBody, "<b>" + Trans.Get("vr.diplo.gestures") + "</b>", 0f, -78f, 17f, UiKit.Amber, 1000f, TextAlignmentOptions.Center);
+
+            var now = FleetOrderGate.UnixNow();
+            for (var i = 0; i < Gestures.Length; i++)
+            {
+                var g = Gestures[i];
+                var info = _gestures[g];
+                if (info == null)
+                    continue;
+                var delta = FocusContext.AsFloat(info["relation"]);
+                var wait = FocusContext.AsLong(info["readyAt"]) - now;
+                var effect = (delta > 0f ? "<color=#7dffa0>+" : "<color=#ff8a7a>") + Num(delta, 0) + "</color>";
+                var label = Trans.Get("vr.diplo.gesture." + g) + "\n<size=72%>" +
+                            (wait > 0 ? Trans.Format("vr.diplo.gestureWait", Core.Holo.TravelPlanner.TimeText(wait)) : effect) + "</size>";
+                var pos = new Vector2(-372f + i * 248f, -122f);
+                var size = new Vector2(236f, 56f);
+                var gesture = g;
+                Button b;
+                if (delta < 0f)
+                    b = Confirmable(_dossierBody, "gesture." + g, label, pos, size, () => Gesture(target, gesture));
+                else
+                    b = Small(DiegeticUi.HoloButton(_dossierBody, label, pos, size, () => Run(Gesture(target, gesture)),
+                        DiegeticUi.BtnStyle.Cyan), 11f, 17f);
+                b.interactable = wait <= 0 && !_busy;
+            }
+
+            var cost = _gestures["gift"]?["cost"] as JObject;
+            if (cost != null && cost.HasValues)
+            {
+                var parts = new List<string>();
+                foreach (var c in cost.Properties())
+                    parts.Add(Trans.Get("vr.res." + c.Name) + " " + Num(FocusContext.AsFloat(c.Value), 0));
+                Line(_dossierBody, Trans.Format("vr.diplo.giftCost", string.Join("  ·  ", parts)), 0f, -166f, 14f, DiegeticUi.CyanDim, 1000f,
+                    TextAlignmentOptions.Center);
+            }
+        }
+
+        async Task Gesture(int target, string gesture)
+        {
+            var name = EmpireName(target);
+            var ok = await Order(_dossierStatus, "DiplomaticGesture", Args("target", target.ToString(), "gesture", gesture),
+                Trans.Format("vr.diplo.gestureDone." + gesture, name), true);
+            if (ok == null)
+                return;
+            Core.Crew.BarkDirector.Instance?.Say(CrewDialogue.Role.Comms, "sent", 1);
+            if (target == _selected)
+                await RelationThenRender();
         }
 
         void RenderDossierWar(JToken war)
