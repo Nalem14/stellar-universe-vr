@@ -129,6 +129,45 @@ Descriptions natives à réécrire (elles décrivaient un autre jeu — audit du
 | `bounty_need_fleet_onsite` | Send one of your ships… | Envoyez un de vos vaisseaux… | ✅ CompleteBounty |
 | `vr.bounty.*` | — | — | ✅ fr/en |
 
+## Recycleur, pirates, porte amie, gestes diplomatiques (intégré web)
+
+| Clé | EN | FR | Contexte |
+|---|---|---|---|
+| `vr.dock.recycler.hint` | Drop a module here to recycle it | Déposez un module ici pour le recycler | ✅ 10 langues |
+| `vr.dock.recycler.confirm` | Recycle {0}? Given back to the planet: {1} | Recycler {0} ? Rendu à la planète : {1} | ✅ 10 langues |
+| `vr.dock.recycler.go` | Recycle | Recycler | ✅ 10 langues |
+| `vr.dock.recycled` | Module recycled · {0} | Module recyclé · {0} | ✅ 10 langues |
+| `vr.dock.effectiveHint` | The ship's final values, research and fitted modules included | Valeurs finales du vaisseau, recherches et modules montés compris | ✅ 10 langues |
+| `vr.pirate.levelInfo` | Level {0} / {1}: the higher, the better armed and the bigger the loot | Niveau {0} / {1} : plus il est élevé, plus ils sont armés et plus le butin est gros | ✅ 10 langues |
+| `vr.pirate.loot` | Loot: {0} | Butin : {0} | ✅ 10 langues |
+| `vr.pirate.odds.good` | {0}: clear advantage | {0} : avantage net | ✅ 10 langues |
+| `vr.pirate.odds.even` | {0}: close fight | {0} : combat serré | ✅ 10 langues |
+| `vr.pirate.odds.bad` | {0}: too dangerous | {0} : trop dangereux | ✅ 10 langues |
+| `vr.gate.incomingFriendly` | Incoming connection from {0} (friendly) | Connexion entrante depuis {0} (ami) | ✅ 10 langues |
+| `vr.gate.incomingFriendlyHint` | Opened by yourself or an ally to deliver resources or troops: no danger. | Ouverte par vous-même ou un allié pour livrer des ressources ou des troupes : aucun danger. | ✅ 10 langues |
+| `vr.diplo.gestures` | Diplomatic gestures | Gestes diplomatiques | ✅ 10 langues |
+| `vr.diplo.gesture.compliment` | Letter of compliments | Lettre de compliments | ✅ 10 langues |
+| `vr.diplo.gesture.gift` | Gift | Cadeau | ✅ 10 langues |
+| `vr.diplo.gesture.threat` | Threat | Menace | ✅ 10 langues |
+| `vr.diplo.gesture.blackmail` | Blackmail | Chantage | ✅ 10 langues |
+| `vr.diplo.gestureWait` | Again in {0} | Possible dans {0} | ✅ 10 langues |
+| `vr.diplo.giftCost` | Gift: {0}, delivered to their first world | Cadeau : {0}, livrés à leur premier monde | ✅ 10 langues |
+| `vr.diplo.gestureDone.compliment` | Letter of compliments sent to {0} | Lettre de compliments envoyée à {0} | ✅ 10 langues |
+| `vr.diplo.gestureDone.gift` | Gift delivered to {0} | Cadeau livré à {0} | ✅ 10 langues |
+| `vr.diplo.gestureDone.threat` | Threat sent to {0} | Menace adressée à {0} | ✅ 10 langues |
+| `vr.diplo.gestureDone.blackmail` | Blackmail pressed on {0} | Chantage exercé sur {0} | ✅ 10 langues |
+| `invalidGesture` | Unknown diplomatic gesture | Geste diplomatique inconnu | ✅ 10 langues |
+| `cantGestureSelf` | Not toward your own empire | Impossible envers votre propre empire | ✅ 10 langues |
+| `gestureCooldown` | This gesture was made toward this empire too recently | Ce geste a déjà été fait récemment envers cet empire | ✅ 10 langues |
+| `dg_subject_compliment` | Letter of compliments from {0} | Lettre de compliments de {0} | ✅ 10 langues |
+| `dg_content_compliment` | The {0} empire sends its compliments and salutes the greatness of your civilisation. Its diplomats hope for warm relations between your peoples. | L'empire {0} vous adresse ses compliments et salue la grandeur de votre civilisation. Ses diplomates espèrent des relations chaleureuses entre vos peuples. | ✅ 10 langues |
+| `dg_subject_gift` | A gift from {0} | Un cadeau de {0} | ✅ 10 langues |
+| `dg_content_gift` | The {0} empire offers you a present as a token of friendship: {1} mineral, {2} crystal and {3} biomass, delivered to your first world. | L'empire {0} vous offre un présent en signe d'amitié : {1} minerai, {2} cristal et {3} biomasse, livrés à votre premier monde. | ✅ 10 langues |
+| `dg_subject_threat` | Threat from {0} | Menace de {0} | ✅ 10 langues |
+| `dg_content_threat` | The {0} empire sends you a blunt warning: any provocation will be punished, and its fleets stand ready. | L'empire {0} vous adresse une mise en garde sans détour : toute provocation sera punie, et ses flottes se tiennent prêtes. | ✅ 10 langues |
+| `dg_subject_blackmail` | Blackmail from {0} | Chantage de {0} | ✅ 10 langues |
+| `dg_content_blackmail` | The {0} empire claims to hold damaging secrets about your government and demands your compliance. Your relations suffer for it. | L'empire {0} prétend détenir des secrets compromettants sur votre gouvernement et exige votre docilité. Vos relations s'en trouvent dégradées. | ✅ 10 langues |
+
 ## Restant côté web
 
 | Source web | Restant | Notes |

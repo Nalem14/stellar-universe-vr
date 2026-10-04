@@ -1,6 +1,6 @@
 # PARITY — Stellar Universe (casque · PC · mobile) ↔ `actionjs.php`
 
-Généré depuis `action-api.json` (173 actions), `actionjs.php` et un grep des deux clients. Référence web : `/Users/thommy/Websites/stellar-universe`. Roadmap : [`ROADMAP.md`](ROADMAP.md).
+Généré depuis `action-api.json` (175 actions), `actionjs.php` et un grep des deux clients. Référence web : `/Users/thommy/Websites/stellar-universe`. Roadmap : [`ROADMAP.md`](ROADMAP.md).
 
 **Règle** : chaque feature livrée met à jour sa ligne. Avant de coder, lire l'implémentation web (colonne *Web*) + `model/*.php`. On adapte la jouabilité au pont (casque, souris, tactile : voir `PLATFORMS.md`) ; le contrat serveur reste strict. Le jeu ne renvoie **jamais** au web.
 
@@ -26,14 +26,14 @@ Généré depuis `action-api.json` (173 actions), `actionjs.php` et un grep des 
 | Jumpgate | 2 | 2 | 100 % |
 | Stargate | 7 | 7 | 100 % |
 | Social (chat, mail) | 12 | 12 | 100 % |
-| Guerre | 9 | 9 | 100 % |
+| Guerre | 11 | 11 | 100 % |
 | Alliance | 17 | 17 | 100 % |
 | Empire / progression / shop | 24 | 27 | 89 % |
 | Saisons de suprématie | 5 | 5 | 100 % |
 | Marché galactique / convois | 5 | 5 | 100 % |
-| **Total** | **165** | **173** | **95 %** |
+| **Total** | **167** | **175** | **95 %** |
 
-Appelées par le client web : 151/173. « Appelée » ≠ « finie » : voir la colonne *Statut*.
+Appelées par le client web : 151/175. « Appelée » ≠ « finie » : voir la colonne *Statut*.
 
 ## Auth
 
@@ -112,7 +112,7 @@ Appelées par le client web : 151/173. « Appelée » ≠ « finie » : voir la 
 | `AddToFleet` | W | fleet, ship, planet? | `Stations/DryDock.cs` | `objects/fleet.js` | Engineering | P5 | Branché | `fleet=0` + ShipCore → vaisseau, + **StationCore → station orbitale** (`isStation`, web 69d40af) — boutons « nouveau vaisseau » / « nouvelle station » de la cale ; le serveur pose le cœur en 4,4 ; JSON `{ok,fleet}` (systemid=planète) ; refuse notYourShip sans supprimer |
 | `ApplyShipTemplate` | W | fleet, template | `Stations/BlueprintPanel.cs` | `ui/ShipBuilderUI.js` | Engineering | P5 | Branché |  |
 | `CancelQueuedShip` | W | id, queue_id | `Stations/ShipyardPanel.cs` | `scenes/planet.js` | Engineering | P5 | Branché | Param `id` (ligne planet_ship_queue) |
-| `DelShip` | W | ship | `Stations/DryDock.cs` | `objects/fleet.js` | Engineering | P5 | Branché | Râtelier du hangar : destruction en deux temps |
+| `DelShip` | W | ship | `Stations/DryDock.cs` | `objects/fleet.js` | Engineering | P5 | Branché | Recycleur de la cale : bloc lâché dans la trémie, confirmation avec ce qui sera rendu (coût × `GetConfigs.fleet.shipRecycleRefund`) ; le serveur rend le coût du module du hangar à sa planète (plafonné aux entrepôts), réponse `{refunded}` affichée |
 | `DelToFleet` | W | fleet, ship | — | `objects/fleet.js` | Engineering | — | Hors scope | Remplacé par `RemoveShipModule` (cale sèche) ; plus appelé par le client Phaser — voir écarts (contourne les gardes) |
 | `DeleteShipTemplate` | W | id | `Stations/BlueprintPanel.cs` | `ui/ShipBuilderUI.js` | Engineering | P5 | Branché |  |
 | `GetShipLayout` | R | fleet | `Stations/DryDock.cs` +1 | `ui/ShipBuilderUI.js` | Engineering | P5 | Branché | Coque 1:1 dans la cale + hublots (`ShipHullBuilder`, une silhouette par type, six pour les modules station) ; modules d'une station montés sur son anneau (`StationExterior.Fit`) ; le serveur auto-place ShipCore / StationCore en 4,4 |
@@ -159,7 +159,7 @@ Appelées par le client web : 151/173. « Appelée » ≠ « finie » : voir la 
 | `GetBattleState` | R | battleid, fleetid | `Vfx/HexBattleController.cs` | `scenes/battle.js` | Tactical | P5 | Branché | Plateau diffé toutes les 2,5 s (web) ; tirs rejoués depuis les nouvelles lignes `log` sur la table, dehors et à bord |
 | `GetMyBattles` | R | — | `Stations/ArmoryConsole.cs` +1 | `scenes/galaxy.js` | Tactical | P5 | Branché | Seulement si un de nos vaisseaux a `isInBattle` : prend la table ou bouton Rejoindre. Siège d'une de nos planètes sans flotte engagée : invisible ici (voir écarts) — détecté par `SiegeWatch` (flottes hostiles en combat au-dessus de nos mondes : alerte rouge, annonces) |
 | `GetPendingBattles` | R | systemid, planetid | `Stations/ArmoryConsole.cs` | — | Tactical | P5 | Branché | Armurerie, onglet Opérations : combats en préparation dans le système en vue dont nous ne faisons pas partie (espace ouvert `planetid=0`, planète en orbite, nos mondes ; ≤ 4 lectures) → renforts avec nos vaisseaux inactifs (`AddFleetToBattle`) |
-| `MakeBattle` | W | systemid, fleets, planetid? | `Crew/CrewLines.cs` +3 | `objects/fleet.js` | Tactical | P5 | Branché | fleets = mon vaisseau + cibles, `planetid` seulement si ≠ 0 (0 vs pirates), puis `UpdateBattle` (web startTacticalBattle). **Assaut d'orbite = siège planétaire** (web attackOnPlanet 69d40af) : mon vaisseau + tous les vaisseaux étrangers de l'orbite, `planetid`, une seule flotte acceptée ; la planète combat (`is_planet`) |
+| `MakeBattle` | W | systemid, fleets, planetid? | `Crew/CrewLines.cs` +5 | `objects/fleet.js` | Tactical | P5 | Branché | fleets = mon vaisseau + cibles, `planetid` seulement si ≠ 0 (0 vs pirates), puis `UpdateBattle` (web startTacticalBattle). **Assaut d'orbite = siège planétaire** (web attackOnPlanet 69d40af) : mon vaisseau + tous les vaisseaux étrangers de l'orbite, `planetid`, une seule flotte acceptée ; la planète combat (`is_planet`) |
 | `RemoveFleetFromBattle` | W | battleid, fleetid | `Vfx/HexBattleController.cs` | `scenes/battle.js` | Tactical | P5 | Branché | Bouton Retirer le vaisseau, bataille en attente seulement |
 | `SetFleetState` | W | battleid, fleetid, auto, ready | `Vfx/HexBattleController.cs` | `scenes/battle.js` | Tactical | P5 | Branché | Bouton Prêt pendant la préparation (`auto=0`, `ready=1`) ; plus envoyé après MakeBattle (le serveur marque déjà notre camp prêt) |
 | `UpdateBattle` | W | battleid | `Vfx/HexBattleController.cs` | `objects/fleet.js` | Tactical | P5 | Branché | Relancé comme le web si en attente ou délai de tour dépassé |
@@ -176,9 +176,9 @@ Appelées par le client web : 151/173. « Appelée » ≠ « finie » : voir la 
 | Action | R/W | Params | VR | Web | Station | Phase | Statut | Notes |
 |---|---|---|---|---|---|---|---|---|
 | `CloseStargateConnection` | W | planet | `Stations/GateRoom.cs` | `objects/planet.js` | Comms | P5 | Branché | Bouton Fermer la porte (origine ou cible) |
-| `DispatchStargateMission` | W | originPlanet, missionType, mineral?, crystal?, biomass?, troopType?, troopQty? | `Stations/GateRoom.cs` | `objects/planet.js` | Comms | P5 | Branché | Six missions ; l'équipe (troupes / chariots / colons) traverse l'horizon |
+| `DispatchStargateMission` | W | originPlanet, missionType, mineral?, crystal?, biomass?, troopType?, troopQty? | `Stations/GateRoom.cs` | `objects/planet.js` | Comms | P5 | Branché | Six missions ; l'équipe (troupes / chariots / colons) traverse l'horizon ; envoi de ressources / troupes instantané (durée 0, résolu à l'envoi) |
 | `GetKnownAddresses` | R | planet | `Stations/GateRoom.cs` | `objects/planet.js` | Comms | P5 | Branché | Base de la porte : destinations (statut, propriétaire, distance, charge) ; le serveur y inclut la planète d'origine, filtrée côté VR |
-| `GetStargateConnectionStatus` | R | planet | `Stations/GateRoom.cs` | `objects/planet.js` | Comms | P5 | Branché | Toutes les 3 s dans la base ; activation extérieure = alarme, horizon rouge |
+| `GetStargateConnectionStatus` | R | planet | `Stations/GateRoom.cs` | `objects/planet.js` | Comms | P5 | Branché | Toutes les 3 s dans la base ; connexion entrante hostile ou inconnue = alarme rouge et horizon rouge ; ouverte par nous ou un allié (`otherPlanet.userid`) = arrivée amie, sans alarme |
 | `GetStargateMissions` | R | — | `Stations/GateRoom.cs` | `objects/planet.js` | Comms | P5 | Branché | Journal à droite, toutes les 10 s ; codes `resultDetail` traduits, réplique à la résolution |
 | `OpenStargateConnection` | W | originPlanet, targetPlanet | `Stations/GateRoom.cs` | `objects/planet.js` | Comms | P5 | Branché | Séquence de composition : piste de glyphes, six verrous, surge de l'horizon |
 | `ResolveStargateAddress` | W | originPlanet, address | `Stations/GateRoom.cs` | `objects/planet.js` | Comms | P5 | Branché | Champ d'adresse de la console (clavier Quest) — la composer juste = découverte |
@@ -209,6 +209,8 @@ Appelées par le client web : 151/173. « Appelée » ≠ « finie » : voir la 
 | `CancelPeaceOffer` | W | war | `Stations/DiplomacyRoom.cs` | `ui/WarsWindowUI.js` | Chambre diplomatique | P5 | Branché | Chancellerie, notre offre en attente |
 | `DeclareWar` | W | target | `Stations/DiplomacyRoom.cs` | `ui/WarsWindowUI.js` | Chambre diplomatique | P5 | Branché | Dossier de l'empire visé sur l'orrery : planètes exigées (GetEmpirePlanets), ressources, en deux temps ; `planets` csv + `mineral`/`crystal`/`biomass` |
 | `DeclinePeaceOffer` | W | war | `Stations/DiplomacyRoom.cs` | `ui/WarsWindowUI.js` | Chambre diplomatique | P5 | Branché | Chancellerie, offre de l'adversaire |
+| `DiplomaticGesture` | W | target, gesture, planet | `Stations/DiplomacyRoom.cs` | — | Chambre diplomatique | P5 | Branché | Dossier : lettre de compliments, cadeau (ressources livrées à leur premier monde), menace, chantage (les deux derniers en deux temps) ; relation, délai par geste et par cible, courrier à l'autre empire |
+| `GetDiplomaticGestures` | R | target | `Stations/DiplomacyRoom.cs` | — | Chambre diplomatique | P5 | Branché | Bureau des envoyés du dossier : effet, coût et délai de chaque geste envers l'empire visé |
 | `GetMyWars` | R | — | `App/DiplomacyService.cs` | `ui/WarsWindowUI.js` | Chambre diplomatique | P5 | Branché | `DiplomacyService` toutes les 30 s (répliques Comms : guerre déclarée contre nous, offre de paix, fin de guerre) ; onglet Conflits de la Chancellerie |
 | `GetWarDetails` | R | war | `Stations/DiplomacyRoom.cs` | — | Chambre diplomatique | P5 | Branché | Relu à la sélection d'un conflit (Chancellerie) |
 | `OfferPeace` | W | war | `Stations/DiplomacyRoom.cs` | `ui/WarsWindowUI.js` | Chambre diplomatique | P5 | Branché | Chancellerie, conflit actif |
