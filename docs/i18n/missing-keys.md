@@ -53,7 +53,7 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 - `cargoOnlyFuelReserve`, `vr.fuel.kept`, `vr.fuel.reserve` dans **les dix langues** (réserve carburant par vaisseau, `SetFleetFuelReserve`).
 
 
-## À intégrer — salle de recherche (bonus, effets chiffrés) et descriptions des recherches
+## Salle de recherche (bonus, effets chiffrés) et descriptions des recherches (intégré web, dix langues)
 
 Clés du client (dix langues) :
 

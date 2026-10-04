@@ -220,20 +220,36 @@ namespace Core.Stations
         static JObject _statsSource;
         static string _statsLang;
         static bool _statsReady;
+        static JToken _statsFactors;
+
+        /// <summary>
+        /// What our empire makes of a module stat (GetMeEmpire.moduleFactors: research, species, politics — exactly
+        /// GetShipStats' multiplier), so readouts show the real figure, not the catalogue's. 1 before it is read.
+        /// </summary>
+        public static float Factor(string type, string stat)
+        {
+            var f = AuthManager.Ensure().Empire?["moduleFactors"]?[type]?[stat];
+            var v = f != null ? FocusContext.AsFloat(f) : 1f;
+            return v > 0f ? v : 1f;
+        }
+
+        static bool Scaled(string field) => field is "damage" or "armor" or "shield" or "speed";
 
         /// <summary>
         /// "Dégâts 2 000 · Taille de coque 5 · Cristal utilisé 12": every non-zero shipstats figure of one module
-        /// (raw config values, no research bonus — like the web builder), each tinted by its kind. Empty when the
+        /// (damage / armor / shield / speed as our empire really gets them: <see cref="Factor"/>), each tinted by its kind. Empty when the
         /// module has none. Cached per type; rebuilt when the config, the language or the dump changes.
         /// </summary>
         public static string StatsLine(string type)
         {
             if (string.IsNullOrEmpty(type))
                 return string.Empty;
+            var factors = AuthManager.Ensure().Empire?["moduleFactors"];
             if (!ReferenceEquals(_statsSource, GameConfig.ShipStats) || _statsLang != Trans.Lang ||
-                _statsReady != Trans.IsReady)
+                _statsReady != Trans.IsReady || !ReferenceEquals(_statsFactors, factors))
             {
                 StatsCache.Clear();
+                _statsFactors = factors;
                 _statsSource = GameConfig.ShipStats;
                 _statsLang = Trans.Lang;
                 _statsReady = Trans.IsReady;
@@ -249,6 +265,8 @@ namespace Core.Stations
                 foreach (var (field, key, hex, plus) in StatFields)
                 {
                     var v = FocusContext.AsFloat(st[field]);
+                    if (Scaled(field))
+                        v *= Factor(type, field);
                     if (Mathf.Approximately(v, 0f))
                         continue;
                     if (StatsSb.Length > 0)
@@ -335,10 +353,10 @@ namespace Core.Stations
                     continue;
                 s.Modules++;
                 var st = Stats(m.Type);
-                s.Armor += FocusContext.AsFloat(st?["armor"]);
-                s.Shield += FocusContext.AsFloat(st?["shield"]);
-                s.Damage += FocusContext.AsFloat(st?["damage"]);
-                s.Speed += FocusContext.AsFloat(st?["speed"]);
+                s.Armor += FocusContext.AsFloat(st?["armor"]) * Factor(m.Type, "armor");
+                s.Shield += FocusContext.AsFloat(st?["shield"]) * Factor(m.Type, "shield");
+                s.Damage += FocusContext.AsFloat(st?["damage"]) * Factor(m.Type, "damage");
+                s.Speed += FocusContext.AsFloat(st?["speed"]) * Factor(m.Type, "speed");
                 s.Cargo += FocusContext.AsFloat(st?["cargo"]);
                 s.TroopCargo += FocusContext.AsFloat(st?["troopCargo"]);
                 s.Size += FocusContext.AsFloat(st?["size"]);
