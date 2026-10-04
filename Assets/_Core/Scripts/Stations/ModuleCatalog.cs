@@ -30,7 +30,6 @@ namespace Core.Stations
         public float Speed;
         public float Cargo;
         public float TroopCargo;
-        public float Size;
         public int Hyperdrives;
         public int PrlBonds;
         /// <summary>Jump modules the server requires for this many modules (⌈modules / modulesPerJumpModule⌉).</summary>
@@ -200,7 +199,7 @@ namespace Core.Stations
 
         /// <summary>
         /// shipstats field → label key (native web keys: armor / shield / damage / speed / cargo / crystalUsage;
-        /// the dock's own vr.dock.troops / vr.dock.size), colour (combat warm, defence cool, logistics earthy)
+        /// the dock's own vr.dock.troops), colour (combat warm, defence cool, logistics earthy)
         /// and whether the value adds to the hull (speed reads "+n", as the web builder shows it).
         /// </summary>
         static readonly (string Field, string Key, string Hex, bool Plus)[] StatFields =
@@ -211,8 +210,7 @@ namespace Core.Stations
             ("speed", "speed", "8fb4ff", true),
             ("cargo", "cargo", "e0b070", false),
             ("troopCargo", "vr.dock.troops", "9aa4ff", false),
-            ("crystalUsage", "crystalUsage", "d78cff", false),
-            ("size", "vr.dock.size", "b4c8d6", false)
+            ("crystalUsage", "crystalUsage", "d78cff", false)
         };
 
         static readonly Dictionary<string, string> StatsCache = new();
@@ -359,7 +357,6 @@ namespace Core.Stations
                 s.Speed += FocusContext.AsFloat(st?["speed"]) * Factor(m.Type, "speed");
                 s.Cargo += FocusContext.AsFloat(st?["cargo"]);
                 s.TroopCargo += FocusContext.AsFloat(st?["troopCargo"]);
-                s.Size += FocusContext.AsFloat(st?["size"]);
                 if (m.Type == "HyperspaceDrive")
                     s.Hyperdrives++;
                 if (m.Type == "BondPRLModule")

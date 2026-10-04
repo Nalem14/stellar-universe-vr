@@ -1104,8 +1104,7 @@ namespace Core.Stations
                 (Trans.Get("damage"), Eff(s.Damage, hull?.DamageTotal ?? 0f)),
                 (Trans.Get("speed"), station ? Trans.Get("vr.dock.immobile") : Eff(s.Speed, hull?.Speed ?? 0f)),
                 (Trans.Get("cargo"), Mathf.RoundToInt(s.Cargo).ToString()),
-                (Trans.Get("vr.dock.troops"), Mathf.RoundToInt(s.TroopCargo).ToString()),
-                (Trans.Get("vr.dock.size"), Mathf.RoundToInt(s.Size).ToString())
+                (Trans.Get("vr.dock.troops"), Mathf.RoundToInt(s.TroopCargo).ToString())
             };
             for (var i = 0; i < rows.Length; i++)
             {

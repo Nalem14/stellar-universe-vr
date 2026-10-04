@@ -810,13 +810,8 @@ namespace Core.Stations
                 !_busy && _quantity > 0f && _price > 0f);
         }
 
-        /// <summary>A module's freight volume as the server counts it (size × 500 per unit).</summary>
-        static float ModuleVolume(string type)
-        {
-            var stats = GameConfig.ShipStats?[type];
-            var size = stats != null ? FocusContext.AsFloat(stats["size"]) : 1f;
-            return Mathf.Max(1f, size) * 500f;
-        }
+        /// <summary>A module's freight volume as the server counts it: one 500-unit crate per module.</summary>
+        static float ModuleVolume(string type) => 500f;
 
         void Stepper(RectTransform body, float y, string value, int[] steps, Action<int> onStep)
         {
