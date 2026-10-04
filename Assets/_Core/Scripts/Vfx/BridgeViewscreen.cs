@@ -1077,6 +1077,20 @@ namespace Core.Vfx
                     if (f == null)
                         break;
                     body.AppendLine(Owner(f.UserId, f.IsPirate));
+                    // A raider's level: its armament (read off its real stats, against our ship) and its bounty.
+                    if (f.IsPirate)
+                    {
+                        var level = PirateIntel.LevelLine(f);
+                        if (level.Length > 0)
+                            body.AppendLine(level);
+                        var threat = PirateIntel.Threat(f, _focus.FindViewFleet());
+                        if (threat.Length > 0)
+                            body.AppendLine(threat);
+                        var loot = PirateIntel.Loot(f);
+                        if (loot.Length > 0)
+                            body.AppendLine(loot);
+                    }
+
                     // Raiders leave on their own if nobody engages them.
                     if (f.IsPirate && f.PirateLeavesAt > now)
                         body.AppendLine(Trans.Format("vr.pirate.leaves", TravelPlanner.TimeText(f.PirateLeavesAt - now)));

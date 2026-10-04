@@ -868,6 +868,12 @@ namespace Core.Holo
                 return;
             }
 
+            // What the raider's level means before choosing who goes: its guns and armour, its bounty.
+            var intel = new List<string> { foeName };
+            foreach (var line in new[] { PirateIntel.LevelLine(foe), PirateIntel.Threat(foe, null), PirateIntel.Loot(foe) })
+                if (line.Length > 0)
+                    intel.Add(line);
+            Readout(string.Join("\n", intel));
             var choice = await console.AskAt(target.transform.position, foeName, options);
             if (choice is int fleetId && _focus.FindFleet(fleetId) is { } mine)
                 await Attack(mine, target);
@@ -1132,7 +1138,15 @@ namespace Core.Holo
                     // A hostile ship: the battle here, or the interception from afar.
                     var foe = FocusContext.Current?.FindFleet(target.Id);
                     var here = foe != null && FleetOrderGate.CanEngage(fleet, foe, FleetOrderGate.UnixNow());
-                    return name + "  <color=#ff7a7a>" + Trans.Get(here ? "attack" : "vr.hunt.intercept") + "</color>";
+                    var order = name + "  <color=#ff7a7a>" + Trans.Get(here ? "attack" : "vr.hunt.intercept") + "</color>";
+                    // How it weighs against the ship that would go, and (a raider) what it pays.
+                    var odds = PirateIntel.Odds(foe, fleet);
+                    var loot = PirateIntel.Loot(foe);
+                    if (odds.Length > 0)
+                        order += "\n<size=75%>" + odds + "</size>";
+                    if (loot.Length > 0)
+                        order += "\n<size=75%><color=#d8c6a3>" + loot + "</color></size>";
+                    return order;
                 case HoloTokenKind.Anomaly:
                     return name + "  <color=#b9a4ff>" + Trans.Get("scanAnomaly") + "</color>";
                 case HoloTokenKind.Planet:

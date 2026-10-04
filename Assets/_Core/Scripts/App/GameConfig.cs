@@ -24,6 +24,12 @@ namespace Core.App
         public static float TravelDurationMin { get; private set; }
         /// <summary>Docked fleets allowed per owned planet (FLEET.MAX_PER_PLANET).</summary>
         public static int AllowedFleetPerPlanet { get; private set; }
+        /// <summary>GetConfigs.fleet.shipRecycleRefund: share of a module's build cost a scrapped hangar module
+        /// gives back to its planet (DelShip); 1 until the server serves it.</summary>
+        public static float ShipRecycleRefund { get; private set; } = 1f;
+        /// <summary>GetConfigs.pirates: {minLevel, maxLevel, xpPerLevel, mineralPerLevel, crystalPerLevel,
+        /// biomassPerLevel, novaPerLevel} — what a pirate level means (loadout and bounty); null until served.</summary>
+        public static JObject Pirates { get; private set; }
 
         // GetConfigs.scanner (web 5021101): a ship with a DeepSpaceScanner / SensorArray sees foreign and pirate
         // fleets within baseRange + rangePerResearchLevel × radarTech (galaxy map units), beyond the systems we hold.
@@ -120,8 +126,11 @@ namespace Core.App
                     TravelSecondsPerDistance = FocusContext.AsFloat(fleet["systemTravelSecondsPerDistance"]);
                     TravelDurationMin = FocusContext.AsFloat(fleet["systemTravelDurationMin"]);
                     AllowedFleetPerPlanet = FocusContext.AsInt(fleet["allowedFleetPerPlanet"]);
+                    if (fleet["shipRecycleRefund"] != null)
+                        ShipRecycleRefund = System.Math.Max(0f, FocusContext.AsFloat(fleet["shipRecycleRefund"]));
                 }
 
+                Pirates = root["pirates"] as JObject;
                 if (root["prlBond"] is JObject prl)
                 {
                     PrlBaseRange = FocusContext.AsFloat(prl["baseRange"]);
