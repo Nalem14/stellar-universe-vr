@@ -41,7 +41,7 @@ namespace Core.Stations
         static readonly Vector3 Cradle = new(0.55f, 0f, 0.5f);
         /// <summary>Operator desks the two working screens stand on (left: analysis; right, behind the synthesizer: queue).</summary>
         static readonly Vector3 AnalysisDesk = new(-1.5f, 0f, 0.1f);
-        static readonly Vector3 SynthDesk = new(1.6f, 0f, -0.95f);
+        static readonly Vector3 SynthDesk = new(2.45f, 0f, -1.15f);
         const float CradleTop = 1.02f;
         const float IntakeRadius = 0.32f;
         const int RingSegments = 32;
@@ -763,13 +763,15 @@ namespace Core.Stations
             var glow = _art.Lit(Texture2D.whiteTexture, new Color(0.55f, 0.36f, 0.14f, 1f), 0.9f);
             for (var i = 0; i < count; i++)
             {
-                // Spread on the side facing the stand, so each pad is in easy reach.
-                var a = Mathf.Lerp(-150f, -30f, count == 1 ? 0.5f : i / (float)(count - 1)) - 90f;
+                // Spread on the side facing the stand (−x from the synthesizer), so each pad is in easy reach and
+                // clear of the queue desk behind the machine.
+                var span = Mathf.Min(150f, 38f * Mathf.Max(1, count - 1));
+                var a = -90f + Mathf.Lerp(-span * 0.5f, span * 0.5f, count == 1 ? 0.5f : i / (float)(count - 1));
                 var dir = Quaternion.Euler(0f, a, 0f) * Vector3.forward;
-                var pad = Cyl("QueuePad" + i, dir * 0.52f + Vector3.up * (BeamLow - 0.02f), new Vector3(0.12f, 0.012f, 0.12f),
+                var pad = Cyl("QueuePad" + i, dir * 0.6f + Vector3.up * (BeamLow - 0.02f), new Vector3(0.12f, 0.012f, 0.12f),
                     metal, _coreRoot).transform;
                 Cyl("QueuePadGlow" + i, new Vector3(0f, 1.1f, 0f), new Vector3(0.45f, 0.2f, 0.45f), glow, pad);
-                Box("QueueArm" + i, dir * 0.42f + Vector3.up * (BeamLow - 0.03f), new Vector3(0.03f, 0.02f, 0.2f), metal,
+                Box("QueueArm" + i, dir * 0.46f + Vector3.up * (BeamLow - 0.03f), new Vector3(0.03f, 0.02f, 0.28f), metal,
                     Quaternion.Euler(0f, a, 0f), parent: _coreRoot);
                 _slots.Add(new QueueSlot { Pad = pad });
             }
@@ -1119,10 +1121,42 @@ namespace Core.Stations
             RenderBonuses();
         }
 
+        /// <summary>Bonus wall columns: what a stat is for (economy and upkeep, fighting, moving).</summary>
+        enum BonusColumn
+        {
+            Utility,
+            Combat,
+            Propulsion
+        }
+
+        static BonusColumn ColumnOf(string stat) => stat switch
+        {
+            "damage" or "armor" or "shield" or "scannerRange" => BonusColumn.Combat,
+            "speed" or "prlRange" => BonusColumn.Propulsion,
+            _ => BonusColumn.Utility
+        };
+
+        /// <summary>Without the server's effects table: a tech's column from its branch.</summary>
+        static BonusColumn ColumnOfTech(string tech) => tech switch
+        {
+            "weapon" or "laser" or "ion" or "plasma" or "armor" or "shield" or "radarTech" => BonusColumn.Combat,
+            "combustionDrive" or "impulsionDrive" or "fusionDrive" or "hyperspaceDrive" or "prlBond" => BonusColumn.Propulsion,
+            _ => BonusColumn.Utility
+        };
+
+        static readonly string[] ColumnKeys = { "vr.research.col.utility", "vr.research.col.combat", "vr.research.col.propulsion" };
+        static readonly Color[] ColumnTints =
+        {
+            new(0.45f, 0.95f, 0.6f, 1f),
+            new(1f, 0.45f, 0.4f, 1f),
+            new(0.45f, 0.75f, 1f, 1f)
+        };
+
         /// <summary>
-        /// The research bonuses wall by the entrance: every passive bonus our finished levels give, summed per
-        /// stat and module group as the server applies them (a research in progress does not count yet), with the
-        /// researches it comes from. Without the server's effects table: the researches we hold and their texts.
+        /// The research bonuses wall by the entrance, as a three-column table — Utility (economy, building, worlds),
+        /// Combat, Propulsion: one row per bonus our finished levels give (summed per stat and module group as the
+        /// server applies them; a research in progress does not count yet), its label, the modules it acts on, and
+        /// the figure. Without the server's effects table: the researches we hold, in the same columns.
         /// </summary>
         void RenderBonuses()
         {
@@ -1132,17 +1166,22 @@ namespace Core.Stations
             var sig = new System.Text.StringBuilder(128);
             foreach (var n in ResearchCatalog.All())
                 sig.Append(Level(n.Id)).Append(',');
-            sig.Append(running).Append(ResearchCatalog.HasEffects);
+            sig.Append(running).Append(ResearchCatalog.HasEffects).Append(Trans.Lang);
             if (sig.ToString() == _bonusSig)
                 return;
             _bonusSig = sig.ToString();
             Clear(_bonusBody);
 
-            var rows = new List<(string Text, string Sources)>();
+            var columns = new List<(string Label, string Detail, string Value)>[3];
+            for (var c = 0; c < 3; c++)
+                columns[c] = new List<(string, string, string)>();
             if (ResearchCatalog.HasEffects)
             {
-                var groups = new Dictionary<string, (ResearchEffect E, float Gain, System.Text.StringBuilder From)>();
-                var order = new List<string>();
+                // Per stat: the general share (effects on every module / empire-wide) and, for module-specific
+                // effects, each module type's own total (its share + the general one) — "Hyperspace drive +485 %".
+                var general = new Dictionary<string, (ResearchEffect E, float Gain)>();
+                var perModule = new Dictionary<string, Dictionary<string, float>>();
+                var statOrder = new List<string>();
                 foreach (var n in ResearchCatalog.All())
                 {
                     var lvl = Level(n.Id) - (running == n.Id ? 1 : 0);
@@ -1153,24 +1192,53 @@ namespace Core.Stations
                         var gain = e.Gain(lvl);
                         if (Mathf.Approximately(gain, 0f))
                             continue;
-                        if (!groups.TryGetValue(e.GroupKey, out var g))
+                        if (!statOrder.Contains(e.Stat))
+                            statOrder.Add(e.Stat);
+                        if (e.Modules.Length == 0)
                         {
-                            g = (e, 0f, new System.Text.StringBuilder());
-                            order.Add(e.GroupKey);
+                            general[e.Stat] = general.TryGetValue(e.Stat, out var g) ? (g.E, g.Gain + gain) : (e, gain);
+                            continue;
                         }
 
-                        if (g.From.Length > 0)
-                            g.From.Append(", ");
-                        g.From.Append(Trans.Get(n.Id)).Append(' ').Append(lvl);
-                        groups[e.GroupKey] = (g.E, g.Gain + gain, g.From);
+                        if (!perModule.TryGetValue(e.Stat, out var mods))
+                            perModule[e.Stat] = mods = new Dictionary<string, float>();
+                        foreach (var m in e.Modules)
+                            mods[m] = (mods.TryGetValue(m, out var v) ? v : 0f) + gain;
+                        if (!general.ContainsKey(e.Stat))
+                            general[e.Stat] = (e, 0f);
                     }
                 }
 
-                foreach (var k in order)
+                // Rows in a fixed, readable order per column.
+                string[] rank =
                 {
-                    var g = groups[k];
-                    var amount = "<b><color=#7dffb0>" + g.E.Amount(g.Gain) + "</color></b>";
-                    rows.Add((g.E.Describe(amount), g.From.ToString()));
+                    "damage", "armor", "shield", "scannerRange", "speed", "prlRange", "power", "solarPower", "mine", "food",
+                    "habitability", "constructionTime", "buildingTime", "homeAndFarmBuildingTime", "colonizationTime",
+                    "researchTime", "relation"
+                };
+                statOrder.Sort((a, b) =>
+                {
+                    var ia = System.Array.IndexOf(rank, a);
+                    var ib = System.Array.IndexOf(rank, b);
+                    return (ia < 0 ? 99 : ia).CompareTo(ib < 0 ? 99 : ib);
+                });
+
+                foreach (var stat in statOrder)
+                {
+                    var (e, baseGain) = general[stat];
+                    var label = Trans.Get("vr.research.stat." + stat);
+                    var col = columns[(int)ColumnOf(stat)];
+                    var moduleStat = stat is "speed" or "damage" or "armor" or "shield";
+                    if (!Mathf.Approximately(baseGain, 0f) || !perModule.ContainsKey(stat))
+                        col.Add((label, moduleStat ? Trans.Get(stat == "damage" ? "vr.research.allWeapons" : "vr.research.allModules") : string.Empty,
+                            e.Amount(baseGain)));
+                    if (!perModule.TryGetValue(stat, out var mods))
+                        continue;
+                    // Strongest first: what the captain's best engines / cannons get.
+                    var list = new List<KeyValuePair<string, float>>(mods);
+                    list.Sort((a, b) => b.Value.CompareTo(a.Value));
+                    foreach (var kv in list)
+                        col.Add((label, Trans.Get(kv.Key), e.Amount(kv.Value + baseGain)));
                 }
             }
             else
@@ -1179,32 +1247,69 @@ namespace Core.Stations
                 {
                     var lvl = Level(n.Id) - (running == n.Id ? 1 : 0);
                     if (lvl > 0)
-                        rows.Add(("<b>" + Trans.Get(n.Id) + "</b>  " + Trans.Get("lvl") + " " + lvl, Trans.Get(ResearchCatalog.DescKey(n.Id))));
+                        columns[(int)ColumnOfTech(n.Id)].Add((Trans.Get(n.Id), string.Empty, Trans.Get("lvl") + " " + lvl));
                 }
             }
 
             var px = _bonusBody.sizeDelta;
-            if (rows.Count == 0)
+            var any = columns[0].Count + columns[1].Count + columns[2].Count > 0;
+            const float margin = 30f;
+            var colW = (px.x - margin * 4f) / 3f;
+            // Under the screen's own title bar.
+            var top = px.y * 0.5f - 165f;
+            for (var c = 0; c < 3; c++)
             {
-                Text(_bonusBody, Trans.Get("vr.research.bonusesEmpty"), 0f, 0f, px.x * 0.85f, 26f, DiegeticUi.CyanDim,
+                var x0 = -px.x * 0.5f + margin + c * (colW + margin);
+                var tint = ColumnTints[c];
+                // Header: tinted band and title.
+                Panel(_bonusBody, new Vector2(x0 + colW * 0.5f, top), new Vector2(colW, 44f), new Color(tint.r, tint.g, tint.b, 0.22f));
+                Panel(_bonusBody, new Vector2(x0 + colW * 0.5f, top - 23f), new Vector2(colW, 3f), new Color(tint.r, tint.g, tint.b, 0.9f));
+                Text(_bonusBody, "<b>" + Trans.Get(ColumnKeys[c]) + "</b>", x0 + colW * 0.5f, top, colW, 24f, tint,
                     TextAlignmentOptions.Center);
-                return;
+
+                var rows = columns[c];
+                if (rows.Count == 0)
+                {
+                    Text(_bonusBody, "—", x0 + colW * 0.5f, top - 70f, colW, 22f, DiegeticUi.CyanDim, TextAlignmentOptions.Center);
+                    continue;
+                }
+
+                var y = top - 62f;
+                var hex = ColorUtility.ToHtmlStringRGB(Color.Lerp(tint, Color.white, 0.35f));
+                foreach (var (label, detail, value) in rows)
+                {
+                    var h = detail.Length > 0 ? 66f : 46f;
+                    if (y - h < -px.y * 0.5f + 20f)
+                        break;
+                    Panel(_bonusBody, new Vector2(x0 + colW * 0.5f, y - h * 0.5f + 8f), new Vector2(colW, h - 6f),
+                        new Color(0.05f, 0.09f, 0.16f, 0.55f));
+                    Text(_bonusBody, label, x0 + 12f, y - 6f, colW * 0.66f, 19f, UiKit.TextBright);
+                    // Right-aligned text takes its centre: the value column ends 12 px inside the row.
+                    Text(_bonusBody, "<b><color=#" + hex + ">" + value + "</color></b>", x0 + colW - 12f - colW * 0.18f, y - 6f,
+                        colW * 0.36f, 24f,
+                        UiKit.TextBright, TextAlignmentOptions.MidlineRight);
+                    if (detail.Length > 0)
+                        Text(_bonusBody, detail, x0 + 12f, y - 34f, colW - 24f, 15f, DiegeticUi.CyanDim);
+                    y -= h;
+                }
             }
 
-            // Two columns of rows, the bonus on top and where it comes from under it.
-            const float rowH = 62f;
-            var perColumn = Mathf.Max(1, Mathf.FloorToInt((px.y - 120f) / rowH));
-            var colW = px.x * 0.47f;
-            var top = px.y * 0.5f - 95f;
-            for (var i = 0; i < rows.Count && i < perColumn * 2; i++)
-            {
-                var col = i / perColumn;
-                var x = -px.x * 0.48f + col * px.x * 0.5f;
-                var y = top - (i % perColumn) * rowH;
-                Text(_bonusBody, rows[i].Text, x, y, colW, 21f, UiKit.TextBright);
-                Text(_bonusBody, "<size=80%><color=#9fb8c8>" + rows[i].Sources + "</color></size>", x + 18f, y - 25f, colW - 18f,
-                    17f, DiegeticUi.CyanDim);
-            }
+            if (!any)
+                Text(_bonusBody, Trans.Get("vr.research.bonusesEmpty"), 0f, -px.y * 0.5f + 60f, px.x * 0.85f, 20f, DiegeticUi.CyanDim,
+                    TextAlignmentOptions.Center);
+        }
+
+        /// <summary>A flat tinted panel on a screen body (table bands and row backs).</summary>
+        static void Panel(RectTransform body, Vector2 pos, Vector2 size, Color color)
+        {
+            var go = new GameObject("Band", typeof(RectTransform), typeof(Image));
+            go.transform.SetParent(body, false);
+            var rt = go.GetComponent<RectTransform>();
+            rt.sizeDelta = size;
+            rt.anchoredPosition = pos;
+            var img = go.GetComponent<Image>();
+            img.color = color;
+            img.raycastTarget = false;
         }
 
         void RenderDetail()

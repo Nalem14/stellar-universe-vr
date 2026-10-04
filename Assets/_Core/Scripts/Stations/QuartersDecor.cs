@@ -46,8 +46,8 @@ namespace Core.Stations
         const float DeskOff = 0.65f;
         // Wall ribs, between the wall-mounted pieces (never behind a board, a terminal or the headboard).
         static readonly float[] PortRibs = { -3.1f, 0.3f, 1.65f, 5.35f };
-        // (−1.7: aft of the season board over the desk, clear of its frame.)
-        static readonly float[] StbdRibs = { -3.1f, -1.7f, 1.2f, 2.95f, 5.35f };
+        // (−3.2 in the aft corner and −1.6 against the season board's frame: the contracts board hangs between them.)
+        static readonly float[] StbdRibs = { -3.2f, -1.6f, 1.2f, 2.95f, 5.35f };
 
         static Texture2D _wood;
         static Texture2D _carpet;
@@ -288,7 +288,7 @@ namespace Core.Stations
             var red = art.Lit(Texture2D.whiteTexture, new Color(1f, 0.45f, 0.35f, 1f), 2.4f);
             var board = new GameObject("ContractsBoard").transform;
             board.SetParent(room, false);
-            board.localPosition = new Vector3(HalfWidth - 0.13f, 0f, -2.42f);
+            board.localPosition = new Vector3(HalfWidth - 0.13f, 0f, -2.40f);
             board.localRotation = Quaternion.Euler(0f, 90f, 0f);
             var w = ContractsSize.x;
             var h = ContractsSize.y;
@@ -301,7 +301,10 @@ namespace Core.Stations
             GateRoomDecor.Box(board, "UnderGlow", new Vector3(0f, cy - h * 0.5f - 0.075f, -0.035f), new Vector3(w * 0.9f, 0.012f, 0.01f), red);
             refs.ContractsMount = new GameObject("ContractsMount").transform;
             refs.ContractsMount.SetParent(board, false);
-            refs.ContractsMount.localPosition = new Vector3(0f, cy, -0.05f);
+            // Stood off the wall on brackets, its face proud of the wall ribs either side (their fronts at −0.07).
+            for (var side = -1; side <= 1; side += 2)
+                GateRoomDecor.Box(board, "Bracket", new Vector3(side * 0.4f, cy, -0.06f), new Vector3(0.05f, 0.4f, 0.12f), metal);
+            refs.ContractsMount.localPosition = new Vector3(0f, cy, -0.13f);
         }
 
         static void BuildSeasonBoard(Transform room, CicArtKit art, Refs refs, Material metal, Material wood, Material brass)

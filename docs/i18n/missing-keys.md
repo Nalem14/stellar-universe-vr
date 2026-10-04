@@ -82,6 +82,9 @@ Clés du client (dix langues) :
 | `vr.research.effect.habitability` | {0} habitabilité des planètes | {0} planet habitability |
 | `vr.research.effect.prlRange` | {0} portée du Bond PRL | {0} PRL Bond range |
 | `vr.research.effect.scannerRange` | {0} portée des scanners | {0} scanner range |
+| `vr.research.col.utility` / `.combat` / `.propulsion` | Utilitaire / Combat / Propulsion | Utility / Combat / Propulsion |
+| `vr.research.allWeapons` | toutes les armes | every weapon |
+| `vr.research.stat.<stat>` (17) | libellés courts du tableau des bonus (Vitesse, Dégâts, Blindage…) | short bonus table labels (Speed, Damage, Armor…) |
 | `vr.dock.effectiveHint` | En vert : valeurs réelles du vaisseau (recherches et modules montés compris) | In green: the ship's real values (research and fitted modules included) |
 
 Descriptions natives à réécrire (elles décrivaient un autre jeu — audit du 2026-10-04, nouvelle table `$RESEARCH_EFFECTS`) :
