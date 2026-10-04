@@ -61,6 +61,29 @@ namespace Core.Vfx
         public static bool IsAnchored(FocusFleet fleet) =>
             fleet != null && fleet.IsStation;
 
+        /// <summary>
+        /// Our ship can open a tactical battle on that one (actionjs MakeBattle): same system, neither travelling nor
+        /// already fighting, a hostile (enemy empire or pirate). A pirate is fought in open space wherever both
+        /// are in the system; anyone else only where both are (same orbit, or both off any world).
+        /// </summary>
+        public static bool CanEngage(FocusFleet mine, FocusFleet target, long now)
+        {
+            if (mine == null || target == null || mine.Id == target.Id || mine.UserId == target.UserId)
+                return false;
+            if (mine.IsInBattle || target.IsInBattle || mine.IsMoving(now) || target.IsMoving(now) ||
+                mine.SystemId <= 0 || mine.SystemId != target.SystemId)
+                return false;
+            var stance = DiplomacyIndex.ResolveFleet(target);
+            var pirate = target.IsPirate || stance == EmpireStance.Pirate;
+            if (!pirate && stance != EmpireStance.Enemy)
+                return false;
+            return pirate || target.PlanetId == mine.PlanetId;
+        }
+
+        /// <summary>MakeBattle's spot: open space against pirates, else the orbit both hold (web startTacticalBattle).</summary>
+        public static int EngagePlanet(FocusFleet mine, FocusFleet target) =>
+            target.IsPirate || DiplomacyIndex.ResolveFleet(target) == EmpireStance.Pirate ? 0 : mine.PlanetId;
+
         public static bool CanMine(FocusFleet fleet) =>
             CanMove(fleet) && fleet.AsteroidId > 0;
 

@@ -782,7 +782,8 @@ namespace Core.Vfx
             }
 
             // Engage a hostile ship in system (web: right-click enemy fleet → startTacticalBattle).
-            if (_hex != null && !fleet.IsInBattle && fleet.PlanetId > 0)
+            // Anywhere in the system, not only in a world's orbit: pirates are fought in open space.
+            if (_hex != null && !fleet.IsInBattle)
             {
                 var now = FleetOrderGate.UnixNow();
                 var shown = 0;
@@ -790,10 +791,7 @@ namespace Core.Vfx
                 {
                     if (shown >= 4)
                         break;
-                    if (target.Id == fleet.Id || target.IsInBattle || !target.VisibleIn(focus.SystemId, now))
-                        continue;
-                    var stance = DiplomacyIndex.ResolveFleet(target);
-                    if (stance != EmpireStance.Enemy && stance != EmpireStance.Pirate && !target.IsPirate)
+                    if (!FleetOrderGate.CanEngage(fleet, target, now))
                         continue;
                     var t = target;
                     var name = string.IsNullOrEmpty(t.Name) ? "#" + t.Id : t.Name;
@@ -1629,9 +1627,7 @@ namespace Core.Vfx
         async Task Engage(FocusFleet mine, FocusFleet target)
         {
             // Open space against pirates; otherwise the orbit we hold (web startTacticalBattle).
-            var planetId = target.IsPirate || DiplomacyIndex.ResolveFleet(target) == EmpireStance.Pirate
-                ? 0
-                : mine.PlanetId;
+            var planetId = FleetOrderGate.EngagePlanet(mine, target);
             _map?.SetReadout(Trans.Get("Loading"));
             var result = await _hex.MakeBattle(new[] { mine.Id, target.Id }, planetId);
             Core.Crew.BarkDirector.Instance?.OrderResult(Role.Tactical, "MakeBattle", result,

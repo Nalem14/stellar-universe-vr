@@ -439,12 +439,29 @@ namespace Core.Vfx
             var at = _boardRoot.position + Vector3.up * 0.25f;
             if (key == "vr.battle.victory")
                 CicCue.Victory(at);
+            // A siege won hands the world over (server EndBattle): re-read who holds what, so the table, the
+            // teleporter and the orders stop offering to attack what is now ours.
+            var siege = false;
+            if (snap != null)
+                foreach (var s in snap.Ships)
+                    siege |= s.IsPlanet;
+            if (siege)
+                AsyncTap.Run(RefreshOwnership());
             else if (key == "vr.battle.defeat")
                 CicCue.Defeat(at);
             else
                 CicCue.Ok(at);
             _closeAt = Time.unscaledTime + CloseDelay;
             RefreshConsole();
+        }
+
+        static async Task RefreshOwnership()
+        {
+            await OwnedPlanets.Refresh();
+            await GalaxyCatalog.EnsureLoaded(force: true);
+            var poller = FindFirstObjectByType<FleetPoller>();
+            if (poller != null)
+                await poller.PollNow();
         }
 
         // ── Orders ────────────────────────────────────────────────────────────────

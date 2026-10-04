@@ -523,10 +523,12 @@ namespace Core.Holo
         Color AimTint(HoloToken target)
         {
             var fleet = SelectedFleet;
-            if (fleet == null || target.Kind == HoloTokenKind.Fleet)
+            if (fleet == null || (target.Kind == HoloTokenKind.Fleet && target.Owned))
                 return AimNeutral;
             if (Invalid(fleet, target) != null)
-                return AimInvalid;
+                return target.Kind == HoloTokenKind.Fleet ? AimNeutral : AimInvalid;
+            if (target.Kind == HoloTokenKind.Fleet)
+                return UiKit.Danger;
             return target.Kind != HoloTokenKind.Anomaly && !fleet.IsStation && !fleet.CanIssueMove(FleetOrderGate.UnixNow()) ? Queued : Valid;
         }
 
@@ -768,6 +770,13 @@ namespace Core.Holo
                 return;
             _arc.enabled = false;
             _arcLabelRoot.gameObject.SetActive(false);
+            if (target.Kind == HoloTokenKind.Fleet)
+            {
+                await Engage(target);
+                Deselect();
+                return;
+            }
+
             var sent = await _orders.Command(ship, target, dragged: false);
             // Chaining: the ship stays picked after an order, so the next target pointed at is its next queued
             // step (asteroid → harvest, then home → deposit…) without picking it again.
@@ -779,6 +788,40 @@ namespace Core.Holo
             }
 
             Deselect();
+        }
+
+        /// <summary>Open the tactical battle against the hostile ship pointed at (confirmed on the lectern).</summary>
+        async Task Engage(HoloToken target)
+        {
+            var mine = SelectedFleet;
+            var foe = _focus?.FindFleet(target.Id);
+            var hex = HexBattleController.Instance;
+            if (mine == null || foe == null || hex == null)
+                return;
+            var name = string.IsNullOrEmpty(foe.Name) ? "#" + foe.Id : foe.Name;
+            var console = OrderConsole.Instance;
+            if (console != null)
+            {
+                var ok = await console.AskAt(target.transform.position,
+                    (string.IsNullOrEmpty(mine.Name) ? "#" + mine.Id : mine.Name) + "  →  " + name,
+                    new List<OrderConsole.Option> { new(Trans.Get("attack") + "  ·  " + name, true, UiKit.Danger, "attack") });
+                if (!(ok is string s && s == "attack"))
+                    return;
+            }
+
+            Readout(Trans.Get("Loading"));
+            var result = await hex.MakeBattle(new[] { mine.Id, foe.Id }, FleetOrderGate.EngagePlanet(mine, foe));
+            Core.Crew.BarkDirector.Instance?.OrderResult(CrewDialogue.Role.Tactical, "MakeBattle", result, name);
+            if (result.Ok)
+            {
+                CicCue.Ok(target.transform.position);
+                Readout(Trans.Get("tacticalBattle"));
+            }
+            else
+            {
+                CicCue.Fail(target.transform.position);
+                Readout(string.IsNullOrEmpty(result.Error) ? Trans.Get("vr.common.error") : result.Error);
+            }
         }
 
         /// <summary>Why the selected ship cannot go there (null = valid), as the server would refuse it.</summary>
@@ -818,6 +861,12 @@ namespace Core.Holo
                     if (target.Kind == HoloTokenKind.Asteroid && _focus?.FindAsteroid(target.Id) is { Gone: true })
                         return Trans.Get("asteroidDepleted");
                     return null;
+                case HoloTokenKind.Fleet:
+                    // A hostile ship in the system: point at it to open the battle (web right-click → Attack).
+                    var foe = _focus?.FindFleet(target.Id);
+                    if (foe == null || target.Owned)
+                        return Trans.Get("vr.table.notATarget");
+                    return FleetOrderGate.CanEngage(fleet, foe, now) ? null : Trans.Get("vr.table.notATarget");
                 case HoloTokenKind.System:
                     if (fleet.IsStation)
                         return Trans.Get("stationCannotMove");
@@ -843,9 +892,10 @@ namespace Core.Holo
             // Busy ship: its targets take queued steps — amber rings (the queue's colour) instead of green.
             var tint = fleet.IsStation || fleet.CanIssueMove(FleetOrderGate.UnixNow()) ? Valid : Queued;
             var mat = _art.RadarIcon(tex, new Color(tint.r, tint.g, tint.b, 0.85f));
+            Material foeMat = null;
             foreach (var t in _map.Tokens)
             {
-                if (t == null || t.Kind == HoloTokenKind.Fleet || Invalid(fleet, t) != null)
+                if (t == null || (t.Kind == HoloTokenKind.Fleet && t.Owned) || Invalid(fleet, t) != null)
                     continue;
                 var cue = GameObject.CreatePrimitive(PrimitiveType.Quad);
                 cue.name = "TargetCue";
@@ -855,7 +905,14 @@ namespace Core.Holo
                 cue.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
                 var size = t.Kind == HoloTokenKind.System ? 0.05f : 0.11f;
                 cue.transform.localScale = Vector3.one * size;
-                cue.GetComponent<MeshRenderer>().sharedMaterial = mat;
+                // A hostile ship we can engage: a red ring (the battle colour) instead of the travel green.
+                if (t.Kind == HoloTokenKind.Fleet)
+                {
+                    foeMat ??= _art.RadarIcon(tex, new Color(UiKit.Danger.r, UiKit.Danger.g, UiKit.Danger.b, 0.9f));
+                    cue.transform.localScale = Vector3.one * 0.08f;
+                }
+
+                cue.GetComponent<MeshRenderer>().sharedMaterial = t.Kind == HoloTokenKind.Fleet ? foeMat : mat;
                 var spin = cue.AddComponent<HoloSpin>();
                 spin.DegreesPerSecond = -35f;
                 spin.BobMeters = 0f;

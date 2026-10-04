@@ -478,6 +478,8 @@ namespace Core.Vfx
 
             // Raiders on the outer rim, past the last orbit (as outside and on the web).
             var rr = fleet != null && fleet.IsPirate ? OrbitR(12) + 0.03f : OrbitR(Mathf.Max(1, slot)) + 0.04f;
+            // Past the last orbit can run off the plate (few worlds): keep it on the glass, where it can be aimed at.
+            rr = Mathf.Min(rr, WorldScale.HoloDiscRadius * 0.86f);
             var pos = new Vector3(Mathf.Cos(ang) * rr, DioramaLift + 0.012f, Mathf.Sin(ang) * rr);
             heading = new Vector3(-Mathf.Sin(ang), 0f, Mathf.Cos(ang));
             return pos;
