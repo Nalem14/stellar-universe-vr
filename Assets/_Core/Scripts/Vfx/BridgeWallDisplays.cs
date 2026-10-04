@@ -33,6 +33,7 @@ namespace Core.Vfx
         HoloScreen _plot;
         bool _dirty = true;
         float _next;
+        EconomyService _eco;
 
         public static BridgeWallDisplays Build(CicEnvironment host, FocusContext focus)
         {
@@ -64,6 +65,9 @@ namespace Core.Vfx
                 _focus.Changed -= MarkDirty;
                 _focus.FleetsChanged -= MarkDirty;
             }
+
+            if (_eco != null)
+                _eco.Changed -= MarkDirty;
 
             if (_msdTex != null)
                 Destroy(_msdTex);
@@ -151,6 +155,13 @@ namespace Core.Vfx
 
         void Update()
         {
+            // A level finished or started below: the city plan follows (the service exists once the bridge has booted).
+            if (_eco == null && EconomyService.Instance != null)
+            {
+                _eco = EconomyService.Instance;
+                _eco.Changed += MarkDirty;
+            }
+
             if (!_dirty || Time.unscaledTime < _next || _focus == null)
                 return;
             _dirty = false;
@@ -175,27 +186,7 @@ namespace Core.Vfx
             var fleet = _focus.FindViewFleet();
             if (fleet == null)
             {
-                // Citadel: the city plan — the tower at the heart, its district rings, the eight boulevards.
-                var c = new Vector2(PlotSize * 0.5f, PlotSize * 0.5f);
-                var rings = CityExterior.Current != null ? CityExterior.Current.RingCount : 4;
-                for (var k = rings; k >= 1; k--)
-                {
-                    var r = 18f + k * (88f / rings);
-                    Ring(px, c, r, k == rings ? 4f : 2f, accent * (k == rings ? 0.9f : 0.5f));
-                }
-
-                for (var i = 0; i < 8; i++)
-                {
-                    var d = new Vector2(Mathf.Cos(i * Mathf.PI / 4f + 0.39f), Mathf.Sin(i * Mathf.PI / 4f + 0.39f));
-                    Line(px, c + d * 22f, c + d * 106f, 2f, accent * 0.75f);
-                }
-
-                Disc(px, c, 16f, Color.Lerp(accent, Color.white, 0.45f));
-                Ring(px, c, 22f, 3f, accent);
-                Apply(_msdTex, px);
-                Set(_msdTitle, Trans.Get("vr.view.citadelHeader"));
-                Set(_msdBody, Trans.Format("vr.view.city", BridgeViewscreen.StationPlanetName(_focus)));
-                _msdTitle.color = accent;
+                DrawCity(px, accent);
                 return;
             }
 
@@ -251,6 +242,146 @@ namespace Core.Vfx
                 sb.Append("<color=#").Append(ColorUtility.ToHtmlStringRGB(ModuleCatalog.Accent(kv.Key))).Append("><b>—</b></color> ")
                     .Append(Trans.Get(ModuleCatalog.FamilyKey(kv.Key))).Append(" ").Append(kv.Value).Append("   ");
             Set(_msdBody, sb.ToString());
+        }
+
+        // ── Port, at a citadel: the city plan ────────────────────────────────────
+
+        static readonly List<(BuildingDef Def, int Level)> Built = new();
+
+        /// <summary>
+        /// The city we stand over, drawn from its real buildings (EconomyService): the citadel at the heart, then one
+        /// district per building built — a sector between boulevards, as deep as its level (log scale) and filled with
+        /// city blocks in the building's colour, denser the higher the level. Beside it, every building and its level.
+        /// </summary>
+        void DrawCity(Color32[] px, Color accent)
+        {
+            var planetId = _focus.RotundaPlanetId;
+            Built.Clear();
+            var eco = EconomyService.Instance;
+            if (eco != null && planetId > 0 && eco.TryGet(planetId, out var planet))
+                foreach (var def in BuildingCatalog.All)
+                {
+                    var level = planet.Level(def.Type);
+                    if (level > 0)
+                        Built.Add((def, level));
+                }
+
+            var c = new Vector2(PlotSize * 0.5f, PlotSize * 0.5f);
+            const float inner = 27f;
+            const float outer = 124f;
+            var n = Built.Count;
+            var maxLevel = 1;
+            foreach (var b in Built)
+                maxLevel = Mathf.Max(maxLevel, b.Level);
+            var span = n > 0 ? Mathf.PI * 2f / n : Mathf.PI * 2f;
+            var street = (Color)Ink + accent * 0.12f;
+            var avenue = accent * 0.55f + (Color)Ink;
+            var seed = (uint)(planetId * 2654435761u);
+            for (var y = 0; y < PlotSize; y++)
+                for (var x = 0; x < PlotSize; x++)
+                {
+                    var d = new Vector2(x + 0.5f - c.x, y + 0.5f - c.y);
+                    var r = d.magnitude;
+                    if (r < inner || r > outer + 2f || n == 0)
+                        continue;
+                    var ang = Mathf.Atan2(d.y, d.x) + Mathf.PI; // 0 … 2π
+                    var i = Mathf.Min(n - 1, (int)(ang / span));
+                    var local = ang - i * span;
+                    var arc = local * r; // arc length from the sector's start (px)
+                    var arcEnd = span * r;
+                    var (def, level) = Built[i];
+                    var depth = inner + 8f + Mathf.Log(1f + level) / Mathf.Log(1f + maxLevel) * (outer - inner - 8f);
+                    // Boulevards between districts: bright through the city, a faint track across the plain.
+                    if (arc < 2f || arcEnd - arc < 2f)
+                    {
+                        if (r < outer)
+                            px[y * PlotSize + x] = r < depth ? avenue : street;
+                        continue;
+                    }
+                    if (r > depth)
+                    {
+                        // The district's edge, bright; beyond it the open plain: dark ground, speckled fields.
+                        if (r - depth < 1.6f)
+                            px[y * PlotSize + x] = def.Accent;
+                        else if (r < outer)
+                        {
+                            var g = Hash(seed ^ (uint)((x / 3) * 73856093 ^ (y / 3) * 19349663));
+                            var ground = (Color)Ink + accent * (0.06f + (g & 31) / 31f * 0.07f);
+                            ground.a = 1f;
+                            px[y * PlotSize + x] = ground;
+                        }
+
+                        continue;
+                    }
+
+                    // Ring roads every 11 px, cross streets every 9 px of arc: city blocks between them.
+                    var band = (int)((r - inner) / 11f);
+                    var inBand = (r - inner) % 11f;
+                    var cellIndex = (int)(arc / 9f);
+                    var inCell = arc % 9f;
+                    if (inBand < 1.4f || inCell < 1.4f)
+                    {
+                        px[y * PlotSize + x] = band % 3 == 0 && inBand < 1.4f ? avenue : street;
+                        continue;
+                    }
+
+                    // Built-up density grows with the level; each block's brightness varies (rooftops, lights).
+                    var h = Hash(seed ^ (uint)(i * 7919 + band * 104729 + cellIndex * 1299709));
+                    var density = 0.35f + 0.6f * Mathf.Clamp01(Mathf.Log(1f + level) / Mathf.Log(30f));
+                    if ((h & 1023) / 1023f > density)
+                    {
+                        px[y * PlotSize + x] = (Color)Ink + def.Accent * 0.1f;
+                        continue;
+                    }
+
+                    var lum = 0.45f + ((h >> 10) & 255) / 255f * 0.45f;
+                    var col = def.Accent * lum;
+                    // A lit window here and there.
+                    if (((h >> 18) & 7) == 0 && (int)inBand % 3 == 1 && (int)inCell % 3 == 1)
+                        col = Color.Lerp(def.Accent, Color.white, 0.7f);
+                    col.a = 1f;
+                    px[y * PlotSize + x] = col;
+                }
+
+            // The citadel: tower at the heart, its wall ring, the outer ring road.
+            Ring(px, c, outer + 1f, 1.5f, accent * 0.5f + (Color)Ink);
+            Disc(px, c, inner - 7f, (Color)Ink + accent * 0.2f);
+            Ring(px, c, inner - 3f, 3f, accent);
+            Disc(px, c, 11f, Color.Lerp(accent, Color.white, 0.4f));
+            Ring(px, c, 6f, 2f, accent * 0.6f + (Color)Ink);
+            Apply(_msdTex, px);
+
+            var name = BridgeViewscreen.StationPlanetName(_focus);
+            Set(_msdTitle, string.IsNullOrEmpty(name) ? Trans.Get("vr.view.citadelHeader") : "<noparse>" + name + "</noparse>");
+            _msdTitle.color = accent;
+            if (Built.Count == 0)
+            {
+                Set(_msdBody, Trans.Get(eco == null ? "Loading" : "vr.view.cityEmpty"));
+                return;
+            }
+
+            // Every building, highest level first, in its district's colour.
+            Built.Sort((a, b) => b.Level.CompareTo(a.Level));
+            var sb = new System.Text.StringBuilder();
+            for (var k = 0; k < Built.Count; k++)
+            {
+                var (def, level) = Built[k];
+                sb.Append("<color=#").Append(ColorUtility.ToHtmlStringRGB(def.Accent)).Append("><b>—</b></color> ")
+                    .Append(Trans.Get(def.NameKey)).Append("  <b>").Append(level).Append("</b>");
+                sb.Append(k % 2 == 0 ? "      " : "\n");
+            }
+
+            Set(_msdBody, sb.ToString());
+        }
+
+        static uint Hash(uint x)
+        {
+            x ^= x >> 16;
+            x *= 0x7feb352dU;
+            x ^= x >> 15;
+            x *= 0x846ca68bU;
+            x ^= x >> 16;
+            return x;
         }
 
         // ── Starboard: the system plot ───────────────────────────────────────────
