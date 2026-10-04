@@ -139,6 +139,39 @@ namespace Core.Editor
             EditorUtility.DisplayDialog("Builds", string.Join("\n", lines), "OK");
         }
 
+        /// <summary>
+        /// The four players in a row with no dialog (an agent or a script drives the editor): each result, then
+        /// DONE, in Builds/build-report.txt. Stops at the first failure, like "Les quatre".
+        /// </summary>
+        public static void BuildAllUnattended()
+        {
+            var report = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Builds", "build-report.txt"));
+            Directory.CreateDirectory(Path.GetDirectoryName(report));
+            File.WriteAllText(report, "START " + System.DateTime.Now.ToString("HH:mm:ss") + "\n");
+            var builder = CreateInstance<PlatformBuilds>();
+            EditorApplication.LockReloadAssemblies();
+            try
+            {
+                foreach (var t in Targets)
+                {
+                    var result = builder.Run(t, out var note);
+                    var ok = result != null && result.summary.result == BuildResult.Succeeded;
+                    File.AppendAllText(report, (ok ? "OK " : "FAIL ") + t.Label + (string.IsNullOrEmpty(note) ? "" : " (" + note + ")") +
+                                               (ok ? " " + result.summary.outputPath + " " + result.summary.totalSize / (1024 * 1024) + " Mo"
+                                                   : result != null ? " " + result.summary.result + ", " + result.summary.totalErrors + " erreurs" : "") +
+                                               " " + System.DateTime.Now.ToString("HH:mm:ss") + "\n");
+                    if (!ok)
+                        break;
+                }
+            }
+            finally
+            {
+                EditorApplication.UnlockReloadAssemblies();
+                DestroyImmediate(builder);
+                File.AppendAllText(report, "DONE\n");
+            }
+        }
+
         static bool Prepare()
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode)
