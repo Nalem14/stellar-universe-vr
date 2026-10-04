@@ -74,8 +74,8 @@ namespace Core.Editor
         {
             EditorGUILayout.LabelField("Sortie", EditorStyles.boldLabel);
             EditorGUILayout.HelpBox(
-                "Chaque build va dans Builds/<plateforme>, à côté du projet. " +
-                "Un dossier manquant est créé. L'APK déjà à la racine de Builds n'est pas déplacé.",
+                "Chaque build va dans Builds/<plateforme>. " +
+                "Le script choisit le player installé pour la plateforme, puis remet le réglage du projet.",
                 MessageType.Info);
 
             _development = EditorGUILayout.Toggle("Development", _development);
@@ -97,8 +97,8 @@ namespace Core.Editor
         {
             if (!Prepare())
                 return;
-            var report = Run(target);
-            ShowOne(target, report);
+            var report = Run(target, out var note);
+            ShowOne(target, report, note);
         }
 
         void BuildAll()
@@ -112,15 +112,28 @@ namespace Core.Editor
             if (!Prepare())
                 return;
 
+            // Held across every platform so switching the Windows player cannot reload
+            // the domain and drop the macOS and Linux builds that follow.
             var lines = new List<string>();
-            for (var i = 0; i < Targets.Length; i++)
+            EditorApplication.LockReloadAssemblies();
+            try
             {
-                var t = Targets[i];
-                var report = Run(t);
-                var ok = report != null && report.summary.result == BuildResult.Succeeded;
-                lines.Add(ok ? t.Label + "  →  " + report.summary.outputPath : t.Label + "  —  échec");
-                if (!ok)
-                    break;
+                for (var i = 0; i < Targets.Length; i++)
+                {
+                    var t = Targets[i];
+                    var report = Run(t, out var note);
+                    var ok = report != null && report.summary.result == BuildResult.Succeeded;
+                    var suffix = string.IsNullOrEmpty(note) ? "" : " (" + note + ")";
+                    lines.Add(ok
+                        ? t.Label + suffix + "  →  " + report.summary.outputPath
+                        : t.Label + suffix + "  —  échec");
+                    if (!ok)
+                        break;
+                }
+            }
+            finally
+            {
+                EditorApplication.UnlockReloadAssemblies();
             }
 
             EditorUtility.DisplayDialog("Builds", string.Join("\n", lines), "OK");
@@ -137,8 +150,9 @@ namespace Core.Editor
             return EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo();
         }
 
-        BuildReport Run(Target target)
+        BuildReport Run(Target target, out string note)
         {
+            note = null;
             var scenes = EditorBuildSettings.scenes.Where(s => s.enabled).Select(s => s.path).ToArray();
             if (scenes.Length == 0)
             {
@@ -159,20 +173,108 @@ namespace Core.Editor
                 options = _development ? BuildOptions.Development : BuildOptions.None
             };
 
-            Debug.Log("[SU] Build " + target.Label + " → " + path);
-            return BuildPipeline.BuildPlayer(options);
+            var named = NamedTarget(target);
+            var projectBackend = PlayerSettings.GetScriptingBackend(named);
+            var backend = ChooseBackend(target, projectBackend);
+            if (backend != projectBackend)
+                note = backend == ScriptingImplementation.Mono2x ? "Mono" : "IL2CPP";
+
+            Debug.Log("[SU] Build " + target.Label + (note == null ? "" : " (" + note + ")") + " → " + path);
+            EditorApplication.LockReloadAssemblies();
+            try
+            {
+                if (backend != projectBackend)
+                    PlayerSettings.SetScriptingBackend(named, backend);
+                return BuildPipeline.BuildPlayer(options);
+            }
+            finally
+            {
+                if (PlayerSettings.GetScriptingBackend(named) != projectBackend)
+                    PlayerSettings.SetScriptingBackend(named, projectBackend);
+                EditorApplication.UnlockReloadAssemblies();
+            }
         }
 
-        static void ShowOne(Target target, BuildReport report)
+        static UnityEditor.Build.NamedBuildTarget NamedTarget(Target target)
+        {
+            return target.Group == BuildTargetGroup.Android
+                ? UnityEditor.Build.NamedBuildTarget.Android
+                : UnityEditor.Build.NamedBuildTarget.Standalone;
+        }
+
+        /// <summary>
+        /// The project asks for one backend for every standalone player. This Mac editor
+        /// ships Windows as Mono only, while macOS and Linux are IL2CPP. Use the installed
+        /// player for the target being built.
+        /// </summary>
+        static ScriptingImplementation ChooseBackend(Target target, ScriptingImplementation projectBackend)
+        {
+            if (target.Group != BuildTargetGroup.Standalone)
+                return projectBackend;
+            if (PlayerInstalled(target, projectBackend))
+                return projectBackend;
+
+            var other = projectBackend == ScriptingImplementation.Mono2x
+                ? ScriptingImplementation.IL2CPP
+                : ScriptingImplementation.Mono2x;
+            return PlayerInstalled(target, other) ? other : projectBackend;
+        }
+
+        static bool PlayerInstalled(Target target, ScriptingImplementation backend)
+        {
+            string support;
+            string arch;
+            switch (target.Player)
+            {
+                case BuildTarget.StandaloneWindows64:
+                    support = "WindowsStandaloneSupport";
+                    arch = "win64";
+                    break;
+                case BuildTarget.StandaloneOSX:
+                    support = "MacStandaloneSupport";
+                    arch = "macos";
+                    break;
+                case BuildTarget.StandaloneLinux64:
+                    support = "LinuxStandaloneSupport";
+                    arch = "linux64";
+                    break;
+                default:
+                    return true;
+            }
+
+            var token = backend == ScriptingImplementation.Mono2x ? "mono" : "il2cpp";
+            var roots = new[]
+            {
+                Path.Combine(EditorApplication.applicationContentsPath, "PlaybackEngines", support, "Variations"),
+                Path.GetFullPath(Path.Combine(
+                    EditorApplication.applicationContentsPath, "..", "..", "PlaybackEngines", support, "Variations"))
+            };
+            foreach (var variations in roots)
+            {
+                if (!Directory.Exists(variations))
+                    continue;
+                foreach (var dir in Directory.GetDirectories(variations))
+                {
+                    var name = Path.GetFileName(dir);
+                    if (name.Contains(arch) && name.Contains("player") && name.Contains(token))
+                        return true;
+                }
+            }
+
+            return false;
+        }
+
+        static void ShowOne(Target target, BuildReport report, string note)
         {
             if (report == null)
                 return;
             var summary = report.summary;
             if (summary.result == BuildResult.Succeeded)
             {
+                var backend = string.IsNullOrEmpty(note) ? "" : "\n" + note;
                 EditorUtility.DisplayDialog(
                     "Builds",
-                    target.Label + "\n" + summary.outputPath + "\n" + (summary.totalSize / (1024 * 1024)) + " Mo",
+                    target.Label + backend + "\n" + summary.outputPath + "\n" + (summary.totalSize / (1024 * 1024)) + " Mo",
                     "OK");
                 EditorUtility.RevealInFinder(summary.outputPath);
                 return;

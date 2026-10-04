@@ -87,7 +87,11 @@ if not exist "!DIR!\" mkdir "!DIR!"
 
 set "NONEMPTY=0"
 for /f "delims=" %%F in ('dir /b /a "!DIR!" 2^>nul') do (
-  if /i not "%%F"==".gitkeep" if /i not "%%F"==".DS_Store" set "NONEMPTY=1"
+  set "SKIP=0"
+  if /i "%%F"==".gitkeep" set "SKIP=1"
+  if /i "%%F"==".DS_Store" set "SKIP=1"
+  echo %%F | findstr /i "BurstDebugInformation_DoNotShip BackUpThisFolder_ButDontShipItWithYourGame" >nul && set "SKIP=1"
+  if "!SKIP!"=="0" set "NONEMPTY=1"
 )
 if "!NONEMPTY!"=="0" (
   echo !DIR! : vide, rien a envoyer.
@@ -95,7 +99,7 @@ if "!NONEMPTY!"=="0" (
 )
 
 echo Envoi de !DIR! vers !GAME_ID!:!CHANNEL! ^(!VERSION!^)
-"!BUTLER!" push "!DIR!" "!GAME_ID!:!CHANNEL!" --userversion "!VERSION!" --assume-yes --fix-permissions --if-changed --ignore ".DS_Store" --ignore ".gitkeep" --ignore "*BurstDebugInformation_DoNotShip"
+"!BUTLER!" push "!DIR!" "!GAME_ID!:!CHANNEL!" --userversion "!VERSION!" --assume-yes --fix-permissions --if-changed --ignore ".DS_Store" --ignore "**/.DS_Store" --ignore ".gitkeep" --ignore "*BurstDebugInformation_DoNotShip" --ignore "*BurstDebugInformation_DoNotShip/**" --ignore "*BackUpThisFolder_ButDontShipItWithYourGame" --ignore "*BackUpThisFolder_ButDontShipItWithYourGame/**"
 if errorlevel 1 (
   echo Echec : !GAME_ID!:!CHANNEL!
   set "FAILED=1"

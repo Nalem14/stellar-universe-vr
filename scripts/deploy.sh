@@ -70,6 +70,21 @@ if [[ -z "$version" ]]; then
   exit 1
 fi
 
+# Unity drops these next to the player. They are not part of the game.
+IGNORES=(
+  ".DS_Store"
+  "**/.DS_Store"
+  ".gitkeep"
+  "*BurstDebugInformation_DoNotShip"
+  "*BurstDebugInformation_DoNotShip/**"
+  "*BackUpThisFolder_ButDontShipItWithYourGame"
+  "*BackUpThisFolder_ButDontShipItWithYourGame/**"
+)
+ignore_args=()
+for pattern in "${IGNORES[@]}"; do
+  ignore_args+=(--ignore "$pattern")
+done
+
 failed=0
 pushed=0
 matched=0
@@ -84,7 +99,11 @@ for entry in "${ALL[@]}"; do
 
   mkdir -p "$dir"
 
-  if ! find "$dir" -mindepth 1 ! -name '.gitkeep' ! -name '.DS_Store' -print -quit | grep -q .; then
+  if ! find "$dir" \
+      \( -name '.gitkeep' -o -name '.DS_Store' \
+         -o -name '*BurstDebugInformation_DoNotShip' \
+         -o -name '*BackUpThisFolder_ButDontShipItWithYourGame' \) -prune \
+      -o -type f -print -quit | grep -q .; then
     echo "$dir : vide, rien à envoyer."
     continue
   fi
@@ -93,8 +112,7 @@ for entry in "${ALL[@]}"; do
   if "$BUTLER" push "$dir" "${GAME_ID}:${channel}" \
       --userversion "$version" \
       --assume-yes --fix-permissions --if-changed \
-      --ignore ".DS_Store" --ignore ".gitkeep" \
-      --ignore "*BurstDebugInformation_DoNotShip"; then
+      "${ignore_args[@]}"; then
     pushed=$((pushed + 1))
   else
     echo "Échec : ${GAME_ID}:${channel}" >&2
