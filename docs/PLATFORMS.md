@@ -71,7 +71,7 @@ Tant qu’un champ de texte a le focus (`PcPlatformBoot.IsTyping`), aucune touch
 | Table holo : zoom, déplacer, tourner | ✅ | ✅ | ✅ | `PcHoloMapInput` / `MobileHoloMapInput` |
 | Plateau hex (combat) | ✅ | ✅ | ✅ | case visée / tapée ; touches de console inchangées |
 | Écran principal (gestes) | ✅ | ✅ | ✅ | molette / clic droit / double clic ; pincement |
-| Chantier : modules sur la grille 9×9, recycleur, impression | ✅ | ✅ | ✅ | casque : grip ou gâchette sur un bloc (`TriggerGrab`) ; écran plat : `FlatGrab` ; hologramme (module absent du hangar) : deux gâchettes / clics / taps = impression |
+| Chantier : modules sur la grille 9×9, recycleur, impression | ✅ | ✅ | ✅ | casque : grip ou gâchette sur un bloc (`TriggerGrab`) ; le stick droit continue de tourner le joueur pendant le port (pas de manipulation de l'objet tenu, `ComfortSettings`) ; écran plat : `FlatGrab` ; hologramme (module absent du hangar) : deux gâchettes / clics / taps = impression ; filtres du magasin = boutons poussoirs |
 | Labo : échantillon, cristaux en file | ✅ | ✅ | ✅ | `FlatCarry` ; boutons d’écran toujours là |
 | Orrery, porte des étoiles, quartiers, diplomatie | ✅ | ✅ | ✅ | objets simples + écrans |
 | Bracelet | ✅ | ✅ (I) | ✅ (bouton) | posé en bas à gauche de la vue |

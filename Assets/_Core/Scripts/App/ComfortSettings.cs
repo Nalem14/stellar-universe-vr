@@ -207,6 +207,17 @@ namespace Core.App
             // spun the captain round.
             foreach (var smooth in _rig.GetComponentsInChildren<UnityEngine.XR.Interaction.Toolkit.Locomotion.Turning.ContinuousTurnProvider>(true))
                 smooth.enableTurnAround = false;
+            // An object held at a distance stays where the ray took it: the stick never spins it or reels it in.
+            // With that manipulation on, the starter kit cut turning (and moving) for the whole hold, so a module
+            // carried from the dock's store could not be turned round to the assembly table.
+            foreach (var nearFar in _rig.GetComponentsInChildren<UnityEngine.XR.Interaction.Toolkit.Interactors.NearFarInteractor>(true))
+                if (nearFar.interactionAttachController is UnityEngine.XR.Interaction.Toolkit.Attachment.InteractionAttachController attach)
+                {
+                    attach.useManipulationInput = false;
+                    // The kit's own test reads the input source too (an operator-precedence slip): unplug it as well.
+                    if (attach.manipulationInput != null)
+                        attach.manipulationInput.inputSourceMode = UnityEngine.XR.Interaction.Toolkit.Inputs.Readers.XRInputValueReader.InputSourceMode.Unused;
+                }
             // Straight rays: the curve visual bends toward a hit point it smooths in world space, so aboard a moving
             // ship the end lagged behind and the ray flexed as if dragged. The teleport arc keeps its parabola,
             // without the world-space smoothing either.
