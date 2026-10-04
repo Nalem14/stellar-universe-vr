@@ -704,6 +704,7 @@ namespace Core.Holo
             _selectedId = 0;
             Changed?.Invoke();
             ClearCues();
+            _map.ShowPrlRange(null);
             _selRing.SetActive(false);
             _arc.enabled = false;
             _arcLabelRoot.gameObject.SetActive(false);
@@ -835,6 +836,7 @@ namespace Core.Holo
         {
             ClearCues();
             var fleet = SelectedFleet;
+            _map.ShowPrlRange(fleet);
             if (fleet == null)
                 return;
             var tex = _art.OrbitRing != null ? _art.OrbitRing : Texture2D.whiteTexture;

@@ -26,6 +26,8 @@ namespace Core.Crew
             public CrewDialogue.Role Role;
             public string Event;
             public object[] Args;
+            /// <summary>Second line under the officer's words (a refused order: the server's reason).</summary>
+            public string Detail;
             public int Priority;
             public float Queued;
         }
@@ -142,7 +144,10 @@ namespace Core.Crew
         }
 
         /// <summary>Queue a line. Higher priority speaks first; stale low-priority lines are dropped.</summary>
-        public void Say(CrewDialogue.Role role, string evt, int priority = 1, params object[] args)
+        public void Say(CrewDialogue.Role role, string evt, int priority = 1, params object[] args) =>
+            SayWith(role, evt, null, priority, args);
+
+        void SayWith(CrewDialogue.Role role, string evt, string detail, int priority, params object[] args)
         {
             if (CrewLines.Count(role, evt) <= 0)
                 return;
@@ -150,7 +155,7 @@ namespace Core.Crew
             if (_cooldownUntil.TryGetValue(cdKey, out var until) && Time.time < until)
                 return;
             _cooldownUntil[cdKey] = Time.time + 4f;
-            _queue.Add(new Bark { Role = role, Event = evt, Args = args, Priority = priority, Queued = Time.time });
+            _queue.Add(new Bark { Role = role, Event = evt, Args = args, Detail = detail, Priority = priority, Queued = Time.time });
             enabled = true;
         }
 
@@ -162,7 +167,8 @@ namespace Core.Crew
         {
             if (!result.Ok)
             {
-                Say(role, "fail", 3);
+                // "Can't plot that course" alone leaves the captain guessing: the server's reason goes under it.
+                SayWith(role, "fail", result.Error, 3);
                 return;
             }
 
@@ -252,6 +258,8 @@ namespace Core.Crew
             var text = args.Length > 0
                 ? Trans.Format(CrewLines.Key(bark.Role, bark.Event, pick), args)
                 : Trans.Get(CrewLines.Key(bark.Role, bark.Event, pick));
+            if (!string.IsNullOrEmpty(bark.Detail))
+                text += "\n<size=70%><color=#ffb8a8>" + bark.Detail + "</color></size>";
             var speaker = _stationTitleKeys.TryGetValue(bark.Role, out var titleKey) ? Trans.Get(titleKey) : string.Empty;
 
             var duration = _subtitle != null ? _subtitle.Show(speaker, officer.Accent, text) : 3f;

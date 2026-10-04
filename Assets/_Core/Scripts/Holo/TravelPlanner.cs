@@ -29,6 +29,12 @@ namespace Core.Holo
         public float EtaSeconds;
         public int CrystalCost;
         public float MaxRange;
+        /// <summary>Crystal the refused option would have needed (warnings: "42 needed, 10 in the hold").</summary>
+        public int CrystalNeeded;
+        /// <summary>The sub-light leg runs on the free conventional drive (speed 1): not enough crystal for more.</summary>
+        public bool Conventional;
+        /// <summary>Bond PRL recharging: seconds left before the module can jump again.</summary>
+        public float ReadyIn;
     }
 
     /// <summary>
@@ -74,27 +80,10 @@ namespace Core.Holo
                 return q;
             }
 
-            var speed = Mathf.Max(1f, fleet.Speed);
             switch (mode)
             {
                 case TravelMode.Sublight:
-                    if (GameConfig.SublightSpeedCap > 0f)
-                        speed = Mathf.Max(1f, Mathf.Min(speed, GameConfig.SublightSpeedCap));
-                    // Faster than 1 burns crystal from the hold (⌈speed × distance × rate⌉); short of it, the
-                    // server drops to the free conventional drive at speed 1 (web f03197d).
-                    if (speed > 1f && GameConfig.SublightCrystalPerDistance > 0f)
-                    {
-                        var cost = Mathf.CeilToInt(speed * q.Distance * GameConfig.SublightCrystalPerDistance);
-                        if (fleet.CrystalCargo < cost)
-                        {
-                            q.FallbackKey = "conventionalDrive";
-                            speed = 1f;
-                        }
-                        else
-                            q.CrystalCost = cost;
-                    }
-
-                    q.EtaSeconds = Eta(q.Distance, speed);
+                    Sublight(fleet, q.Distance, ref q);
                     break;
 
                 case TravelMode.Hyperspace:
@@ -105,21 +94,37 @@ namespace Core.Holo
                         break;
                     }
 
-                    q.CrystalCost = Mathf.CeilToInt(q.Distance * GameConfig.HyperspaceCrystalPerDistance);
+                    // Server order: too few drives for the hull, else too little crystal → the trip falls back to
+                    // sub-light (capped speed, then the sub-light crystal rule, down to the free speed-1 drive).
+                    var hyperCost = Mathf.CeilToInt(q.Distance * GameConfig.HyperspaceCrystalPerDistance);
                     if (!fleet.EnoughHyperdrive)
-                        q.FallbackKey = "notEnoughHyperspaceModules";
-                    else if (fleet.CrystalCargo < q.CrystalCost)
-                        q.FallbackKey = "notEnoughCrystalForHyperspace";
-                    var hyperSpeed = q.FallbackKey == null
-                        ? speed
-                        : Mathf.Max(1f, Mathf.Min(speed, GameConfig.SublightSpeedCap > 0f ? GameConfig.SublightSpeedCap : speed));
-                    q.EtaSeconds = Eta(q.Distance, hyperSpeed);
+                        q.FallbackKey = "vr.travel.warn.hyperModules";
+                    else if (fleet.CrystalCargo < hyperCost)
+                    {
+                        q.FallbackKey = "vr.travel.warn.hyperCrystal";
+                        q.CrystalNeeded = hyperCost;
+                    }
+
+                    if (q.FallbackKey == null)
+                    {
+                        q.CrystalCost = hyperCost;
+                        q.EtaSeconds = Eta(q.Distance, ServerSpeed(fleet.Speed));
+                        break;
+                    }
+
+                    var hyperWarn = q.FallbackKey;
+                    var needed = q.CrystalNeeded;
+                    Sublight(fleet, q.Distance, ref q);
+                    // The sub-light leg may itself drop to the conventional drive: say both.
+                    q.FallbackKey = hyperWarn;
+                    q.CrystalNeeded = needed;
                     break;
 
                 case TravelMode.PrlBond:
                     if (TryBondDistance(fleet, tx, ty, out var bond))
                         q.Distance = bond;
-                    q.MaxRange = GameConfig.PrlBaseRange + PrlLevel() * GameConfig.PrlRangePerLevel;
+                    q.MaxRange = PrlMaxRange();
+                    q.ReadyIn = Mathf.Max(0f, fleet.PrlBondReadyAt - FleetOrderGate.UnixNow());
                     q.CrystalCost = Mathf.CeilToInt(q.Distance * GameConfig.PrlCrystalPerDistance);
                     q.EtaSeconds = GameConfig.PrlTransitSeconds;
                     q.BlockKey = !fleet.HasPrlBond ? "noPrlBondModule"
@@ -134,6 +139,21 @@ namespace Core.Holo
 
             return q;
         }
+
+        /// <summary>
+        /// Before quoting: a ship with a Bond PRL needs the research level as it is now (a level finished outside
+        /// the lab would otherwise shorten the range the lectern shows, and block a jump the server accepts).
+        /// </summary>
+        public static Task Prepare(FocusFleet fleet) =>
+            fleet != null && fleet.HasPrlBond ? AuthManager.Ensure().FreshenEmpire(30f) : Task.CompletedTask;
+
+        /// <summary>Bond PRL reach in map units: GetConfigs.prlBond baseRange + prlBond level × rangePerResearchLevel.</summary>
+        public static float PrlMaxRange() => GameConfig.PrlBaseRange + PrlLevel() * GameConfig.PrlRangePerLevel;
+
+        /// <summary>The ship can Bond-PRL jump right now (module, ratio, recharge) — its range ring is worth drawing.</summary>
+        public static bool PrlReady(FocusFleet fleet) =>
+            fleet != null && fleet.HasPrlBond && fleet.EnoughPrlBond && !fleet.IsStation &&
+            fleet.PrlBondReadyAt <= FleetOrderGate.UnixNow() && GameConfig.PrlBaseRange > 0f;
 
         /// <summary>Modes worth offering for this ship (PRL / hyperspace only with the module on board).</summary>
         public static void Modes(FocusFleet fleet, List<TravelMode> into)
@@ -208,6 +228,7 @@ namespace Core.Holo
             {
                 var name = string.IsNullOrEmpty(fleet.Name) ? "#" + fleet.Id : fleet.Name;
                 var header = name + "  →  " + destLabel;
+                await Prepare(fleet);
                 var options = SystemOptions(fleet, tx, ty);
                 var choice = await (near.HasValue ? console.AskAt(near.Value, header, options) : console.AskHere(header, options));
                 if (!(choice is TravelMode chosen))
@@ -234,19 +255,54 @@ namespace Core.Holo
             _ => "sublight"
         };
 
-        /// <summary>"Hyperspace · ~3:20 · 42 Crystal" — or the refusal reason.</summary>
+        /// <summary>"Hyperspace · ~3:20 · 42 Crystal" — or the refusal reason. Bond PRL always shows distance / range
+        /// first, as the web star menu does ("Bond PRL · 412/800 · 206 Crystal").</summary>
         public static string Describe(TravelQuote q)
         {
             var mode = Trans.Get(ModeKey(q.Mode));
+            if (q.Mode == TravelMode.PrlBond && q.MaxRange > 0f && q.BlockKey != "noPrlBondModule" &&
+                q.BlockKey != "notEnoughPrlBondModules")
+                mode += "  ·  " + RangeText(q.Distance, q.MaxRange);
             if (!q.Available)
-                return mode + "  ·  " + Trans.Get(q.BlockKey ?? "vr.common.error");
+            {
+                var why = mode + "  ·  " + Trans.Get(q.BlockKey ?? "vr.common.error");
+                if (q.BlockKey == "prlBondRecharging" && q.ReadyIn > 0f)
+                    why += "  " + TimeText(q.ReadyIn);
+                else if (q.BlockKey == "notEnoughCrystalPrlBond")
+                    why += "  (" + q.CrystalCost.ToString(CultureInfo.InvariantCulture) + " " + Trans.Get("crystalResource") + ")";
+                return why;
+            }
+
             var text = mode;
             if (q.EtaSeconds > 0f)
                 text += "  ·  " + TimeText(q.EtaSeconds);
             if (q.CrystalCost > 0)
                 text += "  ·  " + q.CrystalCost.ToString(CultureInfo.InvariantCulture) + " " + Trans.Get("crystalResource");
-            return text;
+            var warn = Warning(q);
+            return warn.Length > 0 ? text + "\n<size=78%><color=#ffb866>" + warn + "</color></size>" : text;
         }
+
+        /// <summary>
+        /// What the server will do instead of what was asked, said before the order (the web only toasts it after):
+        /// too few hyperspace drives or too little crystal → sub-light; too little crystal for sub-light speed → the
+        /// free conventional drive at speed 1. Empty when the trip runs as quoted.
+        /// </summary>
+        public static string Warning(TravelQuote q)
+        {
+            if (q.FallbackKey == null)
+                return string.Empty;
+            var text = q.FallbackKey == "vr.travel.warn.hyperModules"
+                ? Trans.Get(q.FallbackKey)
+                : Trans.Format(q.FallbackKey, q.CrystalNeeded.ToString(CultureInfo.InvariantCulture));
+            if (q.Conventional && q.FallbackKey != "vr.travel.warn.conventional")
+                text += "  ·  " + Trans.Get("vr.travel.warn.speedOne");
+            return "<b>!</b> " + text;
+        }
+
+        /// <summary>"412/800": distance over reach, map units rounded (web star.js quote).</summary>
+        public static string RangeText(float distance, float maxRange) =>
+            Mathf.RoundToInt(distance).ToString(CultureInfo.InvariantCulture) + "/" +
+            Mathf.RoundToInt(maxRange).ToString(CultureInfo.InvariantCulture);
 
         /// <summary>Estimate: ~45s, ~3:05, ~1:02:10, ~88 days 12:15.</summary>
         public static string TimeText(float seconds)
@@ -266,12 +322,41 @@ namespace Core.Holo
                 : string.Format(CultureInfo.InvariantCulture, "~{0}:{1:00}", m, sec);
         }
 
-        /// <summary>Server: speed /= move_speed booster, then max(1, (int)speed) (actionjs.php MoveFleetToSystem).</summary>
-        static float Eta(float distance, float speed)
+        /// <summary>
+        /// Sub-light as the server runs it (actionjs.php MoveFleetToSystem): capped speed, booster, integer; faster
+        /// than 1 burns ⌈speed × distance × rate⌉ crystal from the hold, else the free conventional drive at speed 1.
+        /// </summary>
+        static void Sublight(FocusFleet fleet, float distance, ref TravelQuote q)
         {
-            var boosted = Mathf.Max(1f, Mathf.Floor(speed / Mathf.Max(0.01f, Boosters.MoveTimeFactor)));
-            return Mathf.Max(GameConfig.TravelDurationMin, distance * GameConfig.TravelSecondsPerDistance / boosted);
+            var raw = Mathf.Max(1f, fleet.Speed);
+            if (GameConfig.SublightSpeedCap > 0f)
+                raw = Mathf.Min(raw, GameConfig.SublightSpeedCap);
+            var speed = ServerSpeed(raw);
+            q.CrystalCost = 0;
+            if (speed > 1 && GameConfig.SublightCrystalPerDistance > 0f)
+            {
+                var cost = Mathf.CeilToInt(speed * distance * GameConfig.SublightCrystalPerDistance);
+                if (fleet.CrystalCargo < cost)
+                {
+                    q.FallbackKey = "vr.travel.warn.conventional";
+                    q.CrystalNeeded = cost;
+                    q.Conventional = true;
+                    speed = 1;
+                }
+                else
+                    q.CrystalCost = cost;
+            }
+
+            q.EtaSeconds = Eta(distance, speed);
         }
+
+        /// <summary>Server: speed /= move_speed booster, then max(1, (int)speed).</summary>
+        static int ServerSpeed(float speed) =>
+            Mathf.Max(1, Mathf.FloorToInt(speed / Mathf.Max(0.01f, Boosters.MoveTimeFactor)));
+
+        /// <summary>Server: max(systemTravelDurationMin, distance × systemTravelSecondsPerDistance / speed).</summary>
+        static float Eta(float distance, int speed) =>
+            Mathf.Max(GameConfig.TravelDurationMin, distance * GameConfig.TravelSecondsPerDistance / Mathf.Max(1, speed));
 
         static float PrlLevel()
         {

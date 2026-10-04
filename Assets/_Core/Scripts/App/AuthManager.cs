@@ -16,6 +16,8 @@ namespace Core.App
 
         public UserSession User { get; private set; }
         public JObject Empire { get; private set; }
+        /// <summary>When <see cref="Empire"/> was last read (realtime seconds; research levels age with it).</summary>
+        public float EmpireReadAt { get; private set; } = -1f;
 
         /// <summary>
         /// GetMeEmpire answers even without an empire (no id). Creating one has no API action yet
@@ -144,6 +146,7 @@ namespace Core.App
             try
             {
                 Empire = JObject.Parse(result.Body);
+                EmpireReadAt = Time.realtimeSinceStartup;
             }
             catch (Exception)
             {
@@ -151,6 +154,17 @@ namespace Core.App
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Re-read the empire when older than <paramref name="maxAge"/> seconds: a research finished outside the lab
+        /// (Bond PRL range, radar reach) must not leave a quote on the level read at login.
+        /// </summary>
+        public async Task FreshenEmpire(float maxAge)
+        {
+            if (!IsLoggedIn || (EmpireReadAt >= 0f && Time.realtimeSinceStartup - EmpireReadAt < maxAge))
+                return;
+            await FetchMe();
         }
 
         public void Logout()

@@ -303,6 +303,7 @@ namespace Core.Vfx
 
             UpdateTerritoryView(lift);
             UpdateRadarField(lift);
+            UpdatePrlRange(lift);
             if (!_interactionLock && (reselect || !_gHasSelection || SelectionDrifted()))
                 SelectGalaxyTokens(stars, limitSq, lift, hereId);
             else
@@ -620,6 +621,7 @@ namespace Core.Vfx
 
             LayoutGalaxyFleets(DioramaLift);
             UpdateRadarField(DioramaLift);
+            UpdatePrlRange(DioramaLift);
             TokensRebuilt?.Invoke();
         }
 
@@ -796,10 +798,26 @@ namespace Core.Vfx
             {
                 var sub = Core.Holo.TravelPlanner.Quote(picked, star.X, star.Y, Core.Holo.TravelMode.Sublight);
                 var hyp = Core.Holo.TravelPlanner.Quote(picked, star.X, star.Y, Core.Holo.TravelMode.Hyperspace);
+                // Hyperspace only when it really runs as such (enough drives and crystal); otherwise it is the
+                // sub-light time anyway, and the warning says why.
                 var eta = (sub.Available ? Trans.Get("sublight") + " " + Core.Holo.TravelPlanner.TimeText(sub.EtaSeconds) : string.Empty) +
-                          (hyp.Available ? "   " + Trans.Get("hyperdrive") + " " + Core.Holo.TravelPlanner.TimeText(hyp.EtaSeconds) : string.Empty);
+                          (hyp.Available && hyp.FallbackKey == null
+                              ? "   " + Trans.Get("hyperdrive") + " " + Core.Holo.TravelPlanner.TimeText(hyp.EtaSeconds)
+                              : string.Empty);
                 if (eta.Length > 0)
                     lines.Add("<color=#ffc766>" + eta.Trim() + "</color>");
+                var warn = hyp.Available && hyp.FallbackKey != null ? Core.Holo.TravelPlanner.Warning(hyp)
+                    : Core.Holo.TravelPlanner.Warning(sub);
+                if (warn.Length > 0)
+                    lines.Add("<size=85%><color=#ffb866>" + warn + "</color></size>");
+                // Bond PRL: distance over reach, as the web star menu prints it, green in range, red beyond.
+                if (picked.HasPrlBond)
+                {
+                    var prl = Core.Holo.TravelPlanner.Quote(picked, star.X, star.Y, Core.Holo.TravelMode.PrlBond);
+                    if (prl.MaxRange > 0f)
+                        lines.Add("<color=#" + (prl.Distance <= prl.MaxRange ? "6fd8ff" : "ff7a8a") + ">" +
+                                  Core.Holo.TravelPlanner.Describe(prl) + "</color>");
+                }
             }
 
             _gCardBody.text = string.Join("\n", lines);
@@ -822,14 +840,14 @@ namespace Core.Vfx
                 return;
             _gCard = new GameObject("StarCard");
             _gCard.transform.SetParent(transform, false);
-            var px = new Vector2(430f, 190f);
+            var px = new Vector2(450f, 240f);
             var canvas = DiegeticUi.WorldCanvas(_gCard.transform, "Canvas", px, Vector3.zero, Quaternion.identity, 0.00085f);
             canvas.sortingOrder = 30;
             var frame = DiegeticUi.HoloFrame(canvas.transform, px);
             frame.GetComponent<UnityEngine.UI.Image>().raycastTarget = false;
-            _gCardTitle = DiegeticUi.HoloLabel(frame, string.Empty, new Vector2(0f, 62f), new Vector2(400f, 40f), 28f, UI.UiKit.Cyan);
+            _gCardTitle = DiegeticUi.HoloLabel(frame, string.Empty, new Vector2(0f, 87f), new Vector2(420f, 40f), 28f, UI.UiKit.Cyan);
             _gCardTitle.fontStyle = FontStyles.Bold;
-            _gCardBody = DiegeticUi.HoloLabel(frame, string.Empty, new Vector2(0f, -22f), new Vector2(400f, 120f), 19f, UI.UiKit.TextBright,
+            _gCardBody = DiegeticUi.HoloLabel(frame, string.Empty, new Vector2(0f, -22f), new Vector2(420f, 170f), 19f, UI.UiKit.TextBright,
                 TextAlignmentOptions.Top);
             _gCardBody.richText = true;
             _gCard.SetActive(false);

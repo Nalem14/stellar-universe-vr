@@ -608,6 +608,8 @@ namespace Core.Vfx
                 {
                     if (dragged)
                         fleetToken.transform.localPosition = target.HomeLocalPos + Vector3.up * 0.04f;
+                    if (target.Kind == HoloTokenKind.System)
+                        await Core.Holo.TravelPlanner.Prepare(fleet);
                     var options = BuildOptions(fleet, target, action, _focus);
                     await PrependGateOptions(fleet, target, options);
                     var choice = await _console.AskAt(target.transform.position,
