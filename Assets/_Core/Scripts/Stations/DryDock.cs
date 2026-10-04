@@ -1090,13 +1090,19 @@ namespace Core.Stations
 
             var s = ModuleCatalog.Sum(_layout);
             var station = StationHull;
+            // The catalogue sum is the design's base; the server's own sums (research, species, the hull's real
+            // module rows) are what the ship flies and fights with — shown beside it in green.
+            var hull = _focus?.FindFleet(_fleetId);
+            string Eff(float design, float real) => hull == null || real <= 0f || Mathf.RoundToInt(real) == Mathf.RoundToInt(design)
+                ? Mathf.RoundToInt(design).ToString()
+                : Mathf.RoundToInt(design) + "  <color=#7dffb0>" + Mathf.RoundToInt(real) + "</color>";
             var rows = new (string, string)[]
             {
                 (Trans.Get("modules"), s.Modules.ToString()),
-                (Trans.Get("armor"), Mathf.RoundToInt(s.Armor).ToString()),
-                (Trans.Get("shield"), Mathf.RoundToInt(s.Shield).ToString()),
-                (Trans.Get("damage"), Mathf.RoundToInt(s.Damage).ToString()),
-                (Trans.Get("speed"), station ? Trans.Get("vr.dock.immobile") : Mathf.RoundToInt(s.Speed).ToString()),
+                (Trans.Get("armor"), Eff(s.Armor, hull?.ArmorTotal ?? 0f)),
+                (Trans.Get("shield"), Eff(s.Shield, hull?.ShieldTotal ?? 0f)),
+                (Trans.Get("damage"), Eff(s.Damage, hull?.DamageTotal ?? 0f)),
+                (Trans.Get("speed"), station ? Trans.Get("vr.dock.immobile") : Eff(s.Speed, hull?.Speed ?? 0f)),
                 (Trans.Get("cargo"), Mathf.RoundToInt(s.Cargo).ToString()),
                 (Trans.Get("vr.dock.troops"), Mathf.RoundToInt(s.TroopCargo).ToString()),
                 (Trans.Get("vr.dock.size"), Mathf.RoundToInt(s.Size).ToString())
@@ -1111,7 +1117,9 @@ namespace Core.Stations
                 Text(_shipBody, rows[i].Item2, rx + 250f, ry, 160f, 19f, UiKit.TextBright, TextAlignmentOptions.MidlineRight);
             }
 
-            y -= 4 * 40f + 10f;
+            y -= 4 * 40f;
+            Text(_shipBody, Trans.Get("vr.dock.effectiveHint"), -440f, y + 6f, 880f, 14f, DiegeticUi.CyanDim);
+            y -= 10f;
             // Jump drives: the server wants one per modulesPerJumpModule modules (GetFleetStats).
             if (!station && (s.Hyperdrives > 0 || s.PrlBonds > 0))
             {

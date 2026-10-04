@@ -82,6 +82,7 @@ Clés du client (dix langues) :
 | `vr.research.effect.habitability` | {0} habitabilité des planètes | {0} planet habitability |
 | `vr.research.effect.prlRange` | {0} portée du Bond PRL | {0} PRL Bond range |
 | `vr.research.effect.scannerRange` | {0} portée des scanners | {0} scanner range |
+| `vr.dock.effectiveHint` | En vert : valeurs réelles du vaisseau (recherches et modules montés compris) | In green: the ship's real values (research and fitted modules included) |
 
 Descriptions natives à réécrire (elles décrivaient un autre jeu — audit du 2026-10-04, nouvelle table `$RESEARCH_EFFECTS`) :
 

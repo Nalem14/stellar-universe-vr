@@ -62,6 +62,10 @@ namespace Core.App
 
         // GetAllFleets[].stats (server GetFleetStats) — drives travel quotes.
         public float Speed;
+        /// <summary>GetFleetStats sums as the server applies them (research, species, politics, each module's own row).</summary>
+        public float DamageTotal;
+        public float ArmorTotal;
+        public float ShieldTotal;
         public bool HasHyperdrive;
         public bool HasPrlBond;
         /// <summary>Enough jump modules for the hull size (else the server falls back / refuses).</summary>
@@ -705,6 +709,9 @@ namespace Core.App
                     if (fleet["stats"] is JObject stats)
                     {
                         row.Speed = AsFloat(stats["speed"]);
+                        row.DamageTotal = AsFloat(stats["damageFleet"]);
+                        row.ArmorTotal = AsFloat(stats["armorFleet"]);
+                        row.ShieldTotal = AsFloat(stats["shieldFleet"]);
                         row.HasHyperdrive = AsBool(stats["hasHyperdrive"]);
                         row.HasPrlBond = AsBool(stats["hasPrlBond"]);
                         row.CrystalCargo = AsInt(stats["crystalCargo"]);
