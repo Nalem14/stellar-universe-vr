@@ -7,8 +7,8 @@ namespace Core.Stations
 {
     /// <summary>
     /// A city's hall: the citadel's gallery, a floor of the tower one level under the rotunda — nothing like the
-    /// ship's passage or the fortress concourse. A curved stone gallery runs 300° round the tower's core inside
-    /// the crown (no ring, nothing added to the tower: from outside only its arched windows show, lit, in the
+    /// ship's passage or the fortress concourse. A gently curved stone gallery runs 153° round the tower's core
+    /// inside the crown, on a 12.6 m radius so it reads as a long hall that bends, never as a ring one walks round (no ring, nothing added to the tower: from outside only its arched windows show, lit, in the
     /// crown's flank). The core wall carries the rooms' doors in stone portals with banners between them; the
     /// outer wall is a row of tall arched windows on the city with gold tracery and deep reveals; a ribbed vault
     /// with hanging lanterns; flagstones with a gold line and a rosette at the stair from the rotunda; stone
@@ -19,19 +19,19 @@ namespace Core.Stations
     /// </summary>
     public static class CitadelGallery
     {
-        /// <summary>Gallery floor under the rotunda's deck (inside the crown: the hub is r ≥ 9.6 m from −8 m up).</summary>
+        /// <summary>Gallery floor under the rotunda's deck (inside the crown, whose head flares to ROut + 0.65 m from −8.6 m up).</summary>
         public const float FloorBelowDeck = 7.8f;
-        public const float RIn = 4.6f;
-        public const float ROut = 9.0f;
-        public const float RMid = 6.8f;
+        public const float RIn = 10.6f;
+        public const float ROut = 14.6f;
+        public const float RMid = 12.6f;
         const float WallTop = 3.6f;
         const float OuterTop = 3.8f;
         const float Sill = 0.8f;
         const float Spring = 2.55f;
         const float WindowWidth = 1.3f;
-        const float BayDeg = 15f;
+        public const float BayDeg = 9f;
         public const float A0 = 186f;
-        public const float A1 = A0 + 300f;
+        public const float A1 = A0 + 17 * BayDeg;
         public static float Length => (A1 - A0) * Mathf.Deg2Rad * RMid;
 
         /// <summary>Warm lantern light; gold of the tower's light lines.</summary>
@@ -105,7 +105,11 @@ namespace Core.Stations
                 return (d * r, outward ? d : -d, post);
             }
 
-            return new[] { S(3f, 8.2f, true, false), S(8f, 6.2f, false, false), S(13f, 8.2f, true, true), S(23f, 8.1f, true, false), S(ModelZ, 7.3f, false, true) };
+            return new[]
+            {
+                S(3f, ROut - 0.8f, true, false), S(8f, RIn + 1.6f, false, false), S(13f, ROut - 0.8f, true, true), S(23f, ROut - 0.9f, true, false),
+                S(ModelZ, RMid + 0.5f, false, true)
+            };
         }
 
         // ── Build ───────────────────────────────────────────────────────────────
@@ -164,7 +168,7 @@ namespace Core.Stations
             for (var deg = A0 + BayDeg; deg < A1 - 1f; deg += BayDeg)
             {
                 t.Rib(Vault, deg, 0.1f, 0.12f, false);
-                if (!NearDoor(deg, 13f))
+                if (!NearDoor(deg, 6f))
                     t.Bar(deg, RIn, RIn + 0.16f, 0f, WallTop, 0.13f);
             }
 
@@ -422,7 +426,7 @@ namespace Core.Stations
         /// <summary>The far bay's model of the citadel: tower, crown, gold spire, on a plinth under a lantern ring.</summary>
         static void BuildModel(Transform root, CicArtKit art, Material trim, Material gold, Material glow)
         {
-            var c = At(ModelZ, 6.6f);
+            var c = At(ModelZ, RMid - 0.2f);
             var plinth = new LatheMesh(c) { Step = 10f };
             plinth.Revolve(new[] { new Vector2(0.75f, 0f), new Vector2(0.75f, 0.1f), new Vector2(0.55f, 0.18f), new Vector2(0.5f, 0.85f),
                 new Vector2(0.62f, 0.9f), new Vector2(0.62f, 0.96f), new Vector2(0f, 0.97f) }, 0f, 360f, false);

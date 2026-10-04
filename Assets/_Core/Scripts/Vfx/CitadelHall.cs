@@ -5,7 +5,7 @@ namespace Core.Vfx
 {
     /// <summary>
     /// A city's command room — the citadel's Throne Hall, its own place, not a bridge: a basilica crowning the
-    /// tower. A long nave (13 m between the outer walls, 15 m from the narthex to the apse) under a pointed
+    /// tower. A broad nave (18 m between the outer walls, 16 m from the narthex to the apse) under a pointed
     /// barrel vault painted with a night sky; arcades on columns open on two aisles lit by tall lancets on the
     /// city, tribunes above them, a clerestory over all; a semicircular apse ahead where the main screen stands
     /// as a gilt retable under five lancets and a half-dome; a rose window over the narthex door behind. The
@@ -21,19 +21,19 @@ namespace Core.Vfx
         // ── Plan and heights ─────────────────────────────────────────────────────
 
         /// <summary>Arcade line (nave walls) and outer walls (aisles), |x|.</summary>
-        public const float NaveX = 5.4f;
-        public const float WallX = 7.6f;
+        public const float NaveX = 7.0f;
+        public const float WallX = 9.2f;
         /// <summary>Narthex wall (the door) and the apse's chord (the screen plane), z.</summary>
-        public const float NarthexZ = -8.6f;
+        public const float NarthexZ = -10.2f;
         public const float ApseZ = 6.0f;
-        public const float ApseR = 5.4f;
+        public const float ApseR = 7.0f;
         /// <summary>Aisle ceiling = tribune floor; tribune roof; nave wall top; vault apex.</summary>
         const float TribuneY = 5.2f;
         const float TribuneTop = 7.6f;
         const float NaveTop = 10.8f;
         const float VaultTop = 13.2f;
         /// <summary>Columns down the nave (z), between them the arcades' bays.</summary>
-        static readonly float[] Piers = { -8.6f, -6.0f, -3.4f, -0.8f, 1.8f, 4.4f, 6.0f };
+        public static readonly float[] Piers = { -10.2f, -7.5f, -4.8f, -2.1f, 0.6f, 3.3f, 6.0f };
         /// <summary>The commander's throne: the ship chair's spot (its seat, arm consoles and stand-up key are kept).</summary>
         public static Vector3 Throne => new(0f, 0f, WorldScale.CicCaptainChairZ);
         /// <summary>Where one steps in from the corridor (inside the narthex door).</summary>
@@ -46,8 +46,8 @@ namespace Core.Vfx
         /// <summary>Council stalls: the ministers face each other across the nave (x side, z), Helm's empty in a city.</summary>
         static readonly (string name, float x, float z)[] Stalls =
         {
-            ("CrewTactical", 4.0f, 2.9f), ("CrewEngineering", 4.0f, 0.6f), ("CrewOps", 4.0f, -1.7f),
-            ("CrewHelm", -4.0f, 2.9f), ("CrewScience", -4.0f, 0.6f), ("CrewComms", -4.0f, -1.7f)
+            ("CrewTactical", 5.6f, 2.9f), ("CrewEngineering", 5.6f, 0.6f), ("CrewOps", 5.6f, -1.7f),
+            ("CrewHelm", -5.6f, 2.9f), ("CrewScience", -5.6f, 0.6f), ("CrewComms", -5.6f, -1.7f)
         };
 
         /// <summary>A crew post's pose in the hall: at its stall, facing across the nave.</summary>
@@ -71,10 +71,10 @@ namespace Core.Vfx
         {
             // Down the port aisle, out through the first arcade, across the narthex (clear of the guardians'
             // plinths), back up the starboard aisle.
-            (new Vector3(-6.6f, 0f, 3.2f), Vector3.left, true), (new Vector3(-6.6f, 0f, -1.4f), Vector3.left, true),
-            (new Vector3(-6.6f, 0f, -7.3f), Vector3.left, true), (new Vector3(-2.4f, 0f, -6.6f), Vector3.back, false),
-            (new Vector3(2.4f, 0f, -6.6f), Vector3.back, false), (new Vector3(6.6f, 0f, -7.3f), Vector3.right, true),
-            (new Vector3(6.6f, 0f, -1.4f), Vector3.right, true), (new Vector3(6.6f, 0f, 3.2f), Vector3.right, true)
+            (new Vector3(-8.3f, 0f, 3.2f), Vector3.left, true), (new Vector3(-8.3f, 0f, -1.4f), Vector3.left, true),
+            (new Vector3(-8.3f, 0f, -8.9f), Vector3.left, true), (new Vector3(-2.6f, 0f, -8.2f), Vector3.back, false),
+            (new Vector3(2.6f, 0f, -8.2f), Vector3.back, false), (new Vector3(8.3f, 0f, -8.9f), Vector3.right, true),
+            (new Vector3(8.3f, 0f, -1.4f), Vector3.right, true), (new Vector3(8.3f, 0f, 3.2f), Vector3.right, true)
         };
 
         /// <summary>
@@ -85,14 +85,14 @@ namespace Core.Vfx
         {
             var list = new List<(Vector3, Vector3, bool)>();
             for (var i = 0; i < 5; i++)
-                list.Add((new Vector3(-6.7f, TribuneY, -6.5f + i * 2.5f), new Vector3(i % 2 == 0 ? 1f : -1f, 0f, 0f), i % 2 == 0));
+                list.Add((new Vector3(-8.5f, TribuneY, -8.0f + i * 3.0f), new Vector3(i % 2 == 0 ? 1f : -1f, 0f, 0f), i % 2 == 0));
             return list.ToArray();
         }
 
         /// <summary>Two ministers' aides in the aisles (the rotunda's tier operators), facing the lancets.</summary>
         public static (Vector3 pos, Quaternion rot) AidePose(int i) => i == 0
-            ? (new Vector3(-6.9f, 0f, 4.6f), Quaternion.LookRotation(Vector3.left))
-            : (new Vector3(6.9f, 0f, 4.6f), Quaternion.LookRotation(Vector3.right));
+            ? (new Vector3(-8.6f, 0f, 4.6f), Quaternion.LookRotation(Vector3.left))
+            : (new Vector3(8.6f, 0f, 4.6f), Quaternion.LookRotation(Vector3.right));
 
         // ── Openings (pointed arches, a round rose) ──────────────────────────────
 
@@ -732,7 +732,7 @@ namespace Core.Vfx
             var flames = new List<Transform>();
             foreach (var s in new[] { -1f, 1f })
             {
-                var at = new Vector3(s * 4.7f, 0f, ApseZ - 1.2f);
+                var at = new Vector3(s * 5.4f, 0f, ApseZ - 1.2f);
                 for (var k = 0; k < 3; k++)
                 {
                     var leg = LatheMesh.Dir(k * 120f) * 0.22f;
@@ -788,12 +788,11 @@ namespace Core.Vfx
 
             foreach (var s in new[] { -1f, 1f })
             {
-                // Baldachin columns at the dais's corners, a canopy with a gold fringe and a crown on top.
-                foreach (var dz in new[] { -1.0f, 0.75f })
-                {
-                    b.Tube(t + new Vector3(s * 1.05f, 1.95f, dz - 0.15f), Vector3.up, 0.07f, 3.9f, m.Gold);
-                    b.Box(t + new Vector3(s * 1.05f, 0.14f, dz - 0.15f), new Vector3(0.22f, 0.12f, 0.22f), m.Marble);
-                }
+                // Baldachin columns behind the throne only (none beside the commander's line of sight): the canopy
+                // reaches forward on gilt brackets, a gold fringe and a crown on top.
+                b.Tube(t + new Vector3(s * 1.05f, 1.95f, -1.15f), Vector3.up, 0.07f, 3.9f, m.Gold);
+                b.Box(t + new Vector3(s * 1.05f, 0.14f, -1.15f), new Vector3(0.22f, 0.12f, 0.22f), m.Marble);
+                b.Strut(t + new Vector3(s * 1.05f, 2.9f, -1.15f), t + new Vector3(s * 1.05f, 3.82f, 0.55f), 0.05f, m.Gold);
             }
 
             b.Box(t + new Vector3(0f, 3.95f, -0.27f), new Vector3(2.35f, 0.12f, 2.0f), m.Velvet);
@@ -922,7 +921,7 @@ namespace Core.Vfx
             {
                 // One long carved stall per side behind the three posts: a back panel with a gilt cornice and
                 // pointed canopies over each seat, a bench, a low front with a book ledge.
-                var x = s * 4.75f;
+                var x = s * 6.35f;
                 const float z0 = -2.9f;
                 const float z1 = 4.1f;
                 var zc = (z0 + z1) * 0.5f;
@@ -959,7 +958,7 @@ namespace Core.Vfx
             {
                 var col = new GameObject("StallCollider");
                 col.transform.SetParent(root, false);
-                col.transform.localPosition = new Vector3(s * 4.85f, 1.2f, 0.6f);
+                col.transform.localPosition = new Vector3(s * 6.45f, 1.2f, 0.6f);
                 col.AddComponent<BoxCollider>().size = new Vector3(0.4f, 2.4f, 7f);
             }
         }
@@ -1034,7 +1033,7 @@ namespace Core.Vfx
             // Two guardians on plinths either side of the door: robed figures with spears, gilt helms.
             foreach (var s in new[] { -1f, 1f })
             {
-                var at = new Vector3(s * 4.6f, 0f, NarthexZ + 0.9f);
+                var at = new Vector3(s * 5.4f, 0f, NarthexZ + 0.9f);
                 b.Box(at + Vector3.up * 0.35f, new Vector3(0.9f, 0.7f, 0.9f), m.StoneDark);
                 b.Box(at + Vector3.up * 0.72f, new Vector3(0.96f, 0.05f, 0.96f), m.Gold);
                 var statue = new LatheMesh(at + Vector3.up * 0.75f) { Step = 15f };
@@ -1053,7 +1052,7 @@ namespace Core.Vfx
             // Planters with trees in the aisles' narthex corners.
             foreach (var s in new[] { -1f, 1f })
             {
-                var at = new Vector3(s * 6.6f, 0f, NarthexZ + 0.9f);
+                var at = new Vector3(s * 8.2f, 0f, NarthexZ + 0.9f);
                 b.Box(at + Vector3.up * 0.32f, new Vector3(0.8f, 0.64f, 0.8f), m.StoneDark);
                 b.Box(at + Vector3.up * 0.65f, new Vector3(0.84f, 0.04f, 0.84f), m.Gold);
                 b.Tube(at + Vector3.up * 1.2f, Vector3.up, 0.06f, 1.1f, m.Bronze);
@@ -1070,7 +1069,7 @@ namespace Core.Vfx
         static void BuildLights(Transform root, Mats m)
         {
             var b = new MeshBatch();
-            foreach (var z in new[] { -5.6f, 3.6f })
+            foreach (var z in new[] { -6.9f, 3.6f })
             {
                 var c = new Vector3(0f, 8.2f, z);
                 b.Tube(new Vector3(0f, (8.2f + VaultTop) * 0.5f, z), Vector3.up, 0.02f, VaultTop - 8.2f, m.Gold);

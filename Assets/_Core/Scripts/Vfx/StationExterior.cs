@@ -236,7 +236,9 @@ namespace Core.Vfx
         // ── Citadel crown: the tower's head and its terrace ──────────────────────
 
         /// <summary>Terrace (the palace's ground) over the tower's flared head.</summary>
-        const float TerraceR = 12.8f;
+        const float TerraceR = 16.2f;
+        /// <summary>The crown's flank radius at the gallery's floor (it leans out 0.3 m up to the terrace).</summary>
+        const float HeadR = Core.Stations.CitadelGallery.ROut + 0.65f;
         const float TerraceY = -0.62f;
 
         void BuildCrownBase()
@@ -244,9 +246,10 @@ namespace Core.Vfx
             var head = new LatheMesh(Axis) { Step = 6f };
             Vector2[][] runs =
             {
-                new[] { new Vector2(7.6f, CrownFoot), new Vector2(9.6f, -8f) },
-                new[] { new Vector2(9.6f, -8f), new Vector2(9.9f, -1.2f) },
-                new[] { new Vector2(9.9f, -1.2f), new Vector2(TerraceR, -1.0f) },
+                // The head flares wide enough to hold the gallery (CitadelGallery.ROut + its reveals) under the terrace.
+                new[] { new Vector2(7.6f, CrownFoot), new Vector2(HeadR, -8.6f) },
+                new[] { new Vector2(HeadR, -8.6f), new Vector2(HeadR + 0.3f, -1.2f) },
+                new[] { new Vector2(HeadR + 0.3f, -1.2f), new Vector2(TerraceR, -1.0f) },
                 new[] { new Vector2(TerraceR, -1.0f), new Vector2(TerraceR, TerraceY) },
                 new[] { new Vector2(TerraceR, TerraceY), new Vector2(0f, TerraceY) }
             };
@@ -256,7 +259,7 @@ namespace Core.Vfx
 
             // Light lines round the head and the terrace's lit edge, a parapet of merlons round it.
             var lines = new LatheMesh(Axis) { Step = 4f };
-            lines.Revolve(new[] { new Vector2(9.66f, -7.4f), new Vector2(9.66f, -7.22f) }, 0f, 360f, false);
+            lines.Revolve(new[] { new Vector2(HeadR + 0.07f, -8.3f), new Vector2(HeadR + 0.07f, -8.12f) }, 0f, 360f, false);
             lines.Revolve(new[] { new Vector2(TerraceR + 0.01f, -0.92f), new Vector2(TerraceR + 0.01f, -0.82f) }, 0f, 360f, false);
             LatheMesh.Part(transform, "HubLights", lines.ToMesh("SU_CitadelCrownLights"), Glass());
             var parapet = new MeshBatch();
@@ -388,7 +391,7 @@ namespace Core.Vfx
 
         /// <summary>The tip of the palace's flèche (exterior local metres), where a home world's mast rises.</summary>
         public static Vector3 FlecheTip => new(0f, 14.8f + 10.7f, CitadelHall.ApseZ - 0.6f);
-        static readonly float[] Piers = { -8.6f, -6.0f, -3.4f, -0.8f, 1.8f, 4.4f, 6.0f };
+        static float[] Piers => CitadelHall.Piers;
 
         /// <summary>A pointed lit pane at <paramref name="foot"/> (x/z), along <paramref name="along"/>, facing <paramref name="face"/>, gold-framed.</summary>
         static void Lancet(LatheMesh panes, LatheMesh gold, Vector3 foot, Vector3 along, Vector3 face, float half, float sill, float spring)
@@ -451,10 +454,11 @@ namespace Core.Vfx
             const float spring = deck + 2.55f;
             const float hw = 0.7f;
             const int arc = 10;
-            float R(float y) => 9.6f + 0.3f * Mathf.Clamp01((y + 8f) / 6.8f) + 0.035f;
+            float R(float y) => HeadR + 0.3f * Mathf.Clamp01((y + 8.6f) / 7.4f) + 0.035f;
             var panes = new LatheMesh(Axis);
             var rims = new LatheMesh(Axis);
-            for (var deg = Core.Stations.CitadelGallery.A0 + 7.5f; deg < Core.Stations.CitadelGallery.A1; deg += 15f)
+            for (var deg = Core.Stations.CitadelGallery.A0 + Core.Stations.CitadelGallery.BayDeg * 0.5f; deg < Core.Stations.CitadelGallery.A1;
+                 deg += Core.Stations.CitadelGallery.BayDeg)
             {
                 var d = LatheMesh.Dir(deg);
                 var side = Vector3.Cross(Vector3.up, d);
