@@ -57,8 +57,10 @@ namespace Core.App
             {
                 Mode = PlatformMode.Desktop;
             }
-            else if (forceVr)
+            else if (forceVr && vrActive)
             {
+                // -vr asks for the headset (XrStartup brings OpenXR up); with no runtime answering, the flat
+                // screen below rather than a headset view nobody can see.
                 Mode = PlatformMode.VR;
             }
             else if (vrActive)
@@ -85,7 +87,7 @@ namespace Core.App
             SceneManager.sceneLoaded += OnSceneLoaded;
         }
 
-        static bool IsQuestDevice()
+        public static bool IsQuestDevice()
         {
             if (Application.platform != RuntimePlatform.Android)
                 return false;

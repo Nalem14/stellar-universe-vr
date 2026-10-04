@@ -16,6 +16,8 @@ Un seul jeu, trois corps. Ce document est le **contrat d’entrées** : toute in
 | 6 | plateforme mobile (`Application.isMobilePlatform`) | Mobile |
 | 7 | sinon | Desktop |
 
+OpenXR ne démarre **jamais tout seul** (« Initialize XR on Startup » coupé sur Android et Standalone) : `Core.App.XrStartup` l’allume sur un Quest ou avec `-vr`, aux mêmes moments que XR Management. Un APK unique sert le Quest et les téléphones : sur un téléphone, OpenXR démarré sans runtime laissait l’écran noir (musique seule). `-vr` sans runtime qui répond retombe sur l’écran plat.
+
 `IsVr`, `IsDesktop`, `IsMobile`, `IsFlatScreen` (= Desktop ou Mobile). Le Play Mode de l’Editor sans loader XR est en **Desktop** : c’est le chemin PC réel.
 
 Sur écran plat, `SetupDesktopRig` réutilise le rig XR de la scène : capsule `CharacterController`, caméra à `WorldScale.EyeStanding`, suivi de tête coupé, manettes et mains masquées, puis le contrôleur de la plateforme et son HUD.
