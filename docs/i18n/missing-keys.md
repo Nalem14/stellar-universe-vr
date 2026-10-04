@@ -90,14 +90,14 @@ Descriptions natives à réécrire (elles décrivaient un autre jeu — audit du
 |---|---|---|
 | `descEnergy` | +3 % de production d'énergie par niveau, toutes centrales. | +3% energy output per level, every plant. |
 | `descComputer` | −1 % de durée de construction par niveau (bâtiments, troupes, défenses), jusqu'à −50 %. | −1% build time per level (buildings, troops, defenses), down to −50%. |
-| `descCombustionDrive` | +10 % de vitesse par niveau pour les propulseurs à combustion et les boosters de vitesse. | +10% speed per level for combustion thrusters and speed boosters. |
-| `descImpulsionDrive` | +15 % de vitesse par niveau pour les propulseurs à impulsion. | +15% speed per level for impulse thrusters. |
-| `descFusionDrive` | +20 % de vitesse par niveau pour les propulseurs à fusion. | +20% speed per level for fusion thrusters. |
-| `descHyperspaceDrive` | +20 % de vitesse par niveau pour les moteurs hyperespace. | +20% speed per level for hyperspace drives. |
-| `descWeapon` | +5 % de dégâts par niveau pour toutes les armes. | +5% damage per level for every weapon. |
-| `descLaser` | +10 % de dégâts par niveau pour les canons laser. | +10% damage per level for laser cannons. |
-| `descIon` | +12 % de dégâts par niveau pour les canons à ions. | +12% damage per level for ion cannons. |
-| `descPlasma` | +15 % de dégâts par niveau pour les canons à plasma. | +15% damage per level for plasma cannons. |
+| `descCombustionDrive` | +25 % de vitesse par niveau pour les propulseurs à combustion, les boosters de vitesse et tous les moteurs plus avancés. | +25% speed per level for combustion thrusters, speed boosters and every more advanced engine. |
+| `descImpulsionDrive` | +35 % de vitesse par niveau pour les propulseurs à impulsion, à fusion et les moteurs hyperespace. | +35% speed per level for impulse and fusion thrusters and hyperspace drives. |
+| `descFusionDrive` | +45 % de vitesse par niveau pour les propulseurs à fusion et les moteurs hyperespace. | +45% speed per level for fusion thrusters and hyperspace drives. |
+| `descHyperspaceDrive` | +60 % de vitesse par niveau pour les moteurs hyperespace. | +60% speed per level for hyperspace drives. |
+| `descWeapon` | +15 % de dégâts par niveau pour toutes les armes. | +15% damage per level for every weapon. |
+| `descLaser` | +15 % de dégâts par niveau pour les canons laser (en plus de l'Armement). | +15% damage per level for laser cannons (on top of Weapons). |
+| `descIon` | +20 % de dégâts par niveau pour les canons à ions (en plus de l'Armement). | +20% damage per level for ion cannons (on top of Weapons). |
+| `descPlasma` | +25 % de dégâts par niveau pour les canons à plasma (en plus de l'Armement). | +25% damage per level for plasma cannons (on top of Weapons). |
 | `descArmor` | +10 % de blindage par niveau pour les vaisseaux, aussi en combat tactique. | +10% armor per level for ships, tactical battles included. |
 | `descShield` | +10 % de boucliers par niveau pour les vaisseaux, aussi en combat tactique. | +10% shields per level for ships, tactical battles included. |
 | `descSolarTech` | +5 % de production des centrales solaires (au sol et en orbite) par niveau. | +5% solar plant output (ground and orbit) per level. |
