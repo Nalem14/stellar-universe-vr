@@ -17,21 +17,6 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 - **Paramètres** : `{0}`, `{1}`… (`Trans.Format`, `string.Format` en culture invariante).
 - Pour les répliques, les ordres et les échecs, le ton reprend celui du journal de colonisation web : l'équipage s'adresse au joueur en « Commandant ».
 
-## À intégrer — cale sèche lisible (armoire, chantier, table)
-
-| Clé | EN | FR | Contexte |
-|---|---|---|---|
-| `vr.dock.filter.hull` | Hull | Coque | Chantier : libellé du groupe de filtres Tous / Vaisseaux / Stations |
-| `vr.dock.filter.family` | Category | Catégorie | Chantier : libellé du groupe de filtres par famille de module |
-| `vr.dock.guide.pickShip` | 1 · Pick a ship on the left console | 1 · Choisissez un vaisseau sur la console de gauche | Panneau-guide au-dessus de la table d'assemblage |
-| `vr.dock.guide.take` | 2 · Take a module from the store, on your right | 2 · Prenez un module dans l'armoire, à droite | Panneau-guide |
-| `vr.dock.guide.place` | 3 · Set {0} on a green cell | 3 · Posez {0} sur une case verte | Panneau-guide, module en main ({0} = nom du module) |
-| `vr.dock.guide.cells` | {0} cells available | {0} cases possibles | Panneau-guide, à côté de l'étape 3 |
-| `vr.dock.guide.remove` | Point twice at a fitted module to send it back to the hangar | Visez deux fois un module posé pour le rendre au hangar | Panneau-guide, rappel sous l'étape 2 |
-| `vr.dock.guide.preview` | Blueprint projected: touch the table to go back to the ship | Plan projeté : touchez la table pour revenir au vaisseau | Panneau-guide, modèle projeté |
-| `vr.dock.guide.bow` | Bow | Avant | Repère gravé au bord de la grille, côté proue |
-| `vr.research.feature.radarRange` | Scanner reach +{0} per level | Portée des scanners +{0} par niveau | Labo : effet de la Technologie Radar (web 5021101 ; {0} = GetConfigs.scanner.rangePerResearchLevel) |
-
 ## Intégré côté web
 
 - Clés `vr.*`, `crew.*`, `buildingDesc_*`, `colonyLog_*`, `relation_*` dans `assets/langs/{fr,en}.json`.
@@ -63,6 +48,7 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 - `conventionalDrive`, `sublightWithCrystal` dans **les dix langues** (elles n'existaient qu'en fr/en après `f03197d`).
 - `crew.engineering.cargoLooted.1`, `crew.ops.marketDispatch.1`, `crew.ops.marketReturned.1`, `crew.tactical.convoyLost.1`, `listingNotActive`, `listingNotFoundOrNotYours`, `originPlanetNotFound` dans **les dix langues**.
 - `vr.menu.invertY`, `vr.menu.mouseSens`, `vr.mobile.dropHint`, `vr.mobile.map`, `vr.mobile.wrist`, `vr.pc.commandBar`, `vr.pc.cursorHint`, `vr.pc.door`, `vr.pc.dropHint`, `vr.pc.grabOnly`, `vr.pc.grabPrompt`, `vr.pc.interact`, `vr.pc.prompt`, `vr.pc.sit`, `vr.pc.standUp` dans **les dix langues**.
+- `vr.dock.filter.family`, `vr.dock.filter.hull`, `vr.dock.guide.bow`, `vr.dock.guide.cells`, `vr.dock.guide.pickShip`, `vr.dock.guide.place`, `vr.dock.guide.preview`, `vr.dock.guide.remove`, `vr.dock.guide.take`, `vr.research.feature.radarRange` dans **les dix langues**.
 
 
 ## Anomalies (intégré web)
