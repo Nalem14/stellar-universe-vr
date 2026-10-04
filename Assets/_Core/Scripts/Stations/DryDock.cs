@@ -80,6 +80,8 @@ namespace Core.Stations
         /// <summary>The module in hand, as a hologram on the cell it would land on (green: it can, red: it cannot).</summary>
         MeshRenderer _ghost;
         MeshFilter _ghostFilter;
+        TextMeshPro _bowMark;
+        TextMeshPro _sternMark;
         TextMeshPro _guideStep;
         TextMeshPro _guideInfo;
         TextMeshPro _guideHull;
@@ -482,11 +484,16 @@ namespace Core.Stations
 
             (_ghost, _ghostFilter) = Mini("HeldGhost", Vector3.zero);
 
-            // Which way the bow lies: beyond the last row, read from the stand.
-            var bow = UiKit.Label(_gridRoot, "Bow", Trans.Get("vr.dock.guide.bow") + "  »",
-                CellLocal(ModuleCatalog.CoreCell, ModuleCatalog.Grid) + new Vector3(0f, 0.004f, 0.05f), 0.6f, 0.05f, Accent);
-            bow.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
-            bow.transform.rotation = transform.rotation * Quaternion.Euler(90f, 0f, 0f);
+            // Which way the bow and the stern lie: past the end rows, read from the stand. The hull turns its nose
+            // away from its engines (ShipHullBuilder.NoseSign), so the marks follow the layout (PlaceBowMarks).
+            _bowMark = UiKit.Label(_gridRoot, "Bow", Trans.Get("vr.dock.guide.bow"), Vector3.zero, 0.6f, 0.05f, Accent);
+            _bowMark.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
+            _bowMark.transform.rotation = transform.rotation * Quaternion.Euler(90f, 0f, 0f);
+            _sternMark = UiKit.Label(_gridRoot, "Stern", Trans.Get("vr.dock.guide.stern"), Vector3.zero, 0.6f, 0.04f,
+                new Color(Accent.r, Accent.g, Accent.b, 0.55f));
+            _sternMark.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
+            _sternMark.transform.rotation = transform.rotation * Quaternion.Euler(90f, 0f, 0f);
+            PlaceBowMarks(null);
 
             BuildGuide();
         }
@@ -585,6 +592,21 @@ namespace Core.Stations
         static Vector3 CellLocal(int x, int y) =>
             new((x - ModuleCatalog.CoreCell) * Cell, 0f, (y - ModuleCatalog.CoreCell) * Cell);
 
+        /// <summary>
+        /// "Bow" past the grid end the hull really points its nose to, "stern" past the other: the same rule as the
+        /// built hull (engines aft), so the table never says the opposite of the ship in the cradle.
+        /// </summary>
+        void PlaceBowMarks(IReadOnlyList<FocusShipModule> placed)
+        {
+            if (_bowMark == null)
+                return;
+            var sign = placed != null && placed.Count > 0 ? ShipHullBuilder.NoseSignFor(placed) : 1f;
+            var far = CellLocal(ModuleCatalog.CoreCell, ModuleCatalog.Grid) + new Vector3(0f, 0.004f, 0.05f);
+            var near = CellLocal(ModuleCatalog.CoreCell, -1) + new Vector3(0f, 0.004f, -0.05f);
+            _bowMark.transform.localPosition = sign > 0f ? far : near;
+            _sternMark.transform.localPosition = sign > 0f ? near : far;
+        }
+
         void RebuildHull()
         {
             if (_hullBuilt != null)
@@ -594,6 +616,7 @@ namespace Core.Stations
             foreach (var m in _preview != null ? _preview.Modules : _layout)
                 if (m.OnGrid)
                     placed.Add(m);
+            PlaceBowMarks(placed);
             if (placed.Count == 0)
                 return;
             _hullBuilt = new GameObject("Hull").transform;
