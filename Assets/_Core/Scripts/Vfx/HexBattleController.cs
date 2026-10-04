@@ -598,15 +598,19 @@ namespace Core.Vfx
                 int.TryParse(result.Body, out battleId);
             }
 
-            if (battleId > 0)
+            // No battle in the answer: nothing was engaged, whatever the transport said (never announce a fight
+            // the table cannot show).
+            if (battleId <= 0)
             {
-                await ActionJs.Get("UpdateBattle", new Dictionary<string, string>
-                {
-                    { "battleid", battleId.ToString(CultureInfo.InvariantCulture) }
-                });
-                Open(battleId, fleetIds[0]);
+                Debug.LogWarning("[SU] MakeBattle: no battle in the answer.");
+                return ApiResult.Fail(Trans.Get("vr.common.error"));
             }
 
+            await ActionJs.Get("UpdateBattle", new Dictionary<string, string>
+            {
+                { "battleid", battleId.ToString(CultureInfo.InvariantCulture) }
+            });
+            Open(battleId, fleetIds[0]);
             return result;
         }
 

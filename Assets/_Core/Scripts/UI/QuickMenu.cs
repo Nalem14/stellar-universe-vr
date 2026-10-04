@@ -12,7 +12,8 @@ namespace Core.UI
     /// The captain's options, on the left controller's menu button (M in the Editor): a small holo panel that
     /// opens in front of the player — master volume; comfort (smooth or teleport moving, smooth or snap turning,
     /// the tunnelling vignette, seated play — see <see cref="ComfortSettings"/>); glow (bloom); replay the guide;
-    /// go on watch (when worthwhile); back to the chair. Settings are kept on the headset and applied at start.
+    /// go on watch (when worthwhile); back to the chair; quit the game (two presses). Settings are kept on the
+    /// headset and applied at start.
     /// Press the button again (or Close) to put it away. On the Watch layer: it works on watch as well.
     /// </summary>
     public sealed class QuickMenu : MonoBehaviour
@@ -31,6 +32,9 @@ namespace Core.UI
         TMP_Text _seated;
         TMP_Text _glow;
         Button _watch;
+        Button _quit;
+        TMP_Text _quitLabel;
+        float _quitArmedUntil;
         int _layer;
 
         public static QuickMenu Build(Transform room, int layer)
@@ -148,6 +152,34 @@ namespace Core.UI
             Refresh();
         }
 
+        void Quit()
+        {
+            if (Time.unscaledTime > _quitArmedUntil)
+            {
+                _quitArmedUntil = Time.unscaledTime + 4f;
+                _quitLabel.text = Trans.Get("quit") + "  ?";
+                CicCue.Pip(_quit.transform.position);
+                return;
+            }
+
+            CicCue.Ok(_quit.transform.position);
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+#else
+            Application.Quit();
+#endif
+        }
+
+        void Update()
+        {
+            // An armed Quit not confirmed in time goes back to its plain label.
+            if (_quitLabel != null && _quitArmedUntil > 0f && Time.unscaledTime > _quitArmedUntil)
+            {
+                _quitArmedUntil = 0f;
+                _quitLabel.text = Trans.Get("quit");
+            }
+        }
+
         /// <summary>Close the panel (on PC the crosshair comes back, unless seated where the cursor stays free).</summary>
         void Hide()
         {
@@ -179,11 +211,12 @@ namespace Core.UI
             }
             else if (PcPlatformBoot.IsDesktop)
             {
-                // PC: the mouse's feel.
-                DiegeticUi.HoloButton(frame, "−", new Vector2(-ColX - 150f, 78f), new Vector2(54f, 50f), () => Sensitivity(-0.25f), DiegeticUi.BtnStyle.Ghost);
-                _sens = DiegeticUi.HoloLabel(frame, string.Empty, new Vector2(-ColX, 78f), new Vector2(230f, 44f), 18f, UiKit.TextBright);
-                DiegeticUi.HoloButton(frame, "+", new Vector2(-ColX + 150f, 78f), new Vector2(54f, 50f), () => Sensitivity(0.25f), DiegeticUi.BtnStyle.Ghost);
-                _invert = Switch(frame, ColX, 78f, () =>
+                // PC: the mouse's feel — sensitivity on a full row like the volume (its − + stay inside the frame),
+                // the vertical invert under it.
+                DiegeticUi.HoloButton(frame, "−", new Vector2(-180f, 78f), new Vector2(64f, 50f), () => Sensitivity(-0.25f), DiegeticUi.BtnStyle.Ghost);
+                _sens = DiegeticUi.HoloLabel(frame, string.Empty, new Vector2(0f, 78f), new Vector2(280f, 44f), 20f, UiKit.TextBright);
+                DiegeticUi.HoloButton(frame, "+", new Vector2(180f, 78f), new Vector2(64f, 50f), () => Sensitivity(0.25f), DiegeticUi.BtnStyle.Ghost);
+                _invert = Switch(frame, 0f, 16f, () =>
                 {
                     var pc = PcDesktopController.Instance;
                     if (pc != null)
@@ -212,8 +245,14 @@ namespace Core.UI
                     FindFirstObjectByType<BridgeViewRig>()?.PutPlayerOnDeck();
             }, DiegeticUi.BtnStyle.Ghost);
 
-            DiegeticUi.HoloButton(frame, Trans.Get("close"), new Vector2(0f, -176f), new Vector2(200f, 50f), Hide,
+            DiegeticUi.HoloButton(frame, Trans.Get("close"), new Vector2(-ColX, -176f), Cell, Hide,
                 DiegeticUi.BtnStyle.Ghost);
+            // Quit: a first press arms it (it asks), a second within 4 s closes the game. iOS apps never quit
+            // themselves (Apple's rule): there the button is not shown.
+            _quit = DiegeticUi.HoloButton(frame, Trans.Get("quit"), new Vector2(ColX, -176f), Cell, Quit,
+                DiegeticUi.BtnStyle.Danger);
+            _quitLabel = _quit.GetComponentInChildren<TMP_Text>();
+            _quit.gameObject.SetActive(Application.platform != RuntimePlatform.IPhonePlayer);
 
             foreach (var t in _panel.GetComponentsInChildren<Transform>(true))
                 if (_layer >= 0)

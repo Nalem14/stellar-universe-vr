@@ -41,6 +41,16 @@ namespace Core.Utils
             }
 
             var body = req.downloadHandler != null ? req.downloadHandler.text : string.Empty;
+            // The server answers every handled outcome with HTTP 200 ("error:…" or the result). A 4xx / 5xx is a
+            // crash on its side (a PHP fatal): never a success, whatever its body says.
+            if (req.result == UnityWebRequest.Result.ProtocolError)
+            {
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+                Debug.LogWarning($"[SU] {action} server: HTTP {req.responseCode}");
+#endif
+                return ApiResult.Fail(Trans.Get("vr.common.error"));
+            }
+
             if (body.StartsWith("error:", StringComparison.Ordinal))
             {
                 var message = body.Length > 6 ? body.Substring(6) : "error";
