@@ -77,52 +77,42 @@ namespace Core.Vfx
                 dist[i] = dist2[i] = float.MaxValue;
             var px = size / TerritoryRes;
             var rpx = _terrInfluence / px;
-            var sums = new Dictionary<int, (Vector2 Sum, int Count)>();
+            var gaps = new float[n];
+            // Just past the edges: distance to the nearest claim and whose it is (smooth outer border, no stairs).
+            var near = new float[n];
+            var nearOwner = new int[n];
+            for (var i = 0; i < n; i++)
+                near[i] = float.MaxValue;
+
+            // Each owned system claims a disc; neighbouring systems of one empire are joined by a bridge, so an
+            // empire reads as one region (Stellaris) rather than beads on a string. Nearest claim wins; the second
+            // nearest (another owner) sets where two empires meet.
+            var byOwner = new Dictionary<int, List<Vector2>>();
             foreach (var s in stars)
             {
                 if (s.OwnerId <= 0)
                     continue;
-                var cx = (s.MapX - _terrRect.x) / px;
-                var cy = (s.MapY - _terrRect.y) / px;
-                var x0 = Mathf.Max(0, Mathf.FloorToInt(cx - rpx));
-                var x1 = Mathf.Min(TerritoryRes - 1, Mathf.CeilToInt(cx + rpx));
-                var y0 = Mathf.Max(0, Mathf.FloorToInt(cy - rpx));
-                var y1 = Mathf.Min(TerritoryRes - 1, Mathf.CeilToInt(cy + rpx));
-                for (var y = y0; y <= y1; y++)
-                for (var x = x0; x <= x1; x++)
-                {
-                    var dx = x + 0.5f - cx;
-                    var dy = y + 0.5f - cy;
-                    var d = dx * dx + dy * dy;
-                    var k = y * TerritoryRes + x;
-                    if (d > rpx * rpx)
-                        continue;
-                    // Nearest owner, and the nearest *other* owner (for a smooth border between the two).
-                    if (owner[k] == s.OwnerId)
-                    {
-                        if (d < dist[k])
-                            dist[k] = d;
-                    }
-                    else if (d < dist[k])
-                    {
-                        if (owner[k] > 0)
-                            dist2[k] = Mathf.Min(dist2[k], dist[k]);
-                        dist[k] = d;
-                        owner[k] = s.OwnerId;
-                    }
-                    else if (d < dist2[k])
-                    {
-                        dist2[k] = d;
-                    }
-                }
-
-                sums.TryGetValue(s.OwnerId, out var acc);
-                sums[s.OwnerId] = (acc.Sum + new Vector2(s.MapX, s.MapY), acc.Count + 1);
+                var c = new Vector2((s.MapX - _terrRect.x) / px, (s.MapY - _terrRect.y) / px);
+                if (!byOwner.TryGetValue(s.OwnerId, out var list))
+                    byOwner[s.OwnerId] = list = new List<Vector2>();
+                list.Add(c);
+                Claim(s.OwnerId, c, c, rpx, rpx, owner, dist, dist2, near, nearOwner);
             }
 
-            // Fill + border (4-neighbour owner change). Web y grows down: texture v flips (map −y = table +z).
+            var link = rpx * 2.6f;
+            foreach (var kv in byOwner)
+            {
+                var pts = kv.Value;
+                for (var a = 0; a < pts.Count; a++)
+                for (var b = a + 1; b < pts.Count; b++)
+                    if ((pts[a] - pts[b]).sqrMagnitude <= link * link)
+                        Claim(kv.Key, pts[a], pts[b], rpx * 0.72f, rpx, owner, dist, dist2, near, nearOwner);
+            }
+
+            // Colour + distance to the border (alpha: 0.5 = border, 1 = rpx inside) for SU/HoloTerritory's SDF mode.
+            // Web y grows down: texture v flips (map −y = table +z).
             _terrPixels ??= new Color32[n];
-            var me = FocusContext.OwnedUserId();
+            var outside = (byte)Mathf.RoundToInt(255f * (0.5f - 0.5f * (1.5f / Mathf.Max(1f, rpx))));
             for (var y = 0; y < TerritoryRes; y++)
             for (var x = 0; x < TerritoryRes; x++)
             {
@@ -131,27 +121,28 @@ namespace Core.Vfx
                 var dst = (TerritoryRes - 1 - y) * TerritoryRes + x;
                 if (o <= 0)
                 {
-                    _terrPixels[dst] = new Color32(0, 0, 0, 0);
+                    // Free space just past an edge: the true (negative) distance, in the neighbour's colour.
+                    if (nearOwner[k] <= 0)
+                    {
+                        _terrPixels[dst] = new Color32(0, 0, 0, 0);
+                        continue;
+                    }
+
+                    var nc = (Color32)OwnerColor(nearOwner[k]);
+                    var outGap = rpx - Mathf.Sqrt(near[k]);
+                    nc.a = (byte)Mathf.RoundToInt(255f * Mathf.Clamp01(0.5f + 0.5f * outGap / rpx));
+                    _terrPixels[dst] = nc;
                     continue;
                 }
 
-                // Border strength from distances, not from pixel neighbours: a soft, even line where the
-                // influence ends (against free space) or where two empires meet — no stair steps.
                 var d1 = Mathf.Sqrt(dist[k]);
-                var outer = rpx - d1;
-                var gap = outer;
+                var gap = rpx - d1;
                 if (dist2[k] < float.MaxValue)
                     gap = Mathf.Min(gap, (Mathf.Sqrt(dist2[k]) - d1) * 0.5f);
-                // The line sits just inside the edge; the very edge fades to nothing (no texel stair).
-                var line = 1f - Mathf.SmoothStep(1.2f, 3.6f, gap);
-                var fade = Mathf.SmoothStep(0f, 1.4f, outer);
-                var c = OwnerColor(o);
-                // A light veil inside, a bright thin border: the stars stay the subject.
-                var fill = o == me ? 0.2f : 0.13f;
-                var bright = new Color(Mathf.Min(1f, c.r * 1.15f), Mathf.Min(1f, c.g * 1.15f), Mathf.Min(1f, c.b * 1.15f), 0.95f);
-                var px32 = Color.Lerp(new Color(c.r, c.g, c.b, fill), bright, line);
-                px32.a *= fade;
-                _terrPixels[dst] = px32;
+                gaps[k] = gap;
+                var c = (Color32)OwnerColor(o);
+                c.a = (byte)Mathf.RoundToInt(255f * (0.5f + 0.5f * Mathf.Clamp01(gap / rpx)));
+                _terrPixels[dst] = c;
             }
 
             if (_terrTex == null)
@@ -174,6 +165,13 @@ namespace Core.Vfx
             _terrQuad.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
             _terrMat ??= MakeTerritoryMat();
             _terrMat.mainTexture = _terrTex;
+            _terrMat.SetFloat("_Sdf", 1f);
+            _terrMat.SetFloat("_GapScale", rpx);
+            // The inner glow reaches about a third of a system's claim.
+            _terrMat.SetFloat("_GlowTexels", Mathf.Max(3f, rpx * 0.35f));
+            _terrMat.SetFloat("_FillAlpha", 0.1f);
+            _terrMat.SetFloat("_GlowAlpha", 0.5f);
+            _terrMat.SetFloat("_LinePx", 2.2f);
             var mr = _terrQuad.GetComponent<MeshRenderer>();
             mr.sharedMaterial = _terrMat;
             mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
@@ -196,7 +194,7 @@ namespace Core.Vfx
             cr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             _tokenRoots.Add(_core);
 
-            BuildEmblems(sums);
+            BuildEmblems(EmblemAnchors(owner, gaps, px));
             BuildNebula(stars);
         }
 
@@ -275,6 +273,63 @@ namespace Core.Vfx
             _tokenRoots.Add(_nebQuad);
         }
 
+        /// <summary>
+        /// One claim on the territory grid: a disc (<paramref name="a"/> = <paramref name="b"/>) or a capsule
+        /// between two systems, <paramref name="radius"/> texels wide. Distances are scaled so every claim's edge
+        /// sits at <paramref name="rpx"/> (the border pass reads them alike).
+        /// </summary>
+        static void Claim(int o, Vector2 a, Vector2 b, float radius, float rpx, int[] owner, float[] dist, float[] dist2,
+            float[] near, int[] nearOwner)
+        {
+            // A few texels past the claim too: the outer border's distance field continues outside.
+            const float Margin = 4f;
+            var scale = rpx / Mathf.Max(0.01f, radius);
+            var reach = radius + Margin / scale;
+            var x0 = Mathf.Max(0, Mathf.FloorToInt(Mathf.Min(a.x, b.x) - reach));
+            var x1 = Mathf.Min(TerritoryRes - 1, Mathf.CeilToInt(Mathf.Max(a.x, b.x) + reach));
+            var y0 = Mathf.Max(0, Mathf.FloorToInt(Mathf.Min(a.y, b.y) - reach));
+            var y1 = Mathf.Min(TerritoryRes - 1, Mathf.CeilToInt(Mathf.Max(a.y, b.y) + reach));
+            var outer = (rpx + Margin) * (rpx + Margin);
+            var ab = b - a;
+            var len2 = ab.sqrMagnitude;
+            for (var y = y0; y <= y1; y++)
+            for (var x = x0; x <= x1; x++)
+            {
+                var p = new Vector2(x + 0.5f, y + 0.5f);
+                var t = len2 > 0f ? Mathf.Clamp01(Vector2.Dot(p - a, ab) / len2) : 0f;
+                var q = (p - (a + ab * t)) * scale;
+                var d = q.sqrMagnitude;
+                if (d > outer)
+                    continue;
+                var k = y * TerritoryRes + x;
+                if (d < near[k])
+                {
+                    near[k] = d;
+                    nearOwner[k] = o;
+                }
+
+                if (d > rpx * rpx)
+                    continue;
+                // Nearest owner, and the nearest *other* owner (for a smooth border between the two).
+                if (owner[k] == o)
+                {
+                    if (d < dist[k])
+                        dist[k] = d;
+                }
+                else if (d < dist[k])
+                {
+                    if (owner[k] > 0)
+                        dist2[k] = Mathf.Min(dist2[k], dist[k]);
+                    dist[k] = d;
+                    owner[k] = o;
+                }
+                else if (d < dist2[k])
+                {
+                    dist2[k] = d;
+                }
+            }
+        }
+
         Material _coreMat;
 
         /// <summary>Additive soft glow (the lab's particle material): no square edges.</summary>
@@ -329,13 +384,72 @@ namespace Core.Vfx
             return counted == 0 ? 50f : Mathf.Max(10f, total / counted * 2.4f);
         }
 
-        void BuildEmblems(Dictionary<int, (Vector2 Sum, int Count)> sums)
+        /// <summary>
+        /// Where each empire's name goes: the heart of its largest territory — the point of that region farthest
+        /// from its border (the fill pass already knows each texel's distance to it). The mean of an empire's
+        /// systems fell between its far-flung colonies, in space it does not hold.
+        /// </summary>
+        static Dictionary<int, (Vector2 Map, float Radius)> EmblemAnchors(int[] owner, float[] gaps, float px)
+        {
+            var anchors = new Dictionary<int, (Vector2 Map, float Radius)>();
+            var best = new Dictionary<int, int>();
+            var label = new int[owner.Length];
+            var queue = new Queue<int>();
+            var comp = 0;
+            for (var start = 0; start < owner.Length; start++)
+            {
+                var o = owner[start];
+                if (o <= 0 || label[start] != 0)
+                    continue;
+                // One connected region of this owner (4-neighbour flood).
+                comp++;
+                label[start] = comp;
+                queue.Enqueue(start);
+                var area = 0;
+                var core = start;
+                while (queue.Count > 0)
+                {
+                    var k = queue.Dequeue();
+                    area++;
+                    if (gaps[k] > gaps[core])
+                        core = k;
+                    var x = k % TerritoryRes;
+                    var y = k / TerritoryRes;
+                    if (x > 0) Visit(k - 1);
+                    if (x < TerritoryRes - 1) Visit(k + 1);
+                    if (y > 0) Visit(k - TerritoryRes);
+                    if (y < TerritoryRes - 1) Visit(k + TerritoryRes);
+                }
+
+                if (!best.TryGetValue(o, out var bestArea) || area > bestArea)
+                {
+                    best[o] = area;
+                    var cx = core % TerritoryRes;
+                    var cy = core / TerritoryRes;
+                    anchors[o] = (new Vector2((cx + 0.5f) * px, (cy + 0.5f) * px), Mathf.Sqrt(area / Mathf.PI) * px);
+                }
+
+                continue;
+
+                void Visit(int j)
+                {
+                    if (label[j] != 0 || owner[j] != o)
+                        return;
+                    label[j] = comp;
+                    queue.Enqueue(j);
+                }
+            }
+
+            return anchors;
+        }
+
+        void BuildEmblems(Dictionary<int, (Vector2 Map, float Radius)> anchors)
         {
             _emblems.Clear();
-            foreach (var kv in sums)
+            foreach (var kv in anchors)
             {
                 var uid = kv.Key;
-                var centre = kv.Value.Sum / kv.Value.Count;
+                var centre = new Vector2(_terrRect.x, _terrRect.y) + kv.Value.Map;
                 var root = new GameObject("Emblem_" + uid).transform;
                 root.SetParent(_root, false);
                 root.gameObject.AddComponent<BillboardFace>();
@@ -346,21 +460,21 @@ namespace Core.Vfx
                 flag.name = "Flag";
                 DropCollider(flag);
                 flag.transform.SetParent(root, false);
-                flag.transform.localPosition = new Vector3(0f, 0.022f, 0f);
+                flag.transform.localPosition = new Vector3(0f, 0.026f, 0f);
                 flag.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
                 flag.transform.localScale = new Vector3(0.06f, 0.04f, 1f);
                 var mr = flag.GetComponent<MeshRenderer>();
                 mr.sharedMaterial = _art.Lit(FlagTexture(uid, flagJson), Color.white, 0.6f);
                 mr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
 
-                var label = UiKit.Label(root, "Name", string.IsNullOrEmpty(name) ? "?" : name, new Vector3(0f, -0.008f, 0f),
-                    0.3f, 0.014f, OwnerColor(uid));
+                var label = UiKit.Label(root, "Name", string.IsNullOrEmpty(name) ? "?" : name, new Vector3(0f, 0f, 0f),
+                    0.34f, 0.018f, OwnerColor(uid));
                 label.fontStyle = FontStyles.Bold;
                 label.outlineWidth = 0.2f;
                 label.outlineColor = new Color32(2, 10, 16, 230);
 
-                // How big the territory reads: a few influence radii per √(systems).
-                _emblems.Add((root, centre, _terrInfluence * Mathf.Sqrt(kv.Value.Count)));
+                // How big the region reads: the radius of a disc of its area.
+                _emblems.Add((root, centre, kv.Value.Radius));
             }
         }
 
@@ -423,7 +537,9 @@ namespace Core.Vfx
             {
                 if (e.Root == null)
                     continue;
-                var p = MapToLocal(e.Map.x, e.Map.y, lift + 0.035f);
+                // Low over the plate: a name floating high drifts off its territory as soon as one looks at the
+                // table from the side.
+                var p = MapToLocal(e.Map.x, e.Map.y, lift + 0.012f);
                 var visible = shown < MaxEmblems && new Vector2(p.x, p.z).magnitude < limit && e.Radius * _gScale > 0.035f;
                 if (e.Root.gameObject.activeSelf != visible)
                     e.Root.gameObject.SetActive(visible);

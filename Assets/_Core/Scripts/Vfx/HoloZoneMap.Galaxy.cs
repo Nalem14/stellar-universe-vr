@@ -302,6 +302,7 @@ namespace Core.Vfx
             _gMesh.bounds = new Bounds(new Vector3(0f, lift, 0f), new Vector3(limit * 2f + 0.2f, 0.4f, limit * 2f + 0.2f));
 
             UpdateTerritoryView(lift);
+            UpdateRadarField(lift);
             if (!_interactionLock && (reselect || !_gHasSelection || SelectionDrifted()))
                 SelectGalaxyTokens(stars, limitSq, lift, hereId);
             else
@@ -559,7 +560,12 @@ namespace Core.Vfx
                 tmp.text = text;
         }
 
-        /// <summary>The captain's own ships on the galaxy map (few): redrawn on each fleet delta.</summary>
+        /// <summary>
+        /// Every ship the server lets us see on the galaxy map, redrawn on each fleet delta: GetAllFleets answers
+        /// only what our vision covers (web 5021101 GetVisibleFleetsForUser: our own anywhere, foreign and pirate
+        /// ones in the systems we hold or fly in, and within our scanners' reach). Ours are tokens to take and
+        /// send; the others are tinted by their stance, to read only. What we see is drawn by the radar field.
+        /// </summary>
         void RefreshGalaxyFleets()
         {
             if (!_showingGalaxy || _root == null || _art == null)
@@ -583,8 +589,8 @@ namespace Core.Vfx
                 var now = System.DateTimeOffset.UtcNow.ToUnixTimeSeconds();
                 foreach (var fleet in focus.Fleets)
                 {
-                    if (DiplomacyIndex.ResolveFleet(fleet) != EmpireStance.Owned)
-                        continue;
+                    var stance = DiplomacyIndex.ResolveFleet(fleet);
+                    var owned = stance == EmpireStance.Owned;
                     // Under way between stars: on its way from one to the other (busy, not draggable until it
                     // arrives), with its course laid to the destination star.
                     var systemId = fleet.IsMoving(now) && fleet.DestSystemId > 0 ? fleet.DestSystemId : fleet.SystemId;
@@ -603,8 +609,8 @@ namespace Core.Vfx
                         _gFleetsPerSystem[systemId] = index + 1;
                     }
                     var name = string.IsNullOrEmpty(fleet.Name) ? "ship" : fleet.Name;
-                    var go = PlaceFleet(1, fleet.Id, DiplomacyIndex.Tint(EmpireStance.Owned), fleet.Id * 17, true,
-                        !fleet.IsIdle(now), name, false, EmpireStance.Owned);
+                    var go = PlaceFleet(1, fleet.Id, DiplomacyIndex.Tint(stance), fleet.Id * 17, owned,
+                        !fleet.IsIdle(now), name, false, stance);
                     go.transform.localScale = Vector3.one * GalaxyFleetScale;
                     if (from > 0)
                         Core.Holo.HoloGlide.Follow(go, true, _art.MoveGhost);
@@ -613,6 +619,7 @@ namespace Core.Vfx
             }
 
             LayoutGalaxyFleets(DioramaLift);
+            UpdateRadarField(DioramaLift);
             TokensRebuilt?.Invoke();
         }
 
