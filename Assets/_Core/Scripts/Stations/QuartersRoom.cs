@@ -44,7 +44,6 @@ namespace Core.Stations
         const float ProgressEvery = 30f;
         const float LogEvery = 10f;
         const int AchievementsPerPage = 6;
-        const int ItemsPerPage = 4;
         const int LogPerPage = 8;
         static readonly string[] Palette =
         {
@@ -1321,15 +1320,44 @@ namespace Core.Stations
             var equippedTitle = FocusContext.AsString(_shopData["equippedTitle"]);
             var colour = FocusContext.AsString(_shopData["fleetColor"]);
 
-            var pages = Mathf.Max(1, Mathf.CeilToInt(items.Count / (float)ItemsPerPage));
+            // Rows as tall as they need (a booster lists every perk, two per line), pages filled to the height
+            // available rather than a fixed count, so nothing is ever cut short with an ellipsis.
+            const float rowTop = 125f;
+            const float pageHeight = 335f;
+            var perkLists = new List<string>[items.Count];
+            var heights = new float[items.Count];
+            for (var i = 0; i < items.Count; i++)
+            {
+                perkLists[i] = category == "booster" ? Perks(items[i].Name, items[i].Value) : null;
+                var lines = perkLists[i] != null ? (perkLists[i].Count + 1) / 2 : 0;
+                heights[i] = lines > 0 ? 76f + lines * PerkLine : 82f;
+            }
+
+            var pageStarts = new List<int> { 0 };
+            var used = 0f;
+            for (var i = 0; i < items.Count; i++)
+            {
+                if (used + heights[i] > pageHeight && used > 0f)
+                {
+                    pageStarts.Add(i);
+                    used = 0f;
+                }
+
+                used += heights[i];
+            }
+
+            var pages = pageStarts.Count;
             _itemPage = Mathf.Clamp(_itemPage, 0, pages - 1);
-            var first = _itemPage * ItemsPerPage;
-            for (var i = first; i < items.Count && i < first + ItemsPerPage; i++)
+            var first = pageStarts[_itemPage];
+            var end = _itemPage + 1 < pages ? pageStarts[_itemPage + 1] : items.Count;
+            var y = rowTop;
+            for (var i = first; i < end; i++)
             {
                 var key = items[i].Name;
                 var def = items[i].Value;
                 var price = FocusContext.AsInt(def["price"]);
-                var y = 125f - (i - first) * 82f;
+                if (i > first)
+                    y -= heights[i - 1];
                 if (category == "cosmetic")
                 {
                     var sw = new GameObject("Colour", typeof(RectTransform), typeof(Image));
@@ -1351,10 +1379,12 @@ namespace Core.Stations
                 var bx = 420f;
                 if (category == "booster")
                 {
-                    var perks = L(_shopBody, Perks(key, def), x0, y - 40f, 12f, UiKit.Amber, 760f);
-                    perks.enableAutoSizing = true;
-                    perks.fontSizeMin = 9f;
-                    perks.fontSizeMax = 12f;
+                    // Every perk in full, two columns.
+                    var perks = perkLists[i];
+                    for (var k = 0; k < perks.Count; k++)
+                        // L centres on x: the column's centre, flush with the name's left edge (760 wide).
+                        L(_shopBody, "• " + perks[k], x0 - 380f + 187.5f + (k % 2) * 385f, y - 42f - (k / 2) * PerkLine, 13f,
+                            UiKit.Amber, 375f);
                     var active = ActiveBooster(boosters, def);
                     if (active > 0)
                         L(_shopBody, Trans.Get("shopActiveFor") + " " + ScreenKit.Remaining(active), bx, y + 24f, 12f, UiKit.Ok, 200f,
@@ -1391,7 +1421,9 @@ namespace Core.Stations
         /// Every advantage of a booster, read from its catalogue bonuses (time factors shown as speed, multipliers
         /// as percent); a Nova Pass also widens the building, shipyard and research queues (server GetMaxQueueCapacity).
         /// </summary>
-        static string Perks(string key, JToken def)
+        const float PerkLine = 19f;
+
+        static List<string> Perks(string key, JToken def)
         {
             var parts = new List<string>();
             if (key.StartsWith("nova_pass", StringComparison.Ordinal))
@@ -1410,7 +1442,7 @@ namespace Core.Stations
                     parts.Add(Trans.Format("vr.shop.perk." + b.Name, arg));
                 }
 
-            return string.Join("  ·  ", parts);
+            return parts;
         }
 
         static string Factor(float v) =>
