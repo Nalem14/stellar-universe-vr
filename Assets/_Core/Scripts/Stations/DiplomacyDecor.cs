@@ -23,6 +23,11 @@ namespace Core.Stations
         const float SillTop = 1.7f;
         const float WindowTop = 5.3f;
 
+        /// <summary>The ranking board: on the solid bay beside the entrance (bay 9, 162°), its size in metres.</summary>
+        public static readonly Vector2 RankingSize = new(1.75f, 1.2f);
+        const float RankingYaw = 162f;
+        const float RankingCentreY = 2.05f;
+
         /// <summary>Four bays on each flank are windows (63°–135° and 225°–297° around the hall).</summary>
         static bool IsWindow(int bay) => bay is >= 4 and <= 7 or >= 13 and <= 16;
 
@@ -34,6 +39,8 @@ namespace Core.Stations
         {
             public Transform DossierMount;
             public Transform ChancelleryMount;
+            /// <summary>The empires' ranking, in a wall frame by the entrance: a screen parented here faces the hall (local −z).</summary>
+            public Transform RankingMount;
             public readonly MeshRenderer[] SeatPlates = new MeshRenderer[Seats];
             public readonly TextMeshPro[] SeatNames = new TextMeshPro[Seats];
             public readonly MeshRenderer[] Banners = new MeshRenderer[BannerCount];
@@ -216,6 +223,33 @@ namespace Core.Stations
             mark.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
             for (var s = -1; s <= 1; s += 2)
                 GateRoomDecor.Box(room, "Aisle", new Vector3(s * 0.55f, 0.003f, 0.9f), new Vector3(0.03f, 0.006f, 2.4f), gold);
+
+            // ── Ranking board by the entrance: a gold-trimmed wall frame on the bay beside the door ─
+            var rankRot = Quaternion.Euler(0f, RankingYaw, 0f);
+            var rankRoot = new GameObject("RankingBoard").transform;
+            rankRoot.SetParent(room, false);
+            rankRoot.localPosition = centre + rankRot * new Vector3(0f, 0f, radius - 0.1f);
+            rankRoot.localRotation = rankRot;
+            var rw = RankingSize.x;
+            var rh = RankingSize.y;
+            // The whole board stands off the wall on two brackets, in front of the seam ribs either side (their faces
+            // 0.24 m in from the wall): the bay between the ribs (1.76 m) is narrower than the framed board.
+            const float off = -0.3f;
+            for (var s = -1; s <= 1; s += 2)
+                GateRoomDecor.Box(rankRoot, "Bracket", new Vector3(s * 0.55f, RankingCentreY, off * 0.5f), new Vector3(0.08f, 0.5f, -off), metal);
+            GateRoomDecor.Box(rankRoot, "Backplate", new Vector3(0f, RankingCentreY, off), new Vector3(rw + 0.14f, rh + 0.16f, 0.05f), dark);
+            GateRoomDecor.Box(rankRoot, "FrameTop", new Vector3(0f, RankingCentreY + rh * 0.5f + 0.08f, off - 0.04f),
+                new Vector3(rw + 0.18f, 0.04f, 0.07f), metal);
+            GateRoomDecor.Box(rankRoot, "FrameBottom", new Vector3(0f, RankingCentreY - rh * 0.5f - 0.08f, off - 0.04f),
+                new Vector3(rw + 0.18f, 0.04f, 0.07f), metal);
+            for (var s = -1; s <= 1; s += 2)
+                GateRoomDecor.Box(rankRoot, "FrameSide", new Vector3(s * (rw * 0.5f + 0.08f), RankingCentreY, off - 0.04f),
+                    new Vector3(0.04f, rh + 0.2f, 0.07f), metal);
+            GateRoomDecor.Box(rankRoot, "UnderGlow", new Vector3(0f, RankingCentreY - rh * 0.5f - 0.11f, off - 0.07f),
+                new Vector3(rw * 0.9f, 0.015f, 0.01f), gold);
+            refs.RankingMount = new GameObject("RankingMount").transform;
+            refs.RankingMount.SetParent(rankRoot, false);
+            refs.RankingMount.localPosition = new Vector3(0f, RankingCentreY, off - 0.05f);
 
             // ── Operator desks at the stand, turned to it (dossier left, chancellery right) ─
             refs.DossierMount = GateRoomDecor.Desk(room, "DossierDesk", new Vector3(-1.15f, 0f, 0.8f),

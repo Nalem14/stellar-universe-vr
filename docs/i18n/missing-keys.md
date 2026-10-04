@@ -86,6 +86,7 @@ Clés du client (dix langues) :
 | `vr.research.allWeapons` | toutes les armes | every weapon |
 | `vr.research.stat.<stat>` (17) | libellés courts du tableau des bonus (Vitesse, Dégâts, Blindage…) | short bonus table labels (Speed, Damage, Armor…) |
 | `vr.dock.effectiveHint` | En vert : valeurs réelles du vaisseau (recherches et modules montés compris) | In green: the ship's real values (research and fitted modules included) |
+| `vr.diplo.ranking`, `vr.diplo.rank.empire` / `.economy` / `.research` / `.fleet` / `.defense` / `.score` | Classement des empires / Empire / Économie / Recherche / Flotte / Défense / Score | Empire ranking / Empire / Economy / Research / Fleet / Defense / Score (intégré web, dix langues) |
 
 Descriptions natives à réécrire (elles décrivaient un autre jeu — audit du 2026-10-04, nouvelle table `$RESEARCH_EFFECTS`) :
 

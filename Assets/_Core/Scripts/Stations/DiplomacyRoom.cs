@@ -68,6 +68,8 @@ namespace Core.Stations
         TMP_Text _dossierStatus;
         HoloScreen _chancellery;
         RectTransform _chancelleryBody;
+        HoloScreen _ranking;
+        RectTransform _rankingBody;
         TMP_Text _chancelleryStatus;
         readonly Button[] _tabs = new Button[3];
         GameObject _descGroup;
@@ -164,6 +166,18 @@ namespace Core.Stations
             _dossierBody = Body(df);
             _dossierStatus = DiegeticUi.HoloLabel(df, string.Empty, new Vector2(-190f, -305f), new Vector2(660f, 40f), 18f,
                 DiegeticUi.CyanDim, TextAlignmentOptions.MidlineLeft);
+
+            // The empires' ranking, in its wall frame by the entrance.
+            _ranking = HoloScreen.Create(transform, "Ranking", DiplomacyDecor.RankingSize, Vector3.zero, Quaternion.identity,
+                Trans.Get("vr.diplo.ranking"));
+            _ranking.transform.SetParent(_decor.RankingMount, false);
+            _ranking.transform.localPosition = Vector3.zero;
+            _ranking.transform.localRotation = Quaternion.identity;
+            _ranking.SetAccent(Accent, 0.5f);
+            var rankBody = new GameObject("Body", typeof(RectTransform)).GetComponent<RectTransform>();
+            rankBody.SetParent(_ranking.Content, false);
+            rankBody.sizeDelta = _ranking.PixelSize;
+            _rankingBody = rankBody;
 
             _chancellery = HoloScreen.Create(transform, "Chancellery", ScreenSize, Vector3.zero, Quaternion.identity,
                 Trans.Get("vr.diplo.title"));
@@ -732,6 +746,106 @@ namespace Core.Stations
         {
             RenderDossier();
             RenderChancellery();
+            RenderRanking();
+        }
+
+        const int RankingRows = 10;
+
+        /// <summary>
+        /// The empires' ranking by global power (GetEmpires, already sorted by score server-side): rank, empire and
+        /// player, the four shares of the score (economy, research, fleet, defense — resources invested, per 1 000)
+        /// and the total. Ours is highlighted, and shown under the top ten with its own rank when it is lower.
+        /// </summary>
+        void RenderRanking()
+        {
+            if (_rankingBody == null)
+                return;
+            for (var i = _rankingBody.childCount - 1; i >= 0; i--)
+                Destroy(_rankingBody.GetChild(i).gameObject);
+            var px = _rankingBody.sizeDelta;
+            var w = px.x - 60f;
+            var left = -w * 0.5f;
+            // Columns: rank, empire (wide), four shares, total — x as fractions of the table width.
+            float[] at = { 0.03f, 0.08f, 0.47f, 0.58f, 0.69f, 0.8f, 0.94f };
+            string[] heads =
+            {
+                "#", "vr.diplo.rank.empire", "vr.diplo.rank.economy", "vr.diplo.rank.research", "vr.diplo.rank.fleet",
+                "vr.diplo.rank.defense", "vr.diplo.rank.score"
+            };
+            var top = px.y * 0.5f - 185f;
+            RankBand(new Vector2(0f, top), new Vector2(w, 62f), new Color(Accent.r, Accent.g, Accent.b, 0.25f));
+            for (var c = 0; c < heads.Length; c++)
+            {
+                var label = c == 0 ? heads[c] : Trans.Get(heads[c]);
+                var align = c == 1 ? TextAlignmentOptions.MidlineLeft : TextAlignmentOptions.Center;
+                var x = left + at[c] * w;
+                Line(_rankingBody, "<b>" + label + "</b>", c == 1 ? x + 190f : x, top, 28f, Accent, c == 1 ? 380f : 180f, align);
+            }
+
+            if (_empires == null || _empires.Count == 0)
+            {
+                Line(_rankingBody, Trans.Get("Loading"), 0f, top - 120f, 22f, DiegeticUi.CyanDim, w, TextAlignmentOptions.Center);
+                return;
+            }
+
+            var me = DiplomacyService.MyEmpireId;
+            var mine = -1;
+            for (var i = 0; i < _empires.Count; i++)
+                if (FocusContext.AsInt(_empires[i]["id"]) == me)
+                    mine = i;
+            var rows = new List<int>();
+            for (var i = 0; i < _empires.Count && i < RankingRows; i++)
+                rows.Add(i);
+            if (mine >= RankingRows)
+                rows.Add(mine);
+
+            const float rowH = 80f;
+            var y = top - 80f;
+            for (var r = 0; r < rows.Count; r++)
+            {
+                var index = rows[r];
+                if (r == RankingRows)
+                    y -= 16f; // a gap before our own row, out of the top ten
+                var e = _empires[index];
+                var ours = index == mine;
+                RankBand(new Vector2(0f, y), new Vector2(w, rowH - 6f),
+                    ours ? new Color(1f, 0.78f, 0.35f, 0.28f) : new Color(0.05f, 0.09f, 0.16f, r % 2 == 0 ? 0.55f : 0.35f));
+                var rank = index + 1;
+                var rankColor = rank == 1 ? new Color(1f, 0.84f, 0.35f) : rank == 2 ? new Color(0.85f, 0.88f, 0.95f)
+                    : rank == 3 ? new Color(0.95f, 0.62f, 0.38f) : UiKit.TextBright;
+                Line(_rankingBody, "<b>" + rank + "</b>", left + at[0] * w, y, 34f, rankColor, 80f, TextAlignmentOptions.Center);
+
+                var stance = DiplomacyIndex.Resolve(FocusContext.AsInt(e["userid"]));
+                var tint = ours ? new Color(1f, 0.86f, 0.5f) : DiplomacyIndex.Tint(stance);
+                var tag = FocusContext.AsString(e["allianceTag"]);
+                Line(_rankingBody, "<b><color=#" + ColorUtility.ToHtmlStringRGB(tint) + "><noparse>" + FocusContext.AsString(e["name"]) +
+                                   "</noparse></color></b>" + (string.IsNullOrEmpty(tag) ? string.Empty : " <size=80%>[" + tag + "]</size>") +
+                                   "  <size=75%><color=#9fb8c8><noparse>" + FocusContext.AsString(e["username"]) + "</noparse></color></size>",
+                    left + at[1] * w + 190f, y, 30f, UiKit.TextBright, 380f);
+
+                var b = e["scoreBreakdown"] as JObject;
+                string Share(string k) => b != null ? FocusContext.AsInt(b[k]).ToString("N0", CultureInfo.CurrentCulture) : "—";
+                Line(_rankingBody, Share("economy"), left + at[2] * w, y, 28f, new Color(0.55f, 0.95f, 0.65f), 150f, TextAlignmentOptions.Center);
+                Line(_rankingBody, Share("research"), left + at[3] * w, y, 28f, new Color(0.75f, 0.62f, 1f), 150f, TextAlignmentOptions.Center);
+                Line(_rankingBody, Share("fleet"), left + at[4] * w, y, 28f, new Color(0.5f, 0.78f, 1f), 150f, TextAlignmentOptions.Center);
+                Line(_rankingBody, Share("defense"), left + at[5] * w, y, 28f, new Color(1f, 0.6f, 0.5f), 150f, TextAlignmentOptions.Center);
+                var score = FocusContext.AsFloat(e["score"]);
+                Line(_rankingBody, "<b>" + score.ToString(score < 100f ? "0.##" : "N0", CultureInfo.CurrentCulture) + "</b>",
+                    left + at[6] * w, y, 33f, new Color(1f, 0.86f, 0.5f), 190f, TextAlignmentOptions.Center);
+                y -= rowH;
+            }
+        }
+
+        void RankBand(Vector2 pos, Vector2 size, Color color)
+        {
+            var go = new GameObject("Band", typeof(RectTransform), typeof(Image));
+            go.transform.SetParent(_rankingBody, false);
+            var rt = go.GetComponent<RectTransform>();
+            rt.sizeDelta = size;
+            rt.anchoredPosition = pos;
+            var img = go.GetComponent<Image>();
+            img.color = color;
+            img.raycastTarget = false;
         }
 
         TMP_Text Line(RectTransform parent, string text, float x, float y, float size, Color color, float width,
