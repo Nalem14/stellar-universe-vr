@@ -65,6 +65,7 @@ Tant qu’un champ de texte a le focus (`PcPlatformBoot.IsTyping`), aucune touch
 | Marche dans les pièces, portes | ✅ | ✅ | ✅ | capsule écran plat r 0.35 m ; locomotion XR coupée sur écran plat ; galerie de la porte des étoiles et galerie de la citadelle fermées |
 | Écrans holo (stations, salles) | ✅ | ✅ | ✅ | réticule ou curseur libre ; un clic sur un écran ne traverse plus vers l’objet derrière |
 | Boutons 3D, objets, fauteuil, crew | ✅ | ✅ | ✅ | portée 9 m ; sur mobile le bouton remonte après le tap |
+| Listes longues (téléporteur, écrans d'ordres du crew) | ✅ | ✅ | ✅ | `HoloScroll` : liste découpée à sa zone, colonne ▲ / ▼ avec repère de position (rayon + gâchette, clic, tap) ; molette sur la liste au PC ; la position est gardée quand l'écran se reconstruit |
 | Bourse : caisses, berceau, pad | ✅ | ✅ | ✅ | |
 | Table holo : choisir / ordonner (point → point) | ✅ | ✅ | ✅ | `TacticalCommand` + `FlatPointer` |
 | Table holo : saisir un vaisseau / un point de route | ✅ | ✅ | ✅ | `FlatGrab` ; mobile : reposer un point sans cible ouvre son menu |

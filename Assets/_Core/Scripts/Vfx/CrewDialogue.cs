@@ -134,8 +134,11 @@ namespace Core.Vfx
             var listGo = new GameObject("Rows", typeof(RectTransform));
             listGo.transform.SetParent(frame, false);
             _listRoot = listGo.GetComponent<RectTransform>();
-            _listRoot.sizeDelta = new Vector2(580f, 340f);
-            _listRoot.anchoredPosition = new Vector2(0f, -10f);
+            // Under the subtitle (two lines at most), above Close / On screen: a long order list (destinations,
+            // queue steps) scrolls.
+            _listRoot.sizeDelta = new Vector2(580f, ListH);
+            _listRoot.anchoredPosition = new Vector2(0f, -50f);
+            _scroll = Core.UI.HoloScroll.Wrap(_listRoot, 290f, _accent);
 
             DiegeticUi.HoloButton(frame, Trans.Get("close"), new Vector2(-140f, -230f), new Vector2(220f, 48f),
                 Close, DiegeticUi.BtnStyle.Ghost);
@@ -184,6 +187,7 @@ namespace Core.Vfx
             _open = true;
             _lastSig = -1;
             _dropOpen = DropGroup.None;
+            _scroll?.ToTop();
             if (_canvas != null)
             {
                 var root = _canvas.transform.parent;
@@ -433,6 +437,7 @@ namespace Core.Vfx
             finally
             {
                 _rebuildBusy = false;
+                _scroll?.Refresh();
             }
         }
 
@@ -1198,9 +1203,13 @@ namespace Core.Vfx
             }
         }
 
-        float _listCursorY = 108f;
+        const float ListH = 300f;
+        /// <summary>First row's centre in list space: its top (half a dropdown header) just under the list's edge.</summary>
+        const float ListTop = ListH * 0.5f - 31f;
+        float _listCursorY = ListTop;
+        Core.UI.HoloScroll _scroll;
 
-        void ResetListCursor() => _listCursorY = 108f;
+        void ResetListCursor() => _listCursorY = ListTop;
 
         void AddDropdown(string title, int count, DropGroup group)
         {

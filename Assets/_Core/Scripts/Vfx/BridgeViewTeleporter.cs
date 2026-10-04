@@ -30,6 +30,7 @@ namespace Core.Vfx
         Button _tabShips;
         Button _tabStations;
         Button _tabPlanets;
+        Core.UI.HoloScroll _scroll;
 
         public void Bind(BridgeSystemLoader loader, FocusContext focus, CicArtKit art)
         {
@@ -100,12 +101,20 @@ namespace Core.Vfx
             var listGo = new GameObject("TpList", typeof(RectTransform));
             listGo.transform.SetParent(frame, false);
             tp._listRoot = listGo.GetComponent<RectTransform>();
-            tp._listRoot.sizeDelta = new Vector2(820f, 400f);
-            tp._listRoot.anchoredPosition = new Vector2(0f, -40f);
+            // Between the tabs and the hint line; however many ships, fortresses or worlds, the list scrolls.
+            tp._listRoot.sizeDelta = new Vector2(820f, ListH);
+            tp._listRoot.anchoredPosition = new Vector2(0f, ListY);
+            tp._scroll = Core.UI.HoloScroll.Wrap(tp._listRoot, 418f, DiegeticUi.Cyan);
 
             tp.StyleTabs();
             return tp;
         }
+
+        const float ListH = 400f;
+        const float ListY = -76f;
+        /// <summary>First row's centre in list space (top edge of the list, less half a row and a margin).</summary>
+        const float RowTop = ListH * 0.5f - 36f;
+        const float RowPitch = 70f;
 
         /// <summary>Deck position of the view teleporter (port of the captain's dais).</summary>
         static readonly Vector3 TeleporterPos = new(-2.05f, 0f, WorldScale.CicCaptainChairZ + 0.1f);
@@ -122,6 +131,7 @@ namespace Core.Vfx
         {
             _tab = tab;
             StyleTabs();
+            _scroll?.ToTop();
             Core.Utils.AsyncTap.Run(RefreshList());
         }
 
@@ -162,6 +172,7 @@ namespace Core.Vfx
             }
 
             UpdateHint();
+            _scroll?.Refresh();
         }
 
         void UpdateHint()
@@ -231,7 +242,6 @@ namespace Core.Vfx
                     return string.CompareOrdinal(a.name, b.name);
                 });
 
-                var i = 0;
                 foreach (var row in pending)
                 {
                     var id = row.id;
@@ -239,9 +249,6 @@ namespace Core.Vfx
                     var star = GalaxyCatalog.Label(sys);
                     AddRow(row.name, star, row.active,
                         () => Core.Utils.AsyncTap.Run(ConfirmShip(id, sys)));
-                    i++;
-                    if (i >= 8)
-                        break;
                 }
             }
             catch
@@ -284,18 +291,15 @@ namespace Core.Vfx
                 return string.CompareOrdinal(a.name, b.name);
             });
 
-            var i = 0;
             foreach (var row in pending)
             {
                 var id = row.id;
                 var sys = row.sys;
-                var y = 150f - _slots * 70f;
+                var y = RowTop - _slots * RowPitch;
                 AddRow(row.name, row.star, row.active, () => Core.Utils.AsyncTap.Run(ConfirmPlanet(id, sys)), 700f);
                 if (_listRoot != null)
                     _rows.Add(DiegeticUi.HoloFavoriteToggle(_listRoot, id, new Vector2(355f, y), new Vector2(64f, 60f),
                         () => Core.Utils.AsyncTap.Run(Reload())).gameObject);
-                if (++i >= 8)
-                    break;
             }
         }
 
@@ -310,7 +314,7 @@ namespace Core.Vfx
         {
             if (_listRoot == null)
                 return;
-            var y = 150f - _slots++ * 70f;
+            var y = RowTop - _slots++ * RowPitch;
             var mark = active ? "●  " : "";
             var label = string.IsNullOrEmpty(secondary)
                 ? mark + primary
