@@ -615,7 +615,10 @@ namespace Core.Stations
             _cardSlot = s;
             CicCue.Hover(s.Home.position);
             // Clear of the shelf lips (their name plates stand at the rack's face), so nothing cuts through it.
-            _card.localPosition = new Vector3(s.Home.localPosition.x, s.Home.localPosition.y + 0.5f, -Depth - 0.07f);
+            // Above the block, except on the top shelf: there the header and the gantry rail would cover it, so it
+            // hangs below the block instead.
+            var top = s.Home.localPosition.y > ShelfY(Rows - 1) - 0.05f;
+            _card.localPosition = new Vector3(s.Home.localPosition.x, s.Home.localPosition.y + (top ? -0.32f : 0.5f), -Depth - 0.07f);
             _card.gameObject.SetActive(true);
             RenderCard();
             ApplyAll();

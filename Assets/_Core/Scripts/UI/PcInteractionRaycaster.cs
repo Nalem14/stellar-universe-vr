@@ -180,6 +180,27 @@ namespace Core.UI
         }
 
         FlatGrabbable _hoveredGrab;
+        /// <summary>
+        /// The grab interactable under the reticle, for its hover events only (the dock's store block shows its
+        /// card on hover, as under a controller ray); taking it stays with <see cref="FlatGrabbable"/>.
+        /// </summary>
+        XRBaseInteractable _hoveredGrabInteractable;
+
+        void SetGrabHover(XRBaseInteractable grab)
+        {
+            if (_hoveredGrabInteractable == grab)
+                return;
+            if (_hoveredGrabInteractable != null)
+            {
+                try { _hoveredGrabInteractable.hoverExited?.Invoke(new HoverExitEventArgs { interactableObject = _hoveredGrabInteractable }); } catch { }
+            }
+
+            _hoveredGrabInteractable = grab;
+            if (grab != null)
+            {
+                try { grab.hoverEntered?.Invoke(new HoverEnterEventArgs { interactableObject = grab }); } catch { }
+            }
+        }
 
         void HandleHit(RaycastHit hit)
         {
@@ -188,6 +209,7 @@ namespace Core.UI
             var interactable = hitGo.GetComponentInParent<XRSimpleInteractable>();
             var door = hitGo.GetComponentInParent<RoomDoor>();
             _hoveredGrab = hitGo.GetComponentInParent<FlatGrabbable>();
+            SetGrabHover(_hoveredGrab != null ? _hoveredGrab.GetComponent<XRGrabInteractable>() : null);
             bool isSeat = hitGo.name.Contains("CaptainSeat") || hitGo.name.Contains("SitZone");
 
             if (_hoveredGrab != null)
@@ -247,6 +269,7 @@ namespace Core.UI
         void ClearHover(bool keepPrompt = false)
         {
             _hoveredGrab = null;
+            SetGrabHover(null);
             if (_hoveredInteractable != null)
             {
                 try { _hoveredInteractable.hoverExited?.Invoke(new HoverExitEventArgs { interactableObject = _hoveredInteractable }); } catch { }
