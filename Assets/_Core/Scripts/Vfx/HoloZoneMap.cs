@@ -145,7 +145,7 @@ namespace Core.Vfx
             _seenFleets.Clear();
             foreach (var fleet in focus.Fleets)
             {
-                if (!fleet.VisibleIn(focus.SystemId, now))
+                if (!fleet.IsHereIn(focus.SystemId, now))
                     continue;
                 _seenFleets.Add(fleet.Id);
                 var view = DescribeFleet(fleet, focus, now, viewId);
@@ -399,7 +399,7 @@ namespace Core.Vfx
             var viewId = focus.ViewFleetId;
             foreach (var fleet in focus.Fleets)
             {
-                if (fleet.VisibleIn(focus.SystemId, now))
+                if (fleet.IsHereIn(focus.SystemId, now))
                     AddFleetView(fleet.Id, DescribeFleet(fleet, focus, now, viewId));
             }
 

@@ -349,7 +349,7 @@ namespace Core.Crew
             var newCount = 0;
             foreach (var fleet in _focus.Fleets)
             {
-                if (!fleet.VisibleIn(_focus.SystemId, now))
+                if (!fleet.IsHereIn(_focus.SystemId, now))
                     continue;
                 var stance = DiplomacyIndex.ResolveFleet(fleet);
                 if (stance != EmpireStance.Enemy && stance != EmpireStance.Pirate && !fleet.IsPirate)

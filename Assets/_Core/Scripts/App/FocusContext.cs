@@ -150,6 +150,19 @@ namespace Core.App
 
         public bool VisibleIn(int systemId, long unixNow) =>
             IsPresentIn(systemId) || IsArrivingTo(systemId, unixNow);
+
+        /// <summary>
+        /// Still crossing the void toward this system from another one. The server files a jumping ship in its
+        /// destination the moment it leaves (systemid = dest), so "present" alone would show it here for the
+        /// whole voyage.
+        /// </summary>
+        public bool IsInboundFromAfar(int systemId, long unixNow) =>
+            systemId > 0 && DestTime > unixNow && DestSystemId == systemId && FromSystemId > 0 && FromSystemId != systemId;
+
+        /// <summary>Really in this system now: present, and not a ship still on its way in from another system
+        /// (the exterior flies those in itself at desttime; every readout and the table wait for that).</summary>
+        public bool IsHereIn(int systemId, long unixNow) =>
+            IsPresentIn(systemId) && !IsInboundFromAfar(systemId, unixNow);
     }
 
     /// <summary>One step of a fleet's server order queue (model/fleet_queue.php).</summary>
@@ -530,14 +543,14 @@ namespace Core.App
         public bool HasInhabitedView => ViewFleetId > 0 || ViewPlanetId > 0;
 
         public bool VisibleInFocus(FocusFleet fleet, long unixNow) =>
-            fleet != null && fleet.VisibleIn(SystemId, unixNow);
+            fleet != null && fleet.IsHereIn(SystemId, unixNow);
 
         public int CountVisibleInFocus(long unixNow)
         {
             var n = 0;
             for (var i = 0; i < _fleets.Count; i++)
             {
-                if (_fleets[i].VisibleIn(SystemId, unixNow))
+                if (_fleets[i].IsHereIn(SystemId, unixNow))
                     n++;
             }
 
