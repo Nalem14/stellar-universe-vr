@@ -76,6 +76,9 @@ namespace Core.Stations
         // Counter state.
         int _planetId;
         MarketContext _ctx;
+        /// <summary>The convoy's port of departure (web planet selector): the market's world unless another is picked.</summary>
+        MarketContext _origin;
+        bool _originLoading;
         Mode _mode = Mode.Create;
         int _sellKind;
         int _moduleIndex;
@@ -274,6 +277,8 @@ namespace Core.Stations
             Inside = true;
             _planetId = ctx.PlanetId;
             _ctx = ctx;
+            if (_origin != null && ctx != null && _origin.PlanetId == ctx.PlanetId)
+                _origin = ctx;
             _listings = page;
             _pit.SetHome(ctx.SystemId, ctx.PlanetName);
             _pit.SetMissions(ctx.Missions);
@@ -328,6 +333,8 @@ namespace Core.Stations
             }
 
             _ctx = ctx;
+            if (_origin != null && ctx != null && _origin.PlanetId == ctx.PlanetId)
+                _origin = ctx;
             _pit.SetHome(ctx.SystemId > 0 ? ctx.SystemId : PlanetSystem(asked), ctx.PlanetName);
             _pit.SetMissions(ctx.Missions);
             if (_buying != null)
@@ -554,27 +561,76 @@ namespace Core.Stations
                 _pit.Inspect(l, false);
             _selectedListing = id;
             _buying = l;
-            _haulers.Clear();
-            // Pre-pick the ships that cover the hold, roomiest first (the web panel does the same).
-            if (_ctx != null)
-            {
-                var need = RequiredHold(l);
-                var acc = 0f;
-                var sorted = new List<MarketHauler>(_ctx.Haulers);
-                sorted.Sort((a, b) => b.CargoFree.CompareTo(a.CargoFree));
-                foreach (var h in sorted)
-                {
-                    if (acc >= need || h.CargoFree <= 0f || h.IsStation)
-                        continue;
-                    _haulers.Add(h.Id);
-                    acc += h.CargoFree;
-                }
-            }
-
+            _origin = _ctx;
+            PrePick();
             _mode = Mode.Dispatch;
             CicCue.Ok(_counter.transform.position);
             RenderExchange();
             RenderCounter();
+        }
+
+        /// <summary>Pre-pick the departure world's ships that cover the hold, roomiest first (the web panel does the same).</summary>
+        void PrePick()
+        {
+            _haulers.Clear();
+            var o = _origin ?? _ctx;
+            if (o == null || _buying == null)
+                return;
+            var need = RequiredHold(_buying);
+            var acc = 0f;
+            var sorted = new List<MarketHauler>(o.Haulers);
+            sorted.Sort((a, b) => b.CargoFree.CompareTo(a.CargoFree));
+            foreach (var h in sorted)
+            {
+                if (acc >= need || h.CargoFree <= 0f || h.IsStation)
+                    continue;
+                _haulers.Add(h.Id);
+                acc += h.CargoFree;
+            }
+        }
+
+        /// <summary>Another of our worlds as the port of departure (‹ ›): its ships, its stock, its distance.</summary>
+        async Task StepOrigin(int delta)
+        {
+            var o = _origin ?? _ctx;
+            if (_originLoading || o == null || _ctx == null || _ctx.UserPlanets.Count < 2)
+                return;
+            var i = _ctx.UserPlanets.FindIndex(w => w.id == o.PlanetId);
+            var next = _ctx.UserPlanets[(Mathf.Max(0, i) + delta + _ctx.UserPlanets.Count) % _ctx.UserPlanets.Count];
+            _originLoading = true;
+            CicCue.Ok(_counter.transform.position);
+            RenderCounter();
+            try
+            {
+                var (ctx, error) = next.id == _ctx.PlanetId ? (_ctx, null) : await MarketService.Context(next.id);
+                if (ctx == null)
+                {
+                    _counterStatus.text = ScreenKit.Verbatim(error);
+                    return;
+                }
+
+                _origin = ctx;
+                PrePick();
+            }
+            finally
+            {
+                _originLoading = false;
+            }
+
+            if (_mode == Mode.Dispatch)
+                RenderCounter();
+        }
+
+        /// <summary>Light-years from the departure world's system to the seller's (the server's straight line on the grid).</summary>
+        static float Distance(MarketListing l, MarketContext origin)
+        {
+            if (origin == null || origin.SystemId <= 0 || l.SystemId <= 0)
+                return l.Distance;
+            if (origin.SystemId == l.SystemId)
+                return 0f;
+            if (!Core.Vfx.GalaxyCatalog.TryGet(origin.SystemId, out var a) || !Core.Vfx.GalaxyCatalog.TryGet(l.SystemId, out var b))
+                return l.Distance;
+            return Mathf.Sqrt((a.X - b.X) * (a.X - b.X) + (a.Y - b.Y) * (a.Y - b.Y));
         }
 
         // ── Counter (right) ───────────────────────────────────────────────────────
@@ -963,13 +1019,15 @@ namespace Core.Stations
                 return;
             }
 
+            var o = _origin ?? _ctx;
+            var distance = Distance(l, o);
             var color = MarketDecor.CategoryColor(l.Category, l.ItemKey);
             ScreenKit.Line(body, "<b>" + Trans.Get("market_convoy_title") + "</b>", -20f, 196f, 18f, Accent, 1000f);
             ScreenKit.Line(body, "<b><color=" + ScreenKit.Hex(color) + ">" + ScreenKit.Verbatim(l.ItemName) + "</color></b> ×" + ScreenKit.Num(l.Quantity) +
                                  "  ·  " + ScreenKit.Verbatim(l.SellerName) + " · " + ScreenKit.Verbatim(l.PlanetName) + " · " +
-                                 ScreenKit.Num(l.Distance, 1) + " " + Trans.Get("market_ly"), -20f, 160f, 16f, UiKit.TextBright, 1000f);
+                                 ScreenKit.Num(distance, 1) + " " + Trans.Get("market_ly"), -20f, 160f, 16f, UiKit.TextBright, 1000f);
 
-            var stock = _ctx.Stock(l.PriceCurrency);
+            var stock = o.Stock(l.PriceCurrency);
             var funds = stock >= l.PriceAmount;
             var currency = Trans.Get(MarketService.ResourceKey(l.PriceCurrency));
             ScreenKit.Line(body, Trans.Get("market_price_due") + " : <b>" + ScreenKit.Num(l.PriceAmount) + " " + currency + "</b>", -270f, 122f, 16f,
@@ -981,13 +1039,20 @@ namespace Core.Stations
             var need = RequiredHold(l);
             ScreenKit.Line(body, Trans.Format("market_hold_buyer", ScreenKit.Num(need)), -270f, 88f, 15f, UiKit.TextDim, 500f);
 
+            // Port of departure: any of our worlds, its ships in orbit carry the payment out and the goods home.
+            var many = _ctx.UserPlanets.Count > 1;
+            ScreenKit.Line(body, Trans.Get("market_from") + " : <b>" + ScreenKit.Verbatim(o.PlanetName) + "</b>", 160f, 88f, 15f,
+                _originLoading ? UiKit.TextDim : UiKit.TextBright, 330f);
+            ScreenKit.Btn(body, "‹", 370f, 88f, 60f, 36f, () => Run(StepOrigin(-1)), DiegeticUi.BtnStyle.Ghost, many && !_originLoading);
+            ScreenKit.Btn(body, "›", 440f, 88f, 60f, 36f, () => Run(StepOrigin(1)), DiegeticUi.BtnStyle.Ghost, many && !_originLoading);
+
             var haulers = new List<MarketHauler>();
-            foreach (var h in _ctx.Haulers)
+            foreach (var h in o.Haulers)
                 if (!h.IsStation)
                     haulers.Add(h);
             if (haulers.Count == 0)
             {
-                ScreenKit.Line(body, Trans.Format("market_no_orbit_of", ScreenKit.Verbatim(_ctx.PlanetName)), -20f, 40f, 17f, UiKit.Danger, 1000f);
+                ScreenKit.Line(body, Trans.Format("market_no_orbit_of", ScreenKit.Verbatim(o.PlanetName)), -20f, 40f, 17f, UiKit.Danger, 1000f);
                 ScreenKit.Para(body, Trans.Get("market_orbit_none_hint"), -20f, -20f, 15f, UiKit.TextDim, 1000f, 80f);
             }
             else
@@ -1012,14 +1077,16 @@ namespace Core.Stations
                 ScreenKit.Num(picked) + " / " + ScreenKit.Num(need) + " m³");
             if (_haulers.Count > 0)
             {
-                var leg = LegSeconds(l.Distance, slowest, hyper);
-                ScreenKit.Line(body, Trans.Get("market_travel_time") + " : " + Trans.Format("market_eta_legs", Core.Holo.TravelPlanner.TimeText(leg),
-                    Core.Holo.TravelPlanner.TimeText(leg * 2f)), -250f, -188f, 14f, UiKit.TextDim, 520f);
+                var leg = LegSeconds(distance, slowest, hyper);
+                ScreenKit.Line(body, Trans.Get("market_travel_time") + " : " + Trans.Format("market_eta_legs", Core.Holo.TravelPlanner.TimeText(leg).TrimStart('~'),
+                    Core.Holo.TravelPlanner.TimeText(leg * 2f).TrimStart('~')), -250f, -188f, 14f, UiKit.TextDim, 520f);
             }
 
             ScreenKit.Btn(body, Trans.Get("back"), 120f, -168f, 160f, 50f, () => SetMode(Mode.Create));
-            ScreenKit.Btn(body, Trans.Get("market_confirm_dispatch"), 380f, -168f, 330f, 50f, () => Run(Dispatch()),
-                DiegeticUi.BtnStyle.Cyan, !_busy && funds && enough && _haulers.Count > 0);
+            // Greyed, it says why (as the web button does).
+            var label = !funds ? "market_funds_short" : !enough || _haulers.Count == 0 ? "market_insufficient_cargo" : "market_confirm_dispatch";
+            ScreenKit.Btn(body, Trans.Get(label), 380f, -168f, 330f, 50f, () => Run(Dispatch()),
+                DiegeticUi.BtnStyle.Cyan, !_busy && !_originLoading && funds && enough && _haulers.Count > 0);
         }
 
         (float cargo, float slowest, bool hyper) Selection(List<MarketHauler> haulers)
@@ -1061,14 +1128,15 @@ namespace Core.Stations
         async Task Dispatch()
         {
             var l = _buying;
-            if (_busy || l == null || _ctx == null || _haulers.Count == 0)
+            var origin = _origin ?? _ctx;
+            if (_busy || l == null || origin == null || _haulers.Count == 0)
                 return;
             _busy = true;
             _counterStatus.text = Trans.Get("market_launching");
             var ids = new List<int>(_haulers);
             try
             {
-                var (ok, error, ships) = await MarketService.Dispatch(l.Id, _ctx.PlanetId, ids);
+                var (ok, error, ships) = await MarketService.Dispatch(l.Id, origin.PlanetId, ids);
                 if (!ok)
                 {
                     CicCue.Fail(_counter.transform.position);
@@ -1080,6 +1148,7 @@ namespace Core.Stations
                 _counterStatus.text = Trans.Format("market_launched", ships);
                 Core.Crew.BarkDirector.Instance?.Say(CrewDialogue.Role.Ops, "marketDispatch", 2, l.PlanetName);
                 _buying = null;
+                _origin = null;
                 _haulers.Clear();
                 _selectedListing = 0;
                 _mode = Mode.Convoys;

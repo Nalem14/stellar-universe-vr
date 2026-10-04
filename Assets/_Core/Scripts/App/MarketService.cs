@@ -112,6 +112,8 @@ namespace Core.App
         public float OrbitCargoFree;
         public readonly List<MarketListing> MyListings = new();
         public readonly List<MarketMission> Missions = new();
+        /// <summary>All our worlds (user_planets), the convoy's possible ports of departure.</summary>
+        public readonly List<(int id, string name, int systemId)> UserPlanets = new();
 
         public float Stock(string resource) => resource switch
         {
@@ -212,6 +214,9 @@ namespace Core.App
                             IsStation = HasCore(f["ships"], "StationCore")
                         });
                 c.OrbitCargoFree = FocusContext.AsFloat(data["total_orbiting_cargo_free"]);
+                if (data["user_planets"] is JArray worlds)
+                    foreach (var w in worlds)
+                        c.UserPlanets.Add((FocusContext.AsInt(w["id"]), FocusContext.AsString(w["name"]), FocusContext.AsInt(w["systemid"])));
                 if (data["my_active_listings"] is JArray mine)
                     foreach (var l in mine)
                         c.MyListings.Add(MarketListing.Parse(l));
