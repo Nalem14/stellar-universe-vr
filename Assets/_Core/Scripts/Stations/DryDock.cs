@@ -685,7 +685,8 @@ namespace Core.Stations
         {
             _shelves = ModuleShelves.Build(transform, _art, new Vector3(RoomWidth * 0.5f - 0.06f, 0f, StoreZ),
                 Quaternion.Euler(0f, 90f, 0f), ShelfStock, () => _fleetId > 0 && _preview == null,
-                () => _selectedType, OnShelfPick, OnShelfDrop);
+                () => _selectedType, OnShelfPick, OnShelfDrop, _yard, (text, error) => SetStatus(text, error),
+                type => _fleetId > 0 ? FitRefusal(type) : null);
         }
 
         /// <summary>
@@ -701,17 +702,18 @@ namespace Core.Stations
         }
 
         /// <summary>
-        /// The store's stock. With a hull picked, only what that hull may carry (web ShipBuilderUI 69d40af:
-        /// a fortress hides propulsion, a ship hides fortress modules); with none, everything (recycling).
+        /// The store: every module type with the hangar's count (0 = a hologram the printer can make). What the
+        /// picked hull may not carry (web ShipBuilderUI 69d40af: a fortress takes no propulsion, a ship no
+        /// fortress module, neither a core) stays on the wall, dimmed and not to be taken, but still printable:
+        /// a StationCore is printed with a ship on the table, before any fortress exists.
         /// </summary>
         Dictionary<string, int> ShelfStock()
         {
             var d = new Dictionary<string, int>();
-            var picked = _fleetId > 0;
-            var station = StationHull;
+            foreach (var type in ModuleCatalog.Types())
+                d[type] = 0;
             foreach (var (type, count) in HangarGroups())
-                if (!picked || ModuleCatalog.Compat(type).Fits(station))
-                    d[type] = count;
+                d[type] = count;
             return d;
         }
 

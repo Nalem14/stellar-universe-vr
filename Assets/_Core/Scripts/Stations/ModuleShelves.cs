@@ -11,12 +11,13 @@ using UnityEngine.XR.Interaction.Toolkit.Interactables;
 namespace Core.Stations
 {
     /// <summary>
-    /// The dry dock's module store: the planet's finished hangar, as a lit wall of shelves holding one block per
-    /// module type in stock, each a miniature of the module's own deck silhouette
-    /// (<see cref="ShipHullBuilder.ModuleMesh"/>) on a cartridge plinth banded in its family colour.
-    /// It is the one place modules are taken from: grab a block (grip, or ray + trigger) and set it on a grid
-    /// cell of the assembly table = PlaceShipModule, or drop it in the recycler = DelShip. It stores, it does
-    /// not order: new modules come from the printer (<see cref="ModulePrinter"/>), whose shuttle delivers here.
+    /// The dry dock's module store: a lit wall of shelves holding one block per module type the picked hull may
+    /// carry (every type when none is picked: fortress modules too), each a miniature of the module's own deck
+    /// silhouette (<see cref="ShipHullBuilder.ModuleMesh"/>) on a cartridge plinth banded in its family colour.
+    /// A type the hangar holds is solid: grab it (grip, or ray + trigger; E / tap on a flat screen) and set it
+    /// on a grid cell of the assembly table = PlaceShipModule, or drop it in the recycler = DelShip. A type it
+    /// lacks is a hologram: trigger it twice to have the printer (<see cref="ModulePrinter"/>) make one — AddShip
+    /// through the shipyard's rules (<see cref="ShipyardPanel"/>); the shuttle delivers it here.
     /// More types than the wall holds: a robot gantry runs along the shelves and swaps the page, block by block,
     /// with a replicator sweep (SU/ModuleBlock). Hovering a block shows its name, stock, stats and description on
     /// one shared card. Quest budget: one shared material and one draw per block, the frame merged by static
@@ -66,6 +67,8 @@ namespace Core.Stations
             public float Reveal = Solid;
             public float RevealTarget = Solid;
             public bool ReturnAfterDissolve;
+            public bool InProduction;
+            public string Refusal;
             public float Flight = -1f;
             public Vector3 FlightFrom;
             public Quaternion FlightFromRot;
@@ -77,6 +80,13 @@ namespace Core.Stations
         Func<string> _selected;
         Action<string> _onPick;
         Func<string, Vector3, bool> _onDrop;
+        ShipyardPanel _yard;
+        Action<string, bool> _status;
+        /// <summary>Why the picked hull may not take this type (native key), or null.</summary>
+        Func<string, string> _refusal;
+        string _armedType;
+        float _armedUntil;
+        bool _ordering;
 
         readonly Slot[] _slots = new Slot[PerPage];
         readonly TextMeshPro[] _lips = new TextMeshPro[Rows];
@@ -108,7 +118,8 @@ namespace Core.Stations
 
         public static ModuleShelves Build(Transform room, CicArtKit art, Vector3 localPos, Quaternion localRot,
             Func<Dictionary<string, int>> stock, Func<bool> canFit, Func<string> selected,
-            Action<string> onPick, Func<string, Vector3, bool> onDrop)
+            Action<string> onPick, Func<string, Vector3, bool> onDrop, ShipyardPanel yard, Action<string, bool> status,
+            Func<string, string> refusal)
         {
             var go = new GameObject("ModuleStore");
             go.transform.SetParent(room, false);
@@ -121,6 +132,9 @@ namespace Core.Stations
             s._selected = selected;
             s._onPick = onPick;
             s._onDrop = onDrop;
+            s._yard = yard;
+            s._status = status;
+            s._refusal = refusal;
             s._mpb = new MaterialPropertyBlock();
             s.BuildFrame();
             s.BuildSlots();
@@ -301,6 +315,8 @@ namespace Core.Stations
                 grab.selectExited.AddListener(_ => OnRelease(s));
                 grab.hoverEntered.AddListener(_ => ShowCard(s));
                 grab.hoverExited.AddListener(_ => HideCard(s));
+                // Headset: the trigger carries it along the ray as well as the grip grabs it (TriggerSelect).
+                block.AddComponent<TriggerGrab>();
                 // Flat screens: E (PC) / a tap (mobile) takes the block, it follows the aim, a click / tap sets it
                 // down on a grid cell or in the recycler (the same drop as letting go with the hand).
                 if (Core.App.PcPlatformBoot.IsFlatScreen)
@@ -522,13 +538,39 @@ namespace Core.Stations
                 .Append("  <size=75%><color=#").Append(ColorUtility.ToHtmlStringRGB(ModuleCatalog.Accent(fam))).Append('>')
                 .Append(Trans.Get(ModuleCatalog.FamilyKey(fam))).Append("</color></size>  ")
                 .Append(ModuleCatalog.CompatTags(s.Type)).Append("\n<size=85%>");
-            _sb.Append("<color=#7dffa0>").Append(Trans.Format("vr.dock.shelf.inStock", s.Count)).Append("</color> — ");
-            _sb.Append(_canFit() ? Trans.Get("vr.dock.shelf.grab") : "<color=#ffb04a>" + Trans.Get("vr.dock.pickShipFirst") + "</color>");
+            if (s.Count > 0 && s.Refusal != null)
+            {
+                _sb.Append("<color=#7dffa0>").Append(Trans.Format("vr.dock.shelf.inStock", s.Count)).Append("</color> — ");
+                _sb.Append("<color=#ffb04a>").Append(Trans.Get(s.Refusal)).Append("</color>");
+            }
+            else if (s.Count > 0)
+            {
+                _sb.Append("<color=#7dffa0>").Append(Trans.Format("vr.dock.shelf.inStock", s.Count)).Append("</color> — ");
+                _sb.Append(_canFit() ? Trans.Get("vr.dock.shelf.grab") : "<color=#ffb04a>" + Trans.Get("vr.dock.pickShipFirst") + "</color>");
+            }
+            else if (s.InProduction)
+            {
+                _sb.Append("<color=#ffb04a>").Append(Trans.Get("vr.dock.shelf.inProduction")).Append("</color>");
+            }
+            else if (_yard != null)
+            {
+                var blocker = _yard.BuildBlocker(s.Type);
+                if (blocker != null)
+                    _sb.Append("<color=#ff6a5a>").Append(blocker).Append("</color>");
+                else if (_armedType == s.Type && Time.unscaledTime <= _armedUntil)
+                    _sb.Append("<color=#ffb04a>").Append(Trans.Format(_yard.YardBusy ? "vr.dock.shelf.confirmQueue" : "vr.dock.shelf.confirmBuild",
+                        Trans.Get(ModuleCatalog.NameKey(s.Type)))).Append("</color>");
+                else
+                    _sb.Append(Trans.Get("vr.dock.shelf.fabricate"));
+            }
+
             _sb.Append("</size>");
             var stats = ModuleCatalog.StatsLine(s.Type);
             if (stats.Length > 0)
                 _sb.Append("\n<size=80%>").Append(stats).Append("</size>");
             _sb.Append("\n<size=70%><color=#9fc4d6>").Append(ModuleCatalog.Description(s.Type)).Append("</color></size>");
+            if (s.Count == 0 && _yard != null)
+                _sb.Append("\n<size=80%>").Append(_yard.CostText(s.Type)).Append("</size>");
             _cardText.text = _sb.ToString();
             _cardBack.GetPropertyBlock(_mpb);
             _mpb.SetColor(UiKit.AccentId, ModuleCatalog.Accent(fam));
@@ -550,10 +592,16 @@ namespace Core.Stations
             _counts = _stock() ?? new Dictionary<string, int>();
             _types.Clear();
             foreach (var kv in _counts)
-                if (kv.Value > 0)
-                    _types.Add(kv.Key);
+                _types.Add(kv.Key);
+            // What the hangar holds for this hull first, then what can be printed for it, then the rest (other
+            // hull, cores); by family within each.
+            int Rank(string t) => _refusal?.Invoke(t) != null ? 2 : _counts[t] > 0 ? 0 : 1;
             _types.Sort((a, b) =>
             {
+                var sa = Rank(a);
+                var sb = Rank(b);
+                if (sa != sb)
+                    return sa.CompareTo(sb);
                 var f = ModuleCatalog.Family(a).CompareTo(ModuleCatalog.Family(b));
                 return f != 0 ? f : string.CompareOrdinal(a, b);
             });
@@ -593,7 +641,9 @@ namespace Core.Stations
         void ReadState(Slot s)
         {
             s.Count = s.Type != null && _counts.TryGetValue(s.Type, out var n) ? n : 0;
-            var pickable = s.Type != null && s.Count > 0 && !_cycling;
+            s.InProduction = s.Type != null && s.Count == 0 && _yard != null && _yard.InProduction(s.Type);
+            s.Refusal = s.Type != null ? _refusal?.Invoke(s.Type) : null;
+            var pickable = s.Type != null && s.Count > 0 && s.Refusal == null && !_cycling;
             s.BlockCol.enabled = pickable;
             s.PadCol.enabled = s.Type != null && !pickable && !_cycling;
         }
@@ -671,10 +721,14 @@ namespace Core.Stations
             if (s.Type == null)
                 return;
             var accent = ModuleCatalog.Accent(ModuleCatalog.Family(s.Type));
+            if (s.Count == 0 && s.InProduction)
+                accent = UiKit.Amber;
             var hover = s == _cardSlot ? 1f : s == _held ? 0.8f : s.Type == _selected() ? 0.55f : 0f;
+            if (s == _cardSlot && s.Count == 0 && !s.InProduction && _yard != null && !_yard.CanAfford(s.Type))
+                accent = UiKit.Danger;
             _mpb.SetColor(AccentId, accent);
             _mpb.SetFloat(HoverId, hover);
-            _mpb.SetFloat(GhostId, 0f);
+            _mpb.SetFloat(GhostId, s.Count == 0 ? 1f : s.Refusal != null ? 0.6f : 0f);
             _mpb.SetFloat(RevealId, s.Reveal);
             s.Renderer.SetPropertyBlock(_mpb);
         }
@@ -777,11 +831,70 @@ namespace Core.Stations
             enabled = true;
         }
 
+        /// <summary>
+        /// The trigger on a block that cannot be taken: in stock but no hull picked (say so), in production (say
+        /// so), or a hologram — two triggers within 4 s order it from the printer (resources are spent).
+        /// </summary>
         void OnPad(Slot s)
         {
             if (s.Type == null || _cycling)
                 return;
-            CicCue.Pip(s.Home.position);
+            if (s.Count > 0)
+            {
+                // In stock but not for this hull (or a core: placed by the server, never by hand).
+                _status?.Invoke(Trans.Get(s.Refusal ?? "vr.dock.pickShipFirst"), true);
+                CicCue.Fail(s.Home.position);
+                return;
+            }
+
+            if (s.InProduction)
+            {
+                _status?.Invoke(Trans.Get("vr.dock.shelf.inProduction"), false);
+                CicCue.Pip(s.Home.position);
+                return;
+            }
+
+            if (_yard == null)
+                return;
+            var blocker = _yard.BuildBlocker(s.Type);
+            if (blocker != null)
+            {
+                _status?.Invoke(blocker, true);
+                CicCue.Fail(s.Home.position);
+                return;
+            }
+
+            if (_armedType != s.Type || Time.unscaledTime > _armedUntil)
+            {
+                _armedType = s.Type;
+                _armedUntil = Time.unscaledTime + 4f;
+                _status?.Invoke(Trans.Format(_yard.YardBusy ? "vr.dock.shelf.confirmQueue" : "vr.dock.shelf.confirmBuild",
+                    Trans.Get(ModuleCatalog.NameKey(s.Type))), false);
+                CicCue.Pip(s.Home.position);
+                if (_cardSlot == s)
+                    RenderCard();
+                return;
+            }
+
+            _armedType = null;
+            if (!_ordering)
+                AsyncTap.Run(Fabricate(s));
+        }
+
+        async System.Threading.Tasks.Task Fabricate(Slot s)
+        {
+            _ordering = true;
+            try
+            {
+                CicCue.Synth(s.Home.position);
+                await _yard.Build(s.Type);
+            }
+            finally
+            {
+                _ordering = false;
+            }
+
+            Refresh();
         }
 
         /// <summary>Leaving the dock with a block in hand: the hand lets go (it never follows onto the bridge).</summary>
@@ -789,6 +902,8 @@ namespace Core.Stations
         {
             if (_held != null && _held.Block.TryGetComponent<XRGrabInteractable>(out var grab) && grab.isSelected)
                 grab.interactionManager?.CancelInteractableSelection((UnityEngine.XR.Interaction.Toolkit.Interactables.IXRSelectInteractable)grab);
+            if (_held != null)
+                TriggerSelect.Drop(_held.Block);
             ResetAll();
         }
 
@@ -796,6 +911,7 @@ namespace Core.Stations
         public void ResetAll()
         {
             _held = null;
+            _armedType = null;
             if (_cycling)
                 FinishCycle();
             foreach (var s in _slots)
