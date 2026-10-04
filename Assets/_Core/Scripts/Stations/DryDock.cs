@@ -1222,7 +1222,8 @@ namespace Core.Stations
                 return list;
             var now = FleetOrderGate.UnixNow();
             foreach (var f in _focus.Fleets)
-                if (_focus.IsMine(f) && f.PlanetId == _planetId && !f.IsMoving(now))
+                // Same rule as the server's refit guard (HullDockError): docked here, arrived, not fighting.
+                if (_focus.IsMine(f) && f.PlanetId == _planetId && !f.IsMoving(now) && !f.IsInBattle)
                     list.Add(f);
             list.Sort((a, b) => a.Id.CompareTo(b.Id));
             return list;
