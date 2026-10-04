@@ -311,7 +311,7 @@ namespace Core.Stations
             AsyncTap.Run(LoadKnown());
             AsyncTap.Run(LoadMissions());
             if (_conn != null)
-                _gate.OpenNow(!FocusContext.AsBool(_conn["isOrigin"]));
+                _gate.OpenNow(IsThreat(_conn));
             RenderAll();
             await fade.FadeIn();
             CicCue.Ok(transform.position + Vector3.up);
@@ -416,10 +416,10 @@ namespace Core.Stations
             if (!Inside)
                 return;
             if (conn != null && !_gate.IsOpen && !_gate.Busy)
-                _gate.OpenNow(!FocusContext.AsBool(conn["isOrigin"]));
+                _gate.OpenNow(IsThreat(conn));
             else if (conn == null && had && (_gate.IsOpen || _gate.Busy))
                 _gate.Close();
-            SetAlarm(conn != null && !FocusContext.AsBool(conn["isOrigin"]));
+            SetAlarm(IsThreat(conn));
             if (had != (conn != null))
                 RenderAll();
         }
@@ -868,12 +868,30 @@ namespace Core.Stations
             _ => "#c8b6ff"
         };
 
+        /// <summary>
+        /// A wormhole opened into this base by someone who may mean harm: not our own world, not an ally's
+        /// (GetStargateConnectionStatus otherPlanet.userid; an older server without it counts as a threat).
+        /// Ours or an ally's sending goods or troops is a scheduled arrival, never the red alarm.
+        /// </summary>
+        static bool IsThreat(JObject conn)
+        {
+            if (conn == null || FocusContext.AsBool(conn["isOrigin"]))
+                return false;
+            var owner = FocusContext.AsInt(conn["otherPlanet"]?["userid"]);
+            if (owner <= 0)
+                return true;
+            var stance = owner == FocusContext.OwnedUserId() ? EmpireStance.Owned : DiplomacyIndex.Resolve(owner);
+            return stance != EmpireStance.Owned && stance != EmpireStance.Ally;
+        }
+
         void ConnectionHeader(bool incoming)
         {
             var other = _conn["otherPlanet"];
             var name = other != null ? Name(other) : "?";
-            Line(_consoleBody, "<b>" + Trans.Format(incoming ? "vr.gate.incoming" : "vr.gate.openTowards", name) + "</b>",
-                -250f, 180f, 22f, incoming ? UiKit.Danger : new Color(0.8f, 0.7f, 1f, 1f), 540f);
+            var threat = incoming && IsThreat(_conn);
+            var key = !incoming ? "vr.gate.openTowards" : threat ? "vr.gate.incoming" : "vr.gate.incomingFriendly";
+            Line(_consoleBody, "<b>" + Trans.Format(key, name) + "</b>",
+                -250f, 180f, 22f, threat ? UiKit.Danger : incoming ? UiKit.Ok : new Color(0.8f, 0.7f, 1f, 1f), 540f);
             var expires = FocusContext.AsLong(_conn["expiresAt"]);
             var info = Line(_consoleBody, string.Empty, -250f, 140f, 17f, DiegeticUi.CyanDim, 540f);
             var distance = FocusContext.AsString(_conn["distance"]);
@@ -888,7 +906,7 @@ namespace Core.Stations
         void RenderIncoming()
         {
             ConnectionHeader(true);
-            Line(_consoleBody, Trans.Get("vr.gate.incomingHint"), 0f, 30f, 19f, UiKit.TextDim, 1000f,
+            Line(_consoleBody, Trans.Get(IsThreat(_conn) ? "vr.gate.incomingHint" : "vr.gate.incomingFriendlyHint"), 0f, 30f, 19f, UiKit.TextDim, 1000f,
                 TextAlignmentOptions.Center);
         }
 
