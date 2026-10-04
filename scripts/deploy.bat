@@ -1,7 +1,8 @@
 @echo off
 setlocal EnableExtensions EnableDelayedExpansion
 rem Publish Builds\Android, Windows, macOS, Linux to itch.io via Butler.
-rem Target: game 861522. A channel is skipped when its folder has nothing to ship.
+rem Target: yevons/stellar-universe. The numeric id 861522 is rejected by the itch API.
+rem A channel is skipped when its folder has nothing to ship.
 rem The itch build number is automatic. --userversion is the label players see:
 rem ProjectSettings bundleVersion, unless a version is passed on the command line.
 rem   scripts\deploy.bat
@@ -10,7 +11,7 @@ rem   scripts\deploy.bat 1.1
 rem   scripts\deploy.bat android 1.1
 
 cd /d "%~dp0.."
-set "GAME_ID=861522"
+set "GAME_ID=yevons/stellar-universe"
 set "FAILED=0"
 set "PUSHED=0"
 set "MATCHED=0"

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Publish Builds/{Android,Windows,macOS,Linux} to itch.io via Butler.
-# Target: game 861522. A channel is skipped when its folder has nothing to ship.
+# Target: yevons/stellar-universe. The numeric id 861522 is rejected by the itch API.
+# A channel is skipped when its folder has nothing to ship.
 # The itch build number is automatic. --userversion is the label players see:
 # ProjectSettings bundleVersion, unless a version is passed on the command line.
 #   ./scripts/deploy.sh                 # all four, bundleVersion
@@ -12,7 +13,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-GAME_ID="861522"
+GAME_ID="yevons/stellar-universe"
 
 if command -v butler >/dev/null 2>&1; then
   BUTLER="$(command -v butler)"
