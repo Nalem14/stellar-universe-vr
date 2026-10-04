@@ -279,6 +279,9 @@ namespace Core.Stations
             _ctx = ctx;
             if (_origin != null && ctx != null && _origin.PlanetId == ctx.PlanetId)
                 _origin = ctx;
+            // A purchase begun before the context arrived: its ships are picked now.
+            if (_mode == Mode.Dispatch && _buying != null && _haulers.Count == 0)
+                PrePick();
             _listings = page;
             _pit.SetHome(ctx.SystemId, ctx.PlanetName);
             _pit.SetMissions(ctx.Missions);
@@ -335,6 +338,9 @@ namespace Core.Stations
             _ctx = ctx;
             if (_origin != null && ctx != null && _origin.PlanetId == ctx.PlanetId)
                 _origin = ctx;
+            // A purchase begun before the context arrived: its ships are picked now.
+            if (_mode == Mode.Dispatch && _buying != null && _haulers.Count == 0)
+                PrePick();
             _pit.SetHome(ctx.SystemId > 0 ? ctx.SystemId : PlanetSystem(asked), ctx.PlanetName);
             _pit.SetMissions(ctx.Missions);
             if (_buying != null)
@@ -1020,6 +1026,15 @@ namespace Core.Stations
             }
 
             var o = _origin ?? _ctx;
+            if (o == null)
+            {
+                // "Buy" pressed before the world's ships and stock arrived: wait for them (LoadAll pre-picks then).
+                ScreenKit.Line(body, "<b>" + Trans.Get("market_convoy_title") + "</b>", -20f, 196f, 18f, Accent, 1000f);
+                ScreenKit.Line(body, Trans.Get("Loading"), -20f, 40f, 18f, UiKit.TextDim, 1000f, TextAlignmentOptions.Center);
+                ScreenKit.Btn(body, Trans.Get("back"), 120f, -168f, 160f, 50f, () => SetMode(Mode.Create));
+                return;
+            }
+
             var distance = Distance(l, o);
             var color = MarketDecor.CategoryColor(l.Category, l.ItemKey);
             ScreenKit.Line(body, "<b>" + Trans.Get("market_convoy_title") + "</b>", -20f, 196f, 18f, Accent, 1000f);
