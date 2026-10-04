@@ -35,7 +35,9 @@ namespace Core.Stations
         }
 
         readonly RectTransform _body;
-        readonly FocusContext _focus;
+        readonly FocusContext _focusGiven;
+        /// <summary>The bridge's context (the quarters build before it exists: read it when needed).</summary>
+        FocusContext _focus => _focusGiven ?? FocusContext.Current;
         readonly Action<string, bool> _status;
         readonly List<Bounty> _list = new();
         int _page;
@@ -45,7 +47,7 @@ namespace Core.Stations
         public BountyBoard(RectTransform body, FocusContext focus, Action<string, bool> status)
         {
             _body = body;
-            _focus = focus;
+            _focusGiven = focus;
             _status = status;
         }
 

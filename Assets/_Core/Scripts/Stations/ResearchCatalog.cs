@@ -125,6 +125,56 @@ namespace Core.Stations
 
         public static JObject Config(string tech) => GameConfig.Research?[tech] as JObject;
 
+        static readonly Dictionary<string, List<ResearchEffect>> EffectCache = new();
+        static JObject _effectsFrom;
+        static float _effectsPrl;
+        static float _effectsScan;
+
+        /// <summary>
+        /// What each level of a tech gives (GetConfigs.researchEffects), plus the ranges the server scales on the
+        /// level (prlBond: Bond PRL reach, radarTech: scanner reach). Empty when the server does not serve them.
+        /// </summary>
+        public static IReadOnlyList<ResearchEffect> Effects(string tech)
+        {
+            if (string.IsNullOrEmpty(tech))
+                return System.Array.Empty<ResearchEffect>();
+            if (_effectsFrom != GameConfig.ResearchEffects || _effectsPrl != GameConfig.PrlRangePerLevel ||
+                _effectsScan != GameConfig.ScannerRangePerLevel)
+            {
+                EffectCache.Clear();
+                _effectsFrom = GameConfig.ResearchEffects;
+                _effectsPrl = GameConfig.PrlRangePerLevel;
+                _effectsScan = GameConfig.ScannerRangePerLevel;
+            }
+
+            if (EffectCache.TryGetValue(tech, out var cached))
+                return cached;
+            var list = new List<ResearchEffect>();
+            if (GameConfig.ResearchEffects?[tech] is JArray arr)
+                foreach (var e in arr)
+                {
+                    var stat = FocusContext.AsString(e["stat"]);
+                    if (string.IsNullOrEmpty(stat))
+                        continue;
+                    var mods = new List<string>();
+                    if (e["modules"] is JArray m)
+                        foreach (var x in m)
+                            mods.Add(FocusContext.AsString(x));
+                    list.Add(new ResearchEffect(stat, FocusContext.AsFloat(e["perLevel"]), FocusContext.AsBool(e["flat"]),
+                        e["cap"] != null, FocusContext.AsFloat(e["cap"]), mods.ToArray()));
+                }
+
+            if (tech == "prlBond" && GameConfig.PrlRangePerLevel > 0f)
+                list.Add(new ResearchEffect("prlRange", GameConfig.PrlRangePerLevel, true, false, 0f, null));
+            if (tech == "radarTech" && GameConfig.ScannerRangePerLevel > 0f)
+                list.Add(new ResearchEffect("scannerRange", GameConfig.ScannerRangePerLevel, true, false, 0f, null));
+            EffectCache[tech] = list;
+            return list;
+        }
+
+        /// <summary>The server serves the effects table (else the lab falls back on the native descriptions).</summary>
+        public static bool HasEffects => GameConfig.ResearchEffects != null;
+
         /// <summary>
         /// The effect text key, "desc" + Tech. The native dump spells one differently from the tech id
         /// (colonisation → descColonization): that native key is used as is rather than a duplicate.
@@ -363,6 +413,68 @@ namespace Core.Stations
                 if (features)
                     AddFeature(p.Name, level, into);
             }
+        }
+    }
+
+    /// <summary>
+    /// One effect of a research level (server $RESEARCH_EFFECTS, GetConfigs.researchEffects): a stat, a percent per
+    /// level (or an absolute amount when <see cref="Flat"/>), held to <see cref="Cap"/>, on some module types only
+    /// (none = every module, or an empire-wide bonus).
+    /// </summary>
+    public readonly struct ResearchEffect
+    {
+        public readonly string Stat;
+        public readonly float PerLevel;
+        public readonly bool Flat;
+        public readonly bool HasCap;
+        public readonly float Cap;
+        public readonly string[] Modules;
+
+        public ResearchEffect(string stat, float perLevel, bool flat, bool hasCap, float cap, string[] modules)
+        {
+            Stat = stat;
+            PerLevel = perLevel;
+            Flat = flat;
+            HasCap = hasCap;
+            Cap = cap;
+            Modules = modules ?? System.Array.Empty<string>();
+        }
+
+        /// <summary>What <paramref name="level"/> levels give, held to the cap (as the server does).</summary>
+        public float Gain(int level)
+        {
+            var g = Mathf.Max(0, level) * PerLevel;
+            if (HasCap)
+                g = Cap < 0f ? Mathf.Max(g, Cap) : Mathf.Min(g, Cap);
+            return g;
+        }
+
+        /// <summary>"+40 %", "−15 %", "+300".</summary>
+        public string Amount(float gain)
+        {
+            var abs = Mathf.Abs(gain);
+            var n = Mathf.Approximately(abs, Mathf.Round(abs))
+                ? Mathf.RoundToInt(abs).ToString(System.Globalization.CultureInfo.InvariantCulture)
+                : abs.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
+            return (gain < 0f ? "−" : "+") + n + (Flat ? string.Empty : " %");
+        }
+
+        /// <summary>Grouping key: same stat on the same modules sums up on the bonus wall.</summary>
+        public string GroupKey => Stat + "|" + string.Join(",", Modules);
+
+        /// <summary>The sentence of this effect with an amount: "+40 % speed — Fusion thruster".</summary>
+        public string Describe(string amount)
+        {
+            var on = Modules.Length == 0 ? Trans.Get("vr.research.allModules") : ModuleNames();
+            return Trans.Format("vr.research.effect." + Stat, amount, on);
+        }
+
+        string ModuleNames()
+        {
+            var names = new string[Modules.Length];
+            for (var i = 0; i < Modules.Length; i++)
+                names[i] = Trans.Get(Modules[i]);
+            return string.Join(", ", names);
         }
     }
 

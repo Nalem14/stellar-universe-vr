@@ -81,6 +81,7 @@ namespace Core.Stations
         Button[] _shopTabs;
 
         SeasonBoard _seasonBoard;
+        BountyBoard _bounties;
 
         TwoPress _empireConfirm;
         TwoPress _shopConfirm;
@@ -230,6 +231,25 @@ namespace Core.Stations
 
             _seasonBoard = SeasonBoard.Build(_decor.SeasonMount, _decor.SeasonHeader, () => AsyncTap.Run(TitleChanged()));
 
+            // Contracts (bounties): the captain's board, on the wall by the door — accept one, hand it in on site.
+            var board = HoloScreen.Create(transform, "ContractsBoard", QuartersDecor.ContractsSize, Vector3.zero, Quaternion.identity,
+                Trans.Get("bounties"));
+            board.transform.SetParent(_decor.ContractsMount, false);
+            board.transform.localPosition = Vector3.zero;
+            board.transform.localRotation = Quaternion.identity;
+            board.SetAccent(new Color(1f, 0.45f, 0.4f, 1f), 0.5f);
+            var boardBody = new GameObject("Body", typeof(RectTransform)).GetComponent<RectTransform>();
+            boardBody.SetParent(board.Content, false);
+            boardBody.sizeDelta = board.PixelSize;
+            var boardStatus = DiegeticUi.HoloLabel(board.Content, string.Empty, new Vector2(0f, -385f), new Vector2(1180f, 40f), 20f,
+                DiegeticUi.CyanDim);
+            boardStatus.textWrappingMode = TextWrappingModes.Normal;
+            _bounties = new BountyBoard(boardBody, null, (t, e) =>
+            {
+                boardStatus.text = t ?? string.Empty;
+                boardStatus.color = e ? UiKit.Danger : DiegeticUi.CyanDim;
+            });
+
             _flagTex = FlagPainter.Paint(_flag);
             _flagMat = new Material(_art.Lit(_flagTex, Color.white, 0f)) { name = "SU_QuartersFlag" };
             _flagMat.mainTexture = _flagTex;
@@ -273,6 +293,7 @@ namespace Core.Stations
             _empireConfirm.Reset();
             _shopConfirm.Reset();
             CommsConsole.Instance?.Dock(_decor.CommsMount);
+            AsyncTap.Run(_bounties.Refresh());
             await LoadAll();
             await fade.FadeIn();
             CicCue.Ok(transform.position + Vector3.up);
@@ -1463,6 +1484,7 @@ namespace Core.Stations
             _empireConfirm.Tick();
             _shopConfirm.Tick();
             _seasonBoard.Tick();
+            _bounties.Tick();
             if (_busy)
                 return;
             var now = Time.unscaledTime;

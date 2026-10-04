@@ -60,6 +60,9 @@ namespace Core.App
         public static JObject JumpModuleRequirement { get; private set; }
         /// <summary>GetConfigs.researchs (server $RESEARCH): {tech: {requiert:{researchLab|tech: lvl}, time, cost:{researchPoints}, maxLevel?}}.</summary>
         public static JObject Research { get; private set; }
+        /// <summary>GetConfigs.researchEffects (server $RESEARCH_EFFECTS): {tech: [{stat, perLevel, modules?, cap?, flat?}]} —
+        /// what each level gives; null until the server serves it.</summary>
+        public static JObject ResearchEffects { get; private set; }
         /// <summary>GetConfigs.troopstats / defensestats: {type: {requiert, cost, time, …}}.</summary>
         public static JObject TroopStats { get; private set; }
         public static JObject DefenseStats { get; private set; }
@@ -151,6 +154,7 @@ namespace Core.App
                 ShipStats = root["shipstats"] as JObject;
                 JumpModuleRequirement = root["jumpModuleRequirement"] as JObject;
                 Research = root["researchs"] as JObject;
+                ResearchEffects = root["researchEffects"] as JObject;
                 TroopStats = root["troopstats"] as JObject;
                 DefenseStats = root["defensestats"] as JObject;
 

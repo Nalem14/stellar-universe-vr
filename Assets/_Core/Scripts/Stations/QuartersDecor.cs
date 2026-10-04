@@ -60,6 +60,8 @@ namespace Core.Stations
             public Transform CommsMount;
             public Transform CommsWakeMount;
             public Transform SeasonMount;
+            /// <summary>The contracts board (bounties), on the starboard wall by the door: face toward the room (local −z).</summary>
+            public Transform ContractsMount;
             public TextMeshPro SeasonHeader;
             public readonly MeshRenderer[] Plaques = new MeshRenderer[Trophies];
             public readonly MeshRenderer[] Emblems = new MeshRenderer[Trophies];
@@ -207,6 +209,7 @@ namespace Core.Stations
             refs.Globe = globe.transform;
 
             BuildSeasonBoard(room, art, refs, metal, wood, brass);
+            BuildContractsBoard(room, art, refs, metal, dark);
 
             // Captain's chair, pulled out from the desk's forward end and turned toward it: the spot in front
             // of the screen stays free for a standing captain.
@@ -273,6 +276,34 @@ namespace Core.Stations
         /// on two brackets, its top tipped toward a standing captain (read over the reclined Empire screen,
         /// pointed at with the ray). Spans room z −1.52 … 0.02, between the ribs at −1.7 and 1.2.
         /// </summary>
+        /// <summary>Contracts size (m) and its wall frame: starboard wall, between the door corner and the season board.</summary>
+        public static readonly Vector2 ContractsSize = new(1.25f, 0.88f);
+
+        /// <summary>
+        /// The bounty board: a steel wall frame with a red-amber underglow on the starboard wall, aft of the season
+        /// board, at the captain's right hand as he comes in.
+        /// </summary>
+        static void BuildContractsBoard(Transform room, CicArtKit art, Refs refs, Material metal, Material dark)
+        {
+            var red = art.Lit(Texture2D.whiteTexture, new Color(1f, 0.45f, 0.35f, 1f), 2.4f);
+            var board = new GameObject("ContractsBoard").transform;
+            board.SetParent(room, false);
+            board.localPosition = new Vector3(HalfWidth - 0.13f, 0f, -2.42f);
+            board.localRotation = Quaternion.Euler(0f, 90f, 0f);
+            var w = ContractsSize.x;
+            var h = ContractsSize.y;
+            const float cy = 1.55f;
+            GateRoomDecor.Box(board, "Backplate", new Vector3(0f, cy, 0.03f), new Vector3(w + 0.1f, h + 0.1f, 0.04f), dark);
+            GateRoomDecor.Box(board, "FrameTop", new Vector3(0f, cy + h * 0.5f + 0.05f, 0f), new Vector3(w + 0.14f, 0.035f, 0.07f), metal);
+            GateRoomDecor.Box(board, "FrameBottom", new Vector3(0f, cy - h * 0.5f - 0.05f, 0f), new Vector3(w + 0.14f, 0.035f, 0.07f), metal);
+            for (var side = -1; side <= 1; side += 2)
+                GateRoomDecor.Box(board, "FrameSide", new Vector3(side * (w * 0.5f + 0.055f), cy, 0f), new Vector3(0.03f, h + 0.12f, 0.07f), metal);
+            GateRoomDecor.Box(board, "UnderGlow", new Vector3(0f, cy - h * 0.5f - 0.075f, -0.035f), new Vector3(w * 0.9f, 0.012f, 0.01f), red);
+            refs.ContractsMount = new GameObject("ContractsMount").transform;
+            refs.ContractsMount.SetParent(board, false);
+            refs.ContractsMount.localPosition = new Vector3(0f, cy, -0.05f);
+        }
+
         static void BuildSeasonBoard(Transform room, CicArtKit art, Refs refs, Material metal, Material wood, Material brass)
         {
             var gold = new Color(1f, 0.82f, 0.32f);

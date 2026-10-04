@@ -53,6 +53,61 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 - `cargoOnlyFuelReserve`, `vr.fuel.kept`, `vr.fuel.reserve` dans **les dix langues** (réserve carburant par vaisseau, `SetFleetFuelReserve`).
 
 
+## À intégrer — salle de recherche (bonus, effets chiffrés) et descriptions des recherches
+
+Clés du client (dix langues) :
+
+| Clé | FR | EN |
+|---|---|---|
+| `vr.research.bonuses` | Bonus de recherche | Research bonuses |
+| `vr.research.bonusesEmpty` | Aucun bonus : terminez une recherche pour en débloquer | No bonus yet: finish a research to unlock one |
+| `vr.research.allModules` | tous les modules | every module |
+| `vr.research.perLevelShort` | par niveau | per level |
+| `vr.research.now` | actuel {0} | now {0} |
+| `vr.research.cap` | plafond {0} | cap {0} |
+| `vr.research.effect.speed` | {0} vitesse — {1} | {0} speed — {1} |
+| `vr.research.effect.damage` | {0} dégâts — {1} | {0} damage — {1} |
+| `vr.research.effect.armor` | {0} blindage — {1} | {0} armor — {1} |
+| `vr.research.effect.shield` | {0} boucliers — {1} | {0} shields — {1} |
+| `vr.research.effect.power` | {0} production d'énergie | {0} energy output |
+| `vr.research.effect.solarPower` | {0} production des centrales solaires | {0} solar plant output |
+| `vr.research.effect.mine` | {0} production de minerai et de cristal | {0} mineral and crystal output |
+| `vr.research.effect.food` | {0} production de biomasse | {0} biomass output |
+| `vr.research.effect.relation` | {0} relations diplomatiques | {0} diplomatic relations |
+| `vr.research.effect.constructionTime` | {0} durée de construction (bâtiments, troupes, défenses) | {0} build time (buildings, troops, defenses) |
+| `vr.research.effect.buildingTime` | {0} durée d'amélioration des bâtiments | {0} building upgrade time |
+| `vr.research.effect.homeAndFarmBuildingTime` | {0} durée de construction des habitations et des fermes | {0} housing and farm build time |
+| `vr.research.effect.colonizationTime` | {0} durée de colonisation | {0} colonization time |
+| `vr.research.effect.researchTime` | {0} durée de recherche | {0} research time |
+| `vr.research.effect.habitability` | {0} habitabilité des planètes | {0} planet habitability |
+| `vr.research.effect.prlRange` | {0} portée du Bond PRL | {0} PRL Bond range |
+| `vr.research.effect.scannerRange` | {0} portée des scanners | {0} scanner range |
+
+Descriptions natives à réécrire (elles décrivaient un autre jeu — audit du 2026-10-04, nouvelle table `$RESEARCH_EFFECTS`) :
+
+| Clé | FR | EN |
+|---|---|---|
+| `descEnergy` | +3 % de production d'énergie par niveau, toutes centrales. | +3% energy output per level, every plant. |
+| `descComputer` | −1 % de durée de construction par niveau (bâtiments, troupes, défenses), jusqu'à −50 %. | −1% build time per level (buildings, troops, defenses), down to −50%. |
+| `descCombustionDrive` | +10 % de vitesse par niveau pour les propulseurs à combustion et les boosters de vitesse. | +10% speed per level for combustion thrusters and speed boosters. |
+| `descImpulsionDrive` | +15 % de vitesse par niveau pour les propulseurs à impulsion. | +15% speed per level for impulse thrusters. |
+| `descFusionDrive` | +20 % de vitesse par niveau pour les propulseurs à fusion. | +20% speed per level for fusion thrusters. |
+| `descHyperspaceDrive` | +20 % de vitesse par niveau pour les moteurs hyperespace. | +20% speed per level for hyperspace drives. |
+| `descWeapon` | +5 % de dégâts par niveau pour toutes les armes. | +5% damage per level for every weapon. |
+| `descLaser` | +10 % de dégâts par niveau pour les canons laser. | +10% damage per level for laser cannons. |
+| `descIon` | +12 % de dégâts par niveau pour les canons à ions. | +12% damage per level for ion cannons. |
+| `descPlasma` | +15 % de dégâts par niveau pour les canons à plasma. | +15% damage per level for plasma cannons. |
+| `descArmor` | +10 % de blindage par niveau pour les vaisseaux, aussi en combat tactique. | +10% armor per level for ships, tactical battles included. |
+| `descShield` | +10 % de boucliers par niveau pour les vaisseaux, aussi en combat tactique. | +10% shields per level for ships, tactical battles included. |
+| `descSolarTech` | +5 % de production des centrales solaires (au sol et en orbite) par niveau. | +5% solar plant output (ground and orbit) per level. |
+| `descComms` | +2 % de relations diplomatiques par niveau. | +2% diplomatic relations per level. |
+| `descThermodynamics` | +5 % de production de minerai et de cristal par niveau. | +5% mineral and crystal output per level. |
+| `descDrone` | +5 % de production de biomasse par niveau (drones agricoles). | +5% biomass output per level (farm drones). |
+| `descNanite` | −3 % de durée d'amélioration des bâtiments par niveau, jusqu'à −45 %. | −3% building upgrade time per level, down to −45%. |
+| `descBiotech` | −5 % de durée de construction des habitations et des fermes par niveau, jusqu'à −50 %. | −5% housing and farm build time per level, down to −50%. |
+| `descGravityTech` | −5 % de durée de colonisation par niveau, jusqu'à −60 %. | −5% colonization time per level, down to −60%. |
+| `descPsiTech` | −5 % de durée de recherche par niveau, jusqu'à −50 %. | −5% research time per level, down to −50%. |
+
 ## Anomalies (intégré web)
 
 | Clé | EN | FR | Contexte |

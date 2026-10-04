@@ -33,12 +33,15 @@ namespace Core.Stations
         const float ArcHalfDeg = 62f;
         const float TreeBase = 0.9f;
         const float TreeHeight = 2.2f;
-        const float RoomRadius = 4.9f;
+        const float RoomRadius = 6.0f;
         const float RoomHeight = 4.4f;
         static readonly Vector3 SynthPos = new(1.4f, 0f, 0.1f);
         const float BeamLow = 0.92f;
         const float BeamHigh = 1.85f;
         static readonly Vector3 Cradle = new(0.55f, 0f, 0.5f);
+        /// <summary>Operator desks the two working screens stand on (left: analysis; right, behind the synthesizer: queue).</summary>
+        static readonly Vector3 AnalysisDesk = new(-1.5f, 0f, 0.1f);
+        static readonly Vector3 SynthDesk = new(1.6f, 0f, -0.95f);
         const float CradleTop = 1.02f;
         const float IntakeRadius = 0.32f;
         const int RingSegments = 32;
@@ -72,8 +75,9 @@ namespace Core.Stations
         CicArtKit _art;
         EconomyService _eco;
         FocusContext _focus;
-        BountyBoard _bounties;
-        TMP_Text _boardStatus;
+        LabDecor.Refs _decor;
+        RectTransform _bonusBody;
+        string _bonusSig;
         Material _crystalMat;
         Material _glowMat;
         Mesh _crystalMesh;
@@ -300,8 +304,9 @@ namespace Core.Stations
 
         void BuildRoom()
         {
-            var deck = _art.DeckMat(0.45f);
-            var wall = _art.DarkPanel(0.3f);
+            // A clean research floor: light panelling, not the bridge's dark plating.
+            var deck = _art.DeckMat(0.6f);
+            var wall = _art.Lit(_art.Wall, new Color(0.56f, 0.62f, 0.69f, 1f), 0.6f, 1.3f);
             var rib = _art.MetalPanel(0.4f);
             var violet = _art.Lit(Texture2D.whiteTexture, Accent, 2.6f);
             var cyan = _art.CyanEmit(2.2f);
@@ -349,8 +354,11 @@ namespace Core.Stations
             Glow(wash, new Color(0.35f, 0.22f, 0.6f, 0.35f));
 
             Light("TreeLight", new Vector3(0f, 2.4f, 1.6f), new Color(0.72f, 0.58f, 1f), 1.6f, 7f);
-            Light("KeyOverhead", new Vector3(0f, RoomHeight - 0.5f, -0.8f), new Color(0.75f, 0.92f, 1f), 1.1f, 6f);
+            Light("KeyOverhead", new Vector3(0f, RoomHeight - 0.5f, -0.8f), new Color(0.75f, 0.92f, 1f), 1.3f, 8.5f);
+            // The benches along the back walls: a cool lab light over them.
+            Light("BenchFill", new Vector3(0f, RoomHeight - 0.8f, -3.6f), new Color(0.82f, 0.95f, 1f), 1.1f, 6.5f);
 
+            _decor = LabDecor.Build(transform, _art, Accent, RoomRadius, RoomHeight, AnalysisDesk, SynthDesk);
             BuildMotes();
             BuildTree();
 
@@ -1000,36 +1008,30 @@ namespace Core.Stations
 
         void BuildScreens()
         {
-            var eye = transform.TransformPoint(Stand + Vector3.up * WorldScale.EyeStanding);
-            _detail = HoloScreen.Create(transform, "LabAnalysis", new Vector2(0.95f, 0.86f),
-                new Vector3(-1.35f, 1.42f, 0.2f), Quaternion.identity, Trans.Get("researchLaboratory"));
-            ScreenMount.FaceViewer(_detail.transform, eye, 1f, 6f);
+            // Every screen stands on something: the analysis and the queue on operator desks, the research bonuses
+            // in a wall frame by the entrance.
+            _detail = HoloScreen.Create(transform, "LabAnalysis", new Vector2(0.95f, 0.86f), Vector3.zero, Quaternion.identity,
+                Trans.Get("researchLaboratory"));
+            GateRoomDecor.SeatOnArm(_detail.transform, _decor.AnalysisMount, 0.86f, 14f);
             _detail.SetAccent(Accent, 0.5f);
             _detailBody = Body(_detail);
             _status = DiegeticUi.HoloLabel(_detail.Content, string.Empty, new Vector2(0f, -405f), new Vector2(900f, 40f),
                 17f, DiegeticUi.CyanDim);
             _status.textWrappingMode = TextWrappingModes.Normal;
 
-            _coreScreen = HoloScreen.Create(transform, "LabSynthesizer", new Vector2(0.9f, 0.7f),
-                new Vector3(1.4f, 1.45f, -0.62f), Quaternion.identity, Trans.Get("researchQueue"));
-            ScreenMount.FaceViewer(_coreScreen.transform, eye, 1f, 6f);
+            _coreScreen = HoloScreen.Create(transform, "LabSynthesizer", new Vector2(0.9f, 0.7f), Vector3.zero, Quaternion.identity,
+                Trans.Get("researchQueue"));
+            GateRoomDecor.SeatOnArm(_coreScreen.transform, _decor.SynthMount, 0.7f, 14f);
             _coreScreen.SetAccent(Accent, 0.5f);
             _coreBody = Body(_coreScreen);
 
-            // Contracts board, back-left beside the door: accept a bounty, hand it in on site.
-            var board = HoloScreen.Create(transform, "LabContracts", new Vector2(1.25f, 0.88f),
-                new Vector3(-1.3f, 1.45f, -1.0f), Quaternion.identity, Trans.Get("bounties"));
-            ScreenMount.FaceViewer(board.transform, eye, 1f, 6f);
-            board.SetAccent(new Color(1f, 0.45f, 0.4f, 1f), 0.5f);
-            var boardBody = Body(board);
-            _boardStatus = DiegeticUi.HoloLabel(board.Content, string.Empty, new Vector2(0f, -385f),
-                new Vector2(1180f, 40f), 20f, DiegeticUi.CyanDim);
-            _boardStatus.textWrappingMode = TextWrappingModes.Normal;
-            _bounties = new BountyBoard(boardBody, _focus, (t, e) =>
-            {
-                _boardStatus.text = t ?? string.Empty;
-                _boardStatus.color = e ? UiKit.Danger : DiegeticUi.CyanDim;
-            });
+            var bonus = HoloScreen.Create(transform, "LabBonuses", LabDecor.BonusSize, Vector3.zero, Quaternion.identity,
+                Trans.Get("vr.research.bonuses"));
+            bonus.transform.SetParent(_decor.BonusMount, false);
+            bonus.transform.localPosition = Vector3.zero;
+            bonus.transform.localRotation = Quaternion.identity;
+            bonus.SetAccent(Accent, 0.5f);
+            _bonusBody = Body(bonus);
         }
 
         static RectTransform Body(HoloScreen screen)
@@ -1114,6 +1116,95 @@ namespace Core.Stations
             PaintCore();
             RenderDetail();
             RenderCoreScreen();
+            RenderBonuses();
+        }
+
+        /// <summary>
+        /// The research bonuses wall by the entrance: every passive bonus our finished levels give, summed per
+        /// stat and module group as the server applies them (a research in progress does not count yet), with the
+        /// researches it comes from. Without the server's effects table: the researches we hold and their texts.
+        /// </summary>
+        void RenderBonuses()
+        {
+            if (_bonusBody == null)
+                return;
+            var running = Running();
+            var sig = new System.Text.StringBuilder(128);
+            foreach (var n in ResearchCatalog.All())
+                sig.Append(Level(n.Id)).Append(',');
+            sig.Append(running).Append(ResearchCatalog.HasEffects);
+            if (sig.ToString() == _bonusSig)
+                return;
+            _bonusSig = sig.ToString();
+            Clear(_bonusBody);
+
+            var rows = new List<(string Text, string Sources)>();
+            if (ResearchCatalog.HasEffects)
+            {
+                var groups = new Dictionary<string, (ResearchEffect E, float Gain, System.Text.StringBuilder From)>();
+                var order = new List<string>();
+                foreach (var n in ResearchCatalog.All())
+                {
+                    var lvl = Level(n.Id) - (running == n.Id ? 1 : 0);
+                    if (lvl <= 0)
+                        continue;
+                    foreach (var e in ResearchCatalog.Effects(n.Id))
+                    {
+                        var gain = e.Gain(lvl);
+                        if (Mathf.Approximately(gain, 0f))
+                            continue;
+                        if (!groups.TryGetValue(e.GroupKey, out var g))
+                        {
+                            g = (e, 0f, new System.Text.StringBuilder());
+                            order.Add(e.GroupKey);
+                        }
+
+                        if (g.From.Length > 0)
+                            g.From.Append(", ");
+                        g.From.Append(Trans.Get(n.Id)).Append(' ').Append(lvl);
+                        groups[e.GroupKey] = (g.E, g.Gain + gain, g.From);
+                    }
+                }
+
+                foreach (var k in order)
+                {
+                    var g = groups[k];
+                    var amount = "<b><color=#7dffb0>" + g.E.Amount(g.Gain) + "</color></b>";
+                    rows.Add((g.E.Describe(amount), g.From.ToString()));
+                }
+            }
+            else
+            {
+                foreach (var n in ResearchCatalog.All())
+                {
+                    var lvl = Level(n.Id) - (running == n.Id ? 1 : 0);
+                    if (lvl > 0)
+                        rows.Add(("<b>" + Trans.Get(n.Id) + "</b>  " + Trans.Get("lvl") + " " + lvl, Trans.Get(ResearchCatalog.DescKey(n.Id))));
+                }
+            }
+
+            var px = _bonusBody.sizeDelta;
+            if (rows.Count == 0)
+            {
+                Text(_bonusBody, Trans.Get("vr.research.bonusesEmpty"), 0f, 0f, px.x * 0.85f, 26f, DiegeticUi.CyanDim,
+                    TextAlignmentOptions.Center);
+                return;
+            }
+
+            // Two columns of rows, the bonus on top and where it comes from under it.
+            const float rowH = 62f;
+            var perColumn = Mathf.Max(1, Mathf.FloorToInt((px.y - 120f) / rowH));
+            var colW = px.x * 0.47f;
+            var top = px.y * 0.5f - 95f;
+            for (var i = 0; i < rows.Count && i < perColumn * 2; i++)
+            {
+                var col = i / perColumn;
+                var x = -px.x * 0.48f + col * px.x * 0.5f;
+                var y = top - (i % perColumn) * rowH;
+                Text(_bonusBody, rows[i].Text, x, y, colW, 21f, UiKit.TextBright);
+                Text(_bonusBody, "<size=80%><color=#9fb8c8>" + rows[i].Sources + "</color></size>", x + 18f, y - 25f, colW - 18f,
+                    17f, DiegeticUi.CyanDim);
+            }
         }
 
         void RenderDetail()
@@ -1228,7 +1319,22 @@ namespace Core.Stations
         {
             var sb = new System.Text.StringBuilder(1024);
             Section(sb, "vr.research.effect");
-            sb.Append(Trans.Get(ResearchCatalog.DescKey(id))).Append("\n\n");
+            sb.Append(Trans.Get(ResearchCatalog.DescKey(id))).Append('\n');
+            // The numbers, as the server computes them: per level, and what our level gives now.
+            var held = Mathf.Max(0, level - (Running() == id ? 1 : 0));
+            foreach (var e in ResearchCatalog.Effects(id))
+            {
+                sb.Append("<color=#c8b8ff>• ").Append(e.Describe(e.Amount(e.PerLevel))).Append("</color> <size=85%><color=#9fb8c8>")
+                    .Append(Trans.Get("vr.research.perLevelShort")).Append("</color></size>");
+                if (held > 0)
+                    sb.Append("   <color=#7dffb0>").Append(Trans.Format("vr.research.now", e.Amount(e.Gain(held)))).Append("</color>");
+                if (e.HasCap)
+                    sb.Append("  <size=85%><color=#9fb8c8>").Append(Trans.Format("vr.research.cap", e.Amount(e.Cap)))
+                        .Append("</color></size>");
+                sb.Append('\n');
+            }
+
+            sb.Append('\n');
 
             // Prerequisites (researchLab = best planet lab; the rest empire techs).
             Section(sb, "vr.research.requires");
@@ -1508,7 +1614,6 @@ namespace Core.Stations
             _empire = AuthManager.Ensure().Empire;
             await _eco.RefreshNow();
             await Refresh();
-            AsyncTap.Run(_bounties.Refresh());
             if (_selected == null && Running() is { } running)
                 _selected = running;
             RenderAll();
@@ -1582,7 +1687,6 @@ namespace Core.Stations
                     if (img != null)
                         img.rectTransform.anchorMax = new Vector2(Mathf.Clamp01(v()), 1f);
                 UpdateRing();
-                _bounties.Tick();
 
                 // The server starts the next queued research lazily: re-read when the running one ends.
                 var due = _refreshAt > 0 && FleetOrderGate.UnixNow() >= _refreshAt;
