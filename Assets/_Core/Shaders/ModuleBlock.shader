@@ -6,6 +6,7 @@ Shader "SU/ModuleBlock"
     // for hover / selection, a holographic "ghost" look for modules the hangar does not hold, and a
     // replicator sweep (uv.x = block height 0..1) that materialises / dissolves the block bottom-up.
     // _Invert keeps what lies ABOVE the front instead: the module printer's hologram of the part still to print.
+    // _Tint (material-wide) paints the body in the accent: the assembly table's miniatures.
     Properties
     {
         _Accent ("Accent (rim / hologram)", Color) = (0.4, 0.95, 0.55, 1)
@@ -16,6 +17,7 @@ Shader "SU/ModuleBlock"
         _Sky ("Ambient from above", Color) = (0.82, 0.88, 0.98, 1)
         _Ground ("Ambient from below", Color) = (0.3, 0.32, 0.37, 1)
         _LightGain ("Room light gain", Float) = 1.6
+        _Tint ("Body tinted by the accent (assembly table)", Range(0, 1)) = 0
     }
     SubShader
     {
@@ -34,6 +36,7 @@ Shader "SU/ModuleBlock"
             float4 _Sky;
             float4 _Ground;
             float _LightGain;
+            float _Tint;
             float4 _SU_RoomLightPos[4];
             float4 _SU_RoomLightCol[4];
 
@@ -123,6 +126,8 @@ Shader "SU/ModuleBlock"
 
                 float self = i.color.a;
                 float3 col = i.color.rgb * light * (1.0 - self) + i.color.rgb * self * 2.4;
+                // On the assembly table each module wears its family colour, so the layout reads at a glance.
+                col = lerp(col, col * (0.3 + accent.rgb * 1.1), _Tint);
                 col += accent.rgb * fres * (0.18 + hover * 1.4);
 
                 // Hologram: the part as a lattice of light in its family colour, scanlines rolling up.

@@ -220,8 +220,10 @@ Un chemin par geste : on **imprime** à la console de l'imprimante, on **range**
 
 | Élément | Valeur | Constante / source |
 |---|---|---|
-| Pupitre vaisseau / pupitre plans | (−2.6, 0, −1.3) / (2.6, 0, −1.1), écran 0.95 × 0.8 m | `DryDock.ShipDesk`, `PlansDesk`, `ScreenSize` |
-| Magasin de modules | mur tribord, z = −2.0 ; seuls les types en stock sont listés | `DryDock.StoreZ`, `ModuleShelves` |
+| Pupitre vaisseau / pupitre plans | (−2.6, 0, −1.3) / (2.9, 0, 0), écran 0.95 × 0.8 m ; depuis le poste, le pupitre des plans laisse voir la proue au hublot et tout le magasin | `DryDock.ShipDesk`, `PlansDesk`, `ScreenSize` |
+| Table d'assemblage | grille 9 × 9 de cases de 0.2 m à 0.94 m de haut ; chaque module posé y tient en miniature (0.8 × le bloc du magasin, couleur de sa famille) ; repère « Avant » côté proue | `DryDock.Cell`, `MiniScale` |
+| Panneau-guide | 1.46 × 0.36 m, 2.1 m au-dessus du sol, au-dessus du bord avant de la table et de la ligne de vue vers le berceau : coque en cours, étape à faire, dernière réponse | `DryDock.BuildGuide` |
+| Magasin de modules | mur tribord, z = −2.0 ; 3 × 4 baies de 0.64 m, blocs à 1.3 ×, plaque de nom de 0.17 m par baie (lisible depuis la table) ; colonne de filtres côté table : coque (tous, vaisseaux, stations) et stock (tous, en stock) | `DryDock.StoreZ`, `ModuleShelves` |
 | Console de l'imprimante (chantier + file) | mur tribord, z = −4.15, face à la salle | `DryDock.YardDeskZ`, `ShipyardPanel` |
 | Recycleur / imprimante | z = −5.02 / −6.15 | `DryDock.RecyclerZ`, `PrinterZ` |
 

@@ -55,7 +55,9 @@ namespace Core.Stations
         const float RecyclerZ = -5.02f;
         const float PrinterZ = -6.15f;
         static readonly Vector3 ShipDesk = new(-2.6f, 0f, -1.3f);
-        static readonly Vector3 PlansDesk = new(2.6f, 0f, -1.1f);
+        /// <summary>Forward of the starboard diagonal: from the stand it sits between the ship's bow in the window
+        /// and the module store, hiding neither.</summary>
+        static readonly Vector3 PlansDesk = new(2.9f, 0f, 0f);
         static readonly Vector2 ScreenSize = new(0.95f, 0.8f);
         static readonly Color Accent = new(0.4f, 0.95f, 0.55f, 1f);
 
@@ -71,8 +73,24 @@ namespace Core.Stations
         Transform _hullBuilt;
         ParticleSystem _sparks;
         readonly Renderer[,] _cells = new Renderer[ModuleCatalog.Grid, ModuleCatalog.Grid];
-        readonly TextMeshPro[,] _cellLabels = new TextMeshPro[ModuleCatalog.Grid, ModuleCatalog.Grid];
+        /// <summary>The fitted module standing on each cell in miniature (the store's block, SU/ModuleBlock).</summary>
+        readonly MeshRenderer[,] _minis = new MeshRenderer[ModuleCatalog.Grid, ModuleCatalog.Grid];
+        readonly MeshFilter[,] _miniFilters = new MeshFilter[ModuleCatalog.Grid, ModuleCatalog.Grid];
+        readonly BoxCollider[,] _miniCols = new BoxCollider[ModuleCatalog.Grid, ModuleCatalog.Grid];
+        /// <summary>The module in hand, as a hologram on the cell it would land on (green: it can, red: it cannot).</summary>
+        MeshRenderer _ghost;
+        MeshFilter _ghostFilter;
+        TextMeshPro _guideStep;
+        TextMeshPro _guideInfo;
+        TextMeshPro _guideHull;
         MaterialPropertyBlock _mpb;
+        static readonly int BlockAccentId = Shader.PropertyToID("_Accent");
+        static readonly int BlockHoverId = Shader.PropertyToID("_Hover");
+        static readonly int BlockGhostId = Shader.PropertyToID("_Ghost");
+        static readonly int BlockRevealId = Shader.PropertyToID("_Reveal");
+        const float MiniScale = 0.8f;
+        /// <summary>The table's miniatures: the store's block shader, under the key light and in family colours.</summary>
+        Material _miniMat;
 
         HoloScreen _shipScreen;
         RectTransform _shipBody;
@@ -449,7 +467,118 @@ namespace Core.Stations
                 xi.selectEntered.AddListener(_ => OnCell(cx, cy));
                 xi.hoverEntered.AddListener(_ => SetHover(cx, cy));
                 xi.hoverExited.AddListener(_ => SetHover(-1, -1));
+
+                // Grid-aligned as on the hull in the cradle (grid y = toward the bow).
+                (_minis[x, y], _miniFilters[x, y]) = Mini("Mini_" + x + "_" + y, CellLocal(x, y) + new Vector3(0f, 0.004f, 0f));
+                // The miniature stands 0.2 m tall: a ray aimed at it must find its cell, not the one behind it.
+                var miniCol = _minis[x, y].gameObject.AddComponent<BoxCollider>();
+                miniCol.enabled = false;
+                _miniCols[x, y] = miniCol;
+                var mi = _minis[x, y].gameObject.AddComponent<XRSimpleInteractable>();
+                mi.selectEntered.AddListener(_ => OnCell(cx, cy));
+                mi.hoverEntered.AddListener(_ => SetHover(cx, cy));
+                mi.hoverExited.AddListener(_ => SetHover(-1, -1));
             }
+
+            (_ghost, _ghostFilter) = Mini("HeldGhost", Vector3.zero);
+
+            // Which way the bow lies: beyond the last row, read from the stand.
+            var bow = UiKit.Label(_gridRoot, "Bow", Trans.Get("vr.dock.guide.bow") + "  »",
+                CellLocal(ModuleCatalog.CoreCell, ModuleCatalog.Grid) + new Vector3(0f, 0.004f, 0.05f), 0.6f, 0.05f, Accent);
+            bow.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
+            bow.transform.rotation = transform.rotation * Quaternion.Euler(90f, 0f, 0f);
+
+            BuildGuide();
+        }
+
+        (MeshRenderer, MeshFilter) Mini(string name, Vector3 local)
+        {
+            var go = new GameObject(name, typeof(MeshFilter), typeof(MeshRenderer));
+            go.transform.SetParent(_gridRoot, false);
+            go.transform.localPosition = local;
+            go.transform.localScale = Vector3.one * MiniScale;
+            var r = go.GetComponent<MeshRenderer>();
+            if (_miniMat == null)
+            {
+                // Right under the key light: less gain than on the wall, and the body in its family colour.
+                _miniMat = new Material(ModuleShelves.BlockMat()) { name = "SU_ModuleBlock_Table", enableInstancing = true };
+                _miniMat.SetFloat("_LightGain", 0.7f);
+                _miniMat.SetFloat("_Tint", 0.6f);
+            }
+
+            r.sharedMaterial = _miniMat;
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            r.receiveShadows = false;
+            r.enabled = false;
+            return (r, go.GetComponent<MeshFilter>());
+        }
+
+        /// <summary>
+        /// The assembly guide, a holo board high over the table's far rim (above the line of sight to the cradle):
+        /// the hull being worked on, the step to take now, and the last answer or the module under the ray.
+        /// </summary>
+        void BuildGuide()
+        {
+            var board = new GameObject("AssemblyGuide").transform;
+            board.SetParent(transform, false);
+            board.localPosition = Table + new Vector3(0f, 2.1f, 0.75f);
+            board.localRotation = Quaternion.Euler(-8f, 0f, 0f);
+            var back = UiKit.MeshPiece(board, "Back", UiMeshes.RoundedBox(new Vector3(1.46f, 0.36f, 0.014f), 0.02f),
+                UiKit.Chassis, new Vector3(0f, 0f, 0.01f));
+            var br = back.GetComponent<MeshRenderer>();
+            br.GetPropertyBlock(_mpb);
+            _mpb.SetColor(UiKit.AccentId, Accent);
+            _mpb.SetFloat(UiKit.AccentMulId, 0.05f);
+            br.SetPropertyBlock(_mpb);
+            _mpb.Clear();
+            _guideHull = UiKit.Label(board, "Hull", string.Empty, new Vector3(0f, 0.13f, -0.002f), 1.3f, 0.03f,
+                UiKit.TextDim, TextAlignmentOptions.MidlineLeft);
+            _guideHull.richText = true;
+            _guideStep = UiKit.Label(board, "Step", string.Empty, new Vector3(0f, 0.045f, -0.002f), 1.3f, 0.046f,
+                UiKit.TextBright, TextAlignmentOptions.MidlineLeft, wrap: true);
+            _guideStep.rectTransform.sizeDelta = new Vector2(130f, 12f);
+            _guideStep.richText = true;
+            _guideInfo = UiKit.Label(board, "Info", string.Empty, new Vector3(0f, -0.105f, -0.002f), 1.3f, 0.03f,
+                DiegeticUi.CyanDim, TextAlignmentOptions.MidlineLeft, wrap: true);
+            _guideInfo.rectTransform.sizeDelta = new Vector2(130f, 13f);
+            _guideInfo.richText = true;
+        }
+
+        /// <summary>The board's first two lines follow the dock's state; the third is <see cref="SetStatus"/>.</summary>
+        void RenderGuide(int validCells)
+        {
+            if (_guideStep == null)
+                return;
+            if (_fleetId <= 0)
+                _guideHull.text = string.Empty;
+            else
+            {
+                var fleet = _focus?.FindFleet(_fleetId);
+                var name = fleet != null && !string.IsNullOrEmpty(fleet.Name) ? fleet.Name : "#" + _fleetId;
+                var station = StationHull;
+                var tag = station ? ModuleCatalog.StationTagColor : ModuleCatalog.ShipTagColor;
+                _guideHull.text = "<color=#" + ColorUtility.ToHtmlStringRGB(tag) + "><b>[" +
+                                  Trans.Get(station ? "vr.module.compatStation" : "vr.module.compatShip") + "]</b></color>  " +
+                                  name + "   <color=#7fd8ff>" + _layout.Count + " " + Trans.Get("modules") + "</color>";
+            }
+
+            string step;
+            if (_preview != null)
+                step = "<color=#7fd8ff>" + Trans.Get("vr.dock.guide.preview") + "</color>";
+            else if (_fleetId <= 0)
+                step = Trans.Get("vr.dock.guide.pickShip");
+            else if (_selectedType != null && _shelves != null && _shelves.Holding)
+            {
+                var refusal = FitRefusal(_selectedType);
+                step = refusal != null
+                    ? "<color=#ff6a5a>" + Trans.Get(refusal) + "</color>"
+                    : Trans.Format("vr.dock.guide.place", "<color=#7dffa0>" + Trans.Get(ModuleCatalog.NameKey(_selectedType)) + "</color>") +
+                      "   <size=70%><color=#7fd8ff>" + Trans.Format("vr.dock.guide.cells", validCells) + "</color></size>";
+            }
+            else
+                step = Trans.Get("vr.dock.guide.take") + "\n<size=62%><color=#7fd8ff>" + Trans.Get("vr.dock.guide.remove") + "</color></size>";
+
+            _guideStep.text = step;
         }
 
         /// <summary>Grid y runs away from the stand (toward the far wall), x to the right.</summary>
@@ -521,60 +650,96 @@ namespace Core.Stations
         void PaintGrid()
         {
             var occupied = Occupancy();
+            var holding = _shelves != null && _shelves.Holding;
+            var canFit = _fleetId > 0 && _preview == null && _selectedType != null && FitRefusal(_selectedType) == null;
+            var valid = 0;
             for (var x = 0; x < ModuleCatalog.Grid; x++)
             for (var y = 0; y < ModuleCatalog.Grid; y++)
             {
                 var onHand = false;
                 var m = _preview != null ? PreviewAt(x, y, out onHand) : At(x, y);
+                var open = m == null && canFit && ModuleCatalog.CanPlace(occupied, x, y);
+                if (open)
+                    valid++;
+                var armed = _armedRemove.HasValue && _armedRemove.Value == (x, y);
                 Color c;
                 if (_preview != null)
                 {
                     // Blueprint projection: green = the part is on hand, red = missing from the hangar.
                     c = m == null ? new Color(0.3f, 0.8f, 1f, 0.08f)
-                        : onHand ? new Color(0.35f, 1f, 0.55f, 0.8f)
-                        : new Color(1f, 0.3f, 0.25f, 0.85f);
+                        : onHand ? new Color(0.35f, 1f, 0.55f, 0.5f)
+                        : new Color(1f, 0.3f, 0.25f, 0.6f);
                 }
                 else if (m != null)
                 {
-                    c = ModuleCatalog.Accent(ModuleCatalog.Family(m.Type));
-                    c.a = 0.85f;
-                    if (_armedRemove.HasValue && _armedRemove.Value == (x, y))
+                    // The miniature carries the module; its cell is a dim pad in the family colour.
+                    c = ModuleCatalog.Accent(ModuleCatalog.Family(m.Type)) * 0.55f;
+                    c.a = 0.45f;
+                    if (armed)
                         c = new Color(1f, 0.3f, 0.25f, 1f);
                 }
-                else if (_fleetId > 0 && _selectedType != null && ModuleCatalog.CanPlace(occupied, x, y))
-                    c = new Color(0.4f, 1f, 0.55f, 0.65f);
+                else if (open)
+                    c = new Color(0.4f, 1f, 0.55f, 0.8f);
                 else
-                    c = new Color(0.3f, 0.8f, 1f, 0.12f);
+                    c = new Color(0.3f, 0.8f, 1f, 0.1f);
 
-                if (_hover.HasValue && _hover.Value == (x, y))
-                    c = Color.Lerp(c, Color.white, 0.35f);
+                var hovered = _hover.HasValue && _hover.Value == (x, y);
+                if (hovered)
+                    c = holding && m == null && !open ? new Color(1f, 0.3f, 0.25f, 0.85f) : Color.Lerp(c, Color.white, 0.35f);
                 _mpb.SetColor("_Color", c);
                 _mpb.SetColor("_Emission", new Color(c.r, c.g, c.b, 1f) * 0.6f);
                 _cells[x, y].SetPropertyBlock(_mpb);
+                _mpb.Clear();
 
-                var label = _cellLabels[x, y];
+                var mini = _minis[x, y];
                 if (m == null)
                 {
-                    if (label != null)
-                        label.gameObject.SetActive(false);
+                    mini.enabled = false;
+                    _miniCols[x, y].enabled = false;
                     continue;
                 }
 
-                if (label == null)
+                var mesh = ModuleShelves.BlockMesh(m.Type);
+                if (_miniFilters[x, y].sharedMesh != mesh)
                 {
-                    label = UiKit.Label(_gridRoot, "Tag_" + x + "_" + y, string.Empty,
-                        CellLocal(x, y) + new Vector3(0f, 0.004f, 0f), Cell * 0.92f, 0.03f, UiKit.TextBright);
-                    // Flat on the cell, read from the stand (not along the turned grid).
-                    label.transform.rotation = transform.rotation * Quaternion.Euler(90f, 0f, 0f);
-                    _cellLabels[x, y] = label;
+                    _miniFilters[x, y].sharedMesh = mesh;
+                    _miniCols[x, y].center = mesh.bounds.center;
+                    _miniCols[x, y].size = mesh.bounds.size;
                 }
 
-                label.gameObject.SetActive(true);
-                label.text = Short(Trans.Get(ModuleCatalog.NameKey(m.Type)));
+                mini.enabled = true;
+                _miniCols[x, y].enabled = true;
+                var accent = _preview != null ? (onHand ? new Color(0.35f, 1f, 0.55f) : new Color(1f, 0.3f, 0.25f))
+                    : armed ? UiKit.Danger
+                    : ModuleCatalog.Accent(ModuleCatalog.Family(m.Type));
+                _mpb.SetColor(BlockAccentId, accent);
+                _mpb.SetFloat(BlockHoverId, hovered || armed ? 1f : 0f);
+                _mpb.SetFloat(BlockGhostId, _preview != null ? 1f : 0f);
+                _mpb.SetFloat(BlockRevealId, 1.1f);
+                mini.SetPropertyBlock(_mpb);
+                _mpb.Clear();
             }
-        }
 
-        static string Short(string name) => string.IsNullOrEmpty(name) ? "?" : name.Length <= 12 ? name : name.Substring(0, 11) + "…";
+            // The module in hand, a hologram on the cell it would land on.
+            var target = holding && _selectedType != null && _hover.HasValue && At(_hover.Value.x, _hover.Value.y) == null
+                ? _hover : null;
+            _ghost.enabled = target.HasValue;
+            if (target.HasValue)
+            {
+                var (tx, ty) = target.Value;
+                var ok = canFit && ModuleCatalog.CanPlace(occupied, tx, ty);
+                _ghostFilter.sharedMesh = ModuleShelves.BlockMesh(_selectedType);
+                _ghost.transform.localPosition = CellLocal(tx, ty) + new Vector3(0f, 0.004f, 0f);
+                _mpb.SetColor(BlockAccentId, ok ? new Color(0.4f, 1f, 0.55f) : UiKit.Danger);
+                _mpb.SetFloat(BlockHoverId, 1f);
+                _mpb.SetFloat(BlockGhostId, 1f);
+                _mpb.SetFloat(BlockRevealId, 1.1f);
+                _ghost.SetPropertyBlock(_mpb);
+                _mpb.Clear();
+            }
+
+            RenderGuide(valid);
+        }
 
         FocusShipModule PreviewAt(int x, int y, out bool onHand)
         {
@@ -613,7 +778,13 @@ namespace Core.Stations
             _hover = x < 0 ? null : (x, y);
             PaintGrid();
             if (x >= 0 && At(x, y) is { } m)
-                SetStatus(Trans.Get(ModuleCatalog.NameKey(m.Type)) + " — " + Trans.Get(ModuleCatalog.DescKey(m.Type)));
+            {
+                var fam = ModuleCatalog.Family(m.Type);
+                var stats = ModuleCatalog.StatsLine(m.Type);
+                SetStatus("<b>" + Trans.Get(ModuleCatalog.NameKey(m.Type)) + "</b>  <color=#" +
+                          ColorUtility.ToHtmlStringRGB(ModuleCatalog.Accent(fam)) + ">" + Trans.Get(ModuleCatalog.FamilyKey(fam)) +
+                          "</color>" + (stats.Length > 0 ? "\n<size=85%>" + stats + "</size>" : string.Empty));
+            }
         }
 
         // ── Screens ───────────────────────────────────────────────────────────────
@@ -843,6 +1014,12 @@ namespace Core.Stations
                 return;
             _status.text = text ?? string.Empty;
             _status.color = error ? UiKit.Danger : DiegeticUi.CyanDim;
+            // The same answer on the assembly guide, where the eyes are while fitting.
+            if (_guideInfo != null)
+            {
+                _guideInfo.text = _status.text;
+                _guideInfo.color = error ? UiKit.Danger : UiKit.TextBright;
+            }
         }
 
         void SetYardStatus(string text, bool error)

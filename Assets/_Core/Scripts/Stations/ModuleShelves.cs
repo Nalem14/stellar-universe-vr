@@ -18,24 +18,31 @@ namespace Core.Stations
     /// on a grid cell of the assembly table = PlaceShipModule, or drop it in the recycler = DelShip. A type it
     /// lacks is a hologram: trigger it twice to have the printer (<see cref="ModulePrinter"/>) make one — AddShip
     /// through the shipyard's rules (<see cref="ShipyardPanel"/>); the shuttle delivers it here.
+    /// Each bay has a name plate on the shelf lip, sized to be read from the assembly table: name, hangar count,
+    /// the hulls that take it (ship / fortress pills). The control column filters the wall by hull (all, ships,
+    /// fortresses) and by stock (all, in the hangar only).
     /// More types than the wall holds: a robot gantry runs along the shelves and swaps the page, block by block,
     /// with a replicator sweep (SU/ModuleBlock). Hovering a block shows its name, stock, stats and description on
     /// one shared card. Quest budget: one shared material and one draw per block, the frame merged by static
-    /// batching, four text rows for the shelf lips, one card.
+    /// batching, one text per plate, one card.
     /// Local frame: origin on the floor at the wall face, centre of the rack; the room lies toward -Z.
     /// </summary>
     public sealed class ModuleShelves : MonoBehaviour
     {
-        const int Rows = 4;
-        const int Cols = 5;
+        const int Rows = 3;
+        const int Cols = 4;
         const int PerPage = Rows * Cols;
         const float Length = 2.7f;
         const float Depth = 0.55f;
-        const float Pitch = 0.5f;
-        const float RowBase = 0.46f;
-        const float RowPitch = 0.42f;
+        const float Pitch = 0.64f;
+        const float RowBase = 0.66f;
+        const float RowPitch = 0.56f;
         const float Top = 2.36f;
         const float BlockSize = 0.2f;
+        /// <summary>Blocks stand larger on the wall than on the table (read from the assembly table, 4.6 m off).</summary>
+        const float ShelfScale = 1.3f;
+        /// <summary>Name plate under each bay, on the shelf's front lip: name, stock, hull pills.</summary>
+        const float PlateH = 0.17f;
         const float PlinthH = 0.035f;
         const float CycleTime = 1.9f;
         const float SweepWindow = 0.45f;
@@ -43,6 +50,7 @@ namespace Core.Stations
         const float Solid = 1.1f;
         static readonly Color Accent = new(0.4f, 0.95f, 0.55f, 1f);
         static readonly Quaternion BlockYaw = Quaternion.Euler(0f, 115f, 0f);
+        static readonly Color FilterOff = new(0.3f, 0.4f, 0.46f, 1f);
 
         static readonly int AccentId = Shader.PropertyToID("_Accent");
         static readonly int HoverId = Shader.PropertyToID("_Hover");
@@ -89,8 +97,15 @@ namespace Core.Stations
         bool _ordering;
 
         readonly Slot[] _slots = new Slot[PerPage];
-        readonly TextMeshPro[] _lips = new TextMeshPro[Rows];
+        readonly TextMeshPro[] _plates = new TextMeshPro[PerPage];
+        /// <summary>Hull filter: 0 every module, 1 those a ship takes, 2 those a fortress takes.</summary>
+        int _hullFilter;
+        /// <summary>Only the types the hangar holds.</summary>
+        bool _stockOnly;
+        readonly PokeButton[] _hullButtons = new PokeButton[3];
+        readonly PokeButton[] _stockButtons = new PokeButton[2];
         readonly List<string> _types = new();
+        readonly HashSet<ModuleFamily> _pageFamilies = new();
         readonly System.Text.StringBuilder _sb = new(256);
         Dictionary<string, int> _counts = new();
         MaterialPropertyBlock _mpb;
@@ -198,14 +213,18 @@ namespace Core.Stations
             {
                 var y = ShelfY(row);
                 Box(frame, "Shelf" + row, new Vector3(0f, y - 0.015f, -Depth * 0.5f), new Vector3(Length, 0.03f, Depth), wall);
-                Box(frame, "Lip" + row, new Vector3(0f, y - 0.03f, -Depth + 0.01f), new Vector3(Length, 0.06f, 0.02f), dark);
+                Box(frame, "Lip" + row, new Vector3(0f, y - PlateH * 0.5f, -Depth + 0.01f), new Vector3(Length, PlateH, 0.02f), dark);
+                Box(frame, "LipGlow" + row, new Vector3(0f, y - PlateH - 0.003f, -Depth - 0.001f), new Vector3(Length * 0.98f, 0.006f, 0.008f), green);
+                for (var col = 0; col < Cols - 1; col++)
+                    Box(frame, "LipSplit" + row + col, new Vector3(SlotX(col) + Pitch * 0.5f, y - PlateH * 0.5f, -Depth - 0.001f),
+                        new Vector3(0.006f, PlateH * 0.75f, 0.006f), cyan);
                 Box(frame, "UnderLight" + row, new Vector3(0f, y - 0.064f, -Depth * 0.55f), new Vector3(Length * 0.95f, 0.006f, 0.05f), cyan);
                 for (var col = 0; col < Cols; col++)
                 {
                     Box(frame, "Pad" + row + col, new Vector3(SlotX(col), y + 0.002f, -Depth * 0.5f),
-                        new Vector3(0.26f, 0.004f, 0.26f), dark);
-                    Box(frame, "PadRing" + row + col, new Vector3(SlotX(col), y + 0.0025f, -Depth * 0.5f + 0.132f),
-                        new Vector3(0.26f, 0.004f, 0.006f), green);
+                        new Vector3(0.36f, 0.004f, 0.36f), dark);
+                    Box(frame, "PadRing" + row + col, new Vector3(SlotX(col), y + 0.0025f, -Depth * 0.5f + 0.182f),
+                        new Vector3(0.36f, 0.004f, 0.006f), green);
                 }
 
                 // Dividers between slots (small fins), so each block has its bay.
@@ -247,22 +266,25 @@ namespace Core.Stations
 
             // Sign on the header, and the page's families beneath it.
             var sign = UiKit.Label(transform, "Sign", Trans.Get("vr.dock.store.title"),
-                new Vector3(0f, Top + 0.15f, -Depth + 0.035f), Length * 0.8f, 0.07f, Accent);
+                new Vector3(0f, Top + 0.165f, -Depth + 0.035f), Length * 0.8f, 0.065f, Accent);
             sign.fontStyle = FontStyles.Bold | FontStyles.UpperCase;
+            // What the filters show, and the page's families in their colours.
             _familyLabel = UiKit.Label(transform, "Families", string.Empty,
-                new Vector3(0f, Top + 0.055f, -Depth + 0.035f), Length * 0.9f, 0.03f, UiKit.TextDim);
+                new Vector3(0f, Top + 0.06f, -Depth + 0.035f), Length * 0.96f, 0.04f, UiKit.TextDim);
             _familyLabel.richText = true;
 
-            // Stock row on each shelf lip: one text per shelf, each slot a tab stop (<pos>).
-            for (var row = 0; row < Rows; row++)
+            // One plate per bay on the shelf lip, readable from the assembly table: name (two lines at most),
+            // then the hangar count and which hulls take it.
+            for (var i = 0; i < PerPage; i++)
             {
-                var lip = UiKit.Label(transform, "Lip" + row, string.Empty,
-                    new Vector3(0f, ShelfY(row) - 0.03f, -Depth - 0.002f), Length - 0.1f, 0.022f, UiKit.TextBright,
-                    TextAlignmentOptions.MidlineLeft);
-                lip.enableAutoSizing = false;
-                lip.fontSize = 0.022f * 100f * 14f * 0.8f;
-                lip.richText = true;
-                _lips[row] = lip;
+                var row = Rows - 1 - i / Cols;
+                var plate = UiKit.Label(transform, "Plate" + i, string.Empty,
+                    new Vector3(SlotX(i % Cols), ShelfY(row) - PlateH * 0.5f, -Depth - 0.003f), Pitch - 0.06f, 0.034f,
+                    UiKit.TextBright, TextAlignmentOptions.Center, wrap: true);
+                plate.rectTransform.sizeDelta = new Vector2((Pitch - 0.06f) * 100f, PlateH * 100f - 1f);
+                plate.fontSizeMin = 0.02f * 1400f;
+                plate.richText = true;
+                _plates[i] = plate;
             }
         }
 
@@ -284,8 +306,8 @@ namespace Core.Stations
                 var pad = new GameObject("Pad");
                 pad.transform.SetParent(slot.Home, false);
                 slot.PadCol = pad.AddComponent<BoxCollider>();
-                slot.PadCol.center = new Vector3(0f, 0.12f, 0f);
-                slot.PadCol.size = new Vector3(0.3f, 0.26f, 0.3f);
+                slot.PadCol.center = new Vector3(0f, 0.17f, 0f);
+                slot.PadCol.size = new Vector3(0.42f, 0.36f, 0.42f);
                 var pi = pad.AddComponent<XRSimpleInteractable>();
                 var s = slot;
                 pi.selectEntered.AddListener(_ => OnPad(s));
@@ -295,6 +317,7 @@ namespace Core.Stations
                 var block = new GameObject("Block");
                 block.transform.SetParent(slot.Home, false);
                 block.transform.localRotation = BlockYaw;
+                block.transform.localScale = Vector3.one * ShelfScale;
                 slot.Block = block;
                 slot.Filter = block.AddComponent<MeshFilter>();
                 slot.Renderer = block.AddComponent<MeshRenderer>();
@@ -452,25 +475,105 @@ namespace Core.Stations
 
         void BuildControls()
         {
-            // Control column at the rack's north end (nearest the assembly table), hand height.
-            var x = -(Length * 0.5f + 0.27f);
+            // Control column at the rack's north end (nearest the assembly table), hand height: what the wall
+            // shows (hull, stock) above, the pages below.
+            var x = -(Length * 0.5f + 0.4f);
             var column = new GameObject("Controls").transform;
             column.SetParent(transform, false);
             column.localPosition = new Vector3(x, 0f, -0.2f);
             var dark = _art.DarkPanel(0.35f);
             var cyan = _art.CyanEmit(2.4f);
-            Box(column, "Column", new Vector3(0f, 0.7f, 0f), new Vector3(0.34f, 1.4f, 0.3f), dark, true);
-            Box(column, "Face", new Vector3(0f, 1.2f, -0.152f), new Vector3(0.3f, 0.36f, 0.004f), _art.MetalPanel(0.45f));
-            Box(column, "FaceGlow", new Vector3(0f, 1.395f, -0.152f), new Vector3(0.3f, 0.01f, 0.006f), cyan);
+            Box(column, "Column", new Vector3(0f, 0.7f, 0f), new Vector3(0.64f, 1.4f, 0.3f), dark, true);
+            Box(column, "Face", new Vector3(0f, 1.16f, -0.152f), new Vector3(0.6f, 0.5f, 0.004f), _art.MetalPanel(0.45f));
+            Box(column, "FaceGlow", new Vector3(0f, 1.405f, -0.152f), new Vector3(0.6f, 0.01f, 0.006f), cyan);
+            Box(column, "FaceSplit", new Vector3(0f, 1.085f, -0.153f), new Vector3(0.54f, 0.004f, 0.004f), cyan);
             StaticBatchingUtility.Combine(column.gameObject);
 
-            var z = -0.16f;
-            PokeButton.Create(column, "PagePrev", "‹", new Vector3(-0.085f, 1.29f, z), Quaternion.identity,
-                new Vector2(0.1f, 0.07f), Accent, () => Turn(-1));
-            PokeButton.Create(column, "PageNext", "›", new Vector3(0.085f, 1.29f, z), Quaternion.identity,
-                new Vector2(0.1f, 0.07f), Accent, () => Turn(1));
-            _pageLabel = UiKit.Label(column, "Page", "1 / 1", new Vector3(0f, 1.225f, z - 0.002f), 0.26f, 0.025f,
+            const float z = -0.16f;
+            var hullLabels = new[] { "all", "vr.module.filterShip", "vr.module.filterStation" };
+            for (var i = 0; i < 3; i++)
+            {
+                var hull = i;
+                _hullButtons[i] = PokeButton.Create(column, "Hull" + i, Trans.Get(hullLabels[i]),
+                    new Vector3(-0.19f + i * 0.19f, 1.33f, z), Quaternion.identity, new Vector2(0.175f, 0.075f),
+                    HullColor(i), () => SetHullFilter(hull));
+            }
+
+            var stockLabels = new[] { "vr.dock.shelf.showAll", "vr.dock.shelf.showStock" };
+            for (var i = 0; i < 2; i++)
+            {
+                var only = i == 1;
+                _stockButtons[i] = PokeButton.Create(column, "Stock" + i, Trans.Get(stockLabels[i]),
+                    new Vector3(-0.142f + i * 0.284f, 1.2f, z), Quaternion.identity, new Vector2(0.27f, 0.075f),
+                    Accent, () => SetStockFilter(only));
+            }
+
+            PokeButton.Create(column, "PagePrev", "‹", new Vector3(-0.2f, 1.0f, z), Quaternion.identity,
+                new Vector2(0.12f, 0.08f), Accent, () => Turn(-1));
+            PokeButton.Create(column, "PageNext", "›", new Vector3(0.2f, 1.0f, z), Quaternion.identity,
+                new Vector2(0.12f, 0.08f), Accent, () => Turn(1));
+            _pageLabel = UiKit.Label(column, "Page", "1 / 1", new Vector3(0f, 1.0f, z - 0.002f), 0.24f, 0.034f,
                 UiKit.TextBright);
+            PaintFilters();
+        }
+
+        static Color HullColor(int hull) => hull == 1 ? ModuleCatalog.ShipTagColor : hull == 2 ? ModuleCatalog.StationTagColor : Accent;
+
+        /// <summary>The chosen hull and stock buttons lit in their colour, the others dimmed.</summary>
+        void PaintFilters()
+        {
+            for (var i = 0; i < _hullButtons.Length; i++)
+            {
+                var on = _hullFilter == i;
+                _hullButtons[i].SetAccent(on ? HullColor(i) : FilterOff);
+                _hullButtons[i].Label.color = on ? UiKit.TextBright : UiKit.TextDim;
+            }
+
+            for (var i = 0; i < _stockButtons.Length; i++)
+            {
+                var on = _stockOnly == (i == 1);
+                _stockButtons[i].SetAccent(on ? Accent : FilterOff);
+                _stockButtons[i].Label.color = on ? UiKit.TextBright : UiKit.TextDim;
+            }
+        }
+
+        void SetHullFilter(int hull)
+        {
+            if (_held != null || _cycling)
+            {
+                CicCue.Fail(_gantry.position);
+                return;
+            }
+
+            _hullFilter = hull;
+            _page = 0;
+            PaintFilters();
+            Refresh(true);
+        }
+
+        void SetStockFilter(bool only)
+        {
+            if (_held != null || _cycling)
+            {
+                CicCue.Fail(_gantry.position);
+                return;
+            }
+
+            _stockOnly = only;
+            _page = 0;
+            PaintFilters();
+            Refresh(true);
+        }
+
+        /// <summary>The filters let this type on the wall.</summary>
+        bool Shown(string type, int count)
+        {
+            if (_stockOnly && count <= 0)
+                return false;
+            if (_hullFilter == 0)
+                return true;
+            var c = ModuleCatalog.Compat(type);
+            return _hullFilter == 1 ? c.Ship : c.Station;
         }
 
         void Turn(int step)
@@ -492,16 +595,16 @@ namespace Core.Stations
             _card = new GameObject("HoverCard").transform;
             _card.SetParent(transform, false);
             // Name · stock · stats · description: tall enough for a two-line description.
-            var back = UiKit.MeshPiece(_card, "Back", UiMeshes.RoundedBox(new Vector3(0.52f, 0.25f, 0.012f), 0.012f),
+            var back = UiKit.MeshPiece(_card, "Back", UiMeshes.RoundedBox(new Vector3(0.7f, 0.36f, 0.012f), 0.014f),
                 UiKit.Chassis, new Vector3(0f, 0f, 0.008f));
             _cardBack = back.GetComponent<MeshRenderer>();
-            _cardText = UiKit.Label(_card, "Text", string.Empty, new Vector3(0f, 0f, -0.001f), 0.49f, 0.018f,
+            _cardText = UiKit.Label(_card, "Text", string.Empty, new Vector3(0f, 0f, -0.001f), 0.6f, 0.026f,
                 UiKit.TextBright, TextAlignmentOptions.MidlineLeft, wrap: true);
             _cardText.richText = true;
             _cardText.enableAutoSizing = true;
-            _cardText.fontSizeMin = 0.011f * 1400f;
-            _cardText.fontSizeMax = 0.018f * 1400f;
-            _cardText.rectTransform.sizeDelta = new Vector2(49f, 23f);
+            _cardText.fontSizeMin = 0.014f * 1400f;
+            _cardText.fontSizeMax = 0.026f * 1400f;
+            _cardText.rectTransform.sizeDelta = new Vector2(60f, 31f);
             _card.gameObject.SetActive(false);
         }
 
@@ -511,8 +614,8 @@ namespace Core.Stations
                 return;
             _cardSlot = s;
             CicCue.Hover(s.Home.position);
-            // In front of the block, above it, clear of the shelf lip.
-            _card.localPosition = s.Home.localPosition + new Vector3(0f, 0.36f, -Depth * 0.5f - 0.06f);
+            // Clear of the shelf lips (their name plates stand at the rack's face), so nothing cuts through it.
+            _card.localPosition = new Vector3(s.Home.localPosition.x, s.Home.localPosition.y + 0.5f, -Depth - 0.07f);
             _card.gameObject.SetActive(true);
             RenderCard();
             ApplyAll();
@@ -574,7 +677,8 @@ namespace Core.Stations
             _cardText.text = _sb.ToString();
             _cardBack.GetPropertyBlock(_mpb);
             _mpb.SetColor(UiKit.AccentId, ModuleCatalog.Accent(fam));
-            _mpb.SetFloat(UiKit.AccentMulId, 1.1f);
+            // A thin family-coloured bevel: brighter and the glow ran over the text.
+            _mpb.SetFloat(UiKit.AccentMulId, 0.28f);
             _cardBack.SetPropertyBlock(_mpb);
             _mpb.Clear();
         }
@@ -592,7 +696,8 @@ namespace Core.Stations
             _counts = _stock() ?? new Dictionary<string, int>();
             _types.Clear();
             foreach (var kv in _counts)
-                _types.Add(kv.Key);
+                if (Shown(kv.Key, kv.Value))
+                    _types.Add(kv.Key);
             // What the hangar holds for this hull first, then what can be printed for it, then the rest (other
             // hull, cores); by family within each.
             int Rank(string t) => _refusal?.Invoke(t) != null ? 2 : _counts[t] > 0 ? 0 : 1;
@@ -668,45 +773,56 @@ namespace Core.Stations
         void RenderLabels()
         {
             _pageLabel.text = (_page + 1) + " / " + _pages;
-            // Families on this page, in their colours.
+            // What the filters keep (hull in its colour, stock), how many, then the page's families.
             _sb.Clear();
-            var last = (ModuleFamily)(-1);
+            if (_hullFilter != 0)
+                _sb.Append("<color=#").Append(ColorUtility.ToHtmlStringRGB(HullColor(_hullFilter))).Append("><b>")
+                    .Append(Trans.Get(_hullFilter == 1 ? "vr.module.filterShip" : "vr.module.filterStation")).Append("</b></color>  ·  ");
+            if (_stockOnly)
+                _sb.Append("<color=#7dffa0><b>").Append(Trans.Get("vr.dock.shelf.showStock")).Append("</b></color>  ·  ");
+            _sb.Append("<color=#c7e6f5>").Append(_types.Count).Append(' ').Append(Trans.Get("modules")).Append("</color>");
+            var families = 0;
+            _pageFamilies.Clear();
             for (var i = 0; i < PerPage; i++)
             {
                 var t = _slots[i].Next ?? _slots[i].Type;
                 if (t == null)
                     continue;
                 var f = ModuleCatalog.Family(t);
-                if (f == last)
+                if (!_pageFamilies.Add(f))
                     continue;
-                if (_sb.Length > 0)
-                    _sb.Append("   ");
+                _sb.Append(families == 0 ? "   —   " : "  ");
                 _sb.Append("<color=#").Append(ColorUtility.ToHtmlStringRGB(ModuleCatalog.Accent(f))).Append('>')
                     .Append(Trans.Get(ModuleCatalog.FamilyKey(f))).Append("</color>");
-                last = f;
+                families++;
             }
 
-            _familyLabel.text = _sb.Length > 0 ? _sb.ToString() : Trans.Get("vr.dock.store.empty");
+            _familyLabel.text = _types.Count > 0 ? _sb.ToString() : Trans.Get("vr.dock.store.empty");
 
-            for (var row = 0; row < Rows; row++)
+            for (var i = 0; i < PerPage; i++)
             {
-                _sb.Clear();
-                for (var col = 0; col < Cols; col++)
+                var s = _slots[i];
+                var t = s.Next ?? s.Type;
+                if (t == null)
                 {
-                    var s = _slots[row * Cols + col];
-                    if (s.Type == null)
-                        continue;
-                    // Slot left edge as a share of the lip width (text rect = Length - 0.1 m).
-                    var pct = (SlotX(col) - 0.2f + (Length - 0.1f) * 0.5f) / (Length - 0.1f) * 100f;
-                    _sb.Append("<pos=").Append(pct.ToString("F1", System.Globalization.CultureInfo.InvariantCulture))
-                        .Append("%>");
-                    _sb.Append("<color=#7dffa0><b>×").Append(s.Count).Append("</b></color> ");
-                    var name = Trans.Get(ModuleCatalog.NameKey(s.Type));
-                    _sb.Append(name.Length <= 14 ? name : name.Substring(0, 13) + "…");
+                    _plates[i].text = string.Empty;
+                    continue;
                 }
 
-                // Lip rows are indexed bottom-up; slots top-down.
-                _lips[Rows - 1 - row].text = _sb.ToString();
+                var count = _counts.TryGetValue(t, out var n) ? n : 0;
+                var refused = _refusal?.Invoke(t) != null;
+                _sb.Clear();
+                // Name bright when it can go on the picked hull now, dimmed when it cannot.
+                _sb.Append(refused ? "<color=#8fa9b8>" : count > 0 ? "<color=#ffffff>" : "<color=#d8e6ee>")
+                    .Append("<b>").Append(Trans.Get(ModuleCatalog.NameKey(t))).Append("</b></color>\n<size=78%>");
+                if (count > 0)
+                    _sb.Append(refused ? "<color=#8fa9b8>×" : "<color=#7dffa0>×").Append(count).Append("</color>");
+                else if (_yard != null && _yard.InProduction(t))
+                    _sb.Append("<color=#ffb04a>").Append(Trans.Get("vr.dock.shelf.inProduction")).Append("</color>");
+                else
+                    _sb.Append("<color=#ffb04a>×0</color>");
+                _sb.Append("  ").Append(ModuleCatalog.CompatTags(t)).Append("</size>");
+                _plates[i].text = _sb.ToString();
             }
         }
 

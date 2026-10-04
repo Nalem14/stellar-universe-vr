@@ -22,7 +22,12 @@ namespace Core.Stations
     /// </summary>
     public sealed class ShipyardPanel
     {
-        const int PerPage = 4;
+        const int MaxPerPage = 4;
+        const float RowStep = 56f;
+        /// <summary>Filter chips: a label column on the left, then six chips a row.</summary>
+        const float ChipX = -250f;
+        const float ChipPitch = 128f;
+        const float ChipW = 122f;
         static readonly CultureInfo Fr = CultureInfo.GetCultureInfo("fr-FR");
         static readonly string[] BaseResources = { "mineral", "crystal" };
 
@@ -34,7 +39,8 @@ namespace Core.Stations
         readonly List<(TMP_Text, Func<string>)> _live = new();
         readonly List<(Image, Func<float>)> _bars = new();
         readonly List<string> _resources = new();
-        ModuleFamily _family = ModuleFamily.Core;
+        /// <summary>Category filter; null = every family.</summary>
+        ModuleFamily? _family;
         /// <summary>Hull filter on top of the family (web 600347f quick filters): 0 all, 1 ships, 2 fortresses.</summary>
         int _hull;
         int _page;
@@ -254,51 +260,79 @@ namespace Core.Stations
 
         void RenderCatalog(PlanetEconomy p, float y)
         {
-            var families = (ModuleFamily[])Enum.GetValues(typeof(ModuleFamily));
-            // Two rows of six chips: the families, then the two hull filters (ships / fortresses).
-            for (var h = 1; h <= 2; h++)
+            // Two labelled groups, one above the other: which hull the module goes on, then its category.
+            Band(y, 40f, new Color(0.25f, 0.55f, 0.75f, 0.14f));
+            Text(Trans.Get("vr.dock.filter.hull"), -444f, y, 180f, 15f, DiegeticUi.CyanDim);
+            var hullKeys = new[] { "all", "vr.module.filterShip", "vr.module.filterStation" };
+            for (var h = 0; h < 3; h++)
             {
                 var hull = h;
-                var slot = families.Length + h - 1;
                 var on = _hull == hull;
-                var hb = Btn(Trans.Get(hull == 1 ? "vr.module.filterShip" : "vr.module.filterStation"),
-                    -375f + slot % 6 * 150f, y - slot / 6 * 42f, 144f, 38f,
+                var hb = Btn(Trans.Get(hullKeys[h]), ChipX + h * ChipPitch, y, ChipW, 34f,
                     () =>
                     {
-                        _hull = _hull == hull ? 0 : hull;
+                        _hull = hull;
                         _page = 0;
                         Render();
                     }, on ? DiegeticUi.BtnStyle.Cyan : DiegeticUi.BtnStyle.Ghost);
                 hb.GetComponentInChildren<TMP_Text>().color = on ? UiKit.TextBright
-                    : hull == 1 ? ModuleCatalog.ShipTagColor : ModuleCatalog.StationTagColor;
+                    : hull == 1 ? ModuleCatalog.ShipTagColor : hull == 2 ? ModuleCatalog.StationTagColor : UiKit.TextDim;
             }
 
-            for (var i = 0; i < families.Length; i++)
+            // Modules of this hull, then of the category too.
+            var byHull = new List<string>();
+            foreach (var t in ModuleCatalog.Types())
+                if (_hull == 0 || ModuleCatalog.Compat(t).Fits(_hull == 2))
+                    byHull.Add(t);
+            var types = new List<string>();
+            foreach (var t in byHull)
+                if (_family == null || ModuleCatalog.Family(t) == _family)
+                    types.Add(t);
+            Text(types.Count + " " + Trans.Get("modules"), 300f, y, 290f, 15f, DiegeticUi.CyanDim, TextAlignmentOptions.MidlineRight);
+
+            y -= 46f;
+            Text(Trans.Get("vr.dock.filter.family"), -444f, y, 180f, 15f, DiegeticUi.CyanDim);
+            var families = (ModuleFamily[])Enum.GetValues(typeof(ModuleFamily));
+            for (var i = 0; i <= families.Length; i++)
             {
-                var f = families[i];
-                var col = i % 6;
-                var row = i / 6;
-                var b = Btn(Trans.Get(ModuleCatalog.FamilyKey(f)), -375f + col * 150f, y - row * 42f, 144f, 38f,
+                ModuleFamily? f = i == 0 ? null : families[i - 1];
+                var any = f == null;
+                if (!any)
+                    foreach (var t in byHull)
+                        if (ModuleCatalog.Family(t) == f)
+                        {
+                            any = true;
+                            break;
+                        }
+
+                var on = f == _family;
+                var b = Btn(Trans.Get(f == null ? "all" : ModuleCatalog.FamilyKey(f.Value)), ChipX + i % 6 * ChipPitch,
+                    y - i / 6 * 40f, ChipW, 34f,
                     () =>
                     {
                         _family = f;
                         _page = 0;
                         Render();
-                    }, f == _family ? DiegeticUi.BtnStyle.Cyan : DiegeticUi.BtnStyle.Ghost);
-                var chip = b.GetComponentInChildren<TMP_Text>();
-                chip.color = f == _family ? UiKit.TextBright : ModuleCatalog.Accent(f);
+                    }, on ? DiegeticUi.BtnStyle.Cyan : DiegeticUi.BtnStyle.Ghost);
+                // A category this hull has nothing in stays on the board, greyed.
+                b.interactable = any || on;
+                b.GetComponentInChildren<TMP_Text>().color = on ? UiKit.TextBright
+                    : !any ? new Color(0.35f, 0.45f, 0.5f, 1f) : f == null ? UiKit.TextDim : ModuleCatalog.Accent(f.Value);
             }
 
-            y -= 2 * 42f + 10f;
-            var types = new List<string>();
-            foreach (var t in ModuleCatalog.Types())
-                if (ModuleCatalog.Family(t) == _family && (_hull == 0 || ModuleCatalog.Compat(t).Fits(_hull == 2)))
-                    types.Add(t);
-            var pages = Mathf.Max(1, Mathf.CeilToInt(types.Count / (float)PerPage));
+            y -= (families.Length / 6) * 40f + 26f;
+            Band(y + 8f, 2f, new Color(0.4f, 0.95f, 0.55f, 0.5f));
+            y -= 22f;
+
+            // As many rows as the screen has room for above the page arrows.
+            var perPage = Mathf.Clamp(Mathf.FloorToInt((y + 273f) / RowStep) + 1, 2, MaxPerPage);
+            var pages = Mathf.Max(1, Mathf.CeilToInt(types.Count / (float)perPage));
             _page = Mathf.Clamp(_page, 0, pages - 1);
+            if (types.Count == 0)
+                Text(Trans.Get("vr.dock.store.empty"), 0f, y - 20f, 880f, 17f, DiegeticUi.CyanDim, TextAlignmentOptions.Center);
             var busy = Active(p) != null;
             var full = Occupied(p) >= MaxQueue(p);
-            for (var i = _page * PerPage; i < types.Count && i < (_page + 1) * PerPage; i++)
+            for (var i = _page * perPage; i < types.Count && i < (_page + 1) * perPage; i++)
             {
                 var type = types[i];
                 var st = ModuleCatalog.Stats(type);
@@ -359,7 +393,7 @@ namespace Core.Stations
                 var btn = Btn(label, 300f, y, 280f, 46f, () => AsyncTap.Run(Order("AddShip",
                     new Dictionary<string, string> { { "type", t }, { "planet", p.Id.ToString() } }, "shipInBuild")), style);
                 btn.interactable = enabled;
-                y -= 56f;
+                y -= RowStep;
             }
 
             if (pages > 1)
@@ -502,6 +536,19 @@ namespace Core.Stations
         }
 
         // ── Widgets ───────────────────────────────────────────────────────────────
+
+        /// <summary>A full-width tinted band (filter group backdrop, separator).</summary>
+        void Band(float y, float h, Color color)
+        {
+            var go = new GameObject("Band", typeof(RectTransform), typeof(Image));
+            go.transform.SetParent(_body, false);
+            var rt = go.GetComponent<RectTransform>();
+            rt.sizeDelta = new Vector2(900f, h);
+            rt.anchoredPosition = new Vector2(0f, y);
+            var img = go.GetComponent<Image>();
+            img.color = color;
+            img.raycastTarget = false;
+        }
 
         TMP_Text Text(string text, float x, float y, float width, float size, Color color,
             TextAlignmentOptions align = TextAlignmentOptions.MidlineLeft)
