@@ -30,6 +30,7 @@ Tant qu'une clé est absente, la VR affiche **la clé brute**. En Editor, elle e
 | `vr.dock.guide.remove` | Point twice at a fitted module to send it back to the hangar | Visez deux fois un module posé pour le rendre au hangar | Panneau-guide, rappel sous l'étape 2 |
 | `vr.dock.guide.preview` | Blueprint projected: touch the table to go back to the ship | Plan projeté : touchez la table pour revenir au vaisseau | Panneau-guide, modèle projeté |
 | `vr.dock.guide.bow` | Bow | Avant | Repère gravé au bord de la grille, côté proue |
+| `vr.research.feature.radarRange` | Scanner reach +{0} per level | Portée des scanners +{0} par niveau | Labo : effet de la Technologie Radar (web 5021101 ; {0} = GetConfigs.scanner.rangePerResearchLevel) |
 
 ## Intégré côté web
 

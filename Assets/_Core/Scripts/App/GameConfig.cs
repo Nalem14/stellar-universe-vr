@@ -27,6 +27,11 @@ namespace Core.App
         /// <summary>Docked fleets allowed per owned planet (FLEET.MAX_PER_PLANET).</summary>
         public static int AllowedFleetPerPlanet { get; private set; }
 
+        // GetConfigs.scanner (web 5021101): a ship with a DeepSpaceScanner / SensorArray sees foreign and pirate
+        // fleets within baseRange + rangePerResearchLevel × radarTech (galaxy map units), beyond the systems we hold.
+        public static float ScannerBaseRange { get; private set; }
+        public static float ScannerRangePerLevel { get; private set; }
+
         // GetConfigs.prlBond
         public static float PrlBaseRange { get; private set; }
         public static float PrlRangePerLevel { get; private set; }
@@ -123,6 +128,12 @@ namespace Core.App
                     PrlRangePerLevel = FocusContext.AsFloat(prl["rangePerResearchLevel"]);
                     PrlCrystalPerDistance = FocusContext.AsFloat(prl["crystalCostPerDistance"]);
                     PrlTransitSeconds = FocusContext.AsFloat(prl["transitTime"]);
+                }
+
+                if (root["scanner"] is JObject scanner)
+                {
+                    ScannerBaseRange = FocusContext.AsFloat(scanner["baseRange"]);
+                    ScannerRangePerLevel = FocusContext.AsFloat(scanner["rangePerResearchLevel"]);
                 }
 
                 if (root["jumpgate"] is JObject gate)

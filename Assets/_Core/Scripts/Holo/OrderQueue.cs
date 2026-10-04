@@ -261,6 +261,11 @@ namespace Core.Holo
 
         public static string Describe(FocusQueueStep step, FocusContext focus)
         {
+            // A step the server wrote with its own wording (a market convoy's legs, web 5021101): shown as is,
+            // like the web orders panel (step.label || default).
+            var label = FocusContext.AsString(step.Raw?["label"]);
+            if (!string.IsNullOrEmpty(label))
+                return label;
             var verb = Trans.Get(StepKey(step.Type));
             switch (step.Type)
             {

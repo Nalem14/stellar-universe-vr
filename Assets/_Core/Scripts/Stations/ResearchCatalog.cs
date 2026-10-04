@@ -68,6 +68,7 @@ namespace Core.Stations
             new("impulsionDrive", 80, 490, 0xffcc33, "propulsion"),
             new("ion", 280, 490, 0xff2200, "armement"),
             new("thermodynamics", 490, 490, 0xff6600, "physique"),
+            new("radarTech", 720, 490, 0x00ccff, "reseau"),
             new("drone", 940, 490, 0x22ddff, "robotique"),
             new("stargateDiscovery", 1180, 490, 0xc060f0, "structure"),
 
@@ -291,6 +292,10 @@ namespace Core.Stations
             if (tech == "prlBond" && GameConfig.PrlBaseRange > 0f && GameConfig.PrlRangePerLevel > 0f)
                 list.Add(new ResearchUnlock("vr.research.feature.prlRange", 1, KindFeature,
                     Mathf.RoundToInt(GameConfig.PrlRangePerLevel / GameConfig.PrlBaseRange * 100f).ToString()));
+            // Each level widens what a scanner-equipped ship sees (GetVisibleFleetsForUser, web 5021101).
+            if (tech == "radarTech" && GameConfig.ScannerRangePerLevel > 0f)
+                list.Add(new ResearchUnlock("vr.research.feature.radarRange", 1, KindFeature,
+                    Mathf.RoundToInt(GameConfig.ScannerRangePerLevel).ToString()));
             if (tech == "stargateTriangulation") // ImproveResearch → GrantStargateTriangulationDiscovery
                 list.Add(new ResearchUnlock("vr.research.feature.triangulation", 1, KindFeature));
 

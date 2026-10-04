@@ -77,6 +77,9 @@ namespace Core.App
         /// <summary>Unix seconds when Bond PRL is ready again; 0 = ready.</summary>
         public long PrlBondReadyAt;
         public bool HasScienceModule;
+        /// <summary>Carries a DeepSpaceScanner / SensorArray (GetFleetStats hasScanner, web 5021101): it sees foreign
+        /// fleets within <see cref="GameConfig.ScannerBaseRange"/> + radarTech × range per level.</summary>
+        public bool HasScanner;
         /// <summary>Under way on the free conventional drive (speed 1: not enough crystal for sub-light, web f03197d).</summary>
         public bool ConventionalDrive;
 
@@ -372,6 +375,7 @@ namespace Core.App
                     h = h * 31 + f.ExploreEndTime.GetHashCode();
                     h = h * 31 + (f.IsInBattle ? 1 : 0);
                     h = h * 31 + (f.IsStation ? 5 : 2);
+                    h = h * 31 + (f.HasScanner ? 7 : 3);
                     h = h * 31 + f.TradeMissionId;
                     h = h * 31 + f.PrlBondReadyAt.GetHashCode();
                     h = h * 31 + f.CrystalCargo;
@@ -705,6 +709,7 @@ namespace Core.App
                         row.EnoughHyperdrive = AsBool(stats["hasEnoughHyperdrive"]);
                         row.EnoughPrlBond = AsBool(stats["hasEnoughPrlBond"]);
                         row.HasScienceModule = AsBool(stats["hasScienceModule"]);
+                        row.HasScanner = AsBool(stats["hasScanner"]);
                         row.TroopCargo = AsInt(stats["troopCargo"]);
                         row.ConventionalDrive = AsBool(stats["conventionalDriveActive"]);
                     }
