@@ -84,6 +84,7 @@ namespace Core.Holo
             c._art = art;
             c.BuildVisuals();
             c._reticle = HoloAimReticle.Build(go.transform, art);
+            HuntOrders.Ensure(go);
             Instance = c;
             if (map != null)
                 map.TokensRebuilt += c.OnTokensRebuilt;
@@ -609,6 +610,14 @@ namespace Core.Holo
         void ClickTarget(HoloToken token)
         {
             var fleet = SelectedFleet;
+            if (fleet == null && token.Kind == HoloTokenKind.Fleet && !token.Owned && _map.ShowingGalaxy &&
+                FleetOrderGate.IsHostile(_focus?.FindFleet(token.Id)))
+            {
+                // A pirate (or an enemy) on the galaxy, no ship picked: which of ours goes after it.
+                AsyncTap.Run(HuntMenu(token));
+                return;
+            }
+
             if (fleet == null && token.Kind == HoloTokenKind.System && _map.ShowingGalaxy)
             {
                 // A star, no ship picked: what to do with it (fly the view there, or send one of ours).
@@ -772,7 +781,7 @@ namespace Core.Holo
             _arcLabelRoot.gameObject.SetActive(false);
             if (target.Kind == HoloTokenKind.Fleet)
             {
-                await Engage(target);
+                await Attack(SelectedFleet, target);
                 Deselect();
                 return;
             }
@@ -790,10 +799,83 @@ namespace Core.Holo
             Deselect();
         }
 
-        /// <summary>Open the tactical battle against the hostile ship pointed at (confirmed on the lectern).</summary>
-        async Task Engage(HoloToken target)
+        /// <summary>The battle when it shares our system, else the interception (travel there, the battle on arrival).</summary>
+        async Task Attack(FocusFleet mine, HoloToken target)
         {
-            var mine = SelectedFleet;
+            var foe = _focus?.FindFleet(target.Id);
+            if (mine == null || foe == null)
+                return;
+            if (FleetOrderGate.CanEngage(mine, foe, FleetOrderGate.UnixNow()))
+                await Engage(mine, target);
+            else
+                await Hunt(mine, foe, target);
+        }
+
+        /// <summary>
+        /// Interception: the usual travel order to the target's system (modes and quotes on the lectern), then
+        /// <see cref="HuntOrders"/> opens the battle once our ship is there and the target still is.
+        /// </summary>
+        async Task Hunt(FocusFleet mine, FocusFleet foe, HoloToken target)
+        {
+            if (!GalaxyCatalog.TryGet(foe.SystemId, out var star))
+                return;
+            var foeName = string.IsNullOrEmpty(foe.Name) ? "#" + foe.Id : foe.Name;
+            var shipName = string.IsNullOrEmpty(mine.Name) ? "#" + mine.Id : mine.Name;
+            var (sent, result, barkAction) = await TravelPlanner.AskAndSend(mine, star.Id, star.X, star.Y,
+                Trans.Format("vr.hunt.header", foeName, star.Label), target.transform.position);
+            if (!sent)
+                return;
+            Core.Crew.BarkDirector.Instance?.OrderResult(CrewDialogue.Role.Helm, barkAction, result, star.Label);
+            if (!result.Ok)
+            {
+                CicCue.Fail(target.transform.position);
+                Readout(string.IsNullOrEmpty(result.Error) ? Trans.Get("vr.common.error") : result.Error);
+                return;
+            }
+
+            HuntOrders.Instance?.Track(mine.Id, foe.Id);
+            CicCue.Ok(target.transform.position);
+            Readout(Trans.Format("vr.hunt.underway", shipName, foeName));
+            if (_orders != null)
+                await _orders.PollNow();
+        }
+
+        /// <summary>A hostile ship picked with no ship of ours selected: up to four of ours that can go after it.</summary>
+        async Task HuntMenu(HoloToken target)
+        {
+            var console = OrderConsole.Instance;
+            var foe = _focus?.FindFleet(target.Id);
+            if (console == null || foe == null)
+                return;
+            var now = FleetOrderGate.UnixNow();
+            var me = FocusContext.OwnedUserId();
+            var options = new List<OrderConsole.Option>();
+            foreach (var f in _focus.Fleets)
+            {
+                if (options.Count >= 4)
+                    break;
+                if (f == null || f.UserId != me || !(FleetOrderGate.CanEngage(f, foe, now) || FleetOrderGate.CanHunt(f, foe, now)))
+                    continue;
+                var name = string.IsNullOrEmpty(f.Name) ? "#" + f.Id : f.Name;
+                options.Add(new OrderConsole.Option(Trans.Format("vr.hunt.send", name), true, UiKit.Danger, f.Id));
+            }
+
+            var foeName = string.IsNullOrEmpty(foe.Name) ? "#" + foe.Id : foe.Name;
+            if (options.Count == 0)
+            {
+                CicCue.Fail(target.transform.position);
+                Readout(foeName + "  ·  " + Trans.Get("vr.hunt.noShip"));
+                return;
+            }
+
+            var choice = await console.AskAt(target.transform.position, foeName, options);
+            if (choice is int fleetId && _focus.FindFleet(fleetId) is { } mine)
+                await Attack(mine, target);
+        }
+
+        /// <summary>Open the tactical battle against the hostile ship pointed at (confirmed on the lectern).</summary>
+        async Task Engage(FocusFleet mine, HoloToken target)
+        {
             var foe = _focus?.FindFleet(target.Id);
             var hex = HexBattleController.Instance;
             if (mine == null || foe == null || hex == null)
@@ -862,11 +944,14 @@ namespace Core.Holo
                         return Trans.Get("asteroidDepleted");
                     return null;
                 case HoloTokenKind.Fleet:
-                    // A hostile ship in the system: point at it to open the battle (web right-click → Attack).
+                    // A hostile ship in the system: point at it to open the battle (web right-click → Attack); on the
+                    // galaxy, one in another system: go and intercept it (travel there, the battle on arrival).
                     var foe = _focus?.FindFleet(target.Id);
                     if (foe == null || target.Owned)
                         return Trans.Get("vr.table.notATarget");
-                    return FleetOrderGate.CanEngage(fleet, foe, now) ? null : Trans.Get("vr.table.notATarget");
+                    if (FleetOrderGate.CanEngage(fleet, foe, now))
+                        return null;
+                    return _map.ShowingGalaxy && FleetOrderGate.CanHunt(fleet, foe, now) ? null : Trans.Get("vr.table.notATarget");
                 case HoloTokenKind.System:
                     if (fleet.IsStation)
                         return Trans.Get("stationCannotMove");
@@ -1043,6 +1128,11 @@ namespace Core.Holo
                 return name + "  <color=#ffb866>" + Trans.Get("addToQueue") + "</color>";
             switch (target.Kind)
             {
+                case HoloTokenKind.Fleet:
+                    // A hostile ship: the battle here, or the interception from afar.
+                    var foe = FocusContext.Current?.FindFleet(target.Id);
+                    var here = foe != null && FleetOrderGate.CanEngage(fleet, foe, FleetOrderGate.UnixNow());
+                    return name + "  <color=#ff7a7a>" + Trans.Get(here ? "attack" : "vr.hunt.intercept") + "</color>";
                 case HoloTokenKind.Anomaly:
                     return name + "  <color=#b9a4ff>" + Trans.Get("scanAnomaly") + "</color>";
                 case HoloTokenKind.Planet:

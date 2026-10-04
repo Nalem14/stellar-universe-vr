@@ -80,6 +80,23 @@ namespace Core.Vfx
             return pirate || target.PlanetId == mine.PlanetId;
         }
 
+        /// <summary>A ship we may fight: a pirate, or an empire we are at war with (not ours, not a friend).</summary>
+        public static bool IsHostile(FocusFleet target)
+        {
+            if (target == null)
+                return false;
+            var stance = DiplomacyIndex.ResolveFleet(target);
+            return target.IsPirate || stance == EmpireStance.Pirate || stance == EmpireStance.Enemy;
+        }
+
+        /// <summary>
+        /// Our ship can go and intercept that one in another system (travel there, then the battle on arrival):
+        /// ours is free to move, the target is hostile and holds still in a system that is not ours.
+        /// </summary>
+        public static bool CanHunt(FocusFleet mine, FocusFleet target, long now) =>
+            mine != null && target != null && mine.CanIssueMove(now) && IsHostile(target) && !target.IsMoving(now) &&
+            target.SystemId > 0 && target.SystemId != mine.SystemId;
+
         /// <summary>MakeBattle's spot: open space against pirates, else the orbit both hold (web startTacticalBattle).</summary>
         public static int EngagePlanet(FocusFleet mine, FocusFleet target) =>
             target.IsPirate || DiplomacyIndex.ResolveFleet(target) == EmpireStance.Pirate ? 0 : mine.PlanetId;
