@@ -114,7 +114,7 @@ namespace Core.Vfx
             return _planks;
         }
 
-        static float Hash(int x, int y, int seed)
+        internal static float Hash(int x, int y, int seed)
         {
             unchecked
             {
@@ -125,7 +125,7 @@ namespace Core.Vfx
         }
 
         /// <summary>Value noise wrapping every <paramref name="px"/> × <paramref name="py"/> cells (the texture tiles).</summary>
-        static float Noise(float x, float y, int seed, int px, int py)
+        internal static float Noise(float x, float y, int seed, int px, int py)
         {
             var xi = Mathf.FloorToInt(x);
             var yi = Mathf.FloorToInt(y);
@@ -139,7 +139,7 @@ namespace Core.Vfx
             return Mathf.Lerp(a0, a1, fy);
         }
 
-        static Texture2D Finish(Color32[] px, int n, string name)
+        internal static Texture2D Finish(Color32[] px, int n, string name)
         {
             var tex = new Texture2D(n, n, TextureFormat.RGBA32, true)
             {

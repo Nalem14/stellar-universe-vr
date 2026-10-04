@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using Core.App;
 using Core.UI;
 using Core.Utils;
 using Core.Vfx;
@@ -11,7 +12,8 @@ namespace Core.Stations
     /// <summary>
     /// The dry dock's recycler, between the printer's console and the printer: a hazard-rimmed hopper with
     /// shredder rollers glowing in its maw. Drop a block taken from the module store into it and it hangs over
-    /// the maw, turning, while the panel asks to confirm — Recycle = DelShip (no refund, as on the web hangar),
+    /// the maw, turning, while the panel asks to confirm — Recycle = DelShip, which gives the module's build cost back to
+    /// the planet (GetConfigs.fleet.shipRecycleRefund, clamped to the warehouses; the panel says how much),
     /// Cancel or 15 s without an answer = nothing happens (the store already has the block back). Recycled: the
     /// block sinks into the rollers, dissolving. Quest budget: frame merged by static batching, the block in one
     /// draw of the shared module material, two labels, Update asleep while idle.
@@ -33,7 +35,7 @@ namespace Core.Stations
         static readonly int RevealId = Shader.PropertyToID("_Reveal");
 
         CicArtKit _art;
-        Func<string, Task<string>> _recycle;
+        Func<string, Task<(string error, string done)>> _recycle;
         MaterialPropertyBlock _mpb;
         Transform _block;
         MeshFilter _blockFilter;
@@ -49,7 +51,7 @@ namespace Core.Stations
         bool _busy;
 
         public static ModuleRecycler Build(Transform room, CicArtKit art, Vector3 localPos, Quaternion localRot,
-            Func<string, Task<string>> recycle)
+            Func<string, Task<(string error, string done)>> recycle)
         {
             var go = new GameObject("ModuleRecycler");
             go.transform.SetParent(room, false);
@@ -211,7 +213,9 @@ namespace Core.Stations
             _block.localPosition = new Vector3(0f, HoverY, -Depth * 0.5f);
             _block.gameObject.SetActive(true);
             SetBlock(Solid, 0.6f);
-            _prompt.text = Trans.Format("vr.dock.recycler.confirm", Trans.Get(ModuleCatalog.NameKey(type)));
+            var refund = RefundText(type);
+            _prompt.text = Trans.Format("vr.dock.recycler.confirm", Trans.Get(ModuleCatalog.NameKey(type)),
+                refund.Length > 0 ? refund : "0");
             _prompt.color = UiKit.Amber;
             _go.Interactive = true;
             _cancel.Interactive = true;
@@ -240,10 +244,10 @@ namespace Core.Stations
             _busy = true;
             _go.Interactive = false;
             _cancel.Interactive = false;
-            string error;
+            string error, done;
             try
             {
-                error = await _recycle(type);
+                (error, done) = await _recycle(type);
             }
             finally
             {
@@ -258,11 +262,28 @@ namespace Core.Stations
                 return;
             }
 
-            _prompt.text = Trans.Get("vr.dock.scrapped");
+            _prompt.text = string.IsNullOrEmpty(done) ? Trans.Get("vr.dock.scrapped") : Trans.Format("vr.dock.recycled", done);
             _prompt.color = UiKit.Ok;
             _shredT = 0f;
             CicCue.Synth(MawWorld);
             enabled = true;
+        }
+
+        /// <summary>"Minerai 1 200 · Cristal 600": what scrapping one module of this type gives back (catalogue cost ×
+        /// the server's refund share; the warehouses may take less, the done line then says what really came back).</summary>
+        static string RefundText(string type)
+        {
+            if (!(GameConfig.ShipStats?[type]?["cost"] is Newtonsoft.Json.Linq.JObject cost))
+                return string.Empty;
+            var parts = new System.Collections.Generic.List<string>();
+            foreach (var c in cost.Properties())
+            {
+                var n = Mathf.FloorToInt(FocusContext.AsFloat(c.Value) * GameConfig.ShipRecycleRefund);
+                if (n > 0)
+                    parts.Add(Trans.Get("vr.res." + c.Name) + " " + ScreenKit.Num(n));
+            }
+
+            return string.Join("  ·  ", parts);
         }
 
         /// <summary>Nothing offered: hopper idle, buttons dimmed, the prompt saying what it is for (or why it refused).</summary>

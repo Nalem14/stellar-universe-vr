@@ -174,9 +174,26 @@ namespace Core.Stations
             return go;
         }
 
+        /// <summary>
+        /// A workshop surface (<see cref="WorkshopSurfaces"/>) laid at its real size on one stretched box: the
+        /// texture repeats <paramref name="repeat"/> times across the face, so a tread plate keeps its lozenges
+        /// and a wall its panel width whatever the box. Built once per room, shared by the boxes of the same size.
+        /// </summary>
+        Material Surface(Texture tex, Color tint, float emission, Vector2 repeat)
+        {
+            var key = tex.GetInstanceID() + "|" + tint + "|" + emission + "|" + repeat;
+            if (_surfaces.TryGetValue(key, out var mat) && mat != null)
+                return mat;
+            mat = new Material(_art.Lit(tex, tint, emission)) { name = "SU_Dock_" + tex.name };
+            mat.SetTextureScale("_MainTex", repeat);
+            _surfaces[key] = mat;
+            return mat;
+        }
+
+        readonly Dictionary<string, Material> _surfaces = new();
+
         void BuildRoom()
         {
-            var deck = _art.DeckMat(0.55f);
             var wall = _art.MetalPanel(0.5f);
             var dark = _art.DarkPanel(0.35f);
             var cyan = _art.CyanEmit(2.4f);
@@ -184,14 +201,29 @@ namespace Core.Stations
 
             // Control room: 11 × 11.1 m, north side open on the bay through a wide window. The aft half is a
             // work bay (lockers, parts rack, bench) so the exit door sits well behind the stand: ≥ 3 m of floor
-            // between the assembly table and the doorway.
+            // between the assembly table and the doorway. Each part its own material: tread plate underfoot,
+            // ribbed cladding over a painted dado on the walls, an open grating overhead.
             const float w = RoomWidth, h = RoomHeight;
             const float d = RoomNorth - RoomSouth, cz = (RoomNorth + RoomSouth) * 0.5f;
-            Box("Floor", new Vector3(0f, -0.05f, cz), new Vector3(w, 0.1f, d), deck);
-            Box("Ceiling", new Vector3(0f, h, cz), new Vector3(w, 0.1f, d), dark);
-            Box("WallS", new Vector3(0f, h * 0.5f, RoomSouth), new Vector3(w, h, 0.12f), wall);
-            Box("WallE", new Vector3(w * 0.5f, h * 0.5f, cz), new Vector3(0.12f, h, d), wall);
-            Box("WallW", new Vector3(-w * 0.5f, h * 0.5f, cz), new Vector3(0.12f, h, d), wall);
+            var tread = Surface(WorkshopSurfaces.TreadPlate(), new Color(0.6f, 0.62f, 0.64f), 0.55f, new Vector2(w / 0.8f, d / 0.8f));
+            var grating = Surface(WorkshopSurfaces.Grating(), new Color(0.46f, 0.52f, 0.58f), 0.4f, new Vector2(w / 1.6f, d / 1.6f));
+            var cladS = Surface(WorkshopSurfaces.Ribbed(), new Color(0.55f, 0.61f, 0.67f), 0.5f, new Vector2(w / 2f, 1f));
+            var cladSide = Surface(WorkshopSurfaces.Ribbed(), new Color(0.55f, 0.61f, 0.67f), 0.5f, new Vector2(d / 2f, 1f));
+            Box("Floor", new Vector3(0f, -0.05f, cz), new Vector3(w, 0.1f, d), tread);
+            Box("Ceiling", new Vector3(0f, h, cz), new Vector3(w, 0.1f, d), grating);
+            Box("WallS", new Vector3(0f, h * 0.5f, RoomSouth), new Vector3(w, h, 0.12f), cladS);
+            Box("WallE", new Vector3(w * 0.5f, h * 0.5f, cz), new Vector3(0.12f, h, d), cladSide);
+            Box("WallW", new Vector3(-w * 0.5f, h * 0.5f, cz), new Vector3(0.12f, h, d), cladSide);
+            // Painted dado (deep teal, worn) to 1.05 m with an ochre line over it, round the three walls.
+            var dadoS = Surface(WorkshopSurfaces.WornPaint(), new Color(0.16f, 0.3f, 0.32f), 0.45f, new Vector2(w / 1.5f, 1f));
+            var dadoSide = Surface(WorkshopSurfaces.WornPaint(), new Color(0.16f, 0.3f, 0.32f), 0.45f, new Vector2(d / 1.5f, 1f));
+            var ochre = _art.Lit(Texture2D.whiteTexture, new Color(0.85f, 0.6f, 0.2f), 0.9f);
+            Box("DadoS", new Vector3(0f, 0.525f, RoomSouth + 0.07f), new Vector3(w, 1.05f, 0.02f), dadoS);
+            Box("DadoE", new Vector3(w * 0.5f - 0.07f, 0.525f, cz), new Vector3(0.02f, 1.05f, d), dadoSide);
+            Box("DadoW", new Vector3(-w * 0.5f + 0.07f, 0.525f, cz), new Vector3(0.02f, 1.05f, d), dadoSide);
+            Box("DadoLineS", new Vector3(0f, 1.06f, RoomSouth + 0.085f), new Vector3(w, 0.03f, 0.02f), ochre);
+            Box("DadoLineE", new Vector3(w * 0.5f - 0.085f, 1.06f, cz), new Vector3(0.02f, 0.03f, d), ochre);
+            Box("DadoLineW", new Vector3(-w * 0.5f + 0.085f, 1.06f, cz), new Vector3(0.02f, 0.03f, d), ochre);
             Box("Sill", new Vector3(0f, 0.45f, RoomNorth), new Vector3(w, 0.9f, 0.3f), wall);
             Box("SillLight", new Vector3(0f, 0.905f, RoomNorth - 0.16f), new Vector3(w * 0.96f, 0.02f, 0.03f), cyan);
             Box("Header", new Vector3(0f, h - 0.15f, RoomNorth), new Vector3(w, 0.3f, 0.3f), dark);
@@ -257,6 +289,11 @@ namespace Core.Stations
         {
             var xw = w * 0.5f;
             var cz = (RoomNorth + RoomSouth) * 0.5f;
+            // Each fitting its own finish: orange enamel lockers, a wooden bench top, a green pegboard, white tanks.
+            var lockerPaint = Surface(WorkshopSurfaces.WornPaint(), new Color(0.86f, 0.42f, 0.14f), 0.5f, new Vector2(1f, 1.6f));
+            var butcherBlock = _art.Lit(StationSurfaces.Planks(), new Color(0.6f, 0.4f, 0.24f), 0.5f, 1.2f);
+            var pegboard = Surface(WorkshopSurfaces.WornPaint(), new Color(0.32f, 0.44f, 0.32f), 0.45f, new Vector2(2f, 1.1f));
+            var tankPaint = Surface(WorkshopSurfaces.WornPaint(), new Color(0.86f, 0.88f, 0.9f), 0.5f, new Vector2(2f, 1.8f));
 
             // Structural pilasters along both side walls (forward of the lockers), a thin cyan seam on each; the
             // module store stands where the aft starboard one would.
@@ -281,7 +318,7 @@ namespace Core.Stations
             for (var i = 0; i < 2; i++)
             {
                 var z = RoomSouth + 1.5f + i * 1.45f;
-                Box("Locker" + i, new Vector3(-xw + 0.33f, 1.05f, z), new Vector3(0.5f, 2.1f, 1.3f), wall);
+                Box("Locker" + i, new Vector3(-xw + 0.33f, 1.05f, z), new Vector3(0.5f, 2.1f, 1.3f), lockerPaint);
                 Box("LockerSplit" + i, new Vector3(-xw + 0.585f, 1.05f, z), new Vector3(0.01f, 1.95f, 0.02f), dark);
                 Box("LockerHandleA" + i, new Vector3(-xw + 0.6f, 1.1f, z - 0.12f), new Vector3(0.02f, 0.4f, 0.03f), cyan);
                 Box("LockerHandleB" + i, new Vector3(-xw + 0.6f, 1.1f, z + 0.12f), new Vector3(0.02f, 0.4f, 0.03f), cyan);
@@ -290,9 +327,9 @@ namespace Core.Stations
 
             // Aft wall, either side of the door: a work bench (west) and coolant tanks (east).
             Box("Bench", new Vector3(-2.6f, 0.45f, RoomSouth + 0.42f), new Vector3(2.2f, 0.9f, 0.7f), dark);
-            Box("BenchTop", new Vector3(-2.6f, 0.915f, RoomSouth + 0.42f), new Vector3(2.26f, 0.03f, 0.76f), wall);
+            Box("BenchTop", new Vector3(-2.6f, 0.915f, RoomSouth + 0.42f), new Vector3(2.26f, 0.03f, 0.76f), butcherBlock);
             Box("BenchEdge", new Vector3(-2.6f, 0.9f, RoomSouth + 0.805f), new Vector3(2.2f, 0.02f, 0.01f), cyan);
-            Box("ToolBoard", new Vector3(-2.6f, 1.75f, RoomSouth + 0.08f), new Vector3(2.0f, 1.1f, 0.04f), wall);
+            Box("ToolBoard", new Vector3(-2.6f, 1.75f, RoomSouth + 0.08f), new Vector3(2.0f, 1.1f, 0.04f), pegboard);
             for (var i = 0; i < 5; i++)
                 Box("Tool" + i, new Vector3(-3.4f + i * 0.4f, 1.72f + (i % 2) * 0.12f, RoomSouth + 0.12f),
                     new Vector3(0.05f, 0.5f - (i % 3) * 0.08f, 0.03f), dark);
@@ -306,7 +343,7 @@ namespace Core.Stations
                 tank.transform.localPosition = new Vector3(2.3f + i * 0.75f, 0.9f, RoomSouth + 0.45f);
                 tank.transform.localScale = new Vector3(0.55f, 0.9f, 0.55f);
                 var tr = tank.GetComponent<MeshRenderer>();
-                tr.sharedMaterial = wall;
+                tr.sharedMaterial = tankPaint;
                 tr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
                 Box("TankBand" + i, new Vector3(2.3f + i * 0.75f, 1.35f, RoomSouth + 0.45f), new Vector3(0.57f, 0.05f, 0.57f), cyan);
                 Box("TankValve" + i, new Vector3(2.3f + i * 0.75f, 0.55f, RoomSouth + 0.74f), new Vector3(0.1f, 0.1f, 0.06f), amber);
@@ -315,7 +352,8 @@ namespace Core.Stations
             Box("TankPipe", new Vector3(2.675f, 2.2f, RoomSouth + 0.2f), new Vector3(1.2f, 0.08f, 0.08f), dark);
 
             // Hazard apron at the doorway: the one place on this floor that takes you out.
-            Box("DoorApron", new Vector3(0f, 0.004f, RoomSouth + 0.7f), new Vector3(1.9f, 0.008f, 1.2f), dark);
+            Box("DoorApron", new Vector3(0f, 0.004f, RoomSouth + 0.7f), new Vector3(1.9f, 0.008f, 1.2f),
+                Surface(WorkshopSurfaces.Hazard(), Color.white, 0.7f, new Vector2(1.9f / 0.6f, 1.2f / 0.6f)));
             Box("ApronEdgeN", new Vector3(0f, 0.01f, RoomSouth + 1.3f), new Vector3(1.9f, 0.01f, 0.05f), amber);
             Box("ApronEdgeW", new Vector3(-0.95f, 0.01f, RoomSouth + 0.7f), new Vector3(0.05f, 0.01f, 1.2f), amber);
             Box("ApronEdgeE", new Vector3(0.95f, 0.01f, RoomSouth + 0.7f), new Vector3(0.05f, 0.01f, 1.2f), amber);
@@ -329,9 +367,12 @@ namespace Core.Stations
             var cz = z0 + bd * 0.5f;
             Box("BayFloor", new Vector3(0f, floor, cz), new Vector3(bw, 0.2f, bd), _art.DeckMat(0.4f));
             Box("BayCeiling", new Vector3(0f, top, cz), new Vector3(bw, 0.2f, bd), dark);
-            Box("BayWallN", new Vector3(0f, (floor + top) * 0.5f, z0 + bd), new Vector3(bw, top - floor, 0.3f), dark);
-            Box("BayWallE", new Vector3(bw * 0.5f, (floor + top) * 0.5f, cz), new Vector3(0.3f, top - floor, bd), dark);
-            Box("BayWallW", new Vector3(-bw * 0.5f, (floor + top) * 0.5f, cz), new Vector3(0.3f, top - floor, bd), dark);
+            // The hangar's own skin: big ribbed plates, darker than the control room's.
+            var bayN = Surface(WorkshopSurfaces.Ribbed(), new Color(0.32f, 0.37f, 0.43f), 0.4f, new Vector2(bw / 4f, 3f));
+            var baySide = Surface(WorkshopSurfaces.Ribbed(), new Color(0.32f, 0.37f, 0.43f), 0.4f, new Vector2(bd / 4f, 3f));
+            Box("BayWallN", new Vector3(0f, (floor + top) * 0.5f, z0 + bd), new Vector3(bw, top - floor, 0.3f), bayN);
+            Box("BayWallE", new Vector3(bw * 0.5f, (floor + top) * 0.5f, cz), new Vector3(0.3f, top - floor, bd), baySide);
+            Box("BayWallW", new Vector3(-bw * 0.5f, (floor + top) * 0.5f, cz), new Vector3(0.3f, top - floor, bd), baySide);
             Box("BayWallS", new Vector3(0f, (floor - 0.1f) * 0.5f + 0f, z0), new Vector3(bw, -floor, 0.3f), dark);
             for (var i = -3; i <= 3; i++)
             {
@@ -1113,12 +1154,11 @@ namespace Core.Stations
 
             var s = ModuleCatalog.Sum(_layout);
             var station = StationHull;
-            // The catalogue sum is the design's base; the server's own sums (research, species, the hull's real
-            // module rows) are what the ship flies and fights with — shown beside it in green.
+            // One number per stat, the final one: the server's own sums (research, species, the hull's real
+            // module rows) are what the ship flies and fights with. The design sum (catalogue × research) only
+            // stands in while the server has no figure for this hull yet.
             var hull = _focus?.FindFleet(_fleetId);
-            string Eff(float design, float real) => hull == null || real <= 0f || Mathf.RoundToInt(real) == Mathf.RoundToInt(design)
-                ? Mathf.RoundToInt(design).ToString()
-                : Mathf.RoundToInt(design) + "  <color=#7dffb0>" + Mathf.RoundToInt(real) + "</color>";
+            string Eff(float design, float real) => Mathf.RoundToInt(hull != null && real > 0f ? real : design).ToString();
             var rows = new (string, string)[]
             {
                 (Trans.Get("modules"), s.Modules.ToString()),
@@ -1541,14 +1581,14 @@ namespace Core.Stations
         }
 
         /// <summary>
-        /// The recycler's confirmed order: one hangar module of that type → DelShip (no refund). Answers null
-        /// when done, else the error the recycler shows.
+        /// The recycler's confirmed order: one hangar module of that type → DelShip, which gives its build cost back
+        /// to the planet. Answers (null, what came back) when done, else (the error the recycler shows, null).
         /// </summary>
-        async Task<string> Recycle(string type)
+        async Task<(string error, string done)> Recycle(string type)
         {
             var row = HangarRow(type);
             if (row == null)
-                return Trans.Get("notFound");
+                return (Trans.Get("notFound"), null);
             ApiResult r;
             _busy = true;
             try
@@ -1568,7 +1608,29 @@ namespace Core.Stations
             RenderPanels();
             RenderShipScreen();
             PaintGrid();
-            return r.Ok ? null : Error(r);
+            return r.Ok ? (null, RefundedText(r)) : (Error(r), null);
+        }
+
+        /// <summary>DelShip's {refunded:{mineral, crystal, …}} as "Minerai 1 200 · Cristal 600" (empty = nothing came back).</summary>
+        static string RefundedText(ApiResult r)
+        {
+            JObject given = null;
+            try
+            {
+                if (!string.IsNullOrEmpty(r.Body) && r.Body.TrimStart().StartsWith("{"))
+                    given = JObject.Parse(r.Body)["refunded"] as JObject;
+            }
+            catch (Newtonsoft.Json.JsonException)
+            {
+            }
+
+            if (given == null)
+                return string.Empty;
+            var parts = new List<string>();
+            foreach (var c in given.Properties())
+                if (FocusContext.AsFloat(c.Value) > 0f)
+                    parts.Add(Trans.Get("vr.res." + c.Name) + " +" + ScreenKit.Num(FocusContext.AsFloat(c.Value)));
+            return string.Join("  ·  ", parts);
         }
 
         async Task Rename()
