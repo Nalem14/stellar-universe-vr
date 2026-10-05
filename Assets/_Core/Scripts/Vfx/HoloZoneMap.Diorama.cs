@@ -439,7 +439,9 @@ namespace Core.Vfx
 
             var name = string.IsNullOrEmpty(displayName) || displayName == "ship" ? "#" + id : displayName;
             // A raider's label says what its level means and what beating it pays (the name alone says "Lv. 2").
-            var caption = Core.Holo.PirateIntel.Caption(FocusContext.Current?.FindFleet(id));
+            var described = FocusContext.Current?.FindFleet(id);
+            // Another empire's ship says whose it is; a raider what its level means and pays.
+            var caption = Core.Holo.PirateIntel.Caption(described) + Core.Holo.PirateIntel.OwnerCaption(described);
             AddTokenLabel(go.transform, name + caption, 0.035f,
                 active ? CicArtKit.Cyan : new Color(tint.r * 0.7f + 0.3f, tint.g * 0.7f + 0.3f, tint.b * 0.7f + 0.3f, 1f),
                 bold: active, startVisible: owned);

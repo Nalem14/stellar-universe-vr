@@ -869,7 +869,10 @@ namespace Core.Holo
             }
 
             // What the raider's level means before choosing who goes: its guns and armour, its bounty.
-            var intel = new List<string> { foeName };
+            var intel = new List<string> { foeName + PirateIntel.OwnerCaption(foe) };
+            var warn = PirateIntel.FriendlyFireWarning(foe);
+            if (warn.Length > 0)
+                intel.Add(warn);
             foreach (var line in new[] { PirateIntel.LevelLine(foe), PirateIntel.Threat(foe, null), PirateIntel.Loot(foe) })
                 if (line.Length > 0)
                     intel.Add(line);
@@ -1142,6 +1145,9 @@ namespace Core.Holo
                     // How it weighs against the ship that would go, and (a raider) what it pays.
                     var odds = PirateIntel.Odds(foe, fleet);
                     var loot = PirateIntel.Loot(foe);
+                    var friendly = PirateIntel.FriendlyFireWarning(foe);
+                    if (friendly.Length > 0)
+                        order += "\n<size=75%>" + friendly + "</size>";
                     if (odds.Length > 0)
                         order += "\n<size=75%>" + odds + "</size>";
                     if (loot.Length > 0)
