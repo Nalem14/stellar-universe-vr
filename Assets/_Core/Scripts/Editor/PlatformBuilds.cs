@@ -149,6 +149,18 @@ namespace Core.Editor
             Directory.CreateDirectory(Path.GetDirectoryName(report));
             File.WriteAllText(report, "START " + System.DateTime.Now.ToString("HH:mm:ss") + "\n");
             var builder = CreateInstance<PlatformBuilds>();
+            // Nobody is there to answer "save the modified scenes?" (BuildPlayer asks, and waits forever): an open
+            // scene changed in memory is Play-mode noise — reload it from disk, the build takes the saved one anyway.
+            for (var i = 0; i < UnityEngine.SceneManagement.SceneManager.sceneCount; i++)
+            {
+                var scene = UnityEngine.SceneManagement.SceneManager.GetSceneAt(i);
+                if (scene.isDirty && !string.IsNullOrEmpty(scene.path))
+                {
+                    EditorSceneManager.OpenScene(scene.path, OpenSceneMode.Single);
+                    break;
+                }
+            }
+
             EditorApplication.LockReloadAssemblies();
             try
             {
