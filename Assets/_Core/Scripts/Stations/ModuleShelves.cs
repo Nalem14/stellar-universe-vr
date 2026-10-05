@@ -702,7 +702,7 @@ namespace Core.Stations
                 if (Shown(kv.Key, kv.Value))
                     _types.Add(kv.Key);
             // What the hangar holds for this hull first, then what can be printed for it, then the rest (other
-            // hull, cores); by family within each.
+            // hull, cores); in unlock order within each.
             int Rank(string t) => _refusal?.Invoke(t) != null ? 2 : _counts[t] > 0 ? 0 : 1;
             _types.Sort((a, b) =>
             {
@@ -710,8 +710,7 @@ namespace Core.Stations
                 var sb = Rank(b);
                 if (sa != sb)
                     return sa.CompareTo(sb);
-                var f = ModuleCatalog.Family(a).CompareTo(ModuleCatalog.Family(b));
-                return f != 0 ? f : string.CompareOrdinal(a, b);
+                return ModuleCatalog.CompareUnlock(a, b);
             });
             _pages = Mathf.Max(1, Mathf.CeilToInt(_types.Count / (float)PerPage));
             _page = Mathf.Clamp(_page, 0, _pages - 1);

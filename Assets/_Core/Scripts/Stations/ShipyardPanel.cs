@@ -288,6 +288,8 @@ namespace Core.Stations
             foreach (var t in byHull)
                 if (_family == null || ModuleCatalog.Family(t) == _family)
                     types.Add(t);
+            // In the order the shipyard and the research unlock them.
+            types.Sort(ModuleCatalog.CompareUnlock);
             Text(types.Count + " " + Trans.Get("modules"), 300f, y, 290f, 15f, DiegeticUi.CyanDim, TextAlignmentOptions.MidlineRight);
 
             y -= 46f;

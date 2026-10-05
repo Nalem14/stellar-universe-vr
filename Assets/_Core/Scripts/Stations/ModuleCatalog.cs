@@ -156,8 +156,8 @@ namespace Core.Stations
                 case "OrbitalJammingArray": return ModuleFamily.Special;
                 case "OrbitalGantry": return ModuleFamily.Special;
                 case "CitadelReactor": return ModuleFamily.Defense;
-                // "laser" would read it as a weapon: a mining tool, logistics.
-                case "MiningLaser": return ModuleFamily.Cargo;
+                // "laser" would read it as a weapon: an extraction instrument, with the science modules.
+                case "MiningLaser": return ModuleFamily.Science;
             }
 
             var t = type.ToLowerInvariant();
@@ -341,6 +341,45 @@ namespace Core.Stations
         }
 
         static bool Occ(bool[,] o, int x, int y) => x >= 0 && y >= 0 && x < Grid && y < Grid && o[x, y];
+
+        /// <summary>
+        /// Unlock order of two module types (catalogue and store shelves): the shipyard level they need first, then
+        /// the highest research level they need, then the cheaper first, then by name.
+        /// </summary>
+        public static int CompareUnlock(string a, string b)
+        {
+            var ka = UnlockKey(a);
+            var kb = UnlockKey(b);
+            var c = ka.Yard.CompareTo(kb.Yard);
+            if (c == 0)
+                c = ka.Research.CompareTo(kb.Research);
+            if (c == 0)
+                c = ka.Cost.CompareTo(kb.Cost);
+            return c != 0 ? c : string.CompareOrdinal(a, b);
+        }
+
+        static (int Yard, int Research, float Cost) UnlockKey(string type)
+        {
+            var st = Stats(type);
+            int yard = 0, research = 0;
+            if (st?["requiert"] is JObject req)
+                foreach (var r in req.Properties())
+                {
+                    var lvl = FocusContext.AsInt(r.Value);
+                    if (r.Name == "orbitShipyard")
+                        yard = lvl;
+                    else
+                        research = Mathf.Max(research, lvl);
+                }
+
+            // Every module is built at a shipyard: one that names no level needs the first.
+            yard = Mathf.Max(1, yard);
+            var cost = 0f;
+            if (st?["cost"] is JObject c)
+                foreach (var r in c.Properties())
+                    cost += FocusContext.AsFloat(r.Value);
+            return (yard, research, cost);
+        }
 
         /// <summary>
         /// Seconds the shipyard takes for one module of this type, as the server times it (ModuleBuildSeconds):
