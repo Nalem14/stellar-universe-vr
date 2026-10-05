@@ -990,8 +990,9 @@ namespace Core.Stations
                     foreach (var p in pols)
                         if (_policyNames.TryGetValue(FocusContext.AsInt(p["policy_id"]), out var n))
                             ethics.Add(Trans.Get(n));
-                var authority = FocusContext.AsString(_dossierDetail["authority"]?["name"]);
-                var species = FocusContext.AsString(_dossierDetail["specy"]?["type"]?["name"]);
+                // An AI empire or one never set up answers authority false / specy null: only objects have fields.
+                var authority = FocusContext.AsString((_dossierDetail["authority"] as JObject)?["name"]);
+                var species = FocusContext.AsString(((_dossierDetail["specy"] as JObject)?["type"] as JObject)?["name"]);
                 var parts = new List<string>();
                 if (authority.Length > 0)
                     parts.Add(Trans.Get(authority));
@@ -1010,7 +1011,8 @@ namespace Core.Stations
 
             if (member)
             {
-                Line(_dossierBody, Trans.Get("vr.diplo.member"), 0f, 0f, 20f, UiKit.Ok, 1000f, TextAlignmentOptions.Center);
+                Line(_dossierBody, Trans.Get("vr.diplo.member"), 0f, -10f, 20f, UiKit.Ok, 1000f, TextAlignmentOptions.Center);
+                RenderGestures(id);
                 return;
             }
 
