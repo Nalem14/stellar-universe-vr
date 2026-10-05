@@ -25,6 +25,8 @@ namespace Core.Vfx
         const float GalaxyRebuildInterval = 0.05f;
         /// <summary>Wanted spacing between neighbouring stars at full zoom-in (m on the table).</summary>
         const float GalaxyNearSpacing = 0.13f;
+        /// <summary>How much closer than "near" (neighbours a hand-width apart) the galaxy zoom still goes.</summary>
+        const float GalaxyExtraZoom = 3f;
         const float GalaxyViewRadiusFactor = 0.97f;
         /// <summary>Ship tokens shrink on the galaxy so a star keeps its read under them.</summary>
         const float GalaxyFleetScale = 0.8f;
@@ -86,7 +88,10 @@ namespace Core.Vfx
             // Whole galaxy fits the disc at min zoom; at max zoom neighbours are a hand-width apart.
             _gMinScale = r / (Mathf.Sqrt(dx * dx + dy * dy) * 0.5f);
             var spacing = Mathf.Sqrt(dx * dy / Mathf.Max(1, stars.Count));
-            _gMaxScale = Mathf.Max(_gMinScale * 2f, GalaxyNearSpacing / Mathf.Max(1e-3f, spacing));
+            // "Near": neighbours a hand-width apart (the opening view is set from it); the zoom goes on past it, to
+            // GalaxyExtraZoom times closer, for a crowded neighbourhood or a ship between two close stars.
+            var near = Mathf.Max(_gMinScale * 2f, GalaxyNearSpacing / Mathf.Max(1e-3f, spacing));
+            _gMaxScale = near * GalaxyExtraZoom;
 
             // Open on the inhabited system, close enough to see its neighbourhood.
             var focus = _focus ?? FocusContext.Current;
@@ -94,7 +99,7 @@ namespace Core.Vfx
                 ? new Vector2(here.MapX, here.MapY)
                 : new Vector2((minX + maxX) * 0.5f, (minY + maxY) * 0.5f);
             // Close enough that neighbouring stars are a couple of fingers apart (aiming one is easy).
-            _gScale = Mathf.Clamp(_gMaxScale * 0.7f, _gMinScale, _gMaxScale);
+            _gScale = Mathf.Clamp(near * 0.7f, _gMinScale, _gMaxScale);
             // Our ship between stars: frame the whole trip, the origin and the destination both on the table.
             var ship = focus?.FindFleet(focus.ViewFleetId);
             var nowUnix = System.DateTimeOffset.UtcNow.ToUnixTimeSeconds();
