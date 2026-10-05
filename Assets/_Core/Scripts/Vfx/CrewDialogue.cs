@@ -808,6 +808,9 @@ namespace Core.Vfx
 
         void BuildEngineering(FocusContext focus, FocusFleet fleet)
         {
+            // At a field without a Mining Laser: the chief says what is missing instead of offering nothing.
+            if (FleetOrderGate.NeedsMiningLaser(fleet))
+                AddAction(Trans.Get("needMiningLaser"), () => Task.CompletedTask, DiegeticUi.BtnStyle.Ghost, refreshAfter: false);
             if (FleetOrderGate.CanMine(fleet))
             {
                 AddAction(ActionLabel("harvestAsteroid", Trans.Get("asteroidField") + " #" + fleet.AsteroidId),

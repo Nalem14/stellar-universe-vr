@@ -19,6 +19,8 @@ namespace Core.Vfx
         enum Kind
         {
             Core, Armor, Cargo, Colony, Troop, Weapon, Engine, Shield, Sensor, Science, Stealth, Repair, Special, Utility,
+            // Mining Laser: a downward drill-emitter (by name: "laser" alone would read it as a weapon).
+            MiningLaser,
             // Orbital fortress modules (web 69d40af): one silhouette each, read from far through a porthole.
             StationHub, OrbitalBattery, ShieldProjector, JammingArray, Gantry, CitadelReactor
         }
@@ -599,6 +601,7 @@ namespace Core.Vfx
                 case Kind.Science: BuildScience(k, deck); break;
                 case Kind.Stealth: BuildStealth(k, deck); break;
                 case Kind.Repair: BuildRepair(k, deck); break;
+                case Kind.MiningLaser: BuildMiningLaser(k, deck); break;
                 case Kind.Special: BuildSpecial(k, deck, module.Type); break;
                 case Kind.StationHub: BuildStationHub(k, deck); break;
                 case Kind.OrbitalBattery: BuildOrbitalBattery(k, deck); break;
@@ -903,6 +906,28 @@ namespace Core.Vfx
             Pulse(tool, 1.2f, 5.5f, 7f);
         }
 
+        /// <summary>
+        /// Mining Laser: a squat armoured gimbal, a heavy emitter barrel angled down past the hull's flank with a
+        /// pulsing amber lens, a ribbed ore hopper behind it and a feed pipe into the hold.
+        /// </summary>
+        static void BuildMiningLaser(Kit k, Vector3 p)
+        {
+            var z = k.Z;
+            k.Cyl("Gimbal", p + new Vector3(0f, 0.32f, 0f), new Vector3(0.62f, 0.16f, 0.62f), Vector3.zero, k.Pal.Dark);
+            k.Sph("Mount", p + new Vector3(0f, 0.58f, 0f), 0.34f, k.Pal.Hull);
+            k.Cyl("Barrel", p + new Vector3(0.44f, 0.4f, 0.12f * z), new Vector3(0.28f, 0.55f, 0.28f), new Vector3(0f, 0f, 55f),
+                k.Pal.Dark);
+            k.Cyl("Collar", p + new Vector3(0.78f, 0.17f, 0.12f * z), new Vector3(0.36f, 0.06f, 0.36f), new Vector3(0f, 0f, 55f),
+                k.Pal.Brass);
+            var lens = k.Sph("Lens", p + new Vector3(0.9f, 0.08f, 0.12f * z), 0.16f, k.Pal.AmberDim);
+            Pulse(lens, 1.6f, 3.5f, 6f);
+            k.Blob("Hopper", p + new Vector3(-0.32f, 0.6f, -0.24f * z), new Vector3(0.46f, 0.4f, 0.42f), k.Pal.Hull);
+            for (var i = 0; i < 3; i++)
+                k.Cyl("HopperRib" + i, p + new Vector3(-0.32f, 0.44f + i * 0.14f, -0.24f * z), new Vector3(0.5f, 0.02f, 0.46f),
+                    Vector3.zero, k.Pal.Dark);
+            k.Link("Feed", p + new Vector3(-0.3f, 0.3f, -0.22f * z), p + new Vector3(-0.05f, 0.05f, -0.42f * z), 0.05f, k.Pal.Brass);
+        }
+
         static void BuildSpecial(Kit k, Vector3 p, string type)
         {
             var t = type != null ? type.ToLowerInvariant() : string.Empty;
@@ -1162,6 +1187,7 @@ namespace Core.Vfx
                 case "OrbitalJammingArray": return Kind.JammingArray;
                 case "OrbitalGantry": return Kind.Gantry;
                 case "CitadelReactor": return Kind.CitadelReactor;
+                case "MiningLaser": return Kind.MiningLaser;
             }
 
             var t = type.ToLowerInvariant();

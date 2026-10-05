@@ -156,6 +156,8 @@ namespace Core.Stations
                 case "OrbitalJammingArray": return ModuleFamily.Special;
                 case "OrbitalGantry": return ModuleFamily.Special;
                 case "CitadelReactor": return ModuleFamily.Defense;
+                // "laser" would read it as a weapon: a mining tool, logistics.
+                case "MiningLaser": return ModuleFamily.Cargo;
             }
 
             var t = type.ToLowerInvariant();

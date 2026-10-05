@@ -68,6 +68,8 @@ namespace Core.App
         public float ShieldTotal;
         public bool HasHyperdrive;
         public bool HasPrlBond;
+        /// <summary>Mining Lasers on board (GetAllFleets stats.miningLaserCount); −1 = not served (older server).</summary>
+        public int MiningLasers = -1;
         /// <summary>Enough jump modules for the hull size (else the server falls back / refuses).</summary>
         public bool EnoughHyperdrive;
         public bool EnoughPrlBond;
@@ -727,6 +729,8 @@ namespace Core.App
                         row.ShieldTotal = AsFloat(stats["shieldFleet"]);
                         row.HasHyperdrive = AsBool(stats["hasHyperdrive"]);
                         row.HasPrlBond = AsBool(stats["hasPrlBond"]);
+                        if (stats["miningLaserCount"] != null)
+                            row.MiningLasers = AsInt(stats["miningLaserCount"]);
                         row.CrystalCargo = AsInt(stats["crystalCargo"]);
                         row.Cargo = AsInt(stats["cargo"]);
                         row.MineralCargo = AsInt(stats["mineralCargo"]);

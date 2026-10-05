@@ -879,6 +879,8 @@ namespace Core.Vfx
             {
                 if (FleetOrderGate.CanMine(fleet))
                     options.Add(new Core.Holo.OrderConsole.Option(Trans.Get("harvestAsteroid"), true, UiKit.Cyan, "HarvestAsteroid"));
+                else if (FleetOrderGate.NeedsMiningLaser(fleet))
+                    options.Add(new Core.Holo.OrderConsole.Option(Trans.Get("needMiningLaser"), false, UiKit.Amber, null));
                 return options;
             }
 

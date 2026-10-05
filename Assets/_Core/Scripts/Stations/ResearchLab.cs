@@ -1219,7 +1219,7 @@ namespace Core.Stations
                 // Rows in a fixed, readable order per column.
                 string[] rank =
                 {
-                    "damage", "armor", "shield", "scannerRange", "speed", "prlRange", "power", "solarPower", "mine", "food",
+                    "damage", "armor", "shield", "scannerRange", "speed", "prlRange", "power", "solarPower", "mine", "food", "harvestSpeed",
                     "habitability", "constructionTime", "buildingTime", "moduleBuildTime", "troopTrainingTime", "homeAndFarmBuildingTime", "colonizationTime",
                     "researchTime", "relation"
                 };

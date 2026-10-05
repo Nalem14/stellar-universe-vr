@@ -101,8 +101,15 @@ namespace Core.Vfx
         public static int EngagePlanet(FocusFleet mine, FocusFleet target) =>
             target.IsPirate || DiplomacyIndex.ResolveFleet(target) == EmpireStance.Pirate ? 0 : mine.PlanetId;
 
+        /// <summary>Mining needs a Mining Laser on board (server HarvestAsteroid: needMiningLaser); unknown = allowed.</summary>
+        public static bool HasMiningLaser(FocusFleet fleet) => fleet != null && fleet.MiningLasers != 0;
+
         public static bool CanMine(FocusFleet fleet) =>
-            CanMove(fleet) && fleet.AsteroidId > 0;
+            CanMove(fleet) && fleet.AsteroidId > 0 && HasMiningLaser(fleet);
+
+        /// <summary>Docked at a field and free to act, but no Mining Laser: say why there is no harvest order.</summary>
+        public static bool NeedsMiningLaser(FocusFleet fleet) =>
+            fleet != null && CanMove(fleet) && fleet.AsteroidId > 0 && !HasMiningLaser(fleet);
 
         public static bool CanExplore(FocusFleet fleet) =>
             IsIdle(fleet) && fleet.PlanetId > 0;
