@@ -1,6 +1,6 @@
 # PARITY — Stellar Universe (casque · PC · mobile) ↔ `actionjs.php`
 
-Généré depuis `action-api.json` (175 actions), `actionjs.php` et un grep des deux clients. Référence web : `/Users/thommy/Websites/stellar-universe`. Roadmap : [`ROADMAP.md`](ROADMAP.md).
+Généré depuis `action-api.json` (177 actions), `actionjs.php` et un grep des deux clients. Référence web : `/Users/thommy/Websites/stellar-universe`. Roadmap : [`ROADMAP.md`](ROADMAP.md).
 
 **Règle** : chaque feature livrée met à jour sa ligne. Avant de coder, lire l'implémentation web (colonne *Web*) + `model/*.php`. On adapte la jouabilité au pont (casque, souris, tactile : voir `PLATFORMS.md`) ; le contrat serveur reste strict. Le jeu ne renvoie **jamais** au web.
 
@@ -19,7 +19,7 @@ Généré depuis `action-api.json` (175 actions), `actionjs.php` et un grep des 
 | Méta / boot | 5 | 5 | 100 % |
 | Caméra (vue) | 2 | 2 | 100 % |
 | Galaxie | 8 | 8 | 100 % |
-| Flotte | 24 | 26 | 92 % |
+| Flotte | 26 | 28 | 93 % |
 | Vaisseau / chantier | 12 | 13 | 92 % |
 | Planète / bâtiments / recherche | 18 | 18 | 100 % |
 | Combat | 12 | 14 | 86 % |
@@ -31,9 +31,9 @@ Généré depuis `action-api.json` (175 actions), `actionjs.php` et un grep des 
 | Empire / progression / shop | 24 | 27 | 89 % |
 | Saisons de suprématie | 5 | 5 | 100 % |
 | Marché galactique / convois | 5 | 5 | 100 % |
-| **Total** | **167** | **175** | **95 %** |
+| **Total** | **169** | **177** | **95 %** |
 
-Appelées par le client web : 151/175. « Appelée » ≠ « finie » : voir la colonne *Statut*.
+Appelées par le client web : 151/177. « Appelée » ≠ « finie » : voir la colonne *Statut*.
 
 ## Auth
 
@@ -86,6 +86,7 @@ Appelées par le client web : 151/175. « Appelée » ≠ « finie » : voir la 
 | `GetAllFleetsAround` | R | — | — | `scenes/galaxy.js` | Helm | — | Hors scope | Interdit en VR (règle AGENTS) — `GetAllFleets` + filtre client |
 | `GetSystemAsteroids` | R | systemid | `App/AsteroidService.cs` | `scenes/system.js` | Helm | P5 | Branché | `AsteroidService` : lecture fraîche à chaque système visité (la liste de `GetSystems` peut dater d'une heure), puis toutes les 30 s pendant qu'un de nos vaisseaux y mine (2 min sinon) et après `HarvestAsteroid` ; réserves minerai / cristal sur le jeton, l'arc et le pupitre, amas qui rétrécit sur la table et dehors, champ épuisé retiré |
 | `HarvestAsteroid` | W | fleet, asteroid | `Crew/CrewLines.cs` +2 | `objects/fleet.js` | Engineering | P5 | Branché |  |
+| `LoadModules` | W | fleet, planet, ships | `Vfx/CrewDialogue.cs` | — | Helm | P5 | Branché | Ingénierie / Opérations en orbite d'un de nos mondes : « Embarquer des modules » → pupitre de fret (types du hangar, −/+/Tout, place restante à 500 de soute chacun) |
 | `LoadTroops` | W | fleet, planet, troops | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Tactical | P5 | Branché | Soute à troupes de l'Armurerie : `{type: qty}` ; réponse = unités déplacées → navettes dehors + étincelle sur la table |
 | `MoveFleetToAsteroid` | W | fleet, asteroid, hyperspace? | `App/VoyageLog.cs` +4 | `objects/fleet.js` | Helm | P4 | Branché | idem hyperspace |
 | `MoveFleetToPlanet` | W | fleet, planet, hyperspace? | `App/VoyageLog.cs` +4 | `objects/fleet.js` | Helm | P4 | Branché | idem hyperspace |
@@ -100,6 +101,7 @@ Appelées par le client web : 151/175. « Appelée » ≠ « finie » : voir la 
 | `ToggleFleetAutoExplore` | W | fleet, enabled? | `Vfx/CrewDialogue.cs` | `objects/fleet.js` | Science | P5 | Branché | Répéteur Science d'un vaisseau à module scientifique (ScienceModule / SensorArray / DeepSpaceScanner) : `enabled` explicite 0/1, état lu sur `GetAllFleets.autoExplore` |
 | `ToggleFleetAutoMine` | W | fleet, planet?, enabled? | `Vfx/CrewDialogue.cs` | `objects/fleet.js` | Engineering | P5 | Branché | Répéteur Ingénierie de tout vaisseau à soute et à Laser minier (jamais une station ; sans laser le serveur refuse `needMiningLaser`) : `enabled` explicite, planète de déchargement choisie au pupitre (nos mondes, l'actuelle en tête) ; état `GetAllFleets.autoMine` / `autoMinePlanetId` ; exclusif avec l'exploration auto (le serveur coupe l'autre) |
 | `ToggleFleetQueueLoop` | W | fleet, loop? | `Holo/OrderQueue.cs` | `objects/fleet.js` | Helm | P4 | Branché | `loop` explicite 0/1 |
+| `UnloadModules` | W | fleet, planet, ships | `Vfx/CrewDialogue.cs` | — | Helm | P5 | Branché | Idem, « Débarquer des modules » : les modules à bord vers le hangar |
 | `UnloadTroops` | W | fleet, planet, troops | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Tactical | P5 | Branché | Idem, vers la garnison de nos planètes seulement |
 | `UpdateFleetDefendPosition` | W | id, position | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Tactical | P5 | Branché | Répéteur Tactique : posture courante affichée, trois choix (fuir / défendre la planète / rejoindre l'attaque) ; une station n'a que « défendre la planète (Défense fixe) », verrouillée (`stationMustDefendPlanet`) |
 | `WithdrawCargo` | W | fleet, planet, mineral?, crystal?, biomass? | `Crew/CrewLines.cs` +2 | `objects/fleet.js` | Ops | P5 | Branché |  |
