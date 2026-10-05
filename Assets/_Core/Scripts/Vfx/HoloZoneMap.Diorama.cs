@@ -438,9 +438,13 @@ namespace Core.Vfx
             col.isTrigger = true;
 
             var name = string.IsNullOrEmpty(displayName) || displayName == "ship" ? "#" + id : displayName;
-            AddTokenLabel(go.transform, name, 0.035f,
+            // A raider's label says what its level means and what beating it pays (the name alone says "Lv. 2").
+            var caption = Core.Holo.PirateIntel.Caption(FocusContext.Current?.FindFleet(id));
+            AddTokenLabel(go.transform, name + caption, 0.035f,
                 active ? CicArtKit.Cyan : new Color(tint.r * 0.7f + 0.3f, tint.g * 0.7f + 0.3f, tint.b * 0.7f + 0.3f, 1f),
                 bold: active, startVisible: owned);
+            if (caption.Length > 0 && go.transform.Find("Label")?.GetComponentInChildren<TMP_Text>() is { } captionText)
+                captionText.textWrappingMode = TextWrappingModes.NoWrap;
             Tag(go, HoloTokenKind.Fleet, id, slot, owned, busy, name);
             return go;
         }

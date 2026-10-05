@@ -39,6 +39,19 @@ namespace Core.Holo
             return parts.Count > 0 ? Trans.Format("vr.pirate.loot", string.Join("  ·  ", parts)) : string.Empty;
         }
 
+        /// <summary>
+        /// Two small lines under a raider's token label: its bounty, then what the level stands for. Empty for
+        /// anything but a pirate with a level.
+        /// </summary>
+        public static string Caption(FocusFleet foe)
+        {
+            if (foe == null || !foe.IsPirate || foe.PirateLevel <= 0)
+                return string.Empty;
+            var loot = Loot(foe);
+            return "\n<size=58%>" + (loot.Length > 0 ? "<color=#ffd98a>" + loot + "</color>\n" : string.Empty) +
+                   "<color=#9fdcff>" + Trans.Get("vr.pirate.levelShort") + "</color></size>";
+        }
+
         static void Add(List<string> parts, string label, JToken perLevel, int level)
         {
             var n = FocusContext.AsFloat(perLevel) * level;
