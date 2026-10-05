@@ -1220,7 +1220,7 @@ namespace Core.Stations
                 string[] rank =
                 {
                     "damage", "armor", "shield", "scannerRange", "speed", "prlRange", "power", "solarPower", "mine", "food",
-                    "habitability", "constructionTime", "buildingTime", "moduleBuildTime", "homeAndFarmBuildingTime", "colonizationTime",
+                    "habitability", "constructionTime", "buildingTime", "moduleBuildTime", "troopTrainingTime", "homeAndFarmBuildingTime", "colonizationTime",
                     "researchTime", "relation"
                 };
                 statOrder.Sort((a, b) =>

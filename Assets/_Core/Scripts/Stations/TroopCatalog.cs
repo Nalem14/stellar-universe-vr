@@ -127,13 +127,17 @@ namespace Core.Stations
             return list;
         }
 
-        public static UnitQuote Quote(PlanetEconomy planet, UnitDef def, int qty, int computerLevel)
+        /// <summary>
+        /// Cost and time of a batch as the server counts them: time × qty × Computer's cut, and for troops the
+        /// Biotech clone vats' troopTrainingTime bonus on top (<paramref name="troop"/>).
+        /// </summary>
+        public static UnitQuote Quote(PlanetEconomy planet, UnitDef def, int qty, int computerLevel, bool troop)
         {
             qty = Mathf.Clamp(qty, 1, MaxBatch);
             var m = def.Mineral * qty;
             var c = def.Crystal * qty;
             var b = def.Biomass * qty;
-            var seconds = def.Time * qty * (100f - (computerLevel + 1)) / 100f;
+            var seconds = BatchSeconds(def, qty, computerLevel, troop);
             var affordable = planet != null && planet.Mineral >= m && planet.Crystal >= c && planet.Biomass >= b;
             var max = MaxBatch;
             if (planet != null)
@@ -148,6 +152,14 @@ namespace Core.Stations
             }
 
             return new UnitQuote(m, c, b, seconds, affordable, Mathf.Max(0, max));
+        }
+
+        public static float BatchSeconds(UnitDef def, int qty, int computerLevel, bool troop)
+        {
+            var seconds = def.Time * qty * (100f - Mathf.Min(50, computerLevel + 1)) / 100f;
+            if (troop)
+                seconds *= 1f + ResearchCatalog.StatBonus("troopTrainingTime") / 100f;
+            return Mathf.Max(troop ? 1f : 0f, seconds);
         }
 
         /// <summary>{type: qty} from a GetResource / GetPlanet troops[] or defenseUnits[] array.</summary>

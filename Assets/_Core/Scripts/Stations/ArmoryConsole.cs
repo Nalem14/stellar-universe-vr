@@ -467,7 +467,7 @@ namespace Core.Stations
                 var def = units[i];
                 var y = 24f - i * 50f;
                 var locked = def.Level > level;
-                var q = TroopCatalog.Quote(planet, def, _qty, computer);
+                var q = TroopCatalog.Quote(planet, def, _qty, computer, troops);
                 AccentBar(y, locked ? new Color(0.5f, 0.6f, 0.65f, 0.35f) : Accent);
 
                 counts.TryGetValue(def.Type, out var have);
@@ -525,9 +525,7 @@ namespace Core.Stations
             foreach (var u in units)
                 if (u.Type == type)
                     def = u;
-            var duration = def != null
-                ? def.Time * qty * (100f - (_eco.ResearchLevel("computer") + 1)) / 100f
-                : 0f;
+            var duration = def != null ? TroopCatalog.BatchSeconds(def, qty, _eco.ResearchLevel("computer"), troops) : 0f;
 
             Line(Trans.Format(troops ? "vr.armory.training" : "vr.armory.building", qty, Trans.Get(type)), 0f, 40f, 24f,
                 UiKit.Amber);
