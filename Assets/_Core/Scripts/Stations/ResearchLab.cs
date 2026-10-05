@@ -1146,7 +1146,7 @@ namespace Core.Stations
         /// <summary>Without the server's effects table: a tech's column from its branch.</summary>
         static BonusColumn ColumnOfTech(string tech) => tech switch
         {
-            "weapon" or "laser" or "ion" or "plasma" or "armor" or "shield" or "radarTech" => BonusColumn.Combat,
+            "weapon" or "laser" or "ion" or "plasma" or "thermodynamics" or "armor" or "shield" or "radarTech" => BonusColumn.Combat,
             "combustionDrive" or "impulsionDrive" or "fusionDrive" or "hyperspaceDrive" or "prlBond" => BonusColumn.Propulsion,
             _ => BonusColumn.Utility
         };
