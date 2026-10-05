@@ -141,7 +141,7 @@ namespace Core.App
                 var d = Mathf.Sqrt((a.X - b.X) * (a.X - b.X) + (a.Y - b.Y) * (a.Y - b.Y));
                 var boost = Mathf.Max(0.01f, Boosters.MoveTimeFactor);
                 var slow = Mathf.Max(GameConfig.TravelDurationMin, d * GameConfig.TravelSecondsPerDistance / Mathf.Max(1f, GameConfig.SublightSpeed(f.Speed) / boost));
-                var fast = Mathf.Max(GameConfig.TravelDurationMin, d * GameConfig.TravelSecondsPerDistance / Mathf.Max(1f, f.Speed / boost));
+                var fast = Mathf.Max(GameConfig.TravelDurationMin, d * GameConfig.TravelSecondsPerDistance / Mathf.Max(1f, GameConfig.HyperspaceSpeed(f.Speed) / boost));
                 if (slow - fast > 5f)
                     return left > (slow + fast) * 0.5f ? VoyageMode.Sublight : VoyageMode.Hyperspace;
             }

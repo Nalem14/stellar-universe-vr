@@ -17,12 +17,26 @@ namespace Core.App
         /// <summary>GetConfigs.fleet.sublightSpeedFactor: share of a hull's real speed kept at sub-light (0 = old servers).</summary>
         public static float SublightSpeedFactor { get; private set; }
 
-        /// <summary>Server SublightSpeed(): max(min(speed, cap), speed × factor) — before the booster and the integer.</summary>
+        /// <summary>GetConfigs.fleet.sublightSpeedSoftCap / hyperspaceSpeedCap: the soft ceilings speeds tend to (0 = none).</summary>
+        public static float SublightSpeedSoftCap { get; private set; }
+        public static float HyperspaceSpeedCap { get; private set; }
+
+        /// <summary>
+        /// Server SublightSpeed(): max(min(speed, cap), speed × factor), then past the flat cap diminishing returns
+        /// toward the soft cap — before the booster and the integer.
+        /// </summary>
         public static float SublightSpeed(float speed)
         {
             var cap = SublightSpeedCap > 0f ? System.Math.Min(speed, SublightSpeedCap) : speed;
-            return System.Math.Max(cap, speed * SublightSpeedFactor);
+            var raw = System.Math.Max(cap, speed * SublightSpeedFactor);
+            if (SublightSpeedCap > 0f && raw > SublightSpeedCap && SublightSpeedSoftCap > SublightSpeedCap)
+                raw = System.Math.Max(SublightSpeedCap, SublightSpeedSoftCap * (1f - (float)System.Math.Exp(-raw / SublightSpeedSoftCap)));
+            return raw;
         }
+
+        /// <summary>Server HyperspaceSpeed(): the hull's speed with diminishing returns toward the hyperspace cap.</summary>
+        public static float HyperspaceSpeed(float speed) =>
+            HyperspaceSpeedCap > 0f ? HyperspaceSpeedCap * (1f - (float)System.Math.Exp(-speed / HyperspaceSpeedCap)) : speed;
         public static float HyperspaceCrystalPerDistance { get; private set; }
         /// <summary>
         /// Crystal per distance unit for a faster-than-1 sub-light trip (web f03197d); 0 = not exposed by
@@ -131,6 +145,8 @@ namespace Core.App
                 {
                     SublightSpeedCap = FocusContext.AsFloat(fleet["sublightSpeedCap"]);
                     SublightSpeedFactor = FocusContext.AsFloat(fleet["sublightSpeedFactor"]);
+                    SublightSpeedSoftCap = FocusContext.AsFloat(fleet["sublightSpeedSoftCap"]);
+                    HyperspaceSpeedCap = FocusContext.AsFloat(fleet["hyperspaceSpeedCap"]);
                     HyperspaceCrystalPerDistance = FocusContext.AsFloat(fleet["hyperspaceCrystalCostPerDistance"]);
                     SublightCrystalPerDistance = FocusContext.AsFloat(fleet["sublightCrystalCostPerDistance"]);
                     TravelSecondsPerDistance = FocusContext.AsFloat(fleet["systemTravelSecondsPerDistance"]);

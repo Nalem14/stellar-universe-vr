@@ -108,7 +108,7 @@ namespace Core.Holo
                     if (q.FallbackKey == null)
                     {
                         q.CrystalCost = hyperCost;
-                        q.EtaSeconds = Eta(q.Distance, ServerSpeed(fleet.Speed));
+                        q.EtaSeconds = Eta(q.Distance, ServerSpeed(GameConfig.HyperspaceSpeed(fleet.Speed)));
                         break;
                     }
 
