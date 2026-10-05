@@ -3,10 +3,11 @@ using UnityEngine;
 namespace Core.Vfx
 {
     /// <summary>
-    /// Procedural surfaces for working spaces (the dry dock's control room): each part of the room reads as its
-    /// own material instead of one panel everywhere — diamond tread plate underfoot, ribbed wall cladding, an
-    /// open ceiling grating, worn paint for cabinets and tanks, yellow-and-black hazard stripes. Greyscale (tinted
-    /// by the material) except the hazard stripes; 256 px, tiling, generated once and shared.
+    /// Procedural surfaces for working spaces, so each part of a room reads as its own material instead of one panel
+    /// everywhere. The dry dock's workshop: diamond tread plate underfoot, ribbed wall cladding, an open ceiling
+    /// grating, worn paint for cabinets and tanks, yellow-and-black hazard stripes. The research lab's clean room:
+    /// large floor tiles, white wall panels with shadow gaps, perforated acoustic ceiling tiles. Greyscale (tinted by
+    /// the material) except the hazard stripes; 256 px, tiling, generated once and shared.
     /// </summary>
     public static class WorkshopSurfaces
     {
@@ -15,6 +16,25 @@ namespace Core.Vfx
         static Texture2D _grating;
         static Texture2D _paint;
         static Texture2D _hazard;
+        static Texture2D _labTile;
+        static Texture2D _labPanel;
+        static Texture2D _acoustic;
+        static readonly System.Collections.Generic.Dictionary<string, Material> Tiles = new();
+
+        /// <summary>
+        /// A surface laid at its real size on one stretched box: the texture repeats <paramref name="repeat"/> times
+        /// across the face. Shared per (texture, tint, emission, repeat).
+        /// </summary>
+        public static Material Tiled(CicArtKit art, Texture tex, Color tint, float emission, Vector2 repeat)
+        {
+            var key = tex.GetInstanceID() + "|" + tint + "|" + emission + "|" + repeat;
+            if (Tiles.TryGetValue(key, out var mat) && mat != null)
+                return mat;
+            mat = new Material(art.Lit(tex, tint, emission)) { name = "SU_Tiled_" + tex.name };
+            mat.SetTextureScale("_MainTex", repeat);
+            Tiles[key] = mat;
+            return mat;
+        }
 
         static float Hash(int x, int y, int seed) => StationSurfaces.Hash(x, y, seed);
         static float Noise(float x, float y, int seed, int px, int py) => StationSurfaces.Noise(x, y, seed, px, py);
@@ -181,6 +201,98 @@ namespace Core.Vfx
 
             _hazard = StationSurfaces.Finish(px, n, "SU_WorkshopHazard");
             return _hazard;
+        }
+
+        /// <summary>Clean-room floor: four large tiles per texture with thin pale grout, a faint sheen per tile.</summary>
+        public static Texture2D LabTile()
+        {
+            if (_labTile != null)
+                return _labTile;
+            const int n = 256;
+            const int tile = 128;
+            var px = new Color32[n * n];
+            for (var y = 0; y < n; y++)
+            for (var x = 0; x < n; x++)
+            {
+                var u = x / (float)n;
+                var v = y / (float)n;
+                var tx = x / tile;
+                var ty = y / tile;
+                var k = 0.84f + (Hash(tx, ty, 111) - 0.5f) * 0.05f + Noise(u * 8f, v * 8f, 112, 8, 8) * 0.04f +
+                        Hash(x, y, 113) * 0.015f;
+                // Sheen: a soft diagonal gradient across each tile, as polished resin catches the ceiling light.
+                var lx = (x % tile) / (float)tile;
+                var ly = (y % tile) / (float)tile;
+                k += (lx + ly - 1f) * 0.025f;
+                var gx = x % tile;
+                var gy = y % tile;
+                if (gx < 2 || gy < 2)
+                    k = 0.7f;
+                else if (gx == 2 || gy == 2)
+                    k *= 1.04f;
+                px[y * n + x] = Grey(k);
+            }
+
+            _labTile = StationSurfaces.Finish(px, n, "SU_LabTile");
+            return _labTile;
+        }
+
+        /// <summary>White wall cladding: two tall panels per texture, a dark shadow gap round each, a faint grain.</summary>
+        public static Texture2D LabPanel()
+        {
+            if (_labPanel != null)
+                return _labPanel;
+            const int n = 256;
+            var px = new Color32[n * n];
+            for (var y = 0; y < n; y++)
+            for (var x = 0; x < n; x++)
+            {
+                var u = x / (float)n;
+                var v = y / (float)n;
+                var k = 0.9f + Noise(u * 3f, v * 6f, 121, 3, 6) * 0.04f + Hash(x, y, 122) * 0.012f;
+                var px0 = x % 128;
+                // Shadow gap between panels, a lit lip beside it; a horizontal gap at 2/3 height.
+                if (px0 < 3)
+                    k = 0.42f + px0 * 0.08f;
+                else if (px0 == 3)
+                    k *= 1.05f;
+                var gy = Mathf.Abs(y - n * 2 / 3);
+                if (gy < 2)
+                    k = 0.5f;
+                else if (gy == 2)
+                    k *= 1.05f;
+                px[y * n + x] = Grey(k);
+            }
+
+            _labPanel = StationSurfaces.Finish(px, n, "SU_LabPanel");
+            return _labPanel;
+        }
+
+        /// <summary>Acoustic ceiling tiles: a square grid of tiles in a thin T-bar frame, each finely perforated.</summary>
+        public static Texture2D AcousticCeiling()
+        {
+            if (_acoustic != null)
+                return _acoustic;
+            const int n = 256;
+            const int tile = 128;
+            var px = new Color32[n * n];
+            for (var y = 0; y < n; y++)
+            for (var x = 0; x < n; x++)
+            {
+                var gx = x % tile;
+                var gy = y % tile;
+                var k = 0.88f + Hash(x, y, 131) * 0.03f;
+                // Perforations on a 8 px grid, inset from the tile's edge.
+                if (gx > 10 && gx < tile - 10 && gy > 10 && gy < tile - 10 && gx % 8 < 2 && gy % 8 < 2)
+                    k = 0.48f;
+                // T-bar frame.
+                if (gx < 4 || gy < 4)
+                    k = gx < 2 || gy < 2 ? 0.62f : 0.95f;
+                px[y * n + x] = Grey(k);
+            }
+
+            _acoustic = StationSurfaces.Finish(px, n, "SU_LabAcoustic");
+            return _acoustic;
         }
     }
 }

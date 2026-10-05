@@ -36,9 +36,13 @@ namespace Core.Stations
         {
             var refs = new Refs();
             var metal = art.MetalPanel(0.55f);
-            // Light brushed steel (cabinets, robot shells): the clean lab look, against the dark trims.
+            // Light brushed steel (robot shells, frames): the clean lab look, against the dark trims.
             var steel = art.Lit(art.Wall, new Color(0.7f, 0.75f, 0.8f, 1f), 0.5f, 2f);
             var dark = art.DarkPanel(0.3f);
+            // Lab furniture: white lacquered cabinets, black speckled epoxy worktops, a pale mint upstand.
+            var lacquer = art.Lit(StationSurfaces.Panel(), new Color(0.88f, 0.9f, 0.93f), 0.55f, 1f);
+            var epoxy = art.Lit(StationSurfaces.Stone(), new Color(0.2f, 0.21f, 0.24f), 0.4f, 2f);
+            var upstand = art.Lit(StationSurfaces.Panel(), new Color(0.5f, 0.68f, 0.66f), 0.5f, 1f);
             var cyan = art.CyanEmit(2.2f);
             var violet = art.Lit(Texture2D.whiteTexture, accent, 2.4f);
             var panel = art.Lit(Texture2D.whiteTexture, new Color(0.62f, 0.8f, 0.92f, 1f), 1.15f);
@@ -54,16 +58,16 @@ namespace Core.Stations
 
             // ── Operator desks: every working screen stands on one ────────────────
             refs.AnalysisMount = GateRoomDecor.Desk(room, "AnalysisDesk", analysisDesk,
-                GateRoomDecor.FaceStand(analysisDesk.x, analysisDesk.z), 1.15f, metal, dark, violet, cyan);
+                GateRoomDecor.FaceStand(analysisDesk.x, analysisDesk.z), 1.15f, lacquer, epoxy, violet, cyan);
             refs.SynthMount = GateRoomDecor.Desk(room, "SynthDesk", synthDesk,
-                GateRoomDecor.FaceStand(synthDesk.x, synthDesk.z), 1.05f, metal, dark, violet, cyan);
+                GateRoomDecor.FaceStand(synthDesk.x, synthDesk.z), 1.05f, lacquer, epoxy, violet, cyan);
 
             // ── Benches along the back walls (the entrance at 180°, between them) ─
             var wallR = radius - 0.72f;
-            Bench(b, 100f, wallR, 2.2f, steel, metal, dark, cyan, screenA, screenB, vialA, vialB, robot: true);
-            Bench(b, 134f, wallR, 2.1f, steel, metal, dark, cyan, screenB, screenA, vialB, vialA, robot: false);
-            Bench(b, 226f, wallR, 2.1f, steel, metal, dark, cyan, screenA, screenB, vialA, vialB, robot: false);
-            Bench(b, 260f, wallR, 2.2f, steel, metal, dark, cyan, screenB, screenA, vialB, vialA, robot: true);
+            Bench(b, 100f, wallR, 2.2f, lacquer, epoxy, upstand, dark, cyan, screenA, screenB, vialA, vialB, robot: true);
+            Bench(b, 134f, wallR, 2.1f, lacquer, epoxy, upstand, dark, cyan, screenB, screenA, vialB, vialA, robot: false);
+            Bench(b, 226f, wallR, 2.1f, lacquer, epoxy, upstand, dark, cyan, screenA, screenB, vialA, vialB, robot: false);
+            Bench(b, 260f, wallR, 2.2f, lacquer, epoxy, upstand, dark, cyan, screenB, screenA, vialB, vialA, robot: true);
 
             // Specimen holograms over the two middle benches, before their glass display panes.
             Specimen(room, art, b, 134f, wallR, glass, metal, cyan, new Color(0.35f, 0.9f, 1f, 0.55f), helix: true);
@@ -113,31 +117,31 @@ namespace Core.Stations
         }
 
         /// <summary>
-        /// A lab bench against the wall at <paramref name="angle"/>, its front (local −z) to the room: steel
-        /// cabinet with cyan light strips, a steel top with a lit edge, an upstand and a shelf with a sample
+        /// A lab bench against the wall at <paramref name="angle"/>, its front (local −z) to the room: white lacquered
+        /// cabinet with cyan light strips, a black epoxy top with a lit edge, a mint upstand and a shelf with a sample
         /// rack, two monitors on stands.
         /// </summary>
-        static void Bench(MeshBatch b, float angle, float r, float len, Material steel, Material metal, Material dark,
-            Material cyan, Material screen1, Material screen2, Material vial1, Material vial2, bool robot)
+        static void Bench(MeshBatch b, float angle, float r, float len, Material lacquer, Material epoxy, Material upstand,
+            Material dark, Material cyan, Material screen1, Material screen2, Material vial1, Material vial2, bool robot)
         {
             var c = Polar(angle, r, 0f);
             var rot = Quaternion.Euler(0f, angle, 0f);
             void Part(Vector3 local, Vector3 size, Material m, Quaternion? lr = null) =>
                 b.Box(c + rot * local, size, m, rot * (lr ?? Quaternion.identity));
 
-            Part(new Vector3(0f, 0.44f, 0f), new Vector3(len, 0.8f, 0.68f), steel);
+            Part(new Vector3(0f, 0.44f, 0f), new Vector3(len, 0.8f, 0.68f), lacquer);
             Part(new Vector3(0f, 0.04f, -0.31f), new Vector3(len - 0.04f, 0.08f, 0.06f), dark);
             // Front light strips (the cabinet's signature) and drawer seams.
             Part(new Vector3(0f, 0.66f, -0.345f), new Vector3(len * 0.86f, 0.018f, 0.01f), cyan);
             Part(new Vector3(0f, 0.3f, -0.345f), new Vector3(len * 0.86f, 0.018f, 0.01f), cyan);
             for (var k = -1; k <= 1; k += 2)
-                Part(new Vector3(k * len * 0.17f, 0.48f, -0.343f), new Vector3(0.01f, 0.28f, 0.008f), metal);
+                Part(new Vector3(k * len * 0.17f, 0.48f, -0.343f), new Vector3(0.01f, 0.28f, 0.008f), dark);
             // Top, lit front edge.
-            Part(new Vector3(0f, 0.865f, -0.02f), new Vector3(len + 0.06f, 0.05f, 0.76f), metal);
+            Part(new Vector3(0f, 0.865f, -0.02f), new Vector3(len + 0.06f, 0.05f, 0.76f), epoxy);
             Part(new Vector3(0f, 0.85f, -0.405f), new Vector3(len + 0.04f, 0.012f, 0.012f), cyan);
             // Upstand and shelf.
-            Part(new Vector3(0f, 1.18f, 0.33f), new Vector3(len, 0.6f, 0.05f), dark);
-            Part(new Vector3(0f, 1.46f, 0.24f), new Vector3(len, 0.03f, 0.2f), steel);
+            Part(new Vector3(0f, 1.18f, 0.33f), new Vector3(len, 0.6f, 0.05f), upstand);
+            Part(new Vector3(0f, 1.46f, 0.24f), new Vector3(len, 0.03f, 0.2f), lacquer);
             Part(new Vector3(0f, 1.445f, 0.14f), new Vector3(len * 0.95f, 0.008f, 0.008f), cyan);
             // Sample rack on the shelf: two rows of vials in two liquids.
             for (var k = 0; k < 8; k++)
@@ -152,7 +156,7 @@ namespace Core.Stations
                 var x = s * len * (robot ? 0.33f : 0.26f);
                 var tilt = Quaternion.Euler(8f, s * -10f, 0f);
                 Part(new Vector3(x, 0.9f, 0.12f), new Vector3(0.18f, 0.012f, 0.12f), dark);
-                Part(new Vector3(x, 1.0f, 0.15f), new Vector3(0.035f, 0.2f, 0.035f), metal);
+                Part(new Vector3(x, 1.0f, 0.15f), new Vector3(0.035f, 0.2f, 0.035f), lacquer);
                 Part(new Vector3(x, 1.2f, 0.13f), new Vector3(0.5f, 0.32f, 0.03f), dark, tilt);
                 var face = c + rot * new Vector3(x, 1.2f, 0.113f);
                 b.Add(QuadMesh, Matrix4x4.TRS(face, rot * tilt, new Vector3(0.46f, 0.28f, 1f)),

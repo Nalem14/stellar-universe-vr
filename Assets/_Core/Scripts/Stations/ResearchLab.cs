@@ -304,17 +304,23 @@ namespace Core.Stations
 
         void BuildRoom()
         {
-            // A clean research floor: light panelling, not the bridge's dark plating.
-            var deck = _art.DeckMat(0.6f);
-            var wall = _art.Lit(_art.Wall, new Color(0.56f, 0.62f, 0.69f, 1f), 0.6f, 1.3f);
-            var rib = _art.MetalPanel(0.4f);
+            // A clean room, each part its own material (WorkshopSurfaces): large resin tiles underfoot, white wall
+            // panels with shadow gaps over a lavender dado, a perforated acoustic ceiling, lilac-grey pilasters.
+            const float span = RoomRadius * 2.1f;
+            var deck = WorkshopSurfaces.Tiled(_art, WorkshopSurfaces.LabTile(), new Color(0.62f, 0.64f, 0.69f), 0.58f,
+                new Vector2(span / 2.4f, span / 2.4f));
+            var ceiling = WorkshopSurfaces.Tiled(_art, WorkshopSurfaces.AcousticCeiling(), new Color(0.64f, 0.66f, 0.72f), 0.5f,
+                new Vector2(span / 1.2f, span / 1.2f));
+            var wall = WorkshopSurfaces.Tiled(_art, WorkshopSurfaces.LabPanel(), new Color(0.56f, 0.6f, 0.68f), 0.55f, Vector2.one);
+            var dado = _art.Lit(StationSurfaces.Panel(), new Color(0.44f, 0.4f, 0.6f), 0.55f, 1.5f);
+            var rib = _art.Lit(StationSurfaces.Panel(), new Color(0.42f, 0.42f, 0.52f), 0.45f, 1.2f);
             var violet = _art.Lit(Texture2D.whiteTexture, Accent, 2.6f);
             var cyan = _art.CyanEmit(2.2f);
             var ring = _art.OrbitRing != null ? _art.OrbitRing : Texture2D.whiteTexture;
 
             Box("Floor", new Vector3(0f, -0.05f, 0f), new Vector3(RoomRadius * 2.1f, 0.1f, RoomRadius * 2.1f), deck,
                 solid: true);
-            Box("Ceiling", new Vector3(0f, RoomHeight, 0f), new Vector3(RoomRadius * 2.1f, 0.1f, RoomRadius * 2.1f), wall);
+            Box("Ceiling", new Vector3(0f, RoomHeight, 0f), new Vector3(RoomRadius * 2.1f, 0.1f, RoomRadius * 2.1f), ceiling);
 
             // Round hall: 16 wall panels, each with a ribbed pilaster and a violet base / crown line.
             const int panels = 16;
@@ -329,7 +335,8 @@ namespace Core.Stations
                 var edge = Quaternion.Euler(0f, a + 180f / panels, 0f) * Vector3.forward * (RoomRadius - 0.1f);
                 Box("Pilaster" + i, edge + Vector3.up * RoomHeight * 0.5f, new Vector3(0.22f, RoomHeight, 0.18f), rib,
                     Quaternion.Euler(0f, a + 180f / panels, 0f));
-                Box("BaseLine" + i, n * (RoomRadius - 0.09f) + Vector3.up * 0.12f, new Vector3(width * 0.9f, 0.025f, 0.02f),
+                Box("Dado" + i, n * (RoomRadius - 0.075f) + Vector3.up * 0.45f, new Vector3(width, 0.9f, 0.02f), dado, rot);
+                Box("BaseLine" + i, n * (RoomRadius - 0.09f) + Vector3.up * 0.905f, new Vector3(width * 0.9f, 0.025f, 0.02f),
                     violet, rot);
                 Box("CrownLine" + i, n * (RoomRadius - 0.09f) + Vector3.up * (RoomHeight - 0.35f),
                     new Vector3(width * 0.9f, 0.02f, 0.02f), cyan, rot);
