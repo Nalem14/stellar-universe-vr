@@ -216,7 +216,7 @@ namespace Core.Stations
 
             var type = FocusContext.AsString(active["type"]);
             var end = FocusContext.AsLong(active["endTime"]);
-            var total = FocusContext.AsFloat(ModuleCatalog.Stats(type)?["time"]);
+            var total = ModuleCatalog.BuildSeconds(type);
             Text("<b>" + Trans.Get(type) + "</b>", -130f, y, 330f, 19f, UiKit.TextBright);
             var remain = Text(string.Empty, 200f, y, 110f, 17f, DiegeticUi.CyanDim);
             _live.Add((remain, () => Core.Holo.TravelPlanner.TimeText(end - FleetOrderGate.UnixNow())));
@@ -336,7 +336,7 @@ namespace Core.Stations
             {
                 var type = types[i];
                 var st = ModuleCatalog.Stats(type);
-                var time = FocusContext.AsFloat(st?["time"]);
+                var time = ModuleCatalog.BuildSeconds(type);
                 var lockKey = Locked(p, st, out var lockLevel, out var lockOn);
                 var afford = Affordable(p, st);
                 // Family tick, name, what the module brings (non-zero shipstats), then what it costs.
@@ -434,7 +434,7 @@ namespace Core.Stations
         public string CostText(string type)
         {
             var st = ModuleCatalog.Stats(type);
-            return CostLine(st, FocusContext.AsFloat(st?["time"]));
+            return CostLine(st, ModuleCatalog.BuildSeconds(type));
         }
 
         /// <summary>True when the dock's planet holds every resource the module costs right now.</summary>
@@ -489,7 +489,7 @@ namespace Core.Stations
                 return false;
             type = FocusContext.AsString(a["type"]);
             end = FocusContext.AsLong(a["endTime"]);
-            var total = FocusContext.AsFloat(ModuleCatalog.Stats(type)?["time"]);
+            var total = ModuleCatalog.BuildSeconds(type);
             progress = ServerTimers.Shipyard(p.Id) ??
                        (total <= 0f ? 0f : 1f - Mathf.Clamp01((end - FleetOrderGate.UnixNow()) / total));
             return !string.IsNullOrEmpty(type);

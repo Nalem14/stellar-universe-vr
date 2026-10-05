@@ -340,6 +340,19 @@ namespace Core.Stations
 
         static bool Occ(bool[,] o, int x, int y) => x >= 0 && y >= 0 && x < Grid && y < Grid && o[x, y];
 
+        /// <summary>
+        /// Seconds the shipyard takes for one module of this type, as the server times it (ModuleBuildSeconds):
+        /// the catalogue time shortened by the moduleBuildTime research (Nanite), never under one second.
+        /// </summary>
+        public static float BuildSeconds(string type)
+        {
+            var time = FocusContext.AsFloat(Stats(type)?["time"]);
+            if (time <= 0f)
+                return 0f;
+            var bonus = ResearchCatalog.StatBonus("moduleBuildTime");
+            return Mathf.Max(1f, Mathf.Round(time * (1f + bonus / 100f)));
+        }
+
         public static DesignStats Sum(IReadOnlyList<FocusShipModule> modules)
         {
             var s = new DesignStats();

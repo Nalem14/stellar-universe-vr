@@ -172,6 +172,32 @@ namespace Core.Stations
             return list;
         }
 
+        /// <summary>
+        /// The empire-wide research bonus on one stat (effects with no module list), as the server sums it: every
+        /// tech's level × perLevel, held to its cap; a tech still being researched counts one level less.
+        /// </summary>
+        public static float StatBonus(string stat)
+        {
+            var empire = AuthManager.Ensure().Empire;
+            if (empire == null || GameConfig.ResearchEffects == null)
+                return 0f;
+            var running = FocusContext.AsLong(empire["working"]) > Core.Vfx.FleetOrderGate.UnixNow()
+                ? FocusContext.AsString(empire["workingtype"])
+                : null;
+            var total = 0f;
+            foreach (var p in GameConfig.ResearchEffects.Properties())
+            {
+                var level = FocusContext.AsInt(empire[p.Name]) - (running == p.Name ? 1 : 0);
+                if (level <= 0)
+                    continue;
+                foreach (var e in Effects(p.Name))
+                    if (e.Stat == stat && e.Modules.Length == 0)
+                        total += e.Gain(level);
+            }
+
+            return total;
+        }
+
         /// <summary>The server serves the effects table (else the lab falls back on the native descriptions).</summary>
         public static bool HasEffects => GameConfig.ResearchEffects != null;
 
