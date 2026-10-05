@@ -52,6 +52,42 @@ namespace Core.Holo
                    "<color=#9fdcff>" + Trans.Get("vr.pirate.levelShort") + "</color></size>";
         }
 
+        /// <summary>
+        /// Under another empire's ship token: whose it is and where we stand with them (ally / neutral / enemy), so a
+        /// ship is never attacked by mistake. Empty for ours and for raiders (their own caption says what they are).
+        /// </summary>
+        public static string OwnerCaption(FocusFleet fleet)
+        {
+            if (fleet == null || fleet.IsPirate || fleet.IsOwnedBy(FocusContext.OwnedUserId()))
+                return string.Empty;
+            var stance = DiplomacyIndex.ResolveFleet(fleet);
+            if (stance is EmpireStance.Owned or EmpireStance.Pirate)
+                return string.Empty;
+            var empire = DiplomacyIndex.TryIdentity(fleet.UserId, out var n, out _) && !string.IsNullOrEmpty(n)
+                ? n
+                : DiplomacyIndex.EmpireName(fleet.EmpireId);
+            var key = stance switch
+            {
+                EmpireStance.Ally => "ally",
+                EmpireStance.Neutral => "neutral",
+                EmpireStance.Enemy => "enemy",
+                _ => "unknown"
+            };
+            return "\n<size=60%><color=#" + ColorUtility.ToHtmlStringRGB(DiplomacyIndex.Tint(stance)) + "><noparse>" +
+                   (string.IsNullOrEmpty(empire) ? "?" : empire) + "</noparse>  ·  " + Trans.Get(key) + "</color></size>";
+        }
+
+        /// <summary>A warning before hitting a ship that is not an enemy's (ally or neutral): the relation pays for it.</summary>
+        public static string FriendlyFireWarning(FocusFleet foe)
+        {
+            if (foe == null || foe.IsPirate)
+                return string.Empty;
+            var stance = DiplomacyIndex.ResolveFleet(foe);
+            return stance is EmpireStance.Ally or EmpireStance.Neutral or EmpireStance.Unknown
+                ? "<color=#ffb866>" + Trans.Format("vr.hunt.notEnemy", Trans.Get(stance == EmpireStance.Ally ? "ally" : stance == EmpireStance.Neutral ? "neutral" : "unknown")) + "</color>"
+                : string.Empty;
+        }
+
         static void Add(List<string> parts, string label, JToken perLevel, int level)
         {
             var n = FocusContext.AsFloat(perLevel) * level;
@@ -65,10 +101,10 @@ namespace Core.Holo
         /// </summary>
         public static string Threat(FocusFleet foe, FocusFleet mine)
         {
-            if (foe == null || foe.DamageTotal + foe.ArmorTotal + foe.ShieldTotal <= 0f)
+            if (foe == null || foe.DamageTotal + Hull(foe) + foe.ShieldTotal <= 0f)
                 return string.Empty;
             var line = Trans.Get("damage") + " " + ScreenKit.Num(foe.DamageTotal) + "  ·  " +
-                       Trans.Get("armor") + " " + ScreenKit.Num(foe.ArmorTotal) + "  ·  " +
+                       Trans.Get("vr.battle.hull") + " " + ScreenKit.Num(Hull(foe)) + "  ·  " +
                        Trans.Get("shield") + " " + ScreenKit.Num(foe.ShieldTotal);
             var odds = Odds(foe, mine);
             return odds.Length > 0 ? line + "\n" + odds : line;
@@ -92,6 +128,9 @@ namespace Core.Holo
         }
 
         static float Power(FocusFleet f) =>
-            Mathf.Sqrt(Mathf.Max(0f, f.DamageTotal) * Mathf.Max(1f, f.ArmorTotal + f.ShieldTotal));
+            Mathf.Sqrt(Mathf.Max(0f, f.DamageTotal) * Mathf.Max(1f, Hull(f) + f.ShieldTotal));
+
+        /// <summary>The hull it fights with (hullFleet), the armor sum on an older server.</summary>
+        static float Hull(FocusFleet f) => f.HullTotal > 0f ? f.HullTotal : f.ArmorTotal;
     }
 }

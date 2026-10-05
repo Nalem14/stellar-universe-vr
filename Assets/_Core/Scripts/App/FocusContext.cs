@@ -65,6 +65,8 @@ namespace Core.App
         /// <summary>GetFleetStats sums as the server applies them (research, species, politics, each module's own row).</summary>
         public float DamageTotal;
         public float ArmorTotal;
+        /// <summary>The hull it fights with (GetAllFleets stats.hullFleet: armor + structure per module, research included); 0 = not served.</summary>
+        public float HullTotal;
         public float ShieldTotal;
         public bool HasHyperdrive;
         public bool HasPrlBond;
@@ -78,7 +80,10 @@ namespace Core.App
         public int Cargo;
         public int MineralCargo;
         public int BiomassCargo;
-        public int CargoUsed => MineralCargo + CrystalCargo + BiomassCargo;
+        /// <summary>Ship modules carried as freight (stats.carriedModules), each <see cref="ModuleFreightVolume"/> units of hold.</summary>
+        public readonly List<FocusShipModule> CarriedModules = new();
+        public const int ModuleFreightVolume = 500;
+        public int CargoUsed => MineralCargo + CrystalCargo + BiomassCargo + CarriedModules.Count * ModuleFreightVolume;
         public int CargoFree => Math.Max(0, Cargo - CargoUsed);
         /// <summary>Unix seconds when Bond PRL is ready again; 0 = ready.</summary>
         public long PrlBondReadyAt;
@@ -405,6 +410,7 @@ namespace Core.App
                     h = h * 31 + f.CrystalCargo;
                     h = h * 31 + f.MineralCargo;
                     h = h * 31 + f.BiomassCargo;
+                    h = h * 31 + f.CarriedModules.Count;
                     h = h * 31 + f.TroopsAboard;
                     h = h * 31 + (f.DefendPosition != null ? f.DefendPosition.GetHashCode() : 0);
                     h = h * 31 + f.QueueIndex;
@@ -726,6 +732,7 @@ namespace Core.App
                         row.Speed = AsFloat(stats["speed"]);
                         row.DamageTotal = AsFloat(stats["damageFleet"]);
                         row.ArmorTotal = AsFloat(stats["armorFleet"]);
+                        row.HullTotal = AsFloat(stats["hullFleet"]);
                         row.ShieldTotal = AsFloat(stats["shieldFleet"]);
                         row.HasHyperdrive = AsBool(stats["hasHyperdrive"]);
                         row.HasPrlBond = AsBool(stats["hasPrlBond"]);
@@ -735,6 +742,9 @@ namespace Core.App
                         row.Cargo = AsInt(stats["cargo"]);
                         row.MineralCargo = AsInt(stats["mineralCargo"]);
                         row.BiomassCargo = AsInt(stats["biomassCargo"]);
+                        if (stats["carriedModules"] is JArray carried)
+                            foreach (var c in carried)
+                                row.CarriedModules.Add(new FocusShipModule { Id = AsInt(c["id"]), Type = AsString(c["type"]) });
                         row.EnoughHyperdrive = AsBool(stats["hasEnoughHyperdrive"]);
                         row.EnoughPrlBond = AsBool(stats["hasEnoughPrlBond"]);
                         row.HasScienceModule = AsBool(stats["hasScienceModule"]);

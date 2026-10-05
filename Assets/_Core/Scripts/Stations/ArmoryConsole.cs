@@ -473,7 +473,8 @@ namespace Core.Stations
                 counts.TryGetValue(def.Type, out var have);
                 var stats = troops
                     ? Trans.Format("vr.armory.stats", def.Attack, def.Defense)
-                    : Trans.Format("vr.armory.defStats", def.Defense);
+                    // What it adds to the world's siege figures (PlanetCombatStats): a shield array to its shield, the rest to its hull.
+                    : Trans.Format(def.Type == "QuantumShieldArray" ? "vr.armory.defShield" : "vr.armory.defHull", def.Defense);
                 var owned = have > 0 ? "  <color=#4dffa0>×" + Num(have) + "</color>" : string.Empty;
                 Line("<b>" + Trans.Get(def.Type) + "</b>" + owned + "\n<size=72%><color=#7fd8ff>" + stats +
                      "</color></size>", -330f, y, 19f, locked ? UiKit.TextDim : UiKit.TextBright, 360f,

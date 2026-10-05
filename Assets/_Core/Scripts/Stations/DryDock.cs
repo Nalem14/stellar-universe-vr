@@ -1119,20 +1119,42 @@ namespace Core.Stations
 
             y -= Mathf.CeilToInt(Mathf.Min(docked.Count, 4) / 2f) * 58f;
             // A new hull starts from its core (AddToFleet fleet=0): ShipCore → ship, StationCore → orbital fortress.
+            // Hull limits (GetMeEmpire.hullLimits): one ship and one station per planet owned, one station per orbit.
+            var limits = AuthManager.Ensure().Empire?["hullLimits"];
+            var ships = FocusContext.AsInt(limits?["ships"]);
+            var maxShips = FocusContext.AsInt(limits?["maxShips"]);
+            var stations = FocusContext.AsInt(limits?["stations"]);
+            var maxStations = FocusContext.AsInt(limits?["maxStations"]);
+            var known = limits != null;
+            var shipCap = known && ships >= maxShips;
+            var stationCap = known && stations >= maxStations;
+            var orbitTaken = false;
+            if (_focus != null)
+                foreach (var f in _focus.Fleets)
+                    if (f.IsStation && f.PlanetId == _planetId)
+                        orbitTaken = true;
+            if (known)
+                Text(_shipBody, Trans.Format("vr.dock.limits", ships, maxShips, stations, maxStations), -440f, y + 36f, 880f, 15f,
+                    shipCap || stationCap ? UiKit.Amber : DiegeticUi.CyanDim);
+
             var core = HangarRow(ModuleCatalog.Core);
+            var canShip = core != null && !shipCap;
             var newShip = Btn(_shipBody, Trans.Get("vr.dock.newShip"), -225f, y, 430f, 50f,
-                () => AsyncTap.Run(NewShip(ModuleCatalog.Core)), core != null ? DiegeticUi.BtnStyle.Amber : DiegeticUi.BtnStyle.Ghost);
-            newShip.interactable = core != null;
+                () => AsyncTap.Run(NewShip(ModuleCatalog.Core)), canShip ? DiegeticUi.BtnStyle.Amber : DiegeticUi.BtnStyle.Ghost);
+            newShip.interactable = canShip;
             var stationCore = HangarRow(ModuleCatalog.StationCore);
+            var canStation = stationCore != null && !stationCap && !orbitTaken;
             var newStation = Btn(_shipBody, Trans.Get("vr.dock.newStation"), 225f, y, 430f, 50f,
                 () => AsyncTap.Run(NewShip(ModuleCatalog.StationCore)),
-                stationCore != null ? DiegeticUi.BtnStyle.Amber : DiegeticUi.BtnStyle.Ghost);
-            newStation.interactable = stationCore != null;
+                canStation ? DiegeticUi.BtnStyle.Amber : DiegeticUi.BtnStyle.Ghost);
+            newStation.interactable = canStation;
             y -= 40f;
-            if (core == null)
-                Text(_shipBody, Trans.Get("vr.dock.needCore"), -440f, y, 430f, 14f, DiegeticUi.CyanDim);
-            if (stationCore == null)
-                Text(_shipBody, Trans.Get("vr.dock.needStationCore"), 10f, y, 430f, 14f, DiegeticUi.CyanDim);
+            // Why a button is off: the limit first, then the orbit, then the missing core.
+            Text(_shipBody, Trans.Get(shipCap ? "fleetLimitReached" : "vr.dock.needCore"), -440f, y, 430f, 14f,
+                shipCap ? UiKit.Amber : DiegeticUi.CyanDim).gameObject.SetActive(shipCap || core == null);
+            Text(_shipBody, Trans.Get(stationCap ? "stationLimitReached" : orbitTaken ? "planetHasStation" : "vr.dock.needStationCore"),
+                10f, y, 430f, 14f, stationCap || orbitTaken ? UiKit.Amber : DiegeticUi.CyanDim)
+                .gameObject.SetActive(stationCap || orbitTaken || stationCore == null);
             y -= 40f;
 
             if (_fleetId <= 0)
@@ -1162,7 +1184,8 @@ namespace Core.Stations
             var rows = new (string, string)[]
             {
                 (Trans.Get("modules"), s.Modules.ToString()),
-                (Trans.Get("armor"), Eff(s.Armor, hull?.ArmorTotal ?? 0f)),
+                // The hull it fights with: modules' armor + structure, as the battle board counts it (hullFleet).
+                (Trans.Get("vr.battle.hull"), Eff(s.Armor + 50f * s.Modules, hull != null && hull.HullTotal > 0f ? hull.HullTotal : hull?.ArmorTotal ?? 0f)),
                 (Trans.Get("shield"), Eff(s.Shield, hull?.ShieldTotal ?? 0f)),
                 (Trans.Get("damage"), Eff(s.Damage, hull?.DamageTotal ?? 0f)),
                 (Trans.Get("speed"), station ? Trans.Get("vr.dock.immobile") : Eff(s.Speed, hull?.Speed ?? 0f)),
@@ -1308,6 +1331,8 @@ namespace Core.Stations
                 return;
             // The dock belongs to the orbital station you stand in: only one of our worlds has one here.
             await OwnedPlanets.EnsureLoaded();
+            // Hull limits as of now (a planet won or lost changes them).
+            await AuthManager.Ensure().FreshenEmpire(30f);
             if (!OwnedPlanets.Contains(planetId))
                 return;
             _planetId = planetId;
@@ -1569,6 +1594,8 @@ namespace Core.Stations
             }
 
             await AfterEdit();
+            // The hull counts against its limit: read them again (GetMeEmpire.hullLimits).
+            await AuthManager.Ensure().FreshenEmpire(0f);
             // AddToFleet answers nothing: the new hull is the docked fleet we did not have before.
             foreach (var f in Docked())
                 if (!before.Contains(f.Id))

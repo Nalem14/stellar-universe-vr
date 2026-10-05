@@ -235,7 +235,10 @@ namespace Core.Stations
             var given = FocusContext.AsInt(_data["fieldGiven"]);
             var free = FocusContext.AsInt(_data["freeField"]);
             Row(Trans.Get("vr.survey.fields"), free + " / " + given, l, y);
-            Row(Trans.Get("defense"), FocusContext.AsInt(_data["defense"]).ToString("N0"), r, y);
+            // Its siege figures, as the battle board counts them (older servers: the legacy defense total).
+            Row(Trans.Get("vr.battle.hull") + " · " + Trans.Get("shield"), _data["combatArmor"] != null
+                ? FocusContext.AsInt(_data["combatArmor"]).ToString("N0") + " · " + FocusContext.AsInt(_data["combatShield"]).ToString("N0")
+                : FocusContext.AsInt(_data["defense"]).ToString("N0"), r, y);
             y -= 44f;
             Row(Trans.Get("vr.survey.garrison"), Count(_data["troops"], "qty").ToString("N0"), l, y);
             Row(Trans.Get("vr.survey.orbit"), (_data["orbit"] as JArray)?.Count.ToString() ?? "0", r, y);

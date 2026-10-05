@@ -5,14 +5,16 @@ using Core.UI;
 using Core.Utils;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace Core.Vfx
 {
     /// <summary>
     /// The aft bulkhead's two backlit wall displays, either side of the corridor door (a Star Trek "MSD"):
-    /// to port, the ship we stand on — its 9×9 module plan in family colours with the sums of its modules (or, at
-    /// an orbital station, the station's ring over its world); to starboard, the system plot — star, orbits, worlds
+    /// to port, the ship we stand on — its 9×9 module plan in family colours, its hull and shield gauges (what it fights
+    /// with, live during a battle), the sums of its modules, and the sheet of the module under the pointer (or, at a
+    /// citadel, the city plan with the world's own hull and shield); to starboard, the system plot — star, orbits, worlds
     /// in their owners' colours, our ships and contacts. Each is a static texture redrawn only when the focus
     /// changes (≤ 1 per second), on one world canvas: nothing per frame.
     /// </summary>
@@ -34,6 +36,12 @@ namespace Core.Vfx
         bool _dirty = true;
         float _next;
         EconomyService _eco;
+        (Image Fill, TMP_Text Label) _hullBar;
+        (Image Fill, TMP_Text Label) _shieldBar;
+        /// <summary>The module under the pointer on the port plan (null = the summary).</summary>
+        FocusShipModule _hovered;
+        string _summary = string.Empty;
+        float _gaugeNext;
 
         public static BridgeWallDisplays Build(CicEnvironment host, FocusContext focus)
         {
@@ -49,6 +57,8 @@ namespace Core.Vfx
             d._plotTex = NewTex("SU_SystemDisplay");
             Layout(d._msd, d._msdTex, out d._msdTitle, out d._msdBody);
             Layout(d._plot, d._plotTex, out d._plotTitle, out d._plotBody);
+            d.BuildGauges();
+            d.BuildHover();
             if (focus != null)
             {
                 focus.Changed += d.MarkDirty;
@@ -153,6 +163,177 @@ namespace Core.Vfx
             body.lineSpacing = 12f;
         }
 
+        // ── Hull and shield gauges, the module sheet on hover ─────────────────────
+
+        void BuildGauges()
+        {
+            var px = _msd.PixelSize;
+            var side = px.y * 0.78f;
+            var x = -px.x * 0.5f + side + 100f;
+            var w = px.x * 0.5f - x - 60f;
+            _hullBar = Gauge(_msd.Content, "Hull", new Vector2(x, px.y * 0.17f), w, new Color(1f, 0.69f, 0.29f, 0.9f));
+            _shieldBar = Gauge(_msd.Content, "Shield", new Vector2(x, px.y * 0.08f), w, new Color(0.35f, 0.85f, 1f, 0.9f));
+            // The summary starts under the gauges and keeps to their width (it ran past the frame).
+            var rt = _msdBody.rectTransform;
+            rt.anchoredPosition = new Vector2(x + w * 0.5f, -px.y * 0.17f);
+            rt.sizeDelta = new Vector2(w, px.y * 0.44f);
+        }
+
+        static (Image, TMP_Text) Gauge(Transform parent, string name, Vector2 left, float width, Color fill)
+        {
+            var bg = new GameObject(name + "Gauge", typeof(RectTransform), typeof(Image));
+            bg.transform.SetParent(parent, false);
+            var rt = bg.GetComponent<RectTransform>();
+            rt.pivot = new Vector2(0f, 0.5f);
+            rt.anchoredPosition = left;
+            rt.sizeDelta = new Vector2(width, 46f);
+            var bgi = bg.GetComponent<Image>();
+            bgi.color = new Color(0.05f, 0.12f, 0.16f, 0.9f);
+            bgi.raycastTarget = false;
+            var fg = new GameObject("Fill", typeof(RectTransform), typeof(Image));
+            fg.transform.SetParent(bg.transform, false);
+            var ft = fg.GetComponent<RectTransform>();
+            ft.anchorMin = Vector2.zero;
+            ft.anchorMax = Vector2.one;
+            ft.offsetMin = new Vector2(3f, 3f);
+            ft.offsetMax = new Vector2(-3f, -3f);
+            var fi = fg.GetComponent<Image>();
+            fi.color = fill;
+            fi.raycastTarget = false;
+            var label = DiegeticUi.HoloLabel(bg.transform, string.Empty, Vector2.zero, new Vector2(width - 20f, 44f), 32f,
+                UiKit.TextBright, TextAlignmentOptions.Center);
+            label.fontStyle = FontStyles.Bold;
+            return (fi, label);
+        }
+
+        static void SetGauge((Image Fill, TMP_Text Label) g, string label, float cur, float max)
+        {
+            if (g.Fill == null)
+                return;
+            var k = max > 0f ? Mathf.Clamp01(cur / max) : 0f;
+            var ft = g.Fill.rectTransform;
+            ft.anchorMax = new Vector2(Mathf.Max(0.001f, k), 1f);
+            var text = label + "  " + ScreenKit.Num(Mathf.Max(0f, cur)) + " / " + ScreenKit.Num(Mathf.Max(0f, max));
+            if (g.Label.text != text)
+                g.Label.text = text;
+        }
+
+        /// <summary>
+        /// Hull and shield now: a battle row of this ship (or this world) while it fights, else the full figures it
+        /// would enter a fight with (hull = armor + structure per module, research included — the battle's own).
+        /// </summary>
+        void UpdateGauges()
+        {
+            var fleet = _focus?.FindViewFleet();
+            float hull = 0f, hullMax = 0f, shield = 0f, shieldMax = 0f;
+            var battle = HexBattleController.Instance != null ? HexBattleController.Instance.State : null;
+            BattleShip row = null;
+            if (battle != null)
+                foreach (var b in battle.Ships)
+                    if (fleet != null ? !b.IsPlanet && b.FleetId == fleet.Id : b.IsPlanet && b.PlanetId == _focus.RotundaPlanetId)
+                        row = b;
+            if (row != null)
+            {
+                hull = row.Hp;
+                hullMax = row.MaxHp;
+                shield = row.Shield;
+                shieldMax = row.MaxShield;
+            }
+            else if (fleet != null)
+            {
+                hullMax = hull = fleet.HullTotal > 0f ? fleet.HullTotal : fleet.ArmorTotal;
+                shieldMax = shield = fleet.ShieldTotal;
+            }
+            else if (EconomyService.Instance != null && EconomyService.Instance.TryGet(_focus.RotundaPlanetId, out var planet))
+            {
+                hullMax = hull = FocusContext.AsFloat(planet.Raw?["combatArmor"]);
+                shieldMax = shield = FocusContext.AsFloat(planet.Raw?["combatShield"]);
+            }
+
+            var on = hullMax > 0f || shieldMax > 0f;
+            _hullBar.Fill.transform.parent.gameObject.SetActive(on);
+            _shieldBar.Fill.transform.parent.gameObject.SetActive(on);
+            if (!on)
+                return;
+            SetGauge(_hullBar, Trans.Get("vr.battle.hull"), hull, hullMax);
+            SetGauge(_shieldBar, Trans.Get("shield"), shield, shieldMax);
+        }
+
+        void BuildHover()
+        {
+            var plot = _msd.Content.Find("Plot");
+            if (plot == null)
+                return;
+            plot.GetComponent<RawImage>().raycastTarget = true;
+            var hover = plot.gameObject.AddComponent<PlotHover>();
+            hover.Moved = OnPlotPointer;
+        }
+
+        /// <summary>Pointer over the port plan at <paramref name="uv"/> (0..1, origin bottom-left; null = left it).</summary>
+        void OnPlotPointer(Vector2? uv)
+        {
+            FocusShipModule found = null;
+            var fleet = _focus?.FindViewFleet();
+            if (uv is { } p && fleet != null)
+            {
+                var gx = Mathf.Clamp(Mathf.FloorToInt(p.x * 9f), 0, 8);
+                var gy = 8 - Mathf.Clamp(Mathf.FloorToInt(p.y * 9f), 0, 8);
+                foreach (var m in fleet.Modules)
+                    if (m.OnGrid && m.GridX == gx && m.GridY == gy)
+                        found = m;
+            }
+
+            if (found == _hovered)
+                return;
+            _hovered = found;
+            ShowBody();
+        }
+
+        void ShowBody()
+        {
+            if (_hovered == null)
+            {
+                Set(_msdBody, _summary);
+                return;
+            }
+
+            var type = _hovered.Type;
+            var fam = ModuleCatalog.Family(type);
+            var stats = ModuleCatalog.StatsLine(type);
+            var sb = new System.Text.StringBuilder();
+            sb.Append("<b><color=#").Append(ColorUtility.ToHtmlStringRGB(ModuleCatalog.Accent(fam))).Append('>')
+                .Append(Trans.Get(ModuleCatalog.NameKey(type))).Append("</color></b>  <size=80%>")
+                .Append(Trans.Get(ModuleCatalog.FamilyKey(fam))).Append("</size>\n");
+            if (stats.Length > 0)
+                sb.Append(stats).Append('\n');
+            sb.Append("<size=78%>").Append(ModuleCatalog.Description(type)).Append("</size>");
+            Set(_msdBody, sb.ToString());
+        }
+
+        /// <summary>Pointer move / exit / tap on the plan image, as a UV on it (one path for ray, mouse and touch).</summary>
+        sealed class PlotHover : MonoBehaviour, IPointerMoveHandler, IPointerExitHandler, IPointerClickHandler
+        {
+            public System.Action<Vector2?> Moved;
+
+            public void OnPointerMove(PointerEventData e) => Report(e);
+            public void OnPointerClick(PointerEventData e) => Report(e);
+            public void OnPointerExit(PointerEventData e) => Moved?.Invoke(null);
+
+            void Report(PointerEventData e)
+            {
+                var rt = (RectTransform)transform;
+                var cam = e.pressEventCamera != null ? e.pressEventCamera : e.enterEventCamera;
+                var world = e.pointerCurrentRaycast.worldPosition;
+                Vector2 local;
+                if (world != Vector3.zero)
+                    local = rt.InverseTransformPoint(world);
+                else if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(rt, e.position, cam, out local))
+                    return;
+                var r = rt.rect;
+                Moved?.Invoke(new Vector2((local.x - r.xMin) / r.width, (local.y - r.yMin) / r.height));
+            }
+        }
+
         void Update()
         {
             // A level finished or started below: the city plan follows (the service exists once the bridge has booted).
@@ -160,6 +341,14 @@ namespace Core.Vfx
             {
                 _eco = EconomyService.Instance;
                 _eco.Changed += MarkDirty;
+            }
+
+            // In a fight the gauges follow the battle board (its state is diffed every 2.5 s): twice a second.
+            if (_focus != null && HexBattleController.Instance != null && HexBattleController.Instance.State != null &&
+                Time.unscaledTime >= _gaugeNext)
+            {
+                _gaugeNext = Time.unscaledTime + 0.5f;
+                UpdateGauges();
             }
 
             if (!_dirty || Time.unscaledTime < _next || _focus == null)
@@ -176,6 +365,7 @@ namespace Core.Vfx
             _plot.SetAccent(accent, 0.45f);
             DrawShip(accent);
             DrawSystem(accent);
+            UpdateGauges();
         }
 
         // ── Port: the ship (or the station) ──────────────────────────────────────
@@ -233,15 +423,15 @@ namespace Core.Vfx
             }
 
             var sb = new System.Text.StringBuilder();
-            sb.Append(Trans.Get("armor")).Append("  ").Append(Mathf.RoundToInt(s.Armor)).Append("    ")
-                .Append(Trans.Get("shield")).Append("  ").Append(Mathf.RoundToInt(s.Shield)).AppendLine();
+            // Hull and shield are the gauges above; then what it hits with, how fast, how much it carries.
             sb.Append(Trans.Get("damage")).Append("  ").Append(Mathf.RoundToInt(s.Damage)).Append("    ")
                 .Append(Trans.Get("speed")).Append("  ").Append(Mathf.RoundToInt(s.Speed)).AppendLine();
             sb.Append(Trans.Get("cargo")).Append("  ").Append(Mathf.RoundToInt(s.Cargo)).AppendLine().AppendLine();
             foreach (var kv in families)
                 sb.Append("<color=#").Append(ColorUtility.ToHtmlStringRGB(ModuleCatalog.Accent(kv.Key))).Append("><b>—</b></color> ")
                     .Append(Trans.Get(ModuleCatalog.FamilyKey(kv.Key))).Append(" ").Append(kv.Value).Append("   ");
-            Set(_msdBody, sb.ToString());
+            _summary = sb.ToString();
+            ShowBody();
         }
 
         // ── Port, at a citadel: the city plan ────────────────────────────────────

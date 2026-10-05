@@ -1028,7 +1028,9 @@ namespace Core.Stations
                 (Trans.Get("population"), Num(p.Citizen) + "   " + Trans.Format("vr.ops.jobs", p.Employed, p.Jobs)),
                 (Trans.Get("mood"), p.Mood + " %"),
                 (Trans.Get("vr.ops.habitability"), Num(p.Habitability)),
-                (Trans.Get("defense"), Num(p.Defense)),
+                // What the world holds a siege with (GetResource combatArmor / combatShield): the battle board's figures.
+                (Trans.Get("vr.battle.hull") + " · " + Trans.Get("shield"),
+                    Num(FocusContext.AsFloat(p.Raw?["combatArmor"])) + " · " + Num(FocusContext.AsFloat(p.Raw?["combatShield"]))),
                 (Trans.Get("vr.ops.freeFields"), p.FreeField + " / " + FocusContext.AsInt(p.Raw?["fieldGiven"])),
                 (Trans.Get("vr.ops.explorePool"), Num(FocusContext.AsFloat(p.Raw?["researchPoints"])))
             };
