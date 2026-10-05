@@ -602,6 +602,8 @@ namespace Core.Stations
                 args["mineral"] = Mathf.RoundToInt(_cargo[0]).ToString();
                 args["crystal"] = Mathf.RoundToInt(_cargo[1]).ToString();
                 args["biomass"] = Mathf.RoundToInt(_cargo[2]).ToString();
+                if (_sendModules.Count > 0)
+                    args["modules"] = string.Join(",", _sendModules);
             }
 
             _busy = true;
@@ -621,6 +623,7 @@ namespace Core.Stations
                     Trans.Get("vr.gate.mission." + _mission));
                 for (var i = 0; i < _cargo.Length; i++)
                     _cargo[i] = 0f;
+                _sendModules.Clear();
                 await _eco.RefreshNow();
                 await LoadMissions();
             }
@@ -1034,7 +1037,27 @@ namespace Core.Stations
                     UiKit.TextBright, 170f, TextAlignmentOptions.Center);
             }
 
+            // Ship modules from this base's hangar go through with the goods (or alone), picked on the freight pad.
+            var hangar = Core.Holo.ModuleFreightPad.HangarModules(_planetId);
+            _sendModules.RemoveAll(id => !hangar.Exists(m => m.Id == id));
+            any |= _sendModules.Count > 0;
+            var pick = DiegeticUi.HoloButton(_consoleBody, Trans.Format("vr.gate.modules", _sendModules.Count, hangar.Count),
+                new Vector2(380f, -76f), new Vector2(250f, 50f), () => Run(PickModules()),
+                _sendModules.Count > 0 ? DiegeticUi.BtnStyle.Amber : DiegeticUi.BtnStyle.Ghost);
+            pick.interactable = hangar.Count > 0;
             return any;
+        }
+
+        readonly List<int> _sendModules = new();
+
+        async Task PickModules()
+        {
+            var ids = await Core.Holo.ModuleFreightPad.AskHangar(_planetId, Trans.Get("vr.gate.pickModules"));
+            if (ids == null)
+                return;
+            _sendModules.Clear();
+            _sendModules.AddRange(ids);
+            RenderConsole();
         }
 
         void RenderJournal()

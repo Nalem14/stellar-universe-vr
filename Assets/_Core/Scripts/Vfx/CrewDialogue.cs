@@ -1107,6 +1107,14 @@ namespace Core.Vfx
                 var planetLabel = PlanetLabel(focus.FindPlanet(fleet.PlanetId), fleet.PlanetId);
                 AddAction(ActionLabel("depositCargo", planetLabel), () => TransferCargo(fleet, planetLabel, false));
                 AddAction(ActionLabel("withdrawCargo", planetLabel), () => TransferCargo(fleet, planetLabel, true));
+                // Ship modules as freight: up from this world's hangar, or down into it.
+                if (fleet.Cargo > 0 && fleet.UserId == FocusContext.OwnedUserId())
+                {
+                    if (Core.Holo.ModuleFreightPad.HangarModules(fleet.PlanetId).Count > 0)
+                        AddAction(ActionLabel("vr.freight.load", planetLabel), () => FreightModules(fleet, planetLabel, true));
+                    if (fleet.CarriedModules.Count > 0)
+                        AddAction(ActionLabel("vr.freight.unload", planetLabel), () => FreightModules(fleet, planetLabel, false));
+                }
             }
 
             // Fuel reserve of this ship: crystal it keeps aboard on every unload (by hand, queue or auto-mining).
@@ -1158,6 +1166,22 @@ namespace Core.Vfx
             };
             amounts.Value.AddTo(query);
             await Issue(withdraw ? "WithdrawCargo" : "DepositCargo", query, planetLabel);
+        }
+
+        /// <summary>Load / unload ship modules: which ones on the freight pad first, then LoadModules / UnloadModules.</summary>
+        async Task FreightModules(FocusFleet fleet, string planetLabel, bool load)
+        {
+            var ids = await Core.Holo.ModuleFreightPad.Ask(fleet, fleet.PlanetId, planetLabel, load);
+            if (ids == null || ids.Count == 0)
+                return;
+            await Issue(load ? "LoadModules" : "UnloadModules", new Dictionary<string, string>
+            {
+                { "fleet", fleet.Id.ToString() },
+                { "planet", fleet.PlanetId.ToString() },
+                { "ships", string.Join(",", ids) }
+            }, planetLabel);
+            if (EconomyService.Instance != null)
+                await EconomyService.Instance.RefreshNow();
         }
 
         /// <summary>Planet stewardship (Ops console) on the station's planet, else the one in orbit, else the first owned.</summary>
