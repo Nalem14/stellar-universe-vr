@@ -85,31 +85,31 @@ Clés du client (dix langues) :
 | `vr.research.col.utility` / `.combat` / `.propulsion` | Utilitaire / Combat / Propulsion | Utility / Combat / Propulsion |
 | `vr.research.allWeapons` | toutes les armes | every weapon |
 | `vr.research.stat.<stat>` (17) | libellés courts du tableau des bonus (Vitesse, Dégâts, Blindage…) | short bonus table labels (Speed, Damage, Armor…) |
-| `vr.dock.effectiveHint` | En vert : valeurs réelles du vaisseau (recherches et modules montés compris) | In green: the ship's real values (research and fitted modules included) |
+| `vr.dock.effectiveHint` | Valeurs finales, recherches comprises · Coque = armure des modules + 50 de structure par module, comme en combat | Final values, research included · Hull = the modules' armor + 50 structure per module, as in battle |
 | `vr.diplo.ranking`, `vr.diplo.rank.empire` / `.economy` / `.research` / `.fleet` / `.defense` / `.score` | Classement des empires / Empire / Économie / Recherche / Flotte / Défense / Score | Empire ranking / Empire / Economy / Research / Fleet / Defense / Score (intégré web, dix langues) |
 
-Descriptions natives à réécrire (elles décrivaient un autre jeu — audit du 2026-10-04, nouvelle table `$RESEARCH_EFFECTS`) :
+Descriptions natives réécrites (audit du 2026-10-04, table `$RESEARCH_EFFECTS`), tenues à jour avec les rééquilibrages suivants — propulsion plafonnée au niveau 50, technologie minière, thermodynamique sur le canon thermique, drones sur toutes les ressources, nanites sur les modules, biotechnologie sur les troupes :
 
 | Clé | FR | EN |
 |---|---|---|
 | `descEnergy` | +3 % de production d'énergie par niveau, toutes centrales. | +3% energy output per level, every plant. |
 | `descComputer` | −1 % de durée de construction par niveau (bâtiments, troupes, défenses), jusqu'à −50 %. | −1% build time per level (buildings, troops, defenses), down to −50%. |
-| `descCombustionDrive` | +25 % de vitesse par niveau pour les propulseurs à combustion, les boosters de vitesse et tous les moteurs plus avancés. | +25% speed per level for combustion thrusters, speed boosters and every more advanced engine. |
-| `descImpulsionDrive` | +35 % de vitesse par niveau pour les propulseurs à impulsion, à fusion et les moteurs hyperespace. | +35% speed per level for impulse and fusion thrusters and hyperspace drives. |
-| `descFusionDrive` | +45 % de vitesse par niveau pour les propulseurs à fusion et les moteurs hyperespace. | +45% speed per level for fusion thrusters and hyperspace drives. |
-| `descHyperspaceDrive` | +60 % de vitesse par niveau pour les moteurs hyperespace. | +60% speed per level for hyperspace drives. |
+| `descCombustionDrive` | +1 % de vitesse par niveau pour les propulseurs à combustion, les boosters et tous les moteurs plus avancés, jusqu'à +50 % (niveau 50). | +1% speed per level for combustion thrusters, boosters and every more advanced engine, up to +50% (level 50). |
+| `descImpulsionDrive` | +1,5 % de vitesse par niveau pour les propulseurs à impulsion, à fusion et les moteurs hyperespace, jusqu'à +75 % (niveau 50). | +1.5% speed per level for impulse and fusion thrusters and hyperspace drives, up to +75% (level 50). |
+| `descFusionDrive` | +2 % de vitesse par niveau pour les propulseurs à fusion et les moteurs hyperespace, jusqu'à +100 % (niveau 50). | +2% speed per level for fusion thrusters and hyperspace drives, up to +100% (level 50). |
+| `descHyperspaceDrive` | +2,5 % de vitesse par niveau pour les moteurs hyperespace, jusqu'à +125 % (niveau 50). | +2.5% speed per level for hyperspace drives, up to +125% (level 50). |
 | `descWeapon` | +15 % de dégâts par niveau pour toutes les armes. | +15% damage per level for every weapon. |
 | `descLaser` | +15 % de dégâts par niveau pour les canons laser (en plus de l'Armement). | +15% damage per level for laser cannons (on top of Weapons). |
 | `descIon` | +20 % de dégâts par niveau pour les canons à ions (en plus de l'Armement). | +20% damage per level for ion cannons (on top of Weapons). |
 | `descPlasma` | +25 % de dégâts par niveau pour les canons à plasma (en plus de l'Armement). | +25% damage per level for plasma cannons (on top of Weapons). |
 | `descArmor` | +10 % de blindage par niveau pour les vaisseaux, aussi en combat tactique. | +10% armor per level for ships, tactical battles included. |
 | `descShield` | +10 % de boucliers par niveau pour les vaisseaux, aussi en combat tactique. | +10% shields per level for ships, tactical battles included. |
-| `descSolarTech` | +5 % de production des centrales solaires (au sol et en orbite) par niveau. | +5% solar plant output (ground and orbit) per level. |
+| `descSolarTech` | Débloque le Laser minier, indispensable pour miner les astéroïdes ; +10 % de vitesse d'extraction par niveau. | Unlocks the Mining Laser, required to mine asteroids; +10% mining speed per level. |
 | `descComms` | +2 % de relations diplomatiques par niveau. | +2% diplomatic relations per level. |
-| `descThermodynamics` | +5 % de production de minerai et de cristal par niveau. | +5% mineral and crystal output per level. |
-| `descDrone` | +5 % de production de biomasse par niveau (drones agricoles). | +5% biomass output per level (farm drones). |
-| `descNanite` | −3 % de durée d'amélioration des bâtiments par niveau, jusqu'à −45 %. | −3% building upgrade time per level, down to −45%. |
-| `descBiotech` | −5 % de durée de construction des habitations et des fermes par niveau, jusqu'à −50 %. | −5% housing and farm build time per level, down to −50%. |
+| `descThermodynamics` | Gestion de la chaleur : +20 % de dégâts du canon thermique par niveau. | Heat management: +20% Heat Cannon damage per level. |
+| `descDrone` | +5 % de production de minerai, de cristal et de biomasse par niveau (drones d'extraction et agricoles). | +5% mineral, crystal and biomass output per level (mining and farm drones). |
+| `descNanite` | −3 % de durée de fabrication des modules de vaisseau (cale sèche) par niveau, jusqu'à −45 %. | −3% ship module build time (dry dock) per level, down to −45%. |
+| `descBiotech` | Cuves de clonage : −5 % de durée de recrutement des troupes par niveau, jusqu'à −50 %. | Clone vats: −5% troop training time per level, down to −50%. |
 | `descGravityTech` | −5 % de durée de colonisation par niveau, jusqu'à −60 %. | −5% colonization time per level, down to −60%. |
 | `descPsiTech` | −5 % de durée de recherche par niveau, jusqu'à −50 %. | −5% research time per level, down to −50%. |
 
@@ -137,7 +137,7 @@ Descriptions natives à réécrire (elles décrivaient un autre jeu — audit du
 | `vr.dock.recycler.confirm` | Recycle {0}? Given back to the planet: {1} | Recycler {0} ? Rendu à la planète : {1} | ✅ 10 langues |
 | `vr.dock.recycler.go` | Recycle | Recycler | ✅ 10 langues |
 | `vr.dock.recycled` | Module recycled · {0} | Module recyclé · {0} | ✅ 10 langues |
-| `vr.dock.effectiveHint` | The ship's final values, research and fitted modules included | Valeurs finales du vaisseau, recherches et modules montés compris | ✅ 10 langues |
+| `vr.dock.effectiveHint` | Valeurs finales, recherches comprises · Coque = armure des modules + 50 de structure par module, comme en combat | Final values, research included · Hull = the modules' armor + 50 structure per module, as in battle |
 | `vr.pirate.levelInfo` | Level {0} / {1}: the higher, the better armed and the bigger the loot | Niveau {0} / {1} : plus il est élevé, plus ils sont armés et plus le butin est gros | ✅ 10 langues |
 | `vr.pirate.loot` | Loot: {0} | Butin : {0} | ✅ 10 langues |
 | `vr.pirate.odds.good` | {0}: clear advantage | {0} : avantage net | ✅ 10 langues |
@@ -167,6 +167,51 @@ Descriptions natives à réécrire (elles décrivaient un autre jeu — audit du
 | `dg_content_threat` | The {0} empire sends you a blunt warning: any provocation will be punished, and its fleets stand ready. | L'empire {0} vous adresse une mise en garde sans détour : toute provocation sera punie, et ses flottes se tiennent prêtes. | ✅ 10 langues |
 | `dg_subject_blackmail` | Blackmail from {0} | Chantage de {0} | ✅ 10 langues |
 | `dg_content_blackmail` | The {0} empire claims to hold damaging secrets about your government and demands your compliance. Your relations suffer for it. | L'empire {0} prétend détenir des secrets compromettants sur votre gouvernement et exige votre docilité. Vos relations s'en trouvent dégradées. | ✅ 10 langues |
+
+## Rééquilibrages d'octobre : recherches, minage, combat, fret, limites (intégré web)
+
+| Clé | EN | FR | Lot |
+|---|---|---|---|
+| `vr.pirate.levelShort` | Level sets their weapons and the loot | Le niveau fixe leur armement et le butin | Pirates (légende du niveau, butin du courrier), nanites |
+| `rm_shipbattle_pirate_loot` | Loot seized from the pirates (level {level}): +{xp} XP, +{nova} Nova, +{mineral} mineral, +{crystal} crystal and +{biomass} biomass, delivered to {planet}. | Butin saisi sur les pirates (niveau {level}) : +{xp} XP, +{nova} Nova, +{mineral} minerai, +{crystal} cristal et +{biomass} biomasse, versés à {planet}. | Pirates (légende du niveau, butin du courrier), nanites |
+| `vr.research.stat.moduleBuildTime` | Module building | Fabrication des modules | Pirates (légende du niveau, butin du courrier), nanites |
+| `descNanite` | −3% ship module build time (dry dock) per level, down to −45%. | −3 % de durée de fabrication des modules de vaisseau (cale sèche) par niveau, jusqu'à −45 %. | Pirates (légende du niveau, butin du courrier), nanites |
+| `descBiotech` | Clone vats: −5% troop training time per level, down to −50%. | Cuves de clonage : −5 % de durée de recrutement des troupes par niveau, jusqu'à −50 %. | Biotechnologie |
+| `vr.research.stat.troopTrainingTime` | Troop training | Recrutement des troupes | Biotechnologie |
+| `descDrone` | +5% mineral, crystal and biomass output per level (mining and farm drones). | +5 % de production de minerai, de cristal et de biomasse par niveau (drones d'extraction et agricoles). | Drones |
+| `descThermodynamics` | Heat management: +20% Heat Cannon damage per level. | Gestion de la chaleur : +20 % de dégâts du canon thermique par niveau. | Thermodynamique |
+| `solarTech` | Mining Technology | Technologie minière | Technologie minière et Laser minier |
+| `descSolarTech` | Unlocks the Mining Laser, required to mine asteroids; +10% mining speed per level. | Débloque le Laser minier, indispensable pour miner les astéroïdes ; +10 % de vitesse d'extraction par niveau. | Technologie minière et Laser minier |
+| `MiningLaser` | Mining Laser | Laser minier | Technologie minière et Laser minier |
+| `descMiningLaser` | A drilling emitter aimed at the rock. Required to mine an asteroid field; each extra laser mines 50% faster. | Émetteur de forage orienté vers la roche. Indispensable pour miner un champ d'astéroïdes ; chaque laser supplémentaire accélère l'extraction de 50 %. | Technologie minière et Laser minier |
+| `needMiningLaser` | A Mining Laser is needed to mine | Laser minier requis pour miner | Technologie minière et Laser minier |
+| `vr.research.stat.harvestSpeed` | Mining speed | Vitesse d'extraction | Technologie minière et Laser minier |
+| `vr.freight.load` | Load modules | Embarquer des modules | Fret de modules, coque planétaire, aide de la cale |
+| `vr.freight.unload` | Unload modules | Débarquer des modules | Fret de modules, coque planétaire, aide de la cale |
+| `vr.freight.holdLoad` | {0} module(s) aboard · room for {1} more ({2} hold each) | {0} module(s) à bord · encore {1} de place ({2} de soute chacun) | Fret de modules, coque planétaire, aide de la cale |
+| `vr.freight.holdUnload` | {0} module(s) aboard | {0} module(s) à bord | Fret de modules, coque planétaire, aide de la cale |
+| `vr.freight.none` | No module available | Aucun module disponible | Fret de modules, coque planétaire, aide de la cale |
+| `vr.gate.modules` | Modules: {0} / {1} | Modules : {0} / {1} | Fret de modules, coque planétaire, aide de la cale |
+| `vr.gate.pickModules` | Modules to send through the gate | Modules à envoyer par la porte | Fret de modules, coque planétaire, aide de la cale |
+| `fleetNotAtPlanet` | The ship is not in orbit of this planet | Le vaisseau n'est pas en orbite de cette planète | Fret de modules, coque planétaire, aide de la cale |
+| `moduleNotInHangar` | This module is no longer in the hangar | Ce module n'est plus dans le hangar | Fret de modules, coque planétaire, aide de la cale |
+| `noModuleCarried` | No module aboard | Aucun module à bord | Fret de modules, coque planétaire, aide de la cale |
+| `vr.armory.defHull` | Planet hull +{0} | Coque planétaire +{0} | Fret de modules, coque planétaire, aide de la cale |
+| `vr.armory.defShield` | Planet shield +{0} | Bouclier planétaire +{0} | Fret de modules, coque planétaire, aide de la cale |
+| `vr.dock.effectiveHint` | Final values, research included · Hull = the modules' armor + 50 structure per module, as in battle | Valeurs finales, recherches comprises · Coque = armure des modules + 50 de structure par module, comme en combat | Fret de modules, coque planétaire, aide de la cale |
+| `vr.dock.limits` | Ships {0} / {1}  ·  Stations {2} / {3}   (one of each per planet owned, one station per orbit) | Vaisseaux {0} / {1}  ·  Stations {2} / {3}   (un de chaque par planète possédée, une station par orbite) | Limites de vaisseaux et de stations, tir ami |
+| `stationLimitReached` | Station limit reached (one per planet owned) | Limite de stations atteinte (une par planète possédée) | Limites de vaisseaux et de stations, tir ami |
+| `planetHasStation` | An orbital station already holds this planet's orbit | Une station orbitale tient déjà l'orbite de cette planète | Limites de vaisseaux et de stations, tir ami |
+| `vr.hunt.notEnemy` | Careful: {0} ship, attacking it will hurt your relations | Attention : vaisseau {0}, l'attaquer dégradera vos relations | Limites de vaisseaux et de stations, tir ami |
+| `vr.research.effect.harvestSpeed` | {0} asteroid mining speed | {0} vitesse d'extraction des astéroïdes | Effets de recherche (minage, fabrication des modules, troupes), propulsion plafonnée |
+| `vr.research.effect.moduleBuildTime` | {0} module build time (dry dock) | {0} durée de fabrication des modules (cale sèche) | Effets de recherche (minage, fabrication des modules, troupes), propulsion plafonnée |
+| `vr.research.effect.troopTrainingTime` | {0} troop training time | {0} durée de recrutement des troupes | Effets de recherche (minage, fabrication des modules, troupes), propulsion plafonnée |
+| `descCombustionDrive` | +1% speed per level for combustion thrusters, boosters and every more advanced engine, up to +50% (level 50). | +1 % de vitesse par niveau pour les propulseurs à combustion, les boosters et tous les moteurs plus avancés, jusqu'à +50 % (niveau 50). | Effets de recherche (minage, fabrication des modules, troupes), propulsion plafonnée |
+| `descImpulsionDrive` | +1.5% speed per level for impulse and fusion thrusters and hyperspace drives, up to +75% (level 50). | +1,5 % de vitesse par niveau pour les propulseurs à impulsion, à fusion et les moteurs hyperespace, jusqu'à +75 % (niveau 50). | Effets de recherche (minage, fabrication des modules, troupes), propulsion plafonnée |
+| `descFusionDrive` | +2% speed per level for fusion thrusters and hyperspace drives, up to +100% (level 50). | +2 % de vitesse par niveau pour les propulseurs à fusion et les moteurs hyperespace, jusqu'à +100 % (niveau 50). | Effets de recherche (minage, fabrication des modules, troupes), propulsion plafonnée |
+| `descHyperspaceDrive` | +2.5% speed per level for hyperspace drives, up to +125% (level 50). | +2,5 % de vitesse par niveau pour les moteurs hyperespace, jusqu'à +125 % (niveau 50). | Effets de recherche (minage, fabrication des modules, troupes), propulsion plafonnée |
+
+Toutes ✅ dans les dix langues (`docs/tools/i18n.py check` : même jeu et même ordre de clés partout).
 
 ## Restant côté web
 
