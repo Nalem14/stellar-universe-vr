@@ -139,9 +139,8 @@ namespace Core.App
             if (GameConfig.Loaded && GalaxyCatalog.TryGet(f.FromSystemId, out var a) && GalaxyCatalog.TryGet(f.DestSystemId, out var b))
             {
                 var d = Mathf.Sqrt((a.X - b.X) * (a.X - b.X) + (a.Y - b.Y) * (a.Y - b.Y));
-                var cap = GameConfig.SublightSpeedCap > 0f ? GameConfig.SublightSpeedCap : f.Speed;
                 var boost = Mathf.Max(0.01f, Boosters.MoveTimeFactor);
-                var slow = Mathf.Max(GameConfig.TravelDurationMin, d * GameConfig.TravelSecondsPerDistance / Mathf.Max(1f, Mathf.Min(f.Speed, cap) / boost));
+                var slow = Mathf.Max(GameConfig.TravelDurationMin, d * GameConfig.TravelSecondsPerDistance / Mathf.Max(1f, GameConfig.SublightSpeed(f.Speed) / boost));
                 var fast = Mathf.Max(GameConfig.TravelDurationMin, d * GameConfig.TravelSecondsPerDistance / Mathf.Max(1f, f.Speed / boost));
                 if (slow - fast > 5f)
                     return left > (slow + fast) * 0.5f ? VoyageMode.Sublight : VoyageMode.Hyperspace;

@@ -323,19 +323,25 @@ namespace Core.Holo
         }
 
         /// <summary>
-        /// Sub-light as the server runs it (actionjs.php MoveFleetToSystem): capped speed, booster, integer; faster
-        /// than 1 burns ⌈speed × distance × rate⌉ crystal from the hold, else the free conventional drive at speed 1.
+        /// Sub-light as the server runs it (actionjs.php MoveFleetToSystem): SublightSpeed (a share of the hull's
+        /// speed, never under the flat cap), booster, integer; faster than 1 burns ⌈speed × distance × rate⌉ crystal
+        /// from the hold — a hold that cannot pay falls back to the flat cap first, then to the free speed 1.
         /// </summary>
         static void Sublight(FocusFleet fleet, float distance, ref TravelQuote q)
         {
-            var raw = Mathf.Max(1f, fleet.Speed);
-            if (GameConfig.SublightSpeedCap > 0f)
-                raw = Mathf.Min(raw, GameConfig.SublightSpeedCap);
-            var speed = ServerSpeed(raw);
+            var speed = ServerSpeed(GameConfig.SublightSpeed(Mathf.Max(1f, fleet.Speed)));
             q.CrystalCost = 0;
             if (speed > 1 && GameConfig.SublightCrystalPerDistance > 0f)
             {
                 var cost = Mathf.CeilToInt(speed * distance * GameConfig.SublightCrystalPerDistance);
+                var capSpeed = Mathf.Max(1, (int)Mathf.Min(speed, GameConfig.SublightSpeedCap));
+                if (fleet.CrystalCargo < cost && capSpeed > 1 && capSpeed < speed &&
+                    fleet.CrystalCargo >= Mathf.CeilToInt(capSpeed * distance * GameConfig.SublightCrystalPerDistance))
+                {
+                    speed = capSpeed;
+                    cost = Mathf.CeilToInt(speed * distance * GameConfig.SublightCrystalPerDistance);
+                }
+
                 if (fleet.CrystalCargo < cost)
                 {
                     q.FallbackKey = "vr.travel.warn.conventional";

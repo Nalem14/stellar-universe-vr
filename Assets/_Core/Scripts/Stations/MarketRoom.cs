@@ -1119,8 +1119,7 @@ namespace Core.Stations
         /// <summary>One leg of the convoy as the server times it (DispatchTradeConvoy): interstellar + in-system approach.</summary>
         static float LegSeconds(float distance, float speed, bool hyper)
         {
-            var cap = GameConfig.SublightSpeedCap > 0f ? GameConfig.SublightSpeedCap : 10f;
-            var v = Mathf.Max(1, (int)(hyper ? speed : Mathf.Min(speed, cap)));
+            var v = Mathf.Max(1, (int)(hyper ? speed : GameConfig.SublightSpeed(speed)));
             var perDistance = GameConfig.TravelSecondsPerDistance > 0f ? GameConfig.TravelSecondsPerDistance : 120f;
             var min = GameConfig.TravelDurationMin > 0f ? GameConfig.TravelDurationMin : 30f;
             var interstellar = (int)Mathf.Max(min, distance * perDistance / v);

@@ -14,6 +14,15 @@ namespace Core.App
 
         // GetConfigs.fleet
         public static float SublightSpeedCap { get; private set; }
+        /// <summary>GetConfigs.fleet.sublightSpeedFactor: share of a hull's real speed kept at sub-light (0 = old servers).</summary>
+        public static float SublightSpeedFactor { get; private set; }
+
+        /// <summary>Server SublightSpeed(): max(min(speed, cap), speed × factor) — before the booster and the integer.</summary>
+        public static float SublightSpeed(float speed)
+        {
+            var cap = SublightSpeedCap > 0f ? System.Math.Min(speed, SublightSpeedCap) : speed;
+            return System.Math.Max(cap, speed * SublightSpeedFactor);
+        }
         public static float HyperspaceCrystalPerDistance { get; private set; }
         /// <summary>
         /// Crystal per distance unit for a faster-than-1 sub-light trip (web f03197d); 0 = not exposed by
@@ -121,6 +130,7 @@ namespace Core.App
                 if (root["fleet"] is JObject fleet)
                 {
                     SublightSpeedCap = FocusContext.AsFloat(fleet["sublightSpeedCap"]);
+                    SublightSpeedFactor = FocusContext.AsFloat(fleet["sublightSpeedFactor"]);
                     HyperspaceCrystalPerDistance = FocusContext.AsFloat(fleet["hyperspaceCrystalCostPerDistance"]);
                     SublightCrystalPerDistance = FocusContext.AsFloat(fleet["sublightCrystalCostPerDistance"]);
                     TravelSecondsPerDistance = FocusContext.AsFloat(fleet["systemTravelSecondsPerDistance"]);
