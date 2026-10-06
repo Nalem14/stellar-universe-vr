@@ -847,7 +847,8 @@ namespace Core.Stations
                 var stats = ModuleCatalog.StatsLine(m.Type);
                 SetStatus("<b>" + Trans.Get(ModuleCatalog.NameKey(m.Type)) + "</b>  <color=#" +
                           ColorUtility.ToHtmlStringRGB(ModuleCatalog.Accent(fam)) + ">" + Trans.Get(ModuleCatalog.FamilyKey(fam)) +
-                          "</color>" + (stats.Length > 0 ? "\n<size=85%>" + stats + "</size>" : string.Empty));
+                          "</color>" + (stats.Length > 0 ? "\n<size=85%>" + stats + "</size>" : string.Empty) +
+                          SkillSuffix(m.Type));
             }
         }
 
@@ -986,7 +987,14 @@ namespace Core.Stations
             _armedRemove = null;
             PaintGrid();
             SetStatus(Trans.Get(ModuleCatalog.NameKey(type)) + "  " + ModuleCatalog.CompatTags(type) + " — " +
-                      Trans.Get(ModuleCatalog.DescKey(type)));
+                      Trans.Get(ModuleCatalog.DescKey(type)) + SkillSuffix(type));
+        }
+
+        /// <summary>The battle skill a module unlocks, as a line under its status (empty before the config).</summary>
+        static string SkillSuffix(string type)
+        {
+            var skill = ModuleCatalog.SkillLine(type);
+            return skill.Length > 0 ? "\n<size=80%>" + skill + "</size>" : string.Empty;
         }
 
         /// <summary>

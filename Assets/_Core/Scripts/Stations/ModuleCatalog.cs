@@ -284,6 +284,93 @@ namespace Core.Stations
             return line;
         }
 
+        /// <summary>The battle skill one module of this type gives (GetConfigs.battleSkills), null when none.</summary>
+        public static JObject BattleSkill(string type) =>
+            string.IsNullOrEmpty(type) ? null : GameConfig.BattleSkills?[type]?["skill"] as JObject;
+
+        /// <summary>"◆ Tir Laser" in its category colour (move / damage / other), empty when the module gives none.</summary>
+        public static string SkillTag(string type)
+        {
+            var sk = BattleSkill(type);
+            if (sk == null)
+                return string.Empty;
+            var cat = global::Core.Vfx.SkillCategory.Of(FocusContext.AsString(sk["category"]), FocusContext.AsString(sk["type"]));
+            return "<color=#" + global::Core.Vfx.SkillCategory.Hex(cat) + ">◆ " + Trans.Get("battleSkill_" + FocusContext.AsString(sk["id"])) + "</color>";
+        }
+
+        /// <summary>
+        /// What the module unlocks in battle, for its sheet: "◆ Compétence : Tir Laser (Dégâts) · 150 dégâts · PO 1-4 ·
+        /// 3 PA · Recharge · 1 tours", then what it adds every turn ("Chaque tour : +1 PM"), or "No combat skill". Several
+        /// modules of a type make its skill stronger (the server's ScaleBattleSkill); this is one module's.
+        /// </summary>
+        public static string SkillLine(string type)
+        {
+            var entry = string.IsNullOrEmpty(type) ? null : GameConfig.BattleSkills?[type] as JObject;
+            if (GameConfig.BattleSkills == null)
+                return string.Empty;
+            var sk = entry?["skill"] as JObject;
+            if (sk == null)
+                return "<color=#7d93a0>" + Trans.Get("vr.module.noSkill") + "</color>";
+            var culture = StatCulture();
+            var skType = FocusContext.AsString(sk["type"]);
+            var cat = global::Core.Vfx.SkillCategory.Of(FocusContext.AsString(sk["category"]), skType);
+            var parts = new List<string>();
+            var dmg = FocusContext.AsInt(sk["damage"]);
+            if (dmg > 0)
+                parts.Add(Trans.Format("vr.module.skillDamage", dmg.ToString("N0", culture)));
+            var heal = FocusContext.AsInt(sk["heal"]);
+            if (heal > 0)
+                parts.Add(Trans.Format("vr.module.skillHeal", heal.ToString("N0", culture)));
+            var shield = FocusContext.AsInt(sk["shield"]);
+            if (shield > 0)
+                parts.Add(Trans.Format("vr.module.skillShield", shield.ToString("N0", culture)));
+            var move = FocusContext.AsInt(sk["move_bonus"]);
+            if (move > 0)
+                parts.Add(Trans.Format("vr.module.skillMove", move));
+            if (skType == "buff_armor")
+                parts.Add(Trans.Get("vr.module.skillArmor"));
+            if (skType == "stealth")
+                parts.Add(Trans.Get("vr.module.skillStealth"));
+            if (skType == "cleanse")
+                parts.Add(Trans.Get("vr.module.skillCleanse"));
+            if (skType == "teleport")
+                parts.Add(Trans.Get("vr.module.skillJump"));
+            var aoe = FocusContext.AsInt(sk["aoe_radius"]);
+            if (aoe > 0)
+                parts.Add(Trans.Format("vr.module.skillArea", aoe));
+            var effect = FocusContext.AsString(sk["effect"]);
+            if (!string.IsNullOrEmpty(effect))
+                parts.Add(Trans.Format("vr.module.effect." + effect, Mathf.Max(1, FocusContext.AsInt(sk["effect_turns"]))));
+            var range = FocusContext.AsInt(sk["range"]);
+            var rangeMin = FocusContext.AsInt(sk["range_min"]);
+            parts.Add(range <= 0 ? Trans.Get("vr.battle.self")
+                : Trans.Format("vr.battle.range", rangeMin > 0 ? rangeMin + "-" + range : range.ToString()));
+            parts.Add(Trans.Format("vr.battle.apCost", FocusContext.AsInt(sk["ap"])));
+            var cd = FocusContext.AsInt(sk["cooldown"]);
+            if (cd > 0)
+                parts.Add(Trans.Format("vr.battle.cooldown", cd));
+
+            var sb = new System.Text.StringBuilder();
+            sb.Append("<color=#").Append(global::Core.Vfx.SkillCategory.Hex(cat)).Append(">◆ ")
+                .Append(Trans.Format("vr.module.skill", Trans.Get("battleSkill_" + FocusContext.AsString(sk["id"]))))
+                .Append("</color> <size=85%><color=#").Append(global::Core.Vfx.SkillCategory.Hex(cat)).Append('>')
+                .Append('(').Append(Trans.Get(global::Core.Vfx.SkillCategory.LabelKey(cat))).Append(")</color></size>  ")
+                .Append(string.Join("  <color=#5d7c8c>·</color>  ", parts));
+            var ap = FocusContext.AsInt(entry["ap"]);
+            var pm = FocusContext.AsInt(entry["pm"]);
+            if (ap > 0 || pm > 0)
+            {
+                var bonus = new List<string>();
+                if (ap > 0)
+                    bonus.Add("+" + Trans.Format("vr.battle.apCost", ap));
+                if (pm > 0)
+                    bonus.Add("+" + Trans.Format("vr.battle.pmCost", pm));
+                sb.Append("\n<color=#9fdcff>").Append(Trans.Format("vr.module.turnBonus", string.Join(" · ", bonus))).Append("</color>");
+            }
+
+            return sb.ToString();
+        }
+
         /// <summary>Description of one module (fr.json descShipCore…), as the dock's status line shows it.</summary>
         public static string Description(string type) => Trans.Get(DescKey(type));
 

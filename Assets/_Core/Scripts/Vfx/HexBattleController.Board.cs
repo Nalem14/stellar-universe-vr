@@ -108,10 +108,10 @@ namespace Core.Vfx
             // Near rim (captain side), tilted up to the eye like the table's other rim controls.
             _console.localPosition = new Vector3(0f, 0.12f - BoardLift, -WorldScale.HoloDiscRadius * 0.58f);
             _console.localRotation = Quaternion.Euler(50f, 0f, 0f);
-            _card = UiKit.Label(_console, "Card", string.Empty, new Vector3(0f, 0.108f, 0f), 0.7f, 0.014f,
+            _card = UiKit.Label(_console, "Card", string.Empty, new Vector3(0f, 0.17f, 0f), 0.7f, 0.014f,
                 UiKit.TextBright);
             _card.richText = true;
-            _toast = UiKit.Label(_console, "Toast", string.Empty, new Vector3(0f, 0.15f, 0f), 0.7f, 0.016f,
+            _toast = UiKit.Label(_console, "Toast", string.Empty, new Vector3(0f, 0.21f, 0f), 0.7f, 0.016f,
                 UiKit.Amber);
             _toast.richText = true;
 
@@ -725,49 +725,67 @@ namespace Core.Vfx
                 var src = s.MyTurn ? s.ActiveShip : null;
                 if (src != null)
                 {
-                    var slot = 0;
+                    // Three rows, one per kind of action, each in its colour with its name at the left: movement
+                    // (Move + the skills that reposition the ship), damage, support. Every skill the ship's modules
+                    // unlock is on the bar (a row wraps past six).
                     var gravity = src.StatusTurns("gravity") > 0;
-                    // A planet or a fortress holds its hex: the move key reads "fixed position" and stays dark.
-                    var moveLabel = src.Immobile
-                        ? Trans.Get("vr.battle.immobile")
-                        : Trans.Get("move") + "\n<size=70%>" + Trans.Format("vr.battle.pmLeft", src.Pm) + "</size>";
-                    var move = Button(moveLabel,
-                        slot++, 0, 5, w, h, _pendingSkill == null ? UiKit.Ok : UiKit.Cyan, () =>
-                        {
-                            _pendingSkill = null;
-                            CicCue.Hover(_console.position);
-                            RefreshGrid();
-                            RefreshConsole();
-                        });
-                    move.Interactive = !src.Immobile && src.Pm > 0 && !gravity;
                     var ionized = src.StatusTurns("ionized") > 0;
-                    foreach (var sk in src.Skills)
+                    var rowY = SkillRowTop;
+                    foreach (var cat in new[] { SkillCategory.Move, SkillCategory.Damage, SkillCategory.Other })
                     {
-                        if (slot >= 10)
-                            break;
-                        var skill = sk;
-                        var row = slot / 5;
-                        var col = slot % 5;
-                        var accent = _pendingSkill != null && _pendingSkill.Id == sk.Id ? UiKit.Amber
-                            : sk.Hostile ? UiKit.Danger
-                            : UiKit.Cyan;
-                        var b = Button(SkillLabel(sk), col, row, 5, w, h, accent, () => ChooseSkill(skill));
-                        b.Interactive = !ionized && sk.CooldownLeft <= 0 && src.Ap >= sk.Ap;
-                        slot++;
+                        var col = 0;
+                        var catColor = SkillCategory.ColorOf(cat);
+                        RowLabel(Trans.Get(SkillCategory.LabelKey(cat)), rowY, catColor);
+                        if (cat == SkillCategory.Move)
+                        {
+                            // A planet or a fortress holds its hex: the move key reads "fixed position" and stays dark.
+                            var moveLabel = src.Immobile
+                                ? Trans.Get("vr.battle.immobile")
+                                : Trans.Get("move") + "\n<size=70%>" + Trans.Format("vr.battle.pmLeft", src.Pm) + "</size>";
+                            var move = SkillButton(moveLabel, col++, rowY, _pendingSkill == null ? UiKit.Ok : catColor, () =>
+                            {
+                                _pendingSkill = null;
+                                CicCue.Hover(_console.position);
+                                RefreshGrid();
+                                RefreshConsole();
+                            });
+                            move.Interactive = !src.Immobile && src.Pm > 0 && !gravity;
+                        }
+
+                        foreach (var sk in src.Skills)
+                        {
+                            if (sk.Category != cat)
+                                continue;
+                            if (col >= SkillsPerRow)
+                            {
+                                col = 0;
+                                rowY -= SkillRowStep;
+                            }
+
+                            var skill = sk;
+                            var accent = _pendingSkill != null && _pendingSkill.Id == sk.Id ? UiKit.Amber : catColor;
+                            var b = SkillButton(SkillLabel(sk), col++, rowY, accent, () => ChooseSkill(skill));
+                            b.Interactive = !ionized && sk.CooldownLeft <= 0 && src.Ap >= sk.Ap;
+                        }
+
+                        if (col == 0)
+                            RowLabel("<size=80%>—</size>", rowY, UiKit.TextDim, SkillColumnX(0));
+                        rowY -= SkillRowStep;
                     }
 
+                    var actionsRow = Mathf.RoundToInt((0.06f - rowY) / 0.058f);
                     if (src.Immobile)
                     {
-                        Button(Trans.Get("vr.tactical.endTurn"), 0, 2, 2, w * 1.4f, h, UiKit.Amber, () => AsyncTap.Run(EndTurn()));
-                        Button(Trans.Get("vr.battle.leave"), 1, 2, 2, w * 1.4f, h, UiKit.Cyan, Leave);
+                        Button(Trans.Get("vr.tactical.endTurn"), 0, actionsRow, 2, w * 1.4f, h, UiKit.Amber, () => AsyncTap.Run(EndTurn()));
+                        Button(Trans.Get("vr.battle.leave"), 1, actionsRow, 2, w * 1.4f, h, UiKit.Cyan, Leave);
                     }
                     else
                     {
                         // Retreat (web 69d40af): armed by a first press, the second one orders it.
-                        Button(Trans.Get("vr.tactical.endTurn"), 0, 2, 3, w * 1.2f, h, UiKit.Amber, () => AsyncTap.Run(EndTurn()));
+                        Button(Trans.Get("vr.tactical.endTurn"), 0, actionsRow, 3, w * 1.2f, h, UiKit.Amber, () => AsyncTap.Run(EndTurn()));
                         Button(RetreatArmed ? "<b>" + Trans.Get("retreatAction") + " ?</b>" : Trans.Get("retreatAction"),
-                            1, 2, 3, w * 1.2f, h, RetreatArmed ? UiKit.Danger : new Color(0.99f, 0.88f, 0.28f, 1f), Retreat);
-                        Button(Trans.Get("vr.battle.leave"), 2, 2, 3, w * 1.2f, h, UiKit.Cyan, Leave);
+                            1, actionsRow, 3, w * 1.2f, h, RetreatArmed ? UiKit.Danger : new Color(0.99f, 0.88f, 0.28f, 1f), Retreat);
+                        Button(Trans.Get("vr.battle.leave"), 2, actionsRow, 3, w * 1.2f, h, UiKit.Cyan, Leave);
                     }
                 }
                 else
@@ -786,6 +804,23 @@ namespace Core.Vfx
                 b.Label.richText = true;
                 _buttons.Add(b);
                 return b;
+            }
+
+            PokeButton SkillButton(string label, int col, float y, Color accent, System.Action onPress)
+            {
+                var b = PokeButton.Create(_console, "Skill" + Mathf.RoundToInt(y * 1000f) + "_" + col, label,
+                    new Vector3(SkillColumnX(col), y, 0f), Quaternion.identity, new Vector2(w, h), accent, onPress);
+                b.Label.richText = true;
+                _buttons.Add(b);
+                return b;
+            }
+
+            void RowLabel(string text, float y, Color color, float x = SkillLabelX)
+            {
+                var t = UiKit.Label(_console, "Row", text, new Vector3(x, y, 0f), 0.1f, 0.012f, color);
+                t.richText = true;
+                t.fontStyle = TMPro.FontStyles.Bold;
+                _rowLabels.Add(t.gameObject);
             }
         }
 
@@ -820,12 +855,24 @@ namespace Core.Vfx
             return name + "\n<size=70%>" + info + "</size>";
         }
 
+        // The skill bar: a category name at the left of each row, then up to six keys (rows step down the console).
+        const int SkillsPerRow = 6;
+        const float SkillRowTop = 0.118f;
+        const float SkillRowStep = 0.058f;
+        const float SkillLabelX = -0.43f;
+        static float SkillColumnX(int col) => -0.32f + col * 0.128f;
+        readonly List<GameObject> _rowLabels = new();
+
         void ClearConsole()
         {
             foreach (var b in _buttons)
                 if (b != null)
                     Destroy(b.gameObject);
             _buttons.Clear();
+            foreach (var l in _rowLabels)
+                if (l != null)
+                    Destroy(l);
+            _rowLabels.Clear();
         }
 
         void RefreshCard()

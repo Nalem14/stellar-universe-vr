@@ -674,6 +674,10 @@ namespace Core.Stations
             var stats = ModuleCatalog.StatsLine(s.Type);
             if (stats.Length > 0)
                 _sb.Append("\n<size=80%>").Append(stats).Append("</size>");
+            // The battle skill it unlocks (category colour, figures) — or that it gives none.
+            var skill = ModuleCatalog.SkillLine(s.Type);
+            if (skill.Length > 0)
+                _sb.Append("\n<size=74%>").Append(skill).Append("</size>");
             _sb.Append("\n<size=70%><color=#9fc4d6>").Append(ModuleCatalog.Description(s.Type)).Append("</color></size>");
             if (s.Count == 0 && _yard != null)
                 _sb.Append("\n<size=80%>").Append(_yard.CostText(s.Type)).Append("</size>");

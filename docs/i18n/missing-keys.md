@@ -218,6 +218,30 @@ Descriptions natives réécrites (audit du 2026-10-04, table `$RESEARCH_EFFECTS`
 | `vr.battle.objectivePillage` | Objective: bring {0} down and pillage it | Objectif : abattre {0} et la piller | Sièges planétaires : objectif piller / conquérir |
 | `vr.battle.objectiveConquer` | Objective: bring {0} down and take it | Objectif : abattre {0} et la conquérir | Sièges planétaires : objectif piller / conquérir |
 | `intergalacticNeedsHyperspace` | Only a hyperspace jump crosses the void between two galaxies (hyperspace drives and crystal required). | Seul un saut hyperespace franchit le vide entre deux galaxies (moteurs hyperespace et cristal requis). | Galaxie agrandie, galaxies multiples |
+| `skillCategory_move` | Movement | Déplacement | Compétences liées aux modules, barre par catégorie |
+| `skillCategory_damage` | Damage | Dégâts | Compétences liées aux modules, barre par catégorie |
+| `skillCategory_other` | Support | Soutien | Compétences liées aux modules, barre par catégorie |
+| `vr.module.skill` | Skill: {0} | Compétence : {0} | Compétences liées aux modules, barre par catégorie |
+| `vr.module.noSkill` | No combat skill | Aucune compétence de combat | Compétences liées aux modules, barre par catégorie |
+| `vr.module.skillDamage` | {0} damage | {0} dégâts | Compétences liées aux modules, barre par catégorie |
+| `vr.module.skillHeal` | repairs {0} | répare {0} | Compétences liées aux modules, barre par catégorie |
+| `vr.module.skillShield` | shield +{0} | bouclier +{0} | Compétences liées aux modules, barre par catégorie |
+| `vr.module.skillMove` | +{0} MP this turn | +{0} PM ce tour | Compétences liées aux modules, barre par catégorie |
+| `vr.module.skillArmor` | −50% damage taken this turn | −50 % de dégâts subis ce tour | Compétences liées aux modules, barre par catégorie |
+| `vr.module.skillStealth` | veil: −80% damage taken, +2 MP | voile : −80 % de dégâts subis, +2 PM | Compétences liées aux modules, barre par catégorie |
+| `vr.module.skillCleanse` | clears jamming, ionisation, gravity and overheating | purge brouillage, ions, gravité et surchauffe | Compétences liées aux modules, barre par catégorie |
+| `vr.module.skillJump` | jump to a free cell | saut vers une case libre | Compétences liées aux modules, barre par catégorie |
+| `vr.module.skillArea` | area {0} | zone {0} | Compétences liées aux modules, barre par catégorie |
+| `vr.module.effect.jammed` | jams the target {0} turns (−40% damage) | brouille la cible {0} tours (−40 % de dégâts) | Compétences liées aux modules, barre par catégorie |
+| `vr.module.effect.ionized` | ionises the target {0} turn(s): no skills | ionise la cible {0} tour(s) : plus de compétences | Compétences liées aux modules, barre par catégorie |
+| `vr.module.effect.gravity` | traps the target {0} turn(s): no moving, no retreat | piège la cible {0} tour(s) : ni déplacement ni fuite | Compétences liées aux modules, barre par catégorie |
+| `vr.module.effect.overheated` | overheats the target {0} turn(s): +25% damage taken | surchauffe la cible {0} tour(s) : +25 % de dégâts subis | Compétences liées aux modules, barre par catégorie |
+| `vr.module.turnBonus` | Every turn: {0} | Chaque tour : {0} | Compétences liées aux modules, barre par catégorie |
+| `battleSkill_afterburner` | Afterburner | Postcombustion | Compétences liées aux modules, barre par catégorie |
+| `battleSkill_impulse_dash` | Impulse Dash | Bond Impulsionnel | Compétences liées aux modules, barre par catégorie |
+| `battleSkill_fusion_burst` | Fusion Burst | Poussée Fusion | Compétences liées aux modules, barre par catégorie |
+| `battleSkill_mining_beam` | Mining Beam | Rayon Minier | Compétences liées aux modules, barre par catégorie |
+| `battleSkill_boarding_party` | Boarding Party | Équipe d'Abordage | Compétences liées aux modules, barre par catégorie |
 
 Toutes ✅ dans les dix langues (`docs/tools/i18n.py check` : même jeu et même ordre de clés partout).
 

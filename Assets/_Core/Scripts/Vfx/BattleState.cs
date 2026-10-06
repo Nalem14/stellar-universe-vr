@@ -1,3 +1,4 @@
+using UnityEngine;
 using System.Collections.Generic;
 using Core.App;
 using Newtonsoft.Json.Linq;
@@ -8,10 +9,46 @@ namespace Core.Vfx
     /// One combat skill of a battle ship (model/battle.php BATTLE_SKILL_DEFS, stacked by module count in
     /// GetSkillsForFleet). How it is aimed on the table follows the server's BattleResolveAction.
     /// </summary>
+    /// <summary>
+    /// The three kinds of skill on the battle bar and on module sheets, each with its colour: move (repositions the
+    /// ship: extra MP, jumps), damage (hurts an enemy), other (repairs, shields, armour, jamming, cleansing).
+    /// </summary>
+    public static class SkillCategory
+    {
+        public const string Move = "move";
+        public const string Damage = "damage";
+        public const string Other = "other";
+
+        public static readonly Color MoveColor = new(0.32f, 0.78f, 1f, 1f);
+        public static readonly Color DamageColor = new(1f, 0.38f, 0.3f, 1f);
+        public static readonly Color OtherColor = new(0.55f, 0.95f, 0.5f, 1f);
+
+        /// <summary>The server's category (BattleSkillCategory), or the same rule on the skill type.</summary>
+        public static string Of(string category, string type)
+        {
+            if (category is Move or Damage or Other)
+                return category;
+            if (type is "move_bonus" or "teleport")
+                return Move;
+            if (type is "attack" or "attack_aoe" or "attack_status" or "cyber_hack")
+                return Damage;
+            return Other;
+        }
+
+        public static Color ColorOf(string category) =>
+            category == Move ? MoveColor : category == Damage ? DamageColor : OtherColor;
+
+        public static string Hex(string category) => ColorUtility.ToHtmlStringRGB(ColorOf(category));
+
+        public static string LabelKey(string category) => "skillCategory_" + category;
+    }
+
     public sealed class BattleSkill
     {
         public string Id = string.Empty;
         public string Type = string.Empty;
+        /// <summary><see cref="SkillCategory"/>: move, damage or other.</summary>
+        public string Category = SkillCategory.Other;
         public string ModuleType = string.Empty;
         public int Ap;
         public int Damage;
@@ -56,7 +93,8 @@ namespace Core.Vfx
             Aoe = FocusContext.AsInt(t["aoe_radius"]),
             Cooldown = FocusContext.AsInt(t["cooldown"]),
             CooldownLeft = FocusContext.AsInt(t["cooldown_left"]),
-            Count = System.Math.Max(1, FocusContext.AsInt(t["count"]))
+            Count = System.Math.Max(1, FocusContext.AsInt(t["count"])),
+            Category = SkillCategory.Of(FocusContext.AsString(t["category"]), FocusContext.AsString(t["type"]))
         };
     }
 

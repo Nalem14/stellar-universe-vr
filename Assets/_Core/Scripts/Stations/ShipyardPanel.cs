@@ -350,7 +350,9 @@ namespace Core.Stations
                 var timg = tick.GetComponent<Image>();
                 timg.color = ModuleCatalog.Accent(ModuleCatalog.Family(type));
                 timg.raycastTarget = false;
-                Text("<b>" + Trans.Get(type) + "</b>  " + ModuleCatalog.CompatTags(type), -440f, y + 17f, 470f, 17f, UiKit.TextBright);
+                // Name, where it fits, and the battle skill it unlocks (in its bar colour).
+                Text("<b>" + Trans.Get(type) + "</b>  " + ModuleCatalog.CompatTags(type) + "  <size=85%>" + ModuleCatalog.SkillTag(type) + "</size>",
+                    -440f, y + 17f, 470f, 17f, UiKit.TextBright);
                 var stats = Text(ModuleCatalog.StatsLine(type), -440f, y, 470f, 13f, UiKit.TextBright);
                 stats.enableAutoSizing = true;
                 stats.fontSizeMin = 10f;

@@ -93,6 +93,12 @@ namespace Core.App
         /// <summary>GetConfigs.shipstats: module type → {armor, shield, damage, speed, cargo, size, crystalUsage,
         /// troopCargo?, requiert:{orbitShipyard|academy|research: lvl}, cost:{mineral,crystal}, time}.</summary>
         public static JObject ShipStats { get; private set; }
+        /// <summary>
+        /// GetConfigs.battleSkills: per module type {skill: {id, type, category (move / damage / other), ap, damage,
+        /// heal, shield, range_min, range, cooldown, aoe_radius, effect, effect_turns, move_bonus}, ap, pm} — the skill
+        /// one module of the type gives in battle and the AP / MP it adds every turn. Types absent = no combat role.
+        /// </summary>
+        public static JObject BattleSkills { get; private set; }
         /// <summary>GetConfigs.jumpModuleRequirement: {modulesPerJumpModule} (hyperspace / PRL jump ratio).</summary>
         public static JObject JumpModuleRequirement { get; private set; }
         /// <summary>GetConfigs.researchs (server $RESEARCH): {tech: {requiert:{researchLab|tech: lvl}, time, cost:{researchPoints}, maxLevel?}}.</summary>
@@ -202,6 +208,7 @@ namespace Core.App
                 Factory = root["factory"] as JObject;
                 Storage = root["storage"] as JObject;
                 ShipStats = root["shipstats"] as JObject;
+                BattleSkills = root["battleSkills"] as JObject;
                 JumpModuleRequirement = root["jumpModuleRequirement"] as JObject;
                 Research = root["researchs"] as JObject;
                 ResearchEffects = root["researchEffects"] as JObject;

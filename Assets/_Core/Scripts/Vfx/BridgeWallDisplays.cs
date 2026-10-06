@@ -306,6 +306,9 @@ namespace Core.Vfx
                 .Append(Trans.Get(ModuleCatalog.FamilyKey(fam))).Append("</size>\n");
             if (stats.Length > 0)
                 sb.Append(stats).Append('\n');
+            var skill = ModuleCatalog.SkillLine(type);
+            if (skill.Length > 0)
+                sb.Append("<size=82%>").Append(skill).Append("</size>\n");
             sb.Append("<size=78%>").Append(ModuleCatalog.Description(type)).Append("</size>");
             Set(_msdBody, sb.ToString());
         }
