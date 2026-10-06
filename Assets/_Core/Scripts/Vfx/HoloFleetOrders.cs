@@ -512,6 +512,9 @@ namespace Core.Vfx
             var nested = _ordering && dragged;
             _ordering = true;
             _map?.SetInteractionLock(true);
+            // What was aimed at, frozen now: a pooled star token can be moved onto another star while the quote
+            // waits on the lectern (see HoloToken.Snapshot).
+            target = HoloToken.Snapshot(target);
             try
             {
                 if (_focus == null || !AuthManager.Ensure().IsLoggedIn)
@@ -691,6 +694,7 @@ namespace Core.Vfx
             }
             finally
             {
+                HoloToken.Release(target);
                 if (!nested)
                 {
                     _ordering = false;

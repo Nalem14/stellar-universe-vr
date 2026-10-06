@@ -90,7 +90,8 @@ namespace Core.Holo
 
         static void Add(List<string> parts, string label, JToken perLevel, int level)
         {
-            var n = FocusContext.AsFloat(perLevel) * level;
+            // Rounded as the server pays it (a level-50 raider at 0.2 Nova per level: 10).
+            var n = (float)System.Math.Round(FocusContext.AsFloat(perLevel) * level, System.MidpointRounding.AwayFromZero);
             if (n > 0f)
                 parts.Add(label + " +" + ScreenKit.Num(n));
         }

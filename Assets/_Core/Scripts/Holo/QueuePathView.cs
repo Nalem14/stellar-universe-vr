@@ -473,7 +473,7 @@ namespace Core.Holo
             }
 
             var console = OrderConsole.Instance;
-            var busy = _busy || (console != null && console.IsOpen);
+            var busy = _busy || (console != null && (console.IsOpen || console.JustClosed));
             Node aimed = null;
             foreach (var ray in _rays)
             {

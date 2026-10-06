@@ -181,7 +181,10 @@ namespace Core.Holo
             var console = OrderConsole.Instance;
             // The Nova-finish offer that pops on picking a ship under way does not hold the table: pointing at a
             // target dismisses it and queues the next order instead.
-            var busy = (_orders != null && _orders.Busy) || (console != null && console.IsOpen && !_offering);
+            // An order in progress (from the click to the server's answer, lectern included) holds the table too,
+            // and so does the instant after the lectern closes: the press that answered it is not a table click.
+            var busy = (_orders != null && _orders.Busy) || (console != null && (console.IsOpen && !_offering || console.JustClosed)) ||
+                       _issuing > 0;
             var now = Time.unscaledTime;
             var live = _map.ContentRoot != null && _map.ContentRoot.gameObject.activeInHierarchy;
 
@@ -614,14 +617,14 @@ namespace Core.Holo
                 FleetOrderGate.IsHostile(_focus?.FindFleet(token.Id)))
             {
                 // A pirate (or an enemy) on the galaxy, no ship picked: which of ours goes after it.
-                AsyncTap.Run(HuntMenu(token));
+                AsyncTap.Run(Frozen(token, HuntMenu));
                 return;
             }
 
             if (fleet == null && token.Kind == HoloTokenKind.System && _map.ShowingGalaxy)
             {
                 // A star, no ship picked: what to do with it (fly the view there, or send one of ours).
-                AsyncTap.Run(StarMenu(token));
+                AsyncTap.Run(Frozen(token, StarMenu));
                 return;
             }
 
@@ -642,8 +645,30 @@ namespace Core.Holo
                 return;
             }
 
-            AsyncTap.Run(Issue(token));
+            AsyncTap.Run(Frozen(token, Issue));
         }
+
+        /// <summary>
+        /// The order runs on a frozen copy of the token clicked (<see cref="HoloToken.Snapshot"/>): the galaxy's star
+        /// tokens are pooled, and the one clicked may stand for another star by the time the lectern is confirmed.
+        /// </summary>
+        async Task Frozen(HoloToken token, System.Func<HoloToken, Task> order)
+        {
+            var frozen = HoloToken.Snapshot(token);
+            _issuing++;
+            try
+            {
+                await order(frozen);
+            }
+            finally
+            {
+                _issuing--;
+                HoloToken.Release(frozen);
+            }
+        }
+
+        /// <summary>Orders started from a table click and not finished yet.</summary>
+        int _issuing;
 
         void Select(HoloToken token)
         {

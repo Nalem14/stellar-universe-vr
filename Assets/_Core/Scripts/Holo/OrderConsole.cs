@@ -57,6 +57,15 @@ namespace Core.Holo
 
         public bool IsOpen => _pending != null;
 
+        /// <summary>
+        /// The lectern closed a moment ago: the press or tap that answered it must not also land on the table
+        /// underneath (a phone tap is handed to the world on finger-up, once the plate is already gone).
+        /// </summary>
+        public bool JustClosed => Time.unscaledTime - _closedAt < CloseGuard;
+
+        const float CloseGuard = 0.35f;
+        float _closedAt = -10f;
+
         /// <summary>The bridge's single lectern (crew Helm jumps and holomap drops share it).</summary>
         public static OrderConsole Instance { get; private set; }
 
@@ -233,6 +242,8 @@ namespace Core.Holo
         {
             var pending = _pending;
             _pending = null;
+            if (pending != null)
+                _closedAt = Time.unscaledTime;
             if (_screenGo != null)
                 _screenGo.SetActive(false);
             if (pending != null)
