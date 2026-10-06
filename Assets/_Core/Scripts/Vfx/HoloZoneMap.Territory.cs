@@ -51,7 +51,7 @@ namespace Core.Vfx
         void BuildTerritories()
         {
             OwnerColors.Clear();
-            var stars = GalaxyCatalog.All;
+            var stars = GalaxyStars;
             if (stars.Count == 0)
                 return;
 

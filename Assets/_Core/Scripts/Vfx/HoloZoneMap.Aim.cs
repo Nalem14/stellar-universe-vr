@@ -72,7 +72,7 @@ namespace Core.Vfx
         /// <summary>(Re)build the star buckets on the map plane (map units, static under pan / zoom).</summary>
         void BuildStarGrid()
         {
-            var stars = GalaxyCatalog.All;
+            var stars = GalaxyStars;
             var n = stars.Count;
             _aBuiltCount = n;
             if (n == 0)
@@ -124,7 +124,7 @@ namespace Core.Vfx
         /// (hysteresis), and systems holding our ships or worlds get a light pull.
         /// </summary>
         /// <param name="maxDistance">World metres along the ray (solid room geometry in front stops the aim).</param>
-        /// <returns>Index in <see cref="GalaxyCatalog.All"/>, or −1.</returns>
+        /// <returns>Index in <see cref="GalaxyStars"/>, or −1.</returns>
         public int GalaxyPickRay(Vector3 originWorld, Vector3 dirWorld, float maxDistance, float coneDeg, float minAngleDeg,
             int stickyId, float sticky, out float score, out Vector3 starWorld)
         {
@@ -132,7 +132,7 @@ namespace Core.Vfx
             starWorld = Vector3.zero;
             if (!_showingGalaxy || _root == null || _gScale <= 0f)
                 return -1;
-            var stars = GalaxyCatalog.All;
+            var stars = GalaxyStars;
             if (stars.Count == 0)
                 return -1;
             if (_aBuiltCount != stars.Count)
@@ -227,7 +227,7 @@ namespace Core.Vfx
         /// <summary>The interactive token of a galaxy star (a pooled one is moved onto it when needed).</summary>
         public HoloToken GalaxyTokenForStar(int index)
         {
-            var stars = GalaxyCatalog.All;
+            var stars = GalaxyStars;
             if (!_showingGalaxy || index < 0 || index >= stars.Count || _gPool.Count == 0)
                 return null;
             var star = stars[index];

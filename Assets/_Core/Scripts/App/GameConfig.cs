@@ -77,6 +77,16 @@ namespace Core.App
         public static JObject JobsPerLevel { get; private set; }
         /// <summary>GetConfigs.galaxy.gridEpoch: when the grid coordinates last changed meaning (0 = never); echoed as `grid`.</summary>
         public static long GridEpoch { get; private set; }
+        /// <summary>
+        /// GetConfigs.galaxy.gridHalf / mapCell: every galaxy's grid runs -GalaxyGridHalf..GalaxyGridHalf, its map is
+        /// (2 × half + 1) × mapCell units wide (225 / 100 since the galaxy grew ×4.5 in 2026-10).
+        /// </summary>
+        public static float GalaxyGridHalf { get; private set; } = 225f;
+        public static float GalaxyMapCell { get; private set; } = 100f;
+        /// <summary>GetConfigs.galaxy.intergalacticDistance: the void between two galaxies, in grid units (hyperspace only).</summary>
+        public static float IntergalacticDistance { get; private set; } = 1500f;
+        /// <summary>GetConfigs.galaxy.galaxies: [{id, name, spawn, gx, gy}] — gx / gy place each galaxy in galaxy space.</summary>
+        public static JArray Galaxies { get; private set; }
         /// <summary>GetConfigs.factory (production per level) and .storage (warehouse multipliers).</summary>
         public static JObject Factory { get; private set; }
         public static JObject Storage { get; private set; }
@@ -180,7 +190,15 @@ namespace Core.App
 
                 Upgrade = root["upgrade"] as JObject;
                 JobsPerLevel = root["jobsPerLevel"] as JObject;
-                GridEpoch = FocusContext.AsLong((root["galaxy"] as JObject)?["gridEpoch"]);
+                var galaxy = root["galaxy"] as JObject;
+                GridEpoch = FocusContext.AsLong(galaxy?["gridEpoch"]);
+                if (FocusContext.AsFloat(galaxy?["gridHalf"]) > 0f)
+                    GalaxyGridHalf = FocusContext.AsFloat(galaxy["gridHalf"]);
+                if (FocusContext.AsFloat(galaxy?["mapCell"]) > 0f)
+                    GalaxyMapCell = FocusContext.AsFloat(galaxy["mapCell"]);
+                if (FocusContext.AsFloat(galaxy?["intergalacticDistance"]) > 0f)
+                    IntergalacticDistance = FocusContext.AsFloat(galaxy["intergalacticDistance"]);
+                Galaxies = galaxy?["galaxies"] as JArray;
                 Factory = root["factory"] as JObject;
                 Storage = root["storage"] as JObject;
                 ShipStats = root["shipstats"] as JObject;

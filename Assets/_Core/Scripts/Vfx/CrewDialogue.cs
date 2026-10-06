@@ -1497,7 +1497,7 @@ namespace Core.Vfx
             GalaxyCatalog.Star best = default;
             var found = false;
             var bestD = float.MaxValue;
-            foreach (var s in GalaxyCatalog.All)
+            foreach (var s in GalaxyCatalog.InGalaxy(GalaxyCatalog.CurrentGalaxyId()))
             {
                 var d = (s.X - xy.Value.x) * (s.X - xy.Value.x) + (s.Y - xy.Value.y) * (s.Y - xy.Value.y);
                 if (d < bestD)

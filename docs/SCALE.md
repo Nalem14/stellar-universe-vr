@@ -106,6 +106,8 @@ La galaxie et le système **jouables** sont des maquettes sur la table (~1 m). N
 | `HoloFleetSize` | 0.042 m | Chevron flotte (pas une sphère) |
 | `HoloVolumeHeight` / `HoloTokenLift` | 0.28 / 0.08 m | Colonne projetée + lift tokens |
 
+**Galaxie (serveur)** : depuis 2026-10, grille −225..225 (`GetConfigs.galaxy.gridHalf`), carte 0..45 100 unités (`mapCell` 100), ~5 000 systèmes (×4,5 en distance, ×20 en surface ; amas, bras et vides). Plusieurs galaxies possibles (`galaxy_id`) : la table ne dessine que celle du pont, et seul l'hyperespace franchit le vide entre deux. Rien n'est codé en dur côté client : bornes, zoom et taille des étoiles se déduisent du catalogue (`GalaxyCatalog`, `HoloZoneMap.Galaxy`).
+
 Les hublots Bridge sont des **trous** sur le `SystemExterior` partagé (l'ancien diorama `ViewportSystemView` a été supprimé). Ne pas y recoller un mini-système.
 
 ---

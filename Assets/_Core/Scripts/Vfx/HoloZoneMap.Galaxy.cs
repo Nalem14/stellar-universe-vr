@@ -66,9 +66,17 @@ namespace Core.Vfx
         public bool GalaxyAtMaxZoom => _showingGalaxy && _gScale >= _gMaxScale * 0.999f;
         public bool GalaxyAtMinZoom => _showingGalaxy && _gScale <= _gMinScale * 1.001f;
 
+        /// <summary>The galaxy on the table (the one the bridge is in) and its bounds and mean star spacing, map units.</summary>
+        int _gGalaxyId = 1;
+        float _gMinX, _gMaxX, _gMinY, _gMaxY, _gSpacing = 1f;
+
+        /// <summary>The systems of the galaxy on the table.</summary>
+        IReadOnlyList<GalaxyCatalog.Star> GalaxyStars => GalaxyCatalog.InGalaxy(_gGalaxyId);
+
         void BuildGalaxyMap()
         {
-            var stars = GalaxyCatalog.All;
+            _gGalaxyId = GalaxyCatalog.CurrentGalaxyId();
+            var stars = GalaxyStars;
             if (stars.Count == 0)
                 return;
 
@@ -88,6 +96,11 @@ namespace Core.Vfx
             // Whole galaxy fits the disc at min zoom; at max zoom neighbours are a hand-width apart.
             _gMinScale = r / (Mathf.Sqrt(dx * dx + dy * dy) * 0.5f);
             var spacing = Mathf.Sqrt(dx * dy / Mathf.Max(1, stars.Count));
+            _gMinX = minX;
+            _gMaxX = maxX;
+            _gMinY = minY;
+            _gMaxY = maxY;
+            _gSpacing = spacing;
             // "Near": neighbours a hand-width apart (the opening view is set from it); the zoom goes on past it, to
             // GalaxyExtraZoom times closer, for a crowded neighbourhood or a ship between two close stars.
             var near = Mathf.Max(_gMinScale * 2f, GalaxyNearSpacing / Mathf.Max(1e-3f, spacing));
@@ -162,18 +175,10 @@ namespace Core.Vfx
 
         void ClampGalaxyCentre()
         {
-            var stars = GalaxyCatalog.All;
-            if (stars.Count == 0)
+            if (GalaxyStars.Count == 0)
                 return;
-            // Never pan the galaxy entirely off the table.
-            float minX = float.MaxValue, maxX = float.MinValue, minY = float.MaxValue, maxY = float.MinValue;
-            for (var i = 0; i < stars.Count; i++)
-            {
-                minX = Mathf.Min(minX, stars[i].MapX);
-                maxX = Mathf.Max(maxX, stars[i].MapX);
-                minY = Mathf.Min(minY, stars[i].MapY);
-                maxY = Mathf.Max(maxY, stars[i].MapY);
-            }
+            // Never pan the galaxy entirely off the table (bounds measured once, in BuildGalaxyMap).
+            float minX = _gMinX, maxX = _gMaxX, minY = _gMinY, maxY = _gMaxY;
 
             // The view may go past the galaxy edge by 40 % of the disc at most: zoomed in, an edge star can
             // still come near the centre; zoomed out, the whole galaxy is drawn back onto the plate.
@@ -252,12 +257,15 @@ namespace Core.Vfx
         {
             _gDirty = false;
             _gNextBuild = Time.unscaledTime + GalaxyRebuildInterval;
-            var stars = GalaxyCatalog.All;
+            var stars = GalaxyStars;
             var limit = WorldScale.HoloDiscRadius * GalaxyViewRadiusFactor;
             var limitSq = limit * limit;
             var focus = _focus ?? FocusContext.Current;
             var hereId = focus != null ? focus.SystemId : 0;
             var lift = DioramaLift;
+            // Zoomed far out, thousands of stars share the plate: their quads shrink with the spacing between
+            // them on the table (never below 40 %) instead of melting into one glowing sheet.
+            var shrink = Mathf.Clamp(_gSpacing * _gScale / 0.05f, 0.4f, 1f);
 
             _gVerts.Clear();
             _gColors.Clear();
@@ -290,6 +298,7 @@ namespace Core.Vfx
                     c.a = 0.85f;
                 }
 
+                size *= mark ? Mathf.Max(0.7f, shrink) : shrink;
                 AddStarQuad(p, size, c, Seed01(s.Id), mark);
                 if (s.OwnerId > 0)
                     AddStarQuad(p, size * 1.35f, OwnerColor(s.OwnerId), Seed01(s.Id), false, ringOnly: true);
@@ -468,7 +477,7 @@ namespace Core.Vfx
                 return null;
             var local = _root.InverseTransformPoint(worldPos);
             var limit = WorldScale.HoloDiscRadius * GalaxyViewRadiusFactor;
-            var stars = GalaxyCatalog.All;
+            var stars = GalaxyStars;
             var best = -1;
             // Magnet: a system holding one of our ships or worlds wins from twice as far, and the star already
             // under the aim holds until another is clearly nearer (no flicker between neighbours).

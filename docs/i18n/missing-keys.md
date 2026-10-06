@@ -217,6 +217,7 @@ Descriptions natives réécrites (audit du 2026-10-04, table `$RESEARCH_EFFECTS`
 | `siegeResultHeld` | {0} held | {0} a tenu | Sièges planétaires : objectif piller / conquérir |
 | `vr.battle.objectivePillage` | Objective: bring {0} down and pillage it | Objectif : abattre {0} et la piller | Sièges planétaires : objectif piller / conquérir |
 | `vr.battle.objectiveConquer` | Objective: bring {0} down and take it | Objectif : abattre {0} et la conquérir | Sièges planétaires : objectif piller / conquérir |
+| `intergalacticNeedsHyperspace` | Only a hyperspace jump crosses the void between two galaxies (hyperspace drives and crystal required). | Seul un saut hyperespace franchit le vide entre deux galaxies (moteurs hyperespace et cristal requis). | Galaxie agrandie, galaxies multiples |
 
 Toutes ✅ dans les dix langues (`docs/tools/i18n.py check` : même jeu et même ordre de clés partout).
 
