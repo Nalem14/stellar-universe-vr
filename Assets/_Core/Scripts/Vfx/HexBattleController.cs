@@ -73,11 +73,13 @@ namespace Core.Vfx
         }
 
         /// <summary>
-        /// Assault the world <paramref name="mine"/> orbits (web objects/fleet.js attackOnPlanet, 69d40af): always a
-        /// tactical planetary siege — the planet fights with its defences, joined by every other empire's ship
-        /// and fortress in its orbit (the server also gathers them, and lets RUN_AWAY ships flee).
+        /// Besiege the world <paramref name="mine"/> orbits (web objects/fleet.js attackOnPlanet): a tactical planetary
+        /// siege — the planet fights with its defences, joined by every other empire's ship and fortress in its orbit
+        /// (the server gathers them all, our other ships there included, and sorts each onto its side or lets it flee).
+        /// The world has to fall for the assault to win; <paramref name="conquer"/> = it then becomes ours, otherwise
+        /// it is pillaged (a quarter of its stocks) and stays its owner's.
         /// </summary>
-        public Task<ApiResult> AssaultPlanet(FocusFleet mine)
+        public Task<ApiResult> AssaultPlanet(FocusFleet mine, bool conquer)
         {
             if (_focus == null || mine == null || mine.PlanetId <= 0)
                 return Task.FromResult(ApiResult.Fail(Trans.Get("vr.common.error")));
@@ -87,7 +89,7 @@ namespace Core.Vfx
                 if (f.PlanetId == mine.PlanetId && f.SystemId == mine.SystemId && f.UserId != me && f.UserId > 0 &&
                     !ids.Contains(f.Id))
                     ids.Add(f.Id);
-            return MakeBattle(ids, mine.PlanetId);
+            return MakeBattle(ids, mine.PlanetId, conquer ? "conquer" : "pillage");
         }
 
         // ── Map mode hooks (HoloMapController.SetMode) ───────────────────────────
@@ -435,16 +437,18 @@ namespace Core.Vfx
             // Every ship of ours that is gone left on a retreat order: no victory, but no loss either.
             var key = snap == null || !anyMine ? "vr.battle.over" : mineAlive ? "vr.battle.victory"
                 : mineFled ? "vr.battle.retreated" : "vr.battle.defeat";
-            ShowOutcome(Trans.Get(key), key == "vr.battle.victory" ? UiKit.Ok : key == "vr.battle.defeat" ? UiKit.Danger : UiKit.Amber);
+            // A planet owner defending with no ship of theirs: the world standing is the victory.
+            var planet = snap?.Planet;
+            if (key == "vr.battle.over" && planet != null && planet.IsMine)
+                key = planet.Alive ? "vr.battle.victory" : "vr.battle.defeat";
+            ShowOutcome(Trans.Get(key), key == "vr.battle.victory" ? UiKit.Ok : key == "vr.battle.defeat" ? UiKit.Danger : UiKit.Amber,
+                SiegeResultText(snap));
             var at = _boardRoot.position + Vector3.up * 0.25f;
             if (key == "vr.battle.victory")
                 CicCue.Victory(at);
-            // A siege won hands the world over (server EndBattle): re-read who holds what, so the table, the
-            // teleporter and the orders stop offering to attack what is now ours.
-            var siege = false;
-            if (snap != null)
-                foreach (var s in snap.Ships)
-                    siege |= s.IsPlanet;
+            // A siege may hand the world over or empty its stores (server SiegeOutcome): re-read who holds what, so
+            // the table, the teleporter and the orders stop offering to attack what is now ours.
+            var siege = snap != null && snap.Siege;
             if (siege)
                 AsyncTap.Run(RefreshOwnership());
             else if (key == "vr.battle.defeat")
@@ -454,6 +458,29 @@ namespace Core.Vfx
             _closeAt = Time.unscaledTime + CloseDelay;
             RefreshConsole();
         }
+
+        /// <summary>What the siege did to the world (battles.siege_result), one line under the outcome.</summary>
+        static string SiegeResultText(BattleSnapshot snap)
+        {
+            var r = snap?.SiegeResult;
+            if (snap == null || !snap.Siege || r == null)
+                return string.Empty;
+            var name = snap.Planet != null ? ShipName(snap.Planet) : string.Empty;
+            switch (FocusContext.AsString(r["outcome"]))
+            {
+                case "conquered":
+                    return Trans.Format("siegeResultConquered", name);
+                case "pillaged":
+                    return Trans.Format("siegeResultPillaged", name, Amount(r["mineral"]), Amount(r["crystal"]), Amount(r["biomass"]));
+                case "held":
+                    return Trans.Format("siegeResultHeld", name);
+                default:
+                    return string.Empty;
+            }
+        }
+
+        static string Amount(JToken t) =>
+            FocusContext.AsLong(t).ToString("N0", CultureInfo.GetCultureInfo("fr-FR"));
 
         static async Task RefreshOwnership()
         {
@@ -584,11 +611,13 @@ namespace Core.Vfx
 
         /// <summary>
         /// Engage like the web (objects/fleet.js startTacticalBattle): <paramref name="fleetIds"/> = my ship
-        /// first, then the targets; <paramref name="planetId"/> = the orbit fought over, 0 in open space
-        /// (pirates) — only sent when non-zero. MakeBattle already marks our side ready; UpdateBattle starts
-        /// it, then the table turns into the board.
+        /// first, then the targets; <paramref name="planetId"/> = the orbit fought in, 0 in open space
+        /// (pirates) — only sent when non-zero. <paramref name="siegeGoal"/> null = a fight between the ships named
+        /// (siege=0: the world is never the objective and never changes hands), else a siege of that world with this
+        /// goal ("pillage" / "conquer"). MakeBattle already marks our side ready; UpdateBattle starts it, then the
+        /// table turns into the board.
         /// </summary>
-        public async Task<ApiResult> MakeBattle(IList<int> fleetIds, int planetId = 0)
+        public async Task<ApiResult> MakeBattle(IList<int> fleetIds, int planetId = 0, string siegeGoal = null)
         {
             // A planetary siege may start with our ship alone: the world (and whoever orbits it) is the enemy
             // (web attackOnPlanet, 69d40af). Elsewhere there must be a target.
@@ -600,7 +629,13 @@ namespace Core.Vfx
                 { "fleets", string.Join(",", fleetIds) }
             };
             if (planetId > 0)
+            {
                 query["planetid"] = planetId.ToString(CultureInfo.InvariantCulture);
+                query["siege"] = siegeGoal != null ? "1" : "0";
+                if (siegeGoal != null)
+                    query["goal"] = siegeGoal;
+            }
+
             var result = await ActionJs.Get("MakeBattle", query);
             if (!result.Ok)
                 return result;

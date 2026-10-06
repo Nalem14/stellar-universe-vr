@@ -175,6 +175,12 @@ namespace Core.Vfx
         public int MyTeam = -1;
         public bool MyTurn;
         public int MyFleetId;
+        /// <summary>A planetary siege (battles.siege): the world is the objective and has to fall.</summary>
+        public bool Siege;
+        /// <summary>What its fall means, as the attacker declared it: "pillage" or "conquer".</summary>
+        public string SiegeGoal = string.Empty;
+        /// <summary>Once over (battles.siege_result): {outcome: pillaged|conquered|held, mineral, crystal, biomass}.</summary>
+        public JObject SiegeResult;
         public long StartDeadline;
         public long TurnDeadline;
         public bool MyReady;
@@ -200,6 +206,34 @@ namespace Core.Vfx
 
         public BattleShip ActiveShip => Find(ActiveId);
 
+        /// <summary>The world fought over, if it is on the board.</summary>
+        public BattleShip Planet
+        {
+            get
+            {
+                foreach (var s in Ships)
+                    if (s.IsPlanet)
+                        return s;
+                return null;
+            }
+        }
+
+        static JObject ParseObject(JToken t)
+        {
+            if (t is JObject o)
+                return o;
+            if (t == null || t.Type != JTokenType.String)
+                return null;
+            try
+            {
+                return JToken.Parse((string)t) as JObject;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
         public static BattleSnapshot Parse(JToken root, int myFleetId)
         {
             if (root == null || root.Type != JTokenType.Object)
@@ -214,6 +248,9 @@ namespace Core.Vfx
                 MyTeam = root["my_team"] != null ? FocusContext.AsInt(root["my_team"]) : -1,
                 MyTurn = FocusContext.AsBool(root["my_turn"]),
                 MyFleetId = FocusContext.AsInt(root["my_fleet_id"]),
+                Siege = FocusContext.AsBool(b?["siege"]),
+                SiegeGoal = FocusContext.AsString(b?["siege_goal"]) ?? string.Empty,
+                SiegeResult = ParseObject(b?["siege_result"]),
                 StartDeadline = FocusContext.AsLong(root["start_deadline"]),
                 TurnDeadline = FocusContext.AsLong(root["turn_deadline"])
             };

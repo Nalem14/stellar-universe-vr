@@ -922,6 +922,12 @@ namespace Core.Vfx
                 sb.Append("</color>");
             }
 
+            // A siege: what has to fall, and what its fall will mean (declared when it was launched).
+            var planet = s.Siege ? s.Planet : null;
+            if (planet != null)
+                sb.Insert(0, "<color=#ffb070>" + Trans.Format(s.SiegeGoal == "conquer" ? "vr.battle.objectiveConquer" : "vr.battle.objectivePillage",
+                    ShipName(planet)) + "</color>     ");
+
             SetHeader(title, sb.ToString());
         }
 
@@ -932,10 +938,10 @@ namespace Core.Vfx
             return (seconds / 60) + ":" + (seconds % 60).ToString("00");
         }
 
-        void ShowOutcome(string text, Color color)
+        void ShowOutcome(string text, Color color, string detail = "")
         {
-            SetHeader(text, string.Empty);
-            _outcome.text = text;
+            SetHeader(text, detail);
+            _outcome.text = string.IsNullOrEmpty(detail) ? text : text + "\n<size=45%>" + detail + "</size>";
             _outcome.color = color;
             _outcome.transform.parent.gameObject.SetActive(true);
             _outcomeT = 0f;

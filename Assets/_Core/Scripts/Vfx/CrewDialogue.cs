@@ -800,10 +800,15 @@ namespace Core.Vfx
                 }
             }
 
-            // Planetary siege: always the tactical battle now (web attackOnPlanet 69d40af), never FleetAttackPlanet.
+            // Planetary siege on the battle board (web attackOnPlanet), with its goal said up front: pillage leaves
+            // the world to its owner, only conquer takes it.
             if (_hex != null && FleetOrderGate.CanSiege(fleet, focus))
-                AddAction(ActionLabel("attackOrbit", planetLabel), () => Assault(fleet, planetLabel),
+            {
+                AddAction(ActionLabel("siegePillage", planetLabel), () => Assault(fleet, planetLabel, false),
                     DiegeticUi.BtnStyle.Danger);
+                AddAction(ActionLabel("siegeConquer", planetLabel), () => Assault(fleet, planetLabel, true),
+                    DiegeticUi.BtnStyle.Danger);
+            }
         }
 
         void BuildEngineering(FocusContext focus, FocusFleet fleet)
@@ -1671,10 +1676,10 @@ namespace Core.Vfx
             }
         }
 
-        async Task Assault(FocusFleet mine, string planetLabel)
+        async Task Assault(FocusFleet mine, string planetLabel, bool conquer)
         {
             _map?.SetReadout(Trans.Get("Loading"));
-            var result = await _hex.AssaultPlanet(mine);
+            var result = await _hex.AssaultPlanet(mine, conquer);
             Core.Crew.BarkDirector.Instance?.OrderResult(Role.Tactical, "MakeBattle", result, planetLabel);
             if (result.Ok)
             {

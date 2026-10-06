@@ -195,6 +195,9 @@ namespace Core.App
             return false;
         }
 
+        /// <summary>A member of our alliance (server relationIsAlly): never a target, whatever the relation score.</summary>
+        public static bool IsAllianceMember(int userId) => AllianceUsers.Contains(userId);
+
         public static EmpireStance Resolve(int userId, bool isPirate = false)
         {
             if (isPirate)

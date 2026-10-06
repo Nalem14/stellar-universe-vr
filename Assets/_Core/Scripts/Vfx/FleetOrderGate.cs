@@ -122,7 +122,8 @@ namespace Core.Vfx
             if (planet == null)
                 return false;
             var me = AuthManager.Ensure().User != null ? AuthManager.Ensure().User.id : 0;
-            return planet.UserId > 0 && me > 0 && planet.UserId != me;
+            // An alliance member's world is never besieged (server cantAttackAlly).
+            return planet.UserId > 0 && me > 0 && planet.UserId != me && !DiplomacyIndex.IsAllianceMember(planet.UserId);
         }
 
         public static bool CanCargo(FocusFleet fleet, FocusContext focus)

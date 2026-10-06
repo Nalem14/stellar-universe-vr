@@ -210,6 +210,13 @@ Descriptions natives réécrites (audit du 2026-10-04, table `$RESEARCH_EFFECTS`
 | `descImpulsionDrive` | +1.5% speed per level for impulse and fusion thrusters and hyperspace drives, up to +75% (level 50). | +1,5 % de vitesse par niveau pour les propulseurs à impulsion, à fusion et les moteurs hyperespace, jusqu'à +75 % (niveau 50). | Effets de recherche (minage, fabrication des modules, troupes), propulsion plafonnée |
 | `descFusionDrive` | +2% speed per level for fusion thrusters and hyperspace drives, up to +100% (level 50). | +2 % de vitesse par niveau pour les propulseurs à fusion et les moteurs hyperespace, jusqu'à +100 % (niveau 50). | Effets de recherche (minage, fabrication des modules, troupes), propulsion plafonnée |
 | `descHyperspaceDrive` | +2.5% speed per level for hyperspace drives, up to +125% (level 50). | +2,5 % de vitesse par niveau pour les moteurs hyperespace, jusqu'à +125 % (niveau 50). | Effets de recherche (minage, fabrication des modules, troupes), propulsion plafonnée |
+| `siegePillage` | Siege: pillage | Assiéger : piller | Sièges planétaires : objectif piller / conquérir |
+| `siegeConquer` | Siege: conquer | Assiéger : conquérir | Sièges planétaires : objectif piller / conquérir |
+| `siegeResultPillaged` | {0} pillaged: {1} mineral, {2} crystal, {3} biomass | {0} pillée : {1} minerai, {2} cristal, {3} biomasse | Sièges planétaires : objectif piller / conquérir |
+| `siegeResultConquered` | {0} is now yours | {0} est désormais à vous | Sièges planétaires : objectif piller / conquérir |
+| `siegeResultHeld` | {0} held | {0} a tenu | Sièges planétaires : objectif piller / conquérir |
+| `vr.battle.objectivePillage` | Objective: bring {0} down and pillage it | Objectif : abattre {0} et la piller | Sièges planétaires : objectif piller / conquérir |
+| `vr.battle.objectiveConquer` | Objective: bring {0} down and take it | Objectif : abattre {0} et la conquérir | Sièges planétaires : objectif piller / conquérir |
 
 Toutes ✅ dans les dix langues (`docs/tools/i18n.py check` : même jeu et même ordre de clés partout).
 

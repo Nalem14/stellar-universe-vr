@@ -891,7 +891,10 @@ namespace Core.Vfx
                 (planet.Habitability == 0 || planet.Habitability >= 6))
                 options.Add(new Core.Holo.OrderConsole.Option(Trans.Get("Colonize"), true, UiKit.Amber, "Colonize"));
             if (FleetOrderGate.CanSiege(fleet, focus) && HexBattleController.Instance != null)
-                options.Add(new Core.Holo.OrderConsole.Option(Trans.Get("attackOrbit"), true, new Color(1f, 0.4f, 0.35f), "Assault"));
+            {
+                options.Add(new Core.Holo.OrderConsole.Option(Trans.Get("siegePillage"), true, new Color(1f, 0.55f, 0.3f), "AssaultPillage"));
+                options.Add(new Core.Holo.OrderConsole.Option(Trans.Get("siegeConquer"), true, new Color(1f, 0.4f, 0.35f), "AssaultConquer"));
+            }
             if (FleetOrderGate.CanCargo(fleet, focus) && options.Count < 3)
             {
                 options.Add(new Core.Holo.OrderConsole.Option(Trans.Get("depositCargo"), true, UiKit.Cyan, "DepositCargo"));
@@ -922,12 +925,12 @@ namespace Core.Vfx
                 return false;
             }
 
-            if (action == "Assault")
+            if (action == "AssaultPillage" || action == "AssaultConquer")
             {
                 // Planetary siege on the battle board (web attackOnPlanet 69d40af).
                 _map?.SetReadout(Trans.Get("Loading"));
                 var siege = HexBattleController.Instance != null
-                    ? await HexBattleController.Instance.AssaultPlanet(fleet)
+                    ? await HexBattleController.Instance.AssaultPlanet(fleet, action == "AssaultConquer")
                     : ApiResult.Fail(Trans.Get("vr.common.error"));
                 Core.Crew.BarkDirector.Instance?.OrderResult(CrewDialogue.Role.Tactical, "MakeBattle", siege, dest);
                 if (!siege.Ok)
