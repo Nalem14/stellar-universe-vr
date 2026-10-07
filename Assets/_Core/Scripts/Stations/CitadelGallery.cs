@@ -12,7 +12,7 @@ namespace Core.Stations
     /// crown's flank). The core wall carries the rooms' doors in stone portals with banners between them; the
     /// outer wall is a row of tall arched windows on the city with gold tracery and deep reveals; a ribbed vault
     /// with hanging lanterns; flagstones with a gold line and a rosette at the stair from the rotunda; stone
-    /// benches facing the windows, planted trees, and at the far bay a model of the citadel under its own light.
+    /// benches facing the windows, planted trees, and by the stair a model of the citadel under its own light.
     /// Local frame: origin on the tower's axis at the gallery floor, the mount's axes; the gallery runs from
     /// <see cref="A0"/> (the stair to the rotunda) to <see cref="A1"/> (the gate) at <see cref="RMid"/>.
     /// Static geometry merged per material.
@@ -57,13 +57,18 @@ namespace Core.Stations
             CorridorRoom.Slot.MarketPort => 15.5f,
             CorridorRoom.Slot.DiplomacyPort => 20.5f,
             CorridorRoom.Slot.QuartersStarboard => 25.5f,
-            // Between the quarters and the model's bay (no banner there: the two portals stand close).
+            // Between the quarters and the gate (no banner there: the two portals stand close).
             CorridorRoom.Slot.RefineryStarboard => 28.5f,
             _ => Length
         };
 
-        /// <summary>The bay with the citadel's model (no room behind it).</summary>
-        const float ModelZ = 30.5f;
+        /// <summary>
+        /// The citadel's model: by the core wall at the near end, on the right as one comes down from the rotunda
+        /// (before the lab's portal) - it used to stand in the walkway right in front of the gate.
+        /// </summary>
+        const float ModelZ = 3.4f;
+
+        const float ModelR = RIn + 0.95f;
 
         public static float Angle(float z) => A0 + z / RMid * Mathf.Rad2Deg;
 
@@ -110,7 +115,7 @@ namespace Core.Stations
             return new[]
             {
                 S(3f, ROut - 0.8f, true, false), S(8f, RIn + 1.6f, false, false), S(13f, ROut - 0.8f, true, true), S(23f, ROut - 0.9f, true, false),
-                S(ModelZ, RMid + 0.5f, false, true)
+                S(ModelZ, ModelR + 1.25f, false, true)
             };
         }
 
@@ -425,10 +430,10 @@ namespace Core.Stations
             return _cone;
         }
 
-        /// <summary>The far bay's model of the citadel: tower, crown, gold spire, on a plinth under a lantern ring.</summary>
+        /// <summary>The model of the citadel: tower, crown, gold spire, on a plinth under a lantern ring.</summary>
         static void BuildModel(Transform root, CicArtKit art, Material trim, Material gold, Material glow)
         {
-            var c = At(ModelZ, RMid - 0.2f);
+            var c = At(ModelZ, ModelR);
             var plinth = new LatheMesh(c) { Step = 10f };
             plinth.Revolve(new[] { new Vector2(0.75f, 0f), new Vector2(0.75f, 0.1f), new Vector2(0.55f, 0.18f), new Vector2(0.5f, 0.85f),
                 new Vector2(0.62f, 0.9f), new Vector2(0.62f, 0.96f), new Vector2(0f, 0.97f) }, 0f, 360f, false);
