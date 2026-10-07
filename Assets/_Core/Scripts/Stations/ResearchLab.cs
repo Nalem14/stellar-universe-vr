@@ -46,7 +46,6 @@ namespace Core.Stations
         const float IntakeRadius = 0.32f;
         const int RingSegments = 32;
         public static readonly Color Accent = new(0.7f, 0.5f, 1f, 1f);
-        static readonly Color Locked = new(0.2f, 0.25f, 0.33f, 1f);
 
         public static ResearchLab Instance { get; private set; }
         public static bool Inside { get; private set; }
@@ -496,15 +495,88 @@ namespace Core.Stations
         static Vector3 OnArc(float angle, float height) =>
             new(Mathf.Sin(angle) * ArcRadius, height, Mathf.Cos(angle) * ArcRadius);
 
-        Material _tagMat;
+        const float ChartRadius = ArcRadius + 0.38f;
+        const float ChartHalfDeg = ArcHalfDeg + 9f;
+        const float ChartLow = 0.42f;
+        const float ChartHigh = 3.62f;
 
-        /// <summary>The node tags' one material: an opaque deep-navy plate (the holo shader adds light, it cannot darken).</summary>
-        Material TagMaterial => _tagMat != null ? _tagMat : _tagMat = _art.Lit(Texture2D.whiteTexture, new Color(0.05f, 0.08f, 0.16f, 1f), 1f);
+        /// <summary>
+        /// The constellation's sky: a curved night-blue chart behind the crystals (stars, a faint graticule, darker
+        /// toward its edges), framed top and bottom by a cyan rule. The crystals and their names glow on it instead of
+        /// fading into the lab's white walls. One mesh, one shared material.
+        /// </summary>
+        void BuildChart(Transform tree)
+        {
+            var sky = new LatheMesh(Vector3.zero) { Step = 2.5f };
+            sky.Revolve(new[] { new Vector2(ChartRadius, ChartLow), new Vector2(ChartRadius, ChartHigh) }, -ChartHalfDeg, ChartHalfDeg,
+                true, LatheMesh.Uv.Normalised);
+            LatheMesh.Part(tree, "StarChart", sky.ToMesh("SU_LabStarChart"), _art.Lit(StarChartTexture(), Color.white, 0f));
+
+            var rule = new LatheMesh(Vector3.zero) { Step = 2.5f };
+            foreach (var y in new[] { ChartLow, ChartHigh })
+                rule.Revolve(new[] { new Vector2(ChartRadius - 0.01f, y - 0.012f), new Vector2(ChartRadius - 0.01f, y + 0.012f) },
+                    -ChartHalfDeg, ChartHalfDeg, true);
+            LatheMesh.Part(tree, "StarChartRule", rule.ToMesh("SU_LabStarChartRule"), _art.CyanEmit(1.6f));
+        }
+
+        static Texture2D _starChart;
+
+        /// <summary>Night blue, lighter at mid-height, a graticule every few degrees, a few hundred stars, edges fading out.</summary>
+        static Texture2D StarChartTexture()
+        {
+            if (_starChart != null)
+                return _starChart;
+            const int w = 1024, h = 512;
+            var px = new Color32[w * h];
+            var deep = new Color(0.012f, 0.02f, 0.055f);
+            var mid = new Color(0.035f, 0.06f, 0.13f);
+            for (var y = 0; y < h; y++)
+            {
+                var v = y / (float)(h - 1);
+                var band = Color.Lerp(deep, mid, 1f - Mathf.Abs(v - 0.55f) * 1.8f);
+                for (var x = 0; x < w; x++)
+                {
+                    var u = x / (float)(w - 1);
+                    var edge = Mathf.Clamp01(Mathf.Min(u, 1f - u) * 9f) * Mathf.Clamp01(Mathf.Min(v, 1f - v) * 14f);
+                    var c = band * (0.55f + 0.45f * edge);
+                    // Graticule: thin lines, brighter where they cross.
+                    var gu = Mathf.Abs(u * 28f - Mathf.Round(u * 28f));
+                    var gv = Mathf.Abs(v * 12f - Mathf.Round(v * 12f));
+                    var line = (gu < 0.018f ? 1f : 0f) + (gv < 0.035f ? 1f : 0f);
+                    c += new Color(0.05f, 0.11f, 0.2f) * Mathf.Min(1f, line) * 0.55f * edge;
+                    px[y * w + x] = c;
+                }
+            }
+
+            var rng = new System.Random(4242);
+            for (var i = 0; i < 900; i++)
+            {
+                var x = rng.Next(w);
+                var y = rng.Next(h);
+                var b = (float)rng.NextDouble();
+                var tint = b > 0.92f ? new Color(1f, 0.86f, 0.62f) : b > 0.8f ? new Color(0.7f, 0.85f, 1f) : new Color(0.75f, 0.8f, 0.95f);
+                var k = 0.25f + b * b * 0.75f;
+                px[y * w + x] = Color.Lerp(px[y * w + x], tint, k);
+                if (b > 0.9f)
+                    foreach (var (dx, dy) in new[] { (1, 0), (-1, 0), (0, 1), (0, -1) })
+                    {
+                        var xx = Mathf.Clamp(x + dx, 0, w - 1);
+                        var yy = Mathf.Clamp(y + dy, 0, h - 1);
+                        px[yy * w + xx] = Color.Lerp(px[yy * w + xx], tint, k * 0.35f);
+                    }
+            }
+
+            _starChart = new Texture2D(w, h, TextureFormat.RGBA32, true) { name = "SU_LabStarChart", wrapMode = TextureWrapMode.Clamp };
+            _starChart.SetPixels32(px);
+            _starChart.Apply(true, true);
+            return _starChart;
+        }
 
         void BuildTree()
         {
             var tree = new GameObject("Constellation").transform;
             tree.SetParent(transform, false);
+            BuildChart(tree);
             var maxX = MaxLayoutX();
             foreach (var node in ResearchCatalog.All())
             {
@@ -526,21 +598,6 @@ namespace Core.Stations
                 view.Level = UiKit.Label(root, "Level", string.Empty, new Vector3(0f, -0.215f, 0f), 0.6f, 0.032f,
                     UiKit.TextDim);
                 // Labels face local -Z; the root already faces the stand, so turn them back toward it.
-                // A dark holo tag behind name and level: legible on the light walls, the pillars and the band alike.
-                view.Name.ForceMeshUpdate();
-                var width = Mathf.Clamp(view.Name.textBounds.size.x * 0.01f + 0.08f, 0.26f, 0.98f);
-                var tag = GameObject.CreatePrimitive(PrimitiveType.Quad);
-                Object.DestroyImmediate(tag.GetComponent<Collider>());
-                tag.name = "Tag";
-                tag.transform.SetParent(root, false);
-                tag.transform.localPosition = new Vector3(0f, -0.18f, -0.012f);
-                tag.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
-                tag.transform.localScale = new Vector3(width, 0.12f, 1f);
-                var tagRenderer = tag.GetComponent<MeshRenderer>();
-                tagRenderer.sharedMaterial = TagMaterial;
-                tagRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-                tagRenderer.receiveShadows = false;
-
                 view.Name.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
                 view.Level.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
 
@@ -658,7 +715,7 @@ namespace Core.Stations
         }
 
         static readonly Color MasteryGold = new(1f, 0.78f, 0.3f);
-        // On the dark tags: a muted slate for what is still locked, a light blue for the level line.
+        // On the star chart: a muted silver-blue for what is still locked, a light blue for the level line.
         static readonly Color LockedText = new(0.62f, 0.7f, 0.84f, 1f);
         static readonly Color LevelText = new(0.55f, 0.8f, 1f, 1f);
 
@@ -699,22 +756,22 @@ namespace Core.Stations
                 }
                 else
                 {
-                    Tint(view.CrystalRenderer, Locked, 0.05f, 0.1f, 0.8f);
-                    scale = 0.7f;
+                    // Still its own colour, dimmed: a locked crystal is asleep, not grey.
+                    Tint(view.CrystalRenderer, c * 0.85f, 0.75f, 0.15f, 1.4f);
+                    scale = 0.75f;
                 }
 
                 if (selected)
                     scale *= 1.35f;
                 view.Crystal.localScale = new Vector3(0.13f, 0.195f, 0.13f) * scale;
-                var haloAlpha = selected ? 0.9f : hover ? 0.6f : id == running ? 0.55f : level > 0 ? 0.28f : met ? 0.14f : 0f;
-                var halo = level > 0 || met || selected ? c : Locked;
+                var haloAlpha = selected ? 0.9f : hover ? 0.6f : id == running ? 0.55f : level > 0 ? 0.28f : met ? 0.14f : 0.07f;
+                var halo = c;
                 // A research with a mastery earned wears a gold halo (its milestones show on the analysis screen).
                 if (stars > 0 && !selected)
                     halo = Color.Lerp(c, MasteryGold, 0.65f);
                 Glow(view.Halo, new Color(halo.r, halo.g, halo.b, haloAlpha));
                 view.Halo.transform.localScale = Vector3.one * (selected ? 0.55f : 0.42f);
 
-                // Locked names stay legible on the light lab walls (the outline does the rest).
                 view.Name.color = level > 0 || met ? UiKit.TextBright : LockedText;
                 view.Level.color = LevelText;
                 var line = level > 0 ? Trans.Get("lvl") + " " + level : string.Empty;
