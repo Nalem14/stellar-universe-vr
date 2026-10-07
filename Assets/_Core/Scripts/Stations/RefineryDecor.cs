@@ -150,14 +150,15 @@ namespace Core.Stations
         void BuildAll(Color accent)
         {
             var art = _art;
-            var floor = WorkshopSurfaces.Tiled(art, WorkshopSurfaces.LabTile(), new Color(0.8f, 0.86f, 0.86f), 0.6f, new Vector2(10f, 12f));
-            var wallSide = WorkshopSurfaces.Tiled(art, WorkshopSurfaces.LabPanel(), new Color(0.88f, 0.92f, 0.93f), 0.62f, new Vector2(9f, 3.6f));
-            var wallEnd = WorkshopSurfaces.Tiled(art, WorkshopSurfaces.LabPanel(), new Color(0.88f, 0.92f, 0.93f), 0.62f, new Vector2(8f, 2.2f));
-            var ceiling = WorkshopSurfaces.Tiled(art, WorkshopSurfaces.AcousticCeiling(), new Color(0.9f, 0.93f, 0.95f), 0.7f, new Vector2(10f, 12f));
+            // Graphite and verdigris, not lab white: the glow comes from the algae, the grow bars and the trims.
+            var floor = WorkshopSurfaces.Tiled(art, WorkshopSurfaces.LabTile(), new Color(0.26f, 0.32f, 0.33f), 0.6f, new Vector2(10f, 12f));
+            var wallSide = WorkshopSurfaces.Tiled(art, WorkshopSurfaces.LabPanel(), new Color(0.27f, 0.36f, 0.37f), 0.62f, new Vector2(9f, 3.6f));
+            var wallEnd = WorkshopSurfaces.Tiled(art, WorkshopSurfaces.LabPanel(), new Color(0.27f, 0.36f, 0.37f), 0.62f, new Vector2(8f, 2.2f));
+            var ceiling = WorkshopSurfaces.Tiled(art, WorkshopSurfaces.AcousticCeiling(), new Color(0.2f, 0.25f, 0.27f), 0.7f, new Vector2(10f, 12f));
             var hazard = WorkshopSurfaces.Tiled(art, WorkshopSurfaces.Hazard(), Color.white, 0.6f, new Vector2(6f, 1f));
             _steel = art.Lit(art.Wall, new Color(0.72f, 0.77f, 0.82f, 1f), 0.55f, 2f);
             _dark = art.DarkPanel(0.35f);
-            var lacquer = art.Lit(StationSurfaces.Panel(), new Color(0.9f, 0.92f, 0.94f), 0.6f, 1f);
+            var lacquer = art.Lit(StationSurfaces.Panel(), new Color(0.36f, 0.42f, 0.44f), 0.6f, 1f);
             var trayMat = art.Lit(StationSurfaces.Panel(), new Color(0.2f, 0.24f, 0.26f), 0.4f, 1f);
             var leaf = art.Lit(Texture2D.whiteTexture, new Color(0.3f, 0.85f, 0.38f), 1.1f);
             var leafPale = art.Lit(Texture2D.whiteTexture, new Color(0.55f, 1f, 0.5f), 1.3f);
@@ -167,7 +168,7 @@ namespace Core.Stations
             var glow = art.Lit(Texture2D.whiteTexture, accent, 2.4f);
             var panelLight = art.Lit(Texture2D.whiteTexture, new Color(0.86f, 0.95f, 1f, 1f), 1.35f);
             var glass = art.Holo(Texture2D.whiteTexture, new Color(0.6f, 0.95f, 1f, 0.11f));
-            var frost = art.Holo(Texture2D.whiteTexture, new Color(0.85f, 0.95f, 1f, 0.24f));
+            var frost = art.Holo(Texture2D.whiteTexture, new Color(0.5f, 0.78f, 0.92f, 0.16f));
             _lampViolet = art.Lit(Texture2D.whiteTexture, Violet, 3f);
             _lampGreen = art.Lit(Texture2D.whiteTexture, AlgaeGlow, 2.8f);
             _lampCyan = art.Lit(Texture2D.whiteTexture, Ice, 2.8f);
