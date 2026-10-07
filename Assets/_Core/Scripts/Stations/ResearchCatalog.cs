@@ -81,6 +81,8 @@ namespace Core.Stations
             new("plasma", 280, 900, 0xff0044, "armement"),
             new("gravityTech", 700, 900, 0x9944ff, "physique"),
             new("biotech", 940, 900, 0x44ff88, "biologie"),
+            // Fuel synthesis (model/fuel.php): the refinery and the Fuel Tank, late (Biotech 10, fusion 15).
+            new("fuelSynthesis", 1180, 1130, 0x7dffb0, "biologie"),
 
             new("psiTech", 820, 1130, 0xcc44ff, "quantique"),
             new("spatialFolding", 760, 1360, 0x20d0e0, "megastructure")
@@ -248,6 +250,98 @@ namespace Core.Stations
             return max > 0 ? max : tech == "stargateDiscovery" ? 1 : 0;
         }
 
+        /// <summary>A permanent bonus a research gives at a milestone level (GetConfigs.researchs[tech].masteries).</summary>
+        public readonly struct Mastery
+        {
+            public readonly int Level;
+            public readonly string Stat;
+            public readonly float Value;
+
+            public Mastery(int level, string stat, float value)
+            {
+                Level = level;
+                Stat = stat;
+                Value = value;
+            }
+
+            /// <summary>"+5 % de dégâts" — native masteryStat_* key with the signed value.</summary>
+            public string Label()
+            {
+                var n = Mathf.Approximately(Value, Mathf.Round(Value))
+                    ? Mathf.RoundToInt(Value).ToString(System.Globalization.CultureInfo.InvariantCulture)
+                    : Value.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture);
+                return Trans.Format("masteryStat_" + Stat, (Value > 0f ? "+" : Value < 0f ? "" : "") + n.Replace("-", "−"));
+            }
+        }
+
+        /// <summary>Every mastery step of a research, by level (an "every" mastery expanded up to its upTo / max / 50).</summary>
+        public static List<Mastery> Masteries(string tech)
+        {
+            var list = new List<Mastery>();
+            if (Config(tech)?["masteries"] is not JArray arr)
+                return list;
+            var max = MaxLevel(tech);
+            foreach (var t in arr)
+            {
+                if (t is not JObject m)
+                    continue;
+                var stat = FocusContext.AsString(m["stat"]);
+                var value = FocusContext.AsFloat(m["value"]);
+                if (m["at"] is JArray at)
+                {
+                    foreach (var l in at)
+                        list.Add(new Mastery(FocusContext.AsInt(l), stat, value));
+                    continue;
+                }
+
+                var every = FocusContext.AsInt(m["every"]);
+                if (every <= 0)
+                    continue;
+                var upTo = FocusContext.AsInt(m["upTo"]);
+                if (upTo <= 0)
+                    upTo = max > 0 ? max : 50;
+                for (var l = every; l <= upTo; l += every)
+                    list.Add(new Mastery(l, stat, value));
+            }
+
+            list.Sort((a, b) => a.Level.CompareTo(b.Level));
+            return list;
+        }
+
+        /// <summary>What our masteries add to an empire stat (mirror of ResearchMasteryGain, model/research.php).</summary>
+        public static float MasteryGain(EconomyService eco, string stat)
+        {
+            if (eco == null || GameConfig.Research == null)
+                return 0f;
+            var gain = 0f;
+            foreach (var p in GameConfig.Research.Properties())
+            {
+                var level = eco.ResearchLevel(p.Name);
+                if (level <= 0 || p.Value?["masteries"] == null)
+                    continue;
+                foreach (var m in Masteries(p.Name))
+                    if (m.Stat == stat && level >= m.Level)
+                        gain += m.Value;
+            }
+
+            return gain;
+        }
+
+        /// <summary>Levels between two milestone refunds (0 = none on this server).</summary>
+        public static int MilestoneStep => FocusContext.AsInt(GameConfig.ResearchMilestone?["step"]);
+
+        public static float MilestoneRefundShare => FocusContext.AsFloat(GameConfig.ResearchMilestone?["refundShare"]);
+
+        /// <summary>Points a milestone level pays back when it starts (0 when the level is no milestone).</summary>
+        public static int MilestoneRefund(string tech, int level)
+        {
+            var step = MilestoneStep;
+            if (step <= 0 || level <= 0 || level % step != 0)
+                return 0;
+            var basePoints = FocusContext.AsInt((Config(tech)?["cost"] as JObject)?[Points]);
+            return Mathf.FloorToInt(basePoints * level * MilestoneRefundShare);
+        }
+
         /// <summary>Best researchLab level among our planets — the lab ImproveResearch is sent to (web onImprove).</summary>
         public static int BestLab(EconomyService eco, out int planetId)
         {
@@ -282,8 +376,10 @@ namespace Core.Stations
             q.TargetLevel = level + (running ? 1 : 0) + queuedOfTech + 1;
             q.AtMax = q.MaxLevel > 0 && q.TargetLevel > q.MaxLevel;
             var cfg = Config(tech);
+            // Psi mastery lowers every research's price, as ImproveResearch charges it.
+            var costFactor = Mathf.Max(0.1f, 1f + MasteryGain(eco, "researchCost") / 100f);
             if (cfg?["cost"] is JObject cost)
-                q.Points = FocusContext.AsInt(cost[Points]) * q.TargetLevel;
+                q.Points = Mathf.CeilToInt(FocusContext.AsInt(cost[Points]) * q.TargetLevel * costFactor);
             q.Seconds = Mathf.Max(5f, FocusContext.AsFloat(cfg?["time"]) * q.TargetLevel);
             q.Unlocked = true;
             foreach (var (key, need) in Requirements(tech))
@@ -372,6 +468,9 @@ namespace Core.Stations
             if (tech == "radarTech" && GameConfig.ScannerRangePerLevel > 0f)
                 list.Add(new ResearchUnlock("vr.research.feature.radarRange", 1, KindFeature,
                     Mathf.RoundToInt(GameConfig.ScannerRangePerLevel).ToString()));
+            // The refinery is no building of the catalogue: a room of its own on every owned world (model/fuel.php).
+            if (tech == "fuelSynthesis")
+                list.Add(new ResearchUnlock("fuelRefinery", 1, KindBuilding));
             if (tech == "stargateTriangulation") // ImproveResearch → GrantStargateTriangulationDiscovery
                 list.Add(new ResearchUnlock("vr.research.feature.triangulation", 1, KindFeature));
 

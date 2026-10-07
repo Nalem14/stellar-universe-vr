@@ -1,6 +1,6 @@
 # PARITY — Stellar Universe (casque · PC · mobile) ↔ `actionjs.php`
 
-Généré depuis `action-api.json` (177 actions), `actionjs.php` et un grep des deux clients. Référence web : `/Users/thommy/Websites/stellar-universe`. Roadmap : [`ROADMAP.md`](ROADMAP.md).
+Généré depuis `action-api.json` (183 actions), `actionjs.php` et un grep des deux clients. Référence web : `/Users/thommy/Websites/stellar-universe`. Roadmap : [`ROADMAP.md`](ROADMAP.md).
 
 **Règle** : chaque feature livrée met à jour sa ligne. Avant de coder, lire l'implémentation web (colonne *Web*) + `model/*.php`. On adapte la jouabilité au pont (casque, souris, tactile : voir `PLATFORMS.md`) ; le contrat serveur reste strict. Le jeu ne renvoie **jamais** au web.
 
@@ -19,9 +19,9 @@ Généré depuis `action-api.json` (177 actions), `actionjs.php` et un grep des 
 | Méta / boot | 5 | 5 | 100 % |
 | Caméra (vue) | 2 | 2 | 100 % |
 | Galaxie | 8 | 8 | 100 % |
-| Flotte | 26 | 28 | 93 % |
+| Flotte | 29 | 31 | 94 % |
 | Vaisseau / chantier | 12 | 13 | 92 % |
-| Planète / bâtiments / recherche | 18 | 18 | 100 % |
+| Planète / bâtiments / recherche | 21 | 21 | 100 % |
 | Combat | 12 | 14 | 86 % |
 | Jumpgate | 2 | 2 | 100 % |
 | Stargate | 7 | 7 | 100 % |
@@ -31,9 +31,9 @@ Généré depuis `action-api.json` (177 actions), `actionjs.php` et un grep des 
 | Empire / progression / shop | 24 | 27 | 89 % |
 | Saisons de suprématie | 5 | 5 | 100 % |
 | Marché galactique / convois | 5 | 5 | 100 % |
-| **Total** | **169** | **177** | **95 %** |
+| **Total** | **175** | **183** | **96 %** |
 
-Appelées par le client web : 151/177. « Appelée » ≠ « finie » : voir la colonne *Statut*.
+Appelées par le client web : 157/183. « Appelée » ≠ « finie » : voir la colonne *Statut*.
 
 ## Auth
 
@@ -86,21 +86,24 @@ Appelées par le client web : 151/177. « Appelée » ≠ « finie » : voir la 
 | `GetAllFleetsAround` | R | — | — | `scenes/galaxy.js` | Helm | — | Hors scope | Interdit en VR (règle AGENTS) — `GetAllFleets` + filtre client |
 | `GetSystemAsteroids` | R | systemid | `App/AsteroidService.cs` | `scenes/system.js` | Helm | P5 | Branché | `AsteroidService` : lecture fraîche à chaque système visité (la liste de `GetSystems` peut dater d'une heure), puis toutes les 30 s pendant qu'un de nos vaisseaux y mine (2 min sinon) et après `HarvestAsteroid` ; réserves minerai / cristal sur le jeton, l'arc et le pupitre, amas qui rétrécit sur la table et dehors, champ épuisé retiré |
 | `HarvestAsteroid` | W | fleet, asteroid | `Crew/CrewLines.cs` +2 | `objects/fleet.js` | Engineering | P5 | Branché |  |
+| `LoadFuel` | W | fleet, amount? | `Crew/CrewLines.cs` +3 | `ui/FleetOrdersPanelUI.js` | Helm | P5 | Branché | Table (vaisseau à quai sur un de nos mondes, réservoirs non pleins : « Faire le plein ») et répéteur Ops/Ingénierie ; le serveur refuse `refineryNotHere` sans raffinerie |
 | `LoadModules` | W | fleet, planet, ships | `Vfx/CrewDialogue.cs` | — | Helm | P5 | Branché | Ingénierie / Opérations en orbite d'un de nos mondes : « Embarquer des modules » → pupitre de fret (types du hangar, −/+/Tout, place restante à 500 de soute chacun) |
 | `LoadTroops` | W | fleet, planet, troops | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Tactical | P5 | Branché | Soute à troupes de l'Armurerie : `{type: qty}` ; réponse = unités déplacées → navettes dehors + étincelle sur la table |
 | `MoveFleetToAsteroid` | W | fleet, asteroid, hyperspace? | `App/VoyageLog.cs` +4 | `objects/fleet.js` | Helm | P4 | Branché | idem hyperspace |
 | `MoveFleetToPlanet` | W | fleet, planet, hyperspace? | `App/VoyageLog.cs` +4 | `objects/fleet.js` | Helm | P4 | Branché | idem hyperspace |
-| `MoveFleetToSystem` | W | fleet, pos, system, hyperspace? | `App/VoyageLog.cs` +4 | `objects/fleet.js` | Helm | P4 | Branché | `system` (id, prioritaire) + `pos` + toujours `hyperspace` explicite (0 sous-lumière / 1 hyperespace) après devis au pupitre (`TravelPlanner`, formules serveur) ; sous-lumière plus rapide que 1 = cristal de la soute (⌈vitesse × distance × taux⌉, web f03197d), sinon propulsion conventionnelle à vitesse 1 (devis ambre, `ok:conventional_drive` → `conventionalDrive`, état `stats.conventionalDriveActive` à la barre) ; `ok:sublight_*` → `ApiResult.NoticeKey` ; `grid` = époque de la grille (GetConfigs), jointe à chaque requête par `ActionJs`. Station orbitale : refus local `stationCannotMove` |
+| `MoveFleetToSystem` | W | fleet, pos, system, hyperspace? | `App/VoyageLog.cs` +4 | `objects/fleet.js` | Helm | P4 | Branché | `system` (id, prioritaire) + `pos` + toujours `hyperspace` explicite (0 sous-lumière / 1 hyperespace) après devis au pupitre (`TravelPlanner`, formules serveur) ; sous-lumière plus rapide que 1 = cristal de la soute (⌈vitesse × distance × taux⌉, web f03197d), sinon propulsion conventionnelle à vitesse 1 (devis ambre, `ok:conventional_drive` → `conventionalDrive`, état `stats.conventionalDriveActive` à la barre) ; `ok:sublight_*` → `ApiResult.NoticeKey` ; `grid` = époque de la grille (GetConfigs), jointe à chaque requête par `ActionJs`. Station orbitale : refus local `stationCannotMove` ; **carburant** (model/fuel.php) : réservoirs pleins assez → devis vert « N carburant », arrivée plus tôt (× `stats.fuelSpeedFactor`), `ok:fuel_drive` → `fuelDrive` ; maîtrises de propulsion (`travelCost`) appliquées au devis |
 | `PrlBondFleetToSystem` | W | fleet, system?, pos? | `App/VoyageLog.cs` +3 | `objects/fleet.js` | Helm | P4 | Branché | Devis portée / coût / recharge au pupitre (`TravelPlanner`, distance sur la carte — `Star.BondX/BondY`, `SystemMapDistance` serveur), `fleet` + `system` + `pos` ; lâcher sur une étoile de la galaxie |
 | `ProcessFleetOrderQueue` | W | fleet | — | — | Helm | — | Hors scope | Géré par cron + `GetAllFleets` ; pas d'UI |
 | `RemoveFleetOrderStep` | W | fleet, stepIndex | `Holo/OrderQueue.cs` | `objects/fleet.js` | Helm | P4 | Branché | `stepIndex` 0-based : répéteur Helm, ou plaque ouverte sur une balise de la file (table) |
 | `RenameFleet` | W | id, name | `Stations/DryDock.cs` | `objects/fleet.js` | Helm | P5 | Branché | Cale sèche, clavier Quest |
+| `SetFleetFuelMode` | W | fleet, mode | `Stations/RefineryState.cs` | `ui/FleetOrdersPanelUI.js` | Helm | P5 | Branché | Répéteur : carburant auto ↔ cristaux seulement, avec le niveau des réservoirs ; état `stats.fuelMode` |
 | `SetFleetFuelReserve` | W | fleet, percent | `Vfx/CrewDialogue.cs` | — | Helm | P5 | Branché |  |
 | `SetFleetOrderQueue` | W | fleet, queue, loop? | `Audio/OrderCues.cs` +1 | `objects/fleet.js` | Helm | P4 | Branché | Balise de la file lâchée sur une autre planète / un autre champ : on renvoie les étapes restantes (le serveur remet l’index à 0), champs du serveur conservés |
 | `SpeedupFleetTravel` | W | fleet | `Crew/CrewLines.cs` +3 | `scripts/helper.js` | Helm | P5 | Branché | Vaisseau en route sélectionné sur la table (ou répéteur Helm) : pupitre « Terminer le voyage · N Nova » (gratuit < 1 min, même courbe que les autres accélérations), refus si Nova insuffisant ; **aucun handler serveur** (voir écarts) |
 | `ToggleFleetAutoExplore` | W | fleet, enabled? | `Vfx/CrewDialogue.cs` | `objects/fleet.js` | Science | P5 | Branché | Répéteur Science d'un vaisseau à module scientifique (ScienceModule / SensorArray / DeepSpaceScanner) : `enabled` explicite 0/1, état lu sur `GetAllFleets.autoExplore` |
 | `ToggleFleetAutoMine` | W | fleet, planet?, enabled? | `Vfx/CrewDialogue.cs` | `objects/fleet.js` | Engineering | P5 | Branché | Répéteur Ingénierie de tout vaisseau à soute et à Laser minier (jamais une station ; sans laser le serveur refuse `needMiningLaser`) : `enabled` explicite, planète de déchargement choisie au pupitre (nos mondes, l'actuelle en tête) ; état `GetAllFleets.autoMine` / `autoMinePlanetId` ; exclusif avec l'exploration auto (le serveur coupe l'autre) |
 | `ToggleFleetQueueLoop` | W | fleet, loop? | `Holo/OrderQueue.cs` | `objects/fleet.js` | Helm | P4 | Branché | `loop` explicite 0/1 |
+| `UnloadFuel` | W | fleet, amount? | `Crew/CrewLines.cs` +2 | `ui/FleetOrdersPanelUI.js` | Helm | P5 | Branché | Répéteur : « Vider les réservoirs » vers la raffinerie du monde |
 | `UnloadModules` | W | fleet, planet, ships | `Vfx/CrewDialogue.cs` | — | Helm | P5 | Branché | Idem, « Débarquer des modules » : les modules à bord vers le hangar |
 | `UnloadTroops` | W | fleet, planet, troops | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Tactical | P5 | Branché | Idem, vers la garnison de nos planètes seulement |
 | `UpdateFleetDefendPosition` | W | id, position | `Crew/CrewLines.cs` +1 | `objects/fleet.js` | Tactical | P5 | Branché | Répéteur Tactique : posture courante affichée, trois choix (fuir / défendre la planète / rejoindre l'attaque) ; une station n'a que « défendre la planète (Défense fixe) », verrouillée (`stationMustDefendPlanet`) |
@@ -137,15 +140,18 @@ Appelées par le client web : 151/177. « Appelée » ≠ « finie » : voir la 
 | `CheckShipQueue` | R | planet | `App/ServerTimers.cs` | `view/game.php` | Engineering | P5 | Branché | Idem pour le module en cours de la cale sèche (onglet Chantier) |
 | `DowngradeBuilding` | W | buildingtype, planet | `Stations/OpsConsole.cs` | `objects/planet.js` | Ops | P5 | Branché | Immédiat, sans remboursement : confirmation en deux temps |
 | `GetPlanetDecisions` | R | planet | `Stations/OpsConsole.cs` | `objects/planet.js` | Ops | P5 | Branché | 10 décisions / planète / heure, `nextRefreshAt` → compte à rebours ; titres via `decision_*` / `decisionDesc_*` |
+| `GetRefinery` | R | planet | `Stations/RefineryState.cs` | `ui/RefineryWindowUI.js` | Ops | P5 | Branché | Raffinerie de carburant (salle du couloir, vue cité / station d'un de nos mondes, recherche `fuelSynthesis`) : stock, production / consommation par heure, qualité, cinq étapes ; relu toutes les 5 s dans la salle (`RefineryState`) |
 | `GetResource` | R | planet, raw? | `App/EconomyService.cs` +1 | `objects/planet.js` | Ops (poll global) | P0 | Branché | `EconomyService` : `raw=1` sur **toutes** les planètes (csv ≤ 50) toutes les 10 s — accumule la production et fait avancer les files. `user` = PublicUser (id/username) seulement |
-| `ImproveResearch` | W | research, planet | `Crew/CrewLines.cs` +1 | `objects/research.js` | Science | P5 | Branché | Labo Science : cristal de la constellation → synthétiseur (ou bouton) ; `planet` = meilleur researchLab ; corps vide = lancé, JSON `{queued,targetLevel}` = en file ; prérequis `GetConfigs.researchs.requiert` |
+| `ImproveResearch` | W | research, planet | `Crew/CrewLines.cs` +1 | `objects/research.js` | Science | P5 | Branché | Labo Science : cristal de la constellation → synthétiseur (ou bouton) ; `planet` = meilleur researchLab ; corps vide = lancé, JSON `{queued,targetLevel}` = en file ; prérequis `GetConfigs.researchs.requiert` ; niveau max dérivé par le serveur (effet plafonné), paliers : remboursement tous les 5 niveaux annoncé au lancement, maîtrises listées à l'écran d'analyse et halo doré sur le cristal ; coût réduit par la maîtrise Psi (`researchCost`) |
 | `RecruitTroop` | W | planet, type, qty | `Crew/CrewLines.cs` +1 | `objects/planet.js` | Tactical | P5 | Branché | Console Armurerie (Tactique) : lot 1–500, coût × qty, durée time×qty×(100−(computer+1))/100, un lot par planète (`troopWorking`) |
 | `RefreshStats` | W | planet | `Stations/OpsConsole.cs` | `objects/planet.js` | Ops | P5 | Branché | Onglet Rapport de la console Ops : rendement des mines par jour et énergie produite (page Stats du web), relu toutes les 30 s ; voir écarts (bonus ignorés) |
 | `RenamePlanet` | W | id, name | `Stations/OpsConsole.cs` | `objects/planet.js` | Ops | P5 | Branché | Serveur : 1–32 chars, lettres/chiffres/espaces/-_. ; `error:invalidPlanetName` |
 | `SpeedupBuilding` | W | planet | `Stations/OpsConsole.cs` | `scenes/planet.js` | Ops | P5 | Branché | Coût Nova affiché avant (gratuit ≤ 60 s, sinon max(10, ⌈6·min^0.82⌉)) |
+| `SpeedupRefinery` | W | planet | `Stations/RefineryState.cs` | `ui/RefineryWindowUI.js` | Ops | P5 | Branché | Écran central de la raffinerie : étape en cours, coût Nova affiché (gratuit ≤ 60 s) |
 | `SpeedupResearch` | W | — | `Stations/ResearchLab.cs` | `scenes/research.js` | Science | P5 | Branché | Écran du synthétiseur ; coût Nova affiché (gratuit ≤ 60 s) ; sans param |
 | `TogglePlanetFavorite` | W | planet | `App/PlanetFavorites.cs` | — | Ops | P5 | Branché |  |
 | `UpgradeBuilding` | W | buildingtype, planet | `Crew/CrewLines.cs` +1 | `objects/planet.js` | Ops | P5 | Branché | Console Ops : devis serveur (coût × niveau cible, temps × computer), « Ajouter à la file » si chantier actif ; réponse texte (niveau) ou JSON `queued` |
+| `UpgradeRefinery` | W | planet, stage | `Stations/RefineryState.cs` | `ui/RefineryWindowUI.js` | Ops | P5 | Branché | Pupitre de chaque meuble de la raffinerie (colonnes de culture, bassin de nano-robots, colonne de catalyse, cuves cryogéniques, pompe) : coût / durée du niveau suivant, une étape à la fois ; `stage=culture` construit la raffinerie |
 
 ## Combat
 

@@ -606,6 +606,8 @@ namespace Core.Stations
             }
         }
 
+        static readonly Color MasteryGold = new(1f, 0.78f, 0.3f);
+
         void PaintTree()
         {
             var running = Running();
@@ -619,6 +621,12 @@ namespace Core.Stations
                 var selected = _selected == id;
                 var hover = _hover == id;
                 var c = view.Node.Color;
+
+                var held = level - (id == running ? 1 : 0);
+                var stars = 0;
+                foreach (var m in ResearchCatalog.Masteries(id))
+                    if (held >= m.Level)
+                        stars++;
                 float scale;
                 if (id == running)
                 {
@@ -646,6 +654,9 @@ namespace Core.Stations
                 view.Crystal.localScale = new Vector3(0.13f, 0.195f, 0.13f) * scale;
                 var haloAlpha = selected ? 0.9f : hover ? 0.6f : id == running ? 0.55f : level > 0 ? 0.28f : met ? 0.14f : 0f;
                 var halo = level > 0 || met || selected ? c : Locked;
+                // A research with a mastery earned wears a gold halo (its milestones show on the analysis screen).
+                if (stars > 0 && !selected)
+                    halo = Color.Lerp(c, MasteryGold, 0.65f);
                 Glow(view.Halo, new Color(halo.r, halo.g, halo.b, haloAlpha));
                 view.Halo.transform.localScale = Vector3.one * (selected ? 0.55f : 0.42f);
 
@@ -653,6 +664,8 @@ namespace Core.Stations
                 var line = level > 0 ? Trans.Get("lvl") + " " + level : string.Empty;
                 if (max > 0 && level >= max)
                     line = "MAX";
+                if (stars > 0)
+                    line += "  <color=#e8c040>★" + (stars > 1 ? stars.ToString() : string.Empty) + "</color>";
                 if (id == running)
                     line = "<color=#e8c040>▲ " + Trans.Get("lvl") + " " + (level + 1) + "</color>";
                 else if (queued)
@@ -1465,6 +1478,41 @@ namespace Core.Stations
                 sb.Append(Tone("●", true)).Append(" —");
             sb.Append("\n\n");
 
+            // Milestones: a share of the points back every step levels, and the masteries at their levels.
+            var masteries = ResearchCatalog.Masteries(id);
+            var step = ResearchCatalog.MilestoneStep;
+            var top = ResearchCatalog.MaxLevel(id);
+            if ((masteries.Count > 0 || step > 0) && top != 1)
+            {
+                Section(sb, "researchMilestones");
+                if (step > 0)
+                    sb.Append("<size=85%><color=#9fb8c8>")
+                        .Append(Trans.Format("researchMilestoneRefund", step,
+                            Mathf.RoundToInt(ResearchCatalog.MilestoneRefundShare * 100f)))
+                        .Append("</color></size>\n");
+                var i = 0;
+                while (i < masteries.Count)
+                {
+                    var at = masteries[i].Level;
+                    if (top > 0 && at > top)
+                        break;
+                    sb.Append("<size=85%>").Append(Tone((held >= at ? "★ " : "☆ ") + Trans.Get("lvl") + " " + at, held >= at))
+                        .Append("</size><indent=16%>");
+                    var first = true;
+                    for (; i < masteries.Count && masteries[i].Level == at; i++)
+                    {
+                        if (!first)
+                            sb.Append(" · ");
+                        sb.Append(masteries[i].Label());
+                        first = false;
+                    }
+
+                    sb.Append("</indent>\n");
+                }
+
+                sb.Append('\n');
+            }
+
             // What it opens, straight from the server configs.
             var unlocks = ResearchCatalog.Unlocks(id);
             if (unlocks.Count == 0)
@@ -1672,9 +1720,16 @@ namespace Core.Stations
                             // Keep the generic line.
                         }
 
-                        SetStatus(queued
+                        if (!queued)
+                            int.TryParse(r.Body?.Trim(), out target);
+                        var status = queued
                             ? Trans.Format("vr.research.queued", Trans.Get(tech), target)
-                            : Trans.Format("vr.research.started", Trans.Get(tech)));
+                            : Trans.Format("vr.research.started", Trans.Get(tech));
+                        // A milestone level pays its share back when it starts (a queued one when its turn comes).
+                        var refund = queued ? 0 : ResearchCatalog.MilestoneRefund(tech, target);
+                        if (refund > 0)
+                            status += "\n<color=#e8c040>" + Trans.Format("researchMilestoneReached", refund) + "</color>";
+                        SetStatus(status);
                     }
                     else
                     {

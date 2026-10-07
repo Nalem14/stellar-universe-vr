@@ -1122,10 +1122,45 @@ namespace Core.Vfx
                 }
             }
 
+            // Fuel Tanks (model/fuel.php): burn fuel before crystal or not, and fill up / empty at this world's refinery.
+            if (!fleet.IsStation && fleet.FuelCapacity > 0f)
+            {
+                var tanks = Mathf.FloorToInt(fleet.FuelCargo) + " / " + Mathf.FloorToInt(fleet.FuelCapacity);
+                AddAction(Trans.Get(fleet.FuelAuto ? "fuelModeAuto" : "fuelModeCrystal") + "  ·  " + tanks,
+                    () => ToggleFuelMode(fleet), fleet.FuelAuto ? DiegeticUi.BtnStyle.Cyan : DiegeticUi.BtnStyle.Amber);
+                if (FleetOrderGate.CanCargo(fleet, focus))
+                {
+                    var here = PlanetLabel(focus.FindPlanet(fleet.PlanetId), fleet.PlanetId);
+                    if (fleet.FuelCargo < fleet.FuelCapacity)
+                        AddAction(ActionLabel("loadFuel", here), () => Issue("LoadFuel",
+                            new Dictionary<string, string> { { "fleet", fleet.Id.ToString() } }, here));
+                    if (fleet.FuelCargo > 0f)
+                        AddAction(ActionLabel("unloadFuel", here), () => Issue("UnloadFuel",
+                            new Dictionary<string, string> { { "fleet", fleet.Id.ToString() } }, here));
+                }
+            }
+
             // Fuel reserve of this ship: crystal it keeps aboard on every unload (by hand, queue or auto-mining).
             if (!fleet.IsStation && fleet.Cargo > 0)
                 AddAction(Trans.Format("vr.fuel.reserve", fleet.FuelReserve, fleet.CrystalReserve), () => CycleFuelReserve(fleet),
                     DiegeticUi.BtnStyle.Cyan);
+        }
+
+        /// <summary>SetFleetFuelMode: auto (tanks before crystal) ↔ crystal only.</summary>
+        async Task ToggleFuelMode(FocusFleet fleet)
+        {
+            var auto = !fleet.FuelAuto;
+            var result = await Core.Stations.RefineryState.SetFuelMode(fleet.Id, auto);
+            if (!result.Ok)
+            {
+                CicCue.Fail(transform.position);
+                _map?.SetReadout(string.IsNullOrEmpty(result.Error) ? Trans.Get("vr.common.error") : result.Error);
+                return;
+            }
+
+            fleet.FuelAuto = auto;
+            CicCue.Ok(transform.position);
+            _map?.SetReadout(Trans.Get(auto ? "fuelModeAuto" : "fuelModeCrystal") + "  ·  " + Trans.Get("fuelModeHint"));
         }
 
         static readonly int[] FuelSteps = { 0, 10, 20, 30, 50 };
@@ -1627,7 +1662,7 @@ namespace Core.Vfx
                     AsyncTap.Run(AsteroidService.Instance.Refresh());
             }
 
-            var notice = result.NoticeKey;
+            var notice = result.NoticeKey ?? (action == "LoadFuel" ? "fuelLoaded" : action == "UnloadFuel" ? "fuelUnloaded" : null);
             _map?.SetReadout(Trans.Get(notice ?? "vr.common.ok"));
             Core.Crew.BarkDirector.Instance?.OrderResult(_role, action, result, target ?? DescribeTarget(query));
         }

@@ -158,6 +158,8 @@ namespace Core.Stations
                 case "CitadelReactor": return ModuleFamily.Defense;
                 // "laser" would read it as a weapon: an extraction instrument, with the science modules.
                 case "MiningLaser": return ModuleFamily.Science;
+                // Fuel Tank: logistics, with the hold (its own capacity, model/fuel.php).
+                case "FuelTank": return ModuleFamily.Cargo;
             }
 
             var t = type.ToLowerInvariant();

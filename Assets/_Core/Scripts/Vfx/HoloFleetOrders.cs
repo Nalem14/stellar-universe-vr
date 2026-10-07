@@ -905,6 +905,10 @@ namespace Core.Vfx
                 options.Add(new Core.Holo.OrderConsole.Option(Trans.Get("withdrawCargo"), true, UiKit.Cyan, "WithdrawCargo"));
             }
 
+            // Fuel Tanks not full at an owned world: fill up at its refinery (the server says if there is none).
+            if (FleetOrderGate.CanCargo(fleet, focus) && fleet.FuelCapacity > 0f && fleet.FuelCargo < fleet.FuelCapacity)
+                options.Add(new Core.Holo.OrderConsole.Option(Trans.Get("loadFuel"), true, new Color(0.49f, 1f, 0.69f), "LoadFuel"));
+
             return options;
         }
 
@@ -960,6 +964,9 @@ namespace Core.Vfx
                     query["ship"] = CrewDialogue.ColonyModuleId(fleet).ToString();
                     query["planet"] = fleet.PlanetId.ToString();
                     break;
+                case "LoadFuel":
+                    query["fleet"] = fleet.Id.ToString();
+                    break;
                 default:
                     query["fleet"] = fleet.Id.ToString();
                     query["planet"] = fleet.PlanetId.ToString();
@@ -1002,7 +1009,8 @@ namespace Core.Vfx
             }
 
             CicCue.Ok(target.transform.position);
-            _map?.SetReadout(fleetToken.DisplayName + "  ·  " + Trans.Get(result.NoticeKey ?? "vr.common.ok"));
+            _map?.SetReadout(fleetToken.DisplayName + "  ·  " +
+                             Trans.Get(result.NoticeKey ?? (action == "LoadFuel" ? "fuelLoaded" : "vr.common.ok")));
             if (_poller != null)
                 await _poller.PollNow();
             return true;

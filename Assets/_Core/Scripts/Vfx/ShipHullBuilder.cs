@@ -21,6 +21,8 @@ namespace Core.Vfx
             Core, Armor, Cargo, Colony, Troop, Weapon, Engine, Shield, Sensor, Science, Stealth, Repair, Special, Utility,
             // Mining Laser: a downward drill-emitter (by name: "laser" alone would read it as a weapon).
             MiningLaser,
+            // Fuel Tank (model/fuel.php): twin pressure capsules with a green fuel gauge.
+            FuelTank,
             // Orbital fortress modules (web 69d40af): one silhouette each, read from far through a porthole.
             StationHub, OrbitalBattery, ShieldProjector, JammingArray, Gantry, CitadelReactor
         }
@@ -602,6 +604,7 @@ namespace Core.Vfx
                 case Kind.Stealth: BuildStealth(k, deck); break;
                 case Kind.Repair: BuildRepair(k, deck); break;
                 case Kind.MiningLaser: BuildMiningLaser(k, deck); break;
+                case Kind.FuelTank: BuildFuelTank(k, deck); break;
                 case Kind.Special: BuildSpecial(k, deck, module.Type); break;
                 case Kind.StationHub: BuildStationHub(k, deck); break;
                 case Kind.OrbitalBattery: BuildOrbitalBattery(k, deck); break;
@@ -658,6 +661,38 @@ namespace Core.Vfx
                 k.Pal.Brass);
             k.Cyl("ClampR", p + new Vector3(c * 0.42f, 0.28f, 0f), new Vector3(0.12f, 0.16f, 0.12f), Vector3.zero,
                 k.Pal.Brass);
+        }
+
+        static Material _fuelGauge;
+
+        /// <summary>Synthesised fuel's colour, the same on every hull (one shared material).</summary>
+        static Material FuelGauge => _fuelGauge != null ? _fuelGauge
+            : _fuelGauge = Emissive(new Color(0.45f, 1f, 0.68f), 3.4f, LoadTex("GlowCyan"));
+
+        /// <summary>Fuel Tank: two pressure capsules lying fore-aft, banded, a glowing fuel gauge, a crossfeed pipe.</summary>
+        static void BuildFuelTank(Kit k, Vector3 p)
+        {
+            var c = WorldScale.ShipCell;
+            for (var i = -1; i <= 1; i += 2)
+            {
+                var x = i * c * 0.22f;
+                k.Cyl("Tank" + i, p + new Vector3(x, 0.62f, 0f), new Vector3(c * 0.34f, c * 0.3f, c * 0.34f),
+                    new Vector3(90f, 0f, 0f), k.Pal.Hull);
+                k.Sph("CapF" + i, p + new Vector3(x, 0.62f, c * 0.3f), c * 0.17f, k.Pal.Hull);
+                k.Sph("CapA" + i, p + new Vector3(x, 0.62f, -c * 0.3f), c * 0.17f, k.Pal.Dark);
+                k.Cyl("Gauge" + i, p + new Vector3(x, 0.62f, 0f), new Vector3(c * 0.36f, 0.05f, c * 0.36f),
+                    new Vector3(90f, 0f, 0f), FuelGauge);
+                k.Cyl("BandF" + i, p + new Vector3(x, 0.62f, c * 0.16f), new Vector3(c * 0.37f, 0.03f, c * 0.37f),
+                    new Vector3(90f, 0f, 0f), k.Pal.Brass);
+                k.Cyl("BandA" + i, p + new Vector3(x, 0.62f, -c * 0.16f), new Vector3(c * 0.37f, 0.03f, c * 0.37f),
+                    new Vector3(90f, 0f, 0f), k.Pal.Brass);
+                k.Box("Cradle" + i, p + new Vector3(x, 0.2f, 0f), new Vector3(c * 0.3f, 0.14f, c * 0.5f), k.Pal.Dark);
+            }
+
+            k.Link("Crossfeed", p + new Vector3(-c * 0.22f, 1.02f, 0f), p + new Vector3(c * 0.22f, 1.02f, 0f), 0.05f,
+                k.Pal.Dark);
+            var valve = k.Sph("Valve", p + new Vector3(0f, 1.06f, 0f), 0.09f, FuelGauge);
+            Pulse(valve, 2.2f, 4.6f, 2.4f);
         }
 
         static void BuildColony(Kit k, Vector3 p)
@@ -1188,6 +1223,7 @@ namespace Core.Vfx
                 case "OrbitalGantry": return Kind.Gantry;
                 case "CitadelReactor": return Kind.CitadelReactor;
                 case "MiningLaser": return Kind.MiningLaser;
+                case "FuelTank": return Kind.FuelTank;
             }
 
             var t = type.ToLowerInvariant();

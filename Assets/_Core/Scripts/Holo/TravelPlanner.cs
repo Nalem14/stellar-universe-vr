@@ -35,6 +35,9 @@ namespace Core.Holo
         public bool Conventional;
         /// <summary>Bond PRL recharging: seconds left before the module can jump again.</summary>
         public float ReadyIn;
+        /// <summary>The Fuel Tanks pay this trip (model/fuel.php): <see cref="FuelCost"/> fuel, no crystal, faster.</summary>
+        public bool OnFuel;
+        public int FuelCost;
     }
 
     /// <summary>
@@ -96,9 +99,18 @@ namespace Core.Holo
 
                     // Server order: too few drives for the hull, else too little crystal → the trip falls back to
                     // sub-light (capped speed, then the sub-light crystal rule, down to the free speed-1 drive).
-                    var hyperCost = Mathf.CeilToInt(q.Distance * GameConfig.HyperspaceCrystalPerDistance);
+                    var hyperCost = Mathf.CeilToInt(q.Distance * GameConfig.HyperspaceCrystalPerDistance * CostFactor());
+                    var hyperFuel = FuelFor(hyperCost, fleet);
                     if (!fleet.EnoughHyperdrive)
                         q.FallbackKey = "vr.travel.warn.hyperModules";
+                    else if (hyperFuel > 0 && fleet.FuelUsable >= hyperFuel)
+                    {
+                        // Fuel first, as the server burns it: a quarter of the crystal, faster.
+                        q.OnFuel = true;
+                        q.FuelCost = hyperFuel;
+                        q.EtaSeconds = Eta(q.Distance, FuelSpeed(GameConfig.HyperspaceSpeed(fleet.Speed), fleet));
+                        break;
+                    }
                     else if (fleet.CrystalCargo < hyperCost)
                     {
                         q.FallbackKey = "vr.travel.warn.hyperCrystal";
@@ -276,7 +288,9 @@ namespace Core.Holo
             var text = mode;
             if (q.EtaSeconds > 0f)
                 text += "  ·  " + TimeText(q.EtaSeconds);
-            if (q.CrystalCost > 0)
+            if (q.OnFuel)
+                text += "  ·  <color=#7dffb0>" + q.FuelCost.ToString(CultureInfo.InvariantCulture) + " " + Trans.Get("fuel") + "</color>";
+            else if (q.CrystalCost > 0)
                 text += "  ·  " + q.CrystalCost.ToString(CultureInfo.InvariantCulture) + " " + Trans.Get("crystalResource");
             var warn = Warning(q);
             return warn.Length > 0 ? text + "\n<size=78%><color=#ffb866>" + warn + "</color></size>" : text;
@@ -329,17 +343,28 @@ namespace Core.Holo
         /// </summary>
         static void Sublight(FocusFleet fleet, float distance, ref TravelQuote q)
         {
-            var speed = ServerSpeed(GameConfig.SublightSpeed(Mathf.Max(1f, fleet.Speed)));
+            var raw = GameConfig.SublightSpeed(Mathf.Max(1f, fleet.Speed));
+            var speed = ServerSpeed(raw);
             q.CrystalCost = 0;
             if (speed > 1 && GameConfig.SublightCrystalPerDistance > 0f)
             {
-                var cost = Mathf.CeilToInt(speed * distance * GameConfig.SublightCrystalPerDistance);
+                var costF = CostFactor();
+                var cost = Mathf.CeilToInt(speed * distance * GameConfig.SublightCrystalPerDistance * costF);
+                var fuel = FuelFor(cost, fleet);
+                if (fuel > 0 && fleet.FuelUsable >= fuel)
+                {
+                    q.OnFuel = true;
+                    q.FuelCost = fuel;
+                    q.EtaSeconds = Eta(distance, FuelSpeed(raw, fleet));
+                    return;
+                }
+
                 var capSpeed = Mathf.Max(1, (int)Mathf.Min(speed, GameConfig.SublightSpeedCap));
                 if (fleet.CrystalCargo < cost && capSpeed > 1 && capSpeed < speed &&
-                    fleet.CrystalCargo >= Mathf.CeilToInt(capSpeed * distance * GameConfig.SublightCrystalPerDistance))
+                    fleet.CrystalCargo >= Mathf.CeilToInt(capSpeed * distance * GameConfig.SublightCrystalPerDistance * costF))
                 {
                     speed = capSpeed;
-                    cost = Mathf.CeilToInt(speed * distance * GameConfig.SublightCrystalPerDistance);
+                    cost = Mathf.CeilToInt(speed * distance * GameConfig.SublightCrystalPerDistance * costF);
                 }
 
                 if (fleet.CrystalCargo < cost)
@@ -355,6 +380,22 @@ namespace Core.Holo
 
             q.EtaSeconds = Eta(distance, speed);
         }
+
+        /// <summary>Drive masteries (model/research.php travelCost): crystal and fuel per trip, 1 = none.</summary>
+        static float CostFactor() =>
+            Mathf.Max(0.1f, 1f + Core.Stations.ResearchCatalog.MasteryGain(EconomyService.Instance, "travelCost") / 100f);
+
+        /// <summary>Fuel that pays a crystal cost (FuelCostFor, model/fuel.php); 0 = this ship burns no fuel.</summary>
+        static int FuelFor(int crystal, FocusFleet fleet)
+        {
+            if (crystal <= 0 || fleet.FuelUsable <= 0f || GameConfig.FuelCostRatio <= 0f)
+                return 0;
+            return Mathf.Max(1, Mathf.CeilToInt(crystal * GameConfig.FuelCostRatio * fleet.FuelCostFactor));
+        }
+
+        /// <summary>Server: (int)(speed / booster × fuel speed factor), at least 1.</summary>
+        static int FuelSpeed(float speed, FocusFleet fleet) =>
+            Mathf.Max(1, Mathf.FloorToInt(speed / Mathf.Max(0.01f, Boosters.MoveTimeFactor) * Mathf.Max(1f, fleet.FuelSpeedFactor)));
 
         /// <summary>Server: speed /= move_speed booster, then max(1, (int)speed).</summary>
         static int ServerSpeed(float speed) =>

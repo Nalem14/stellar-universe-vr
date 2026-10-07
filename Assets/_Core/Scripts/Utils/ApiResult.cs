@@ -34,6 +34,9 @@ namespace Core.Utils
                 // Not enough crystal in the hold for a faster sub-light trip: speed 1, free (web f03197d).
                 if (Body.StartsWith("ok:conventional_drive", System.StringComparison.Ordinal))
                     return "conventionalDrive";
+                // The Fuel Tanks paid the trip (model/fuel.php): less of it than crystal, and faster.
+                if (Body.StartsWith("ok:fuel_drive", System.StringComparison.Ordinal))
+                    return "fuelDrive";
                 return null;
             }
         }

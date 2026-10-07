@@ -76,6 +76,16 @@ namespace Core.App
         public bool EnoughHyperdrive;
         public bool EnoughPrlBond;
         public int CrystalCargo;
+        /// <summary>Fuel Tanks (stats.fuelCargo / fuelCapacity, model/fuel.php): synthesised fuel, apart from the hold.</summary>
+        public float FuelCargo;
+        public float FuelCapacity;
+        /// <summary>stats.fuelMode: true = a trip burns the tanks before crystal (SetFleetFuelMode).</summary>
+        public bool FuelAuto = true;
+        /// <summary>Fuel the next trip may burn (tanks, when the fuel mode is on).</summary>
+        public float FuelUsable => FuelAuto ? FuelCargo : 0f;
+        /// <summary>The empire's fuel quality (stats.fuelSpeedFactor / fuelCostFactor: best catalysis).</summary>
+        public float FuelSpeedFactor = 1f;
+        public float FuelCostFactor = 1f;
         /// <summary>The hold (stats.cargo / mineralCargo / biomassCargo): capacity and what is aboard.</summary>
         public int Cargo;
         public int MineralCargo;
@@ -408,6 +418,8 @@ namespace Core.App
                     h = h * 31 + f.PrlBondReadyAt.GetHashCode();
                     h = h * 31 + f.FuelReserve;
                     h = h * 31 + f.CrystalCargo;
+                    h = h * 31 + f.FuelCargo.GetHashCode();
+                    h = h * 31 + (f.FuelAuto ? 11 : 13);
                     h = h * 31 + f.MineralCargo;
                     h = h * 31 + f.BiomassCargo;
                     h = h * 31 + f.CarriedModules.Count;
@@ -739,6 +751,13 @@ namespace Core.App
                         if (stats["miningLaserCount"] != null)
                             row.MiningLasers = AsInt(stats["miningLaserCount"]);
                         row.CrystalCargo = AsInt(stats["crystalCargo"]);
+                        row.FuelCargo = AsFloat(stats["fuelCargo"]);
+                        row.FuelCapacity = AsFloat(stats["fuelCapacity"]);
+                        row.FuelAuto = stats["fuelMode"] == null || AsInt(stats["fuelMode"]) != 0;
+                        if (stats["fuelSpeedFactor"] != null)
+                            row.FuelSpeedFactor = AsFloat(stats["fuelSpeedFactor"]);
+                        if (stats["fuelCostFactor"] != null)
+                            row.FuelCostFactor = AsFloat(stats["fuelCostFactor"]);
                         row.Cargo = AsInt(stats["cargo"]);
                         row.MineralCargo = AsInt(stats["mineralCargo"]);
                         row.BiomassCargo = AsInt(stats["biomassCargo"]);

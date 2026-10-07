@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Newtonsoft.Json.Linq;
+using UnityEngine;
 
 namespace Core.App
 {
@@ -106,6 +107,23 @@ namespace Core.App
         /// <summary>GetConfigs.researchEffects (server $RESEARCH_EFFECTS): {tech: [{stat, perLevel, modules?, cap?, flat?}]} —
         /// what each level gives; null until the server serves it.</summary>
         public static JObject ResearchEffects { get; private set; }
+        /// <summary>GetConfigs.researchMilestone: {step, refundShare, xpPerLevel} — every step levels a research pays
+        /// back refundShare of that level's points (model/research.php); null on an older server.</summary>
+        public static JObject ResearchMilestone { get; private set; }
+        /// <summary>GetConfigs.fuel (server FUEL.SETTINGS, model/fuel.php): travel ratio / speed by catalysis, synthesis
+        /// rates and the refinery stages {stage: {max, cost, time, requiert?}}; null on an older server.</summary>
+        public static JObject Fuel { get; private set; }
+        /// <summary>Fuel burnt for a trip = its crystal cost x this x the catalysis cut (0 = no fuel on this server).</summary>
+        public static float FuelCostRatio => FocusContext.AsFloat(Fuel?["costRatio"]);
+
+        /// <summary>Speed and cost factors of fuel refined at this catalysis level (FuelQuality, model/fuel.php).</summary>
+        public static (float speed, float cost) FuelQuality(int catalysis)
+        {
+            var speed = Mathf.Min(FocusContext.AsFloat(Fuel?["speedMax"]),
+                FocusContext.AsFloat(Fuel?["speedBase"]) + catalysis * FocusContext.AsFloat(Fuel?["speedPerCatalysis"]));
+            var cut = Mathf.Min(FocusContext.AsFloat(Fuel?["costCutMax"]), catalysis * FocusContext.AsFloat(Fuel?["costCutPerCatalysis"]));
+            return (Mathf.Max(1f, speed), 1f - cut / 100f);
+        }
         /// <summary>GetConfigs.troopstats / defensestats: {type: {requiert, cost, time, …}}.</summary>
         public static JObject TroopStats { get; private set; }
         public static JObject DefenseStats { get; private set; }
@@ -212,6 +230,8 @@ namespace Core.App
                 JumpModuleRequirement = root["jumpModuleRequirement"] as JObject;
                 Research = root["researchs"] as JObject;
                 ResearchEffects = root["researchEffects"] as JObject;
+                ResearchMilestone = root["researchMilestone"] as JObject;
+                Fuel = root["fuel"] as JObject;
                 TroopStats = root["troopstats"] as JObject;
                 DefenseStats = root["defensestats"] as JObject;
 

@@ -80,7 +80,7 @@ namespace Core.Crew
             "FleetAttackPlanet" => "siege",
             "HarvestAsteroid" => "harvest",
             "ExplorePlanet" => "explore",
-            "DepositCargo" or "WithdrawCargo" => "cargoDeposited",
+            "DepositCargo" or "WithdrawCargo" or "LoadFuel" or "UnloadFuel" => "cargoDeposited",
             "Colonize" => "colonize",
             "MakeBattle" => "battleStart",
             "RecruitTroop" => "recruit",

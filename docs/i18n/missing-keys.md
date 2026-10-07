@@ -245,6 +245,78 @@ Descriptions natives réécrites (audit du 2026-10-04, table `$RESEARCH_EFFECTS`
 
 Toutes ✅ dans les dix langues (`docs/tools/i18n.py check` : même jeu et même ordre de clés partout).
 
+## Plafonds, paliers de recherche et synthèse de carburant (intégré web)
+
+| Clé | EN | FR | Contexte |
+|---|---|---|---|
+| `researchMilestones` | Milestones | Paliers | Plafonds et paliers de recherche |
+| `researchMilestoneRefund` | Every {0} levels: {1}% of the level's points refunded | Tous les {0} niveaux : {1} % des points du niveau remboursés | Plafonds et paliers de recherche |
+| `researchMilestoneReached` | Milestone reached: {0} research points refunded | Palier atteint : {0} points de recherche remboursés | Plafonds et paliers de recherche |
+| `masteryStat_travelCost` | {0}% travel cost | {0} % de coût de voyage | Plafonds et paliers de recherche |
+| `masteryStat_speed` | {0}% speed | {0} % de vitesse | Plafonds et paliers de recherche |
+| `masteryStat_damage` | {0}% damage | {0} % de dégâts | Plafonds et paliers de recherche |
+| `masteryStat_armor` | {0}% armour | {0} % de blindage | Plafonds et paliers de recherche |
+| `masteryStat_shield` | {0}% shield | {0} % de bouclier | Plafonds et paliers de recherche |
+| `masteryStat_power` | {0}% energy output | {0} % d'énergie produite | Plafonds et paliers de recherche |
+| `masteryStat_buildingCost` | {0}% building cost | {0} % de coût des bâtiments | Plafonds et paliers de recherche |
+| `masteryStat_queueSlots` | {0} queue slot | {0} place de file d'attente | Plafonds et paliers de recherche |
+| `masteryStat_harvestSpeed` | {0}% harvest speed | {0} % de vitesse de récolte | Plafonds et paliers de recherche |
+| `masteryStat_mine` | {0}% mineral and crystal | {0} % de minerai et cristal | Plafonds et paliers de recherche |
+| `masteryStat_food` | {0}% biomass | {0} % de biomasse | Plafonds et paliers de recherche |
+| `masteryStat_relation` | {0} diplomatic relation | {0} de relation diplomatique | Plafonds et paliers de recherche |
+| `masteryStat_scannerRange` | {0}% scanner range | {0} % de portée du scanner | Plafonds et paliers de recherche |
+| `masteryStat_prlCooldown` | {0}% PRL Bond cooldown | {0} % de recharge du bond PRL | Plafonds et paliers de recherche |
+| `masteryStat_moduleBuildTime` | {0}% module build time | {0} % de temps de fabrication des modules | Plafonds et paliers de recherche |
+| `masteryStat_troopTrainingTime` | {0}% troop training time | {0} % de temps d'entraînement des troupes | Plafonds et paliers de recherche |
+| `masteryStat_colonizationTime` | {0}% colonisation time | {0} % de temps de colonisation | Plafonds et paliers de recherche |
+| `masteryStat_researchCost` | {0}% research cost | {0} % de coût des recherches | Plafonds et paliers de recherche |
+| `achievementName_research_mastered` | Master Researcher | Maître Chercheur | Plafonds et paliers de recherche |
+| `achievementDesc_research_mastered` | Take a capped research to its maximum level | Menez une recherche plafonnée jusqu'à son niveau maximum | Plafonds et paliers de recherche |
+| `fuelSynthesis` | Fuel Synthesis | Synthèse de carburant | Synthèse de carburant |
+| `descFuelSynthesis` | Opens the fuel refinery on your worlds and the Fuel Tank module. Fuel replaces crystal on trips: a quarter of the amount, and the ship goes faster. | Ouvre la raffinerie de carburant sur vos planètes et le module Réservoir de carburant. Le carburant remplace les cristaux en voyage : il en faut quatre fois moins, et le vaisseau va plus vite. | Synthèse de carburant |
+| `FuelTank` | Fuel Tank | Réservoir de carburant | Synthèse de carburant |
+| `descFuelTank` | Holds synthesised fuel (1,500), apart from the hold. A trip burns it before crystal. | Contient du carburant synthétisé (1 500), à part de la soute. Un trajet le brûle avant les cristaux. | Synthèse de carburant |
+| `fuel` | Fuel | Carburant | Synthèse de carburant |
+| `fuelRefinery` | Fuel refinery | Raffinerie de carburant | Synthèse de carburant |
+| `fuelRefineryDesc` | Algae columns fed by a nanobot pool turn the world's stock (2/3 crystal, 1/3 biomass) into fuel. Ships docked here fill up. | Des colonnes d'algues nourries par un bassin de nano-robots transforment le stock de la planète (2/3 de cristaux, 1/3 de biomasse) en carburant. Les vaisseaux à quai font le plein ici. | Synthèse de carburant |
+| `refineryStage_culture` | Culture columns | Colonnes de culture | Synthèse de carburant |
+| `refineryStage_nanobots` | Nanobot pool | Bassin de nano-robots | Synthèse de carburant |
+| `refineryStage_catalysis` | Catalysis column | Colonne de catalyse | Synthèse de carburant |
+| `refineryStage_cryo` | Cryogenic tanks | Cuves cryogéniques | Synthèse de carburant |
+| `refineryStage_pump` | Transfer pump | Pompe de transfert | Synthèse de carburant |
+| `refineryStageDesc_culture` | Bioluminescent algae: each level speeds up synthesis. | Algues bioluminescentes : chaque niveau accélère la synthèse. | Synthèse de carburant |
+| `refineryStageDesc_nanobots` | Nanobots recycle residue into nutrients: +10% fuel per level from the same stock. | Les nano-robots recyclent les résidus en nutriments : +10 % de carburant par niveau pour le même stock. | Synthèse de carburant |
+| `refineryStageDesc_catalysis` | The plasma core refines the fuel: faster and thriftier on trips. | Le cœur plasma affine le carburant : plus rapide et moins gourmand en voyage. | Synthèse de carburant |
+| `refineryStageDesc_cryo` | More fuel stored on the world. | Plus de carburant stocké sur la planète. | Synthèse de carburant |
+| `refineryStageDesc_pump` | Fills the tanks of your docked ships by itself. | Remplit tout seul les réservoirs de vos vaisseaux à quai. | Synthèse de carburant |
+| `refineryMakes` | Output | Production | Synthèse de carburant |
+| `refineryEats` | Consumption | Consommation | Synthèse de carburant |
+| `fuelQuality` | Quality | Qualité | Synthèse de carburant |
+| `fuelConsumption` | consumption | consommation | Synthèse de carburant |
+| `upgrade` | Upgrade | Améliorer | Synthèse de carburant |
+| `needFuelSynthesis` | Research required: Fuel Synthesis | Recherche requise : Synthèse de carburant | Synthèse de carburant |
+| `refineryBusy` | A refinery stage is already being upgraded | Une étape de la raffinerie est déjà en chantier | Synthèse de carburant |
+| `refineryNeedsCulture` | Build the culture columns first | Construisez d'abord les colonnes de culture | Synthèse de carburant |
+| `refineryNotHere` | No refinery on this world | Aucune raffinerie sur cette planète | Synthèse de carburant |
+| `refineryUnknownStage` | Unknown stage | Étape inconnue | Synthèse de carburant |
+| `refineryFull` | The refinery's tanks are full | Les cuves de la raffinerie sont pleines | Synthèse de carburant |
+| `noFuelTank` | This ship has no Fuel Tank | Ce vaisseau n'a pas de réservoir de carburant | Synthèse de carburant |
+| `noFuelToLoad` | No fuel in the refinery | Pas de carburant dans la raffinerie | Synthèse de carburant |
+| `fuelTankFull` | The tanks are full | Les réservoirs sont pleins | Synthèse de carburant |
+| `refineryUpgradeStarted` | Upgrade started | Amélioration lancée | Synthèse de carburant |
+| `refineryUpgradeDone` | Upgrade finished | Amélioration terminée | Synthèse de carburant |
+| `fuelTanks` | Fuel tanks | Réservoirs de carburant | Synthèse de carburant |
+| `fuelModeAuto` | Auto fuel | Carburant auto | Synthèse de carburant |
+| `fuelModeCrystal` | Crystal only | Cristaux seulement | Synthèse de carburant |
+| `fuelModeHint` | Auto: a trip burns the tanks' fuel before crystal. | Auto : un trajet brûle le carburant des réservoirs avant les cristaux. | Synthèse de carburant |
+| `loadFuel` | Fill up | Faire le plein | Synthèse de carburant |
+| `unloadFuel` | Empty the tanks | Vider les réservoirs | Synthèse de carburant |
+| `fuelLoaded` | Tanks filled | Plein fait | Synthèse de carburant |
+| `fuelUnloaded` | Fuel returned to the refinery | Carburant rendu à la raffinerie | Synthèse de carburant |
+| `fuelDrive` | Fuel drive: faster, no crystal spent | Trajet au carburant : plus rapide, sans cristaux | Synthèse de carburant |
+
+Toutes ✅ dans les dix langues.
+
 ## Restant côté web
 
 | Source web | Restant | Notes |
