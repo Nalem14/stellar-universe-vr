@@ -57,6 +57,8 @@ namespace Core.Stations
             public Transform Crystal;
             public Renderer CrystalRenderer;
             public Renderer Halo;
+            /// <summary>A small padlock in front of a research whose prerequisites are not met yet.</summary>
+            public GameObject Lock;
             public TextMeshPro Name;
             public TextMeshPro Level;
             public float Spin;
@@ -495,6 +497,56 @@ namespace Core.Stations
         static Vector3 OnArc(float angle, float height) =>
             new(Mathf.Sin(angle) * ArcRadius, height, Mathf.Cos(angle) * ArcRadius);
 
+        Material _lockMat;
+
+        /// <summary>The padlock: the glow material with a procedural lock picture (one material for every node).</summary>
+        Material LockMaterial
+        {
+            get
+            {
+                if (_lockMat != null)
+                    return _lockMat;
+                _lockMat = new Material(_glowMat) { name = "SU_TechLock" };
+                if (_lockMat.HasProperty("_MainTex"))
+                    _lockMat.mainTexture = PadlockTexture();
+                if (_lockMat.HasProperty("_Color"))
+                    _lockMat.SetColor("_Color", new Color(0.86f, 0.92f, 1f, 1f));
+                if (_lockMat.HasProperty("_EmissionMul"))
+                    _lockMat.SetFloat("_EmissionMul", 2.2f);
+                return _lockMat;
+            }
+        }
+
+        /// <summary>64 px padlock, white on transparent: a shackle arc over a rounded body pierced by a keyhole.</summary>
+        static Texture2D PadlockTexture()
+        {
+            const int n = 64;
+            var px = new Color32[n * n];
+            for (var y = 0; y < n; y++)
+            for (var x = 0; x < n; x++)
+            {
+                var u = (x + 0.5f) / n * 2f - 1f;
+                var v = (y + 0.5f) / n * 2f - 1f;
+                // Body: rounded rectangle on the lower part.
+                var bx = Mathf.Max(Mathf.Abs(u) - 0.42f, 0f);
+                var by = Mathf.Max(Mathf.Abs(v + 0.3f) - 0.32f, 0f);
+                var body = 1f - Mathf.Clamp01((Mathf.Sqrt(bx * bx + by * by) - 0.12f) * 24f);
+                // Shackle: a ring of radius 0.34 above the body, its lower half hidden in it.
+                var ring = Mathf.Abs(Mathf.Sqrt(u * u + (v - 0.18f) * (v - 0.18f)) - 0.34f);
+                var shackle = v > 0.05f ? 1f - Mathf.Clamp01((ring - 0.07f) * 24f) : 0f;
+                // Keyhole: a dot and a slot, cut out of the body.
+                var hole = Mathf.Max(1f - Mathf.Clamp01((Mathf.Sqrt(u * u + (v + 0.2f) * (v + 0.2f)) - 0.1f) * 30f),
+                    Mathf.Abs(u) < 0.04f && v < -0.2f && v > -0.48f ? 1f : 0f);
+                var a = Mathf.Clamp01(Mathf.Max(body * (1f - hole), shackle));
+                px[y * n + x] = new Color(1f, 1f, 1f, a);
+            }
+
+            var tex = new Texture2D(n, n, TextureFormat.RGBA32, true) { name = "SU_Padlock", wrapMode = TextureWrapMode.Clamp };
+            tex.SetPixels32(px);
+            tex.Apply(true, true);
+            return tex;
+        }
+
         const float ChartRadius = ArcRadius + 0.38f;
         const float ChartHalfDeg = ArcHalfDeg + 9f;
         const float ChartLow = 0.42f;
@@ -590,6 +642,9 @@ namespace Core.Stations
                 var view = new NodeView { Node = node, Root = root, Spin = Random.Range(0f, 360f) };
                 var halo = GlowQuad(root, "Halo", Vector3.zero, 0.42f, Quaternion.Euler(0f, 180f, 0f));
                 view.Halo = halo;
+                var padlock = GlowQuad(root, "Lock", new Vector3(-0.075f, -0.05f, 0.06f), 0.11f, Quaternion.Euler(0f, 180f, 0f));
+                padlock.sharedMaterial = LockMaterial;
+                view.Lock = padlock.gameObject;
                 var crystal = CrystalObject(root, "Crystal", 0.13f);
                 view.Crystal = crystal.transform;
                 view.CrystalRenderer = crystal.GetComponent<MeshRenderer>();
@@ -760,6 +815,11 @@ namespace Core.Stations
                     Tint(view.CrystalRenderer, c * 0.85f, 0.75f, 0.15f, 1.4f);
                     scale = 0.75f;
                 }
+
+                // Locked (prerequisites not met, nothing researched): the padlock says it at a glance.
+                var locked = level <= 0 && !met && id != running;
+                if (view.Lock != null && view.Lock.activeSelf != locked)
+                    view.Lock.SetActive(locked);
 
                 if (selected)
                     scale *= 1.35f;

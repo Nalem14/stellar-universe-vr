@@ -75,6 +75,15 @@ public static class ResearchTreeVerify
             Shot(new Vector3(0f, 1.65f, -1.2f), new Vector3(0f, 2.1f, 3.2f), "research-tree.png", 95f);
             Shot(new Vector3(0f, 1.65f, 0f), new Vector3(1.4f, 2.6f, 2.9f), "research-tree-right.png", 60f);
             Shot(new Vector3(0f, 1.65f, 0f), new Vector3(-1.2f, 1.8f, 2.9f), "research-tree-left.png", 60f);
+            var fuel = lab.transform.Find("Constellation/Tech_fuelSynthesis");
+            if (fuel != null)
+            {
+                cam.fieldOfView = 22f;
+                camGo.transform.position = Vector3.Lerp(lt.TransformPoint(new Vector3(0f, 1.65f, 0f)), fuel.position, 0.55f);
+                camGo.transform.LookAt(fuel.position + Vector3.down * 0.08f);
+                Capture(cam, Path.Combine(Path.GetFullPath("Screenshots"), "research-tree-lock.png"));
+            }
+
             return "ok nodes=" + ResearchCatalog.All().Count;
         }
         finally
