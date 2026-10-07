@@ -29,6 +29,8 @@ namespace Core.Audio
             Diplomacy,
             /// <summary>The galactic exchange: a busy floor, cargo lifts in the walls.</summary>
             Market,
+            /// <summary>The fuel refinery: bubbling culture columns, the transfer pump's hum.</summary>
+            Refinery,
             Gate,
             Lab,
             Dock,
@@ -46,6 +48,7 @@ namespace Core.Audio
             Portal,
             Shield,
             City,
+            Refinery,
             Count
         }
 
@@ -140,6 +143,8 @@ namespace Core.Audio
                 return Zone.Diplomacy;
             if (MarketRoom.Inside)
                 return Zone.Market;
+            if (RefineryRoom.Inside)
+                return Zone.Refinery;
             // The citadel's gallery is the city's: wind at the windows, the city's hum.
             if (CorridorRoom.InCitadel)
                 return Zone.Citadel;
@@ -193,6 +198,11 @@ namespace Core.Audio
                     Set(Layer.Lab, 0.07f);
                     Set(Layer.Reactor, 0.05f);
                     break;
+                case Zone.Refinery:
+                    Set(Layer.Refinery, 0.26f);
+                    Set(Layer.Air, 0.07f);
+                    Set(Layer.Reactor, 0.05f);
+                    break;
                 case Zone.Diplomacy:
                     Set(Layer.Ship, 0.16f);
                     Set(Layer.Air, 0.06f);
@@ -229,6 +239,7 @@ namespace Core.Audio
                 Layer.Hangar => SfxSynth.BedClip(SfxSynth.Bed.Hangar),
                 Layer.Lab => SfxSynth.BedClip(SfxSynth.Bed.LabPad),
                 Layer.City => SfxSynth.BedClip(SfxSynth.Bed.City),
+                Layer.Refinery => SfxSynth.BedClip(SfxSynth.Bed.Refinery),
                 Layer.Portal => SfxLibrary.Get(SfxLibrary.PortalIdle),
                 Layer.Shield => SfxLibrary.Get(SfxLibrary.ShieldIdle),
                 _ => null

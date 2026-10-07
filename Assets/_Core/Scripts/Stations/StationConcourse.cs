@@ -8,8 +8,8 @@ namespace Core.Stations
     /// The station's concourse: the corridor's other body, a calm hall in the habitat ring where people pass,
     /// sit and watch the stars. One long wall is a leaning bay window on the hub (the spokes, the far side of
     /// the ring, the planet), with a low step to stand on against the glass and benches facing it; the other wall
-    /// carries the doors in a row of 3 m bays, two of them free for rooms to come (a light garden stands in each
-    /// until then). A soft vault, warm cove light, fibre-light planters, a plank deck. Same local frame as the ship corridor: +z from the bridge
+    /// carries the doors in a row of 3 m bays, one per room (the lab, the dry dock, the exchange, the diplomacy
+    /// chamber, the quarters, the fuel refinery). A soft vault, warm cove light, fibre-light planters, a plank deck. Same local frame as the ship corridor: +z from the bridge
     /// door (z = 0) to the gate (z = <see cref="Length"/>), window on −x (toward the hub), doors on +x.
     /// Two hull materials, a few emissive ones, under twenty draw calls.
     /// </summary>
@@ -24,9 +24,8 @@ namespace Core.Stations
         const float Lean = 0.3f;
         const float Bay = 3f;
 
-        /// <summary>Door bays on the +x wall (centres, z). Rooms use 0, 1, 3, 4; 2 and 5 wait for new rooms.</summary>
+        /// <summary>Door bays on the +x wall (centres, z): every one now opens on a room.</summary>
         static readonly float[] Bays = { 4.5f, 7.5f, 10.5f, 13.5f, 16.5f, 19.5f };
-        static readonly int[] FreeBays = { 5 };
         static readonly float[] Benches = { 6f, 12f, 18f };
         static readonly Vector2[] Planters = { new(-0.9f, 9f), new(-0.9f, 15f), new(2.3f, 1.6f), new(2.3f, 22.4f) };
 
@@ -46,6 +45,7 @@ namespace Core.Stations
             CorridorRoom.Slot.DiplomacyPort => (OnDoorWall(Bays[3]), -90f),
             CorridorRoom.Slot.QuartersStarboard => (OnDoorWall(Bays[4]), -90f),
             CorridorRoom.Slot.MarketPort => (OnDoorWall(Bays[2]), -90f),
+            CorridorRoom.Slot.RefineryStarboard => (OnDoorWall(Bays[5]), -90f),
             _ => (new Vector3(0f, 0f, Length - 0.12f), 180f)
         };
 
@@ -57,7 +57,8 @@ namespace Core.Stations
             (new Vector3(-2.3f, 0f, 2.6f), Vector3.left, false),
             (new Vector3(-2.4f, 0f, 9.9f), new Vector3(-1f, 0f, 0.4f), false),
             (new Vector3(2.4f, 0f, 12f), Vector3.right, true),
-            (new Vector3(1.8f, 0f, 19.5f), Vector3.right, true),
+            // By the glass between two benches (the last bay is the refinery's door now).
+            (new Vector3(-2.4f, 0f, 15.3f), new Vector3(-1f, 0f, -0.2f), false),
             (new Vector3(-2.3f, 0f, 21.6f), new Vector3(-1f, 0f, -0.3f), false)
         };
 
@@ -84,11 +85,9 @@ namespace Core.Stations
             var seat = art.Hull(panel, new Color(0.62f, 0.46f, 0.34f), new Vector2(40f, 40f), seam: 0f, lift: 0.12f);
             var warm = art.Lit(Texture2D.whiteTexture, Warm, 1.0f);
             var cool = art.Lit(Texture2D.whiteTexture, StationCommandShell.Glow, 1.6f);
-            var dim = art.Lit(Texture2D.whiteTexture, new Color(0.03f, 0.05f, 0.07f), 0.3f);
 
             BuildShell(root, wall, vault, deck, frame, warm, cool);
             BuildFurniture(root, seat, frame, warm, cool);
-            BuildFreeBays(root, frame, dim, cool, warm);
             BuildHull(root);
             root.gameObject.SetActive(false);
             return root;
@@ -308,44 +307,6 @@ namespace Core.Stations
             }
 
             mesh.triangles = all;
-        }
-
-        /// <summary>The bays no room uses yet: a recessed light-fall (a curtain of fibres over a dark back).</summary>
-        static void BuildFreeBays(Transform root, Material frame, Material dim, Material cool, Material warm)
-        {
-            var back = new LatheMesh(Vector3.zero);
-            var fall = new LatheMesh(Vector3.zero);
-            var trim = new LatheMesh(Vector3.zero);
-            var seed = 31;
-            float Rand()
-            {
-                seed = seed * 1103515245 + 12345 & 0x7fffffff;
-                return seed / (float)0x7fffffff;
-            }
-
-            foreach (var i in FreeBays)
-            {
-                var z = Bays[i];
-                var x = HalfWidth - 0.015f;
-                back.Quad(new Vector3(x, 0.2f, z - 1.1f), new Vector3(x, 0.2f, z + 1.1f), new Vector3(x, 2.7f, z + 1.1f), new Vector3(x, 2.7f, z - 1.1f),
-                    Vector3.left, 1f);
-                for (var k = 0; k < 46; k++)
-                {
-                    var fz = z - 1f + k * (2f / 45f) + (Rand() - 0.5f) * 0.02f;
-                    var y0 = 0.35f + Rand() * 0.9f;
-                    var fx = x - 0.02f - Rand() * 0.05f;
-                    fall.Quad(new Vector3(fx, y0, fz - 0.004f), new Vector3(fx, y0, fz + 0.004f), new Vector3(fx, 2.62f, fz + 0.004f),
-                        new Vector3(fx, 2.62f, fz - 0.004f), Vector3.left, 1f);
-                }
-
-                // A low ledge in front (a place to stop) and a warm lintel line.
-                Box(trim, new Vector3(HalfWidth - 0.2f, 0.1f, z), new Vector3(0.4f, 0.2f, 2.3f));
-            }
-
-            LatheMesh.Part(root, "BayBacks", back.ToMesh("SU_ConcourseBayBack"), dim);
-            LatheMesh.Part(root, "BayFall", fall.ToMesh("SU_ConcourseBayFall"), cool);
-            LatheMesh.Part(root, "BayLedges", trim.ToMesh("SU_ConcourseBayLedge"), frame);
-            _ = warm;
         }
 
         /// <summary>Solid boxes behind the walls and the glass: a body never slips out of the hall.</summary>

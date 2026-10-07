@@ -37,6 +37,8 @@ namespace Core.Stations
             DiplomacyPort,
             QuartersStarboard,
             MarketPort,
+            /// <summary>A world's fuel refinery: a planet room (fortress or citadel), never aboard a ship.</summary>
+            RefineryStarboard,
             GateEnd
         }
 
@@ -65,7 +67,8 @@ namespace Core.Stations
         static readonly (string door, Slot slot)[] Doors =
         {
             ("LabDoor", Slot.LabPort), ("DockDoor", Slot.DockStarboard), ("DiplomacyDoor", Slot.DiplomacyPort),
-            ("QuartersDoor", Slot.QuartersStarboard), ("MarketDoor", Slot.MarketPort), ("GateDoor", Slot.GateEnd)
+            ("QuartersDoor", Slot.QuartersStarboard), ("MarketDoor", Slot.MarketPort), ("RefineryDoor", Slot.RefineryStarboard),
+            ("GateDoor", Slot.GateEnd)
         };
 
         /// <summary>Where a room's door stands in the corridor (door local +z faces into the corridor).</summary>
@@ -74,6 +77,10 @@ namespace Core.Stations
             : Instance._layoutCitadel ? CitadelGallery.DoorPose(slot)
             : StationConcourse.DoorPose(slot);
 
+        /// <summary>
+        /// The ship's passage only carries the ship's rooms: the exchange and the refinery belong to a world and their
+        /// doors are hidden aboard (they fall back on the far end's pose, never shown).
+        /// </summary>
         static (Vector3 pos, float yaw) ShipDoorPose(Slot slot) => slot switch
         {
             Slot.LabPort => (new Vector3(-HalfWidth + 0.12f, 0f, 4.6f), 90f),

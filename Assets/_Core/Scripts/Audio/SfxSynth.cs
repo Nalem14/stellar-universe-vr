@@ -325,7 +325,9 @@ namespace Core.Audio
             LabPad,
             Holo,
             /// <summary>The citadel's bays open on the city: high wind, the city's low rumble, distant fly-bys.</summary>
-            City
+            City,
+            /// <summary>The fuel refinery: bubbles rising through the culture columns, the pump's slow stroke and hum.</summary>
+            Refinery
         }
 
         static readonly Dictionary<Bed, Task<float[]>> Jobs = new();
@@ -362,6 +364,7 @@ namespace Core.Audio
                 Bed.Hangar => Loop(9f, HangarWave),
                 Bed.LabPad => Loop(8f, LabWave),
                 Bed.City => Loop(12f, CityWave),
+                Bed.Refinery => Loop(8f, RefineryWave),
                 _ => Loop(4f, HoloWave)
             };
         }
@@ -513,6 +516,48 @@ namespace Core.Audio
                 var ph = t * bub - Mathf.Floor(t * bub);
                 var bubble = Mathf.Sin(2f * Mathf.PI * Mathf.Lerp(700f, 1300f, ph) * t) * Mathf.Exp(-ph * 30f) * 0.04f;
                 d[i] = s * 0.07f + bubble;
+            }
+        }
+
+        static void RefineryWave(float[] d, float loop)
+        {
+            // Bubbles (short pitched blips rising in pitch as they swell, scattered at random), a low pump hum with
+            // its second harmonic, and the pump's stroke: a soft whoosh of filtered noise twice per two seconds.
+            var rng = new System.Random(109);
+            var hum = Fit(58f, loop);
+            var hum2 = Fit(116f, loop);
+            var stroke = Fit(1f, loop);
+            float a = 0f, b = 0f;
+            const int count = 46;
+            var at = new float[count];
+            var pitch = new float[count];
+            var size = new float[count];
+            for (var k = 0; k < count; k++)
+            {
+                at[k] = (float)rng.NextDouble() * loop;
+                pitch[k] = 380f + (float)rng.NextDouble() * 900f;
+                size[k] = 0.03f + (float)rng.NextDouble() * 0.05f;
+            }
+
+            for (var i = 0; i < d.Length; i++)
+            {
+                var t = i / (float)Rate;
+                var s = Mathf.Sin(2f * Mathf.PI * hum * t) * 0.09f + Mathf.Sin(2f * Mathf.PI * hum2 * t) * 0.035f;
+                a += ((float)rng.NextDouble() * 2f - 1f - a) * 0.06f;
+                b += (a - b) * 0.06f;
+                var phase = t * stroke - Mathf.Floor(t * stroke);
+                var whoosh = Mathf.Sin(Mathf.PI * Mathf.Clamp01(phase * 2.2f)) * (phase < 0.46f ? 1f : 0f);
+                s += b * 0.9f * whoosh;
+                for (var k = 0; k < count; k++)
+                {
+                    var tc = t - at[k];
+                    if (tc < 0f || tc > 0.09f)
+                        continue;
+                    var env = Mathf.Exp(-tc * 55f) * Mathf.Clamp01(tc * 900f);
+                    s += Mathf.Sin(2f * Mathf.PI * pitch[k] * (1f + tc * 9f) * tc) * env * size[k];
+                }
+
+                d[i] = s;
             }
         }
 

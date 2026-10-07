@@ -103,6 +103,7 @@ namespace Core.App
             Core.Stations.DiplomacyRoom.Build(env.Art);
             Core.Stations.QuartersRoom.Build(env.Art);
             Core.Stations.MarketRoom.Build(env.Art, _focus);
+            Core.Stations.RefineryRoom.Build(env.Art, economy);
             MarketWatch.Build(interior.transform, _focus);
             // One way off the bridge: the aft door opens on the corridor, and every room opens off the corridor.
             var corridor = Core.Stations.CorridorRoom.Build(env.Art, _focus);
@@ -114,6 +115,7 @@ namespace Core.App
             Core.Stations.DiplomacyDoor.Build(corridor.transform, env.Art);
             Core.Stations.QuartersDoor.Build(corridor.transform, env.Art);
             Core.Stations.MarketDoor.Build(corridor.transform, env.Art, _focus);
+            Core.Stations.RefineryDoor.Build(corridor.transform, env.Art, _focus, economy);
             Core.Stations.GateDoor.Build(corridor.transform, env.Art, _focus);
             CrewStationsBuilder.Build(env, env.Art, hex, _zoneMap, _poller, _focus, _loader);
             BridgeViewscreen.Build(env, _focus, _exterior, hex);

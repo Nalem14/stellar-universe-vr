@@ -57,6 +57,8 @@ namespace Core.Stations
             CorridorRoom.Slot.MarketPort => 15.5f,
             CorridorRoom.Slot.DiplomacyPort => 20.5f,
             CorridorRoom.Slot.QuartersStarboard => 25.5f,
+            // Between the quarters and the model's bay (no banner there: the two portals stand close).
+            CorridorRoom.Slot.RefineryStarboard => 28.5f,
             _ => Length
         };
 
@@ -227,7 +229,7 @@ namespace Core.Stations
             foreach (var slot in new[]
                      {
                          CorridorRoom.Slot.LabPort, CorridorRoom.Slot.DockStarboard, CorridorRoom.Slot.MarketPort, CorridorRoom.Slot.DiplomacyPort,
-                         CorridorRoom.Slot.QuartersStarboard
+                         CorridorRoom.Slot.QuartersStarboard, CorridorRoom.Slot.RefineryStarboard
                      })
                 if (Mathf.Abs(Mathf.DeltaAngle(deg, Angle(SlotZ(slot)))) < pad)
                     return true;
@@ -312,7 +314,7 @@ namespace Core.Stations
             foreach (var slot in new[]
                      {
                          CorridorRoom.Slot.LabPort, CorridorRoom.Slot.DockStarboard, CorridorRoom.Slot.MarketPort, CorridorRoom.Slot.DiplomacyPort,
-                         CorridorRoom.Slot.QuartersStarboard
+                         CorridorRoom.Slot.QuartersStarboard, CorridorRoom.Slot.RefineryStarboard
                      })
             {
                 var (pos, yaw) = DoorPose(slot);
