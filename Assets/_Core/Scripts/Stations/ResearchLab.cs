@@ -31,8 +31,8 @@ namespace Core.Stations
         static readonly Vector3 Stand = Vector3.zero;
         const float ArcRadius = 3.2f;
         const float ArcHalfDeg = 62f;
-        const float TreeBase = 0.9f;
-        const float TreeHeight = 2.2f;
+        const float TreeBase = 0.8f;
+        const float TreeHeight = 2.5f;
         const float RoomRadius = 6.0f;
         const float RoomHeight = 4.4f;
         static readonly Vector3 SynthPos = new(1.4f, 0f, 0.1f);
@@ -460,10 +460,46 @@ namespace Core.Stations
         static float Angle(float x, float maxX) =>
             Mathf.Lerp(-ArcHalfDeg, ArcHalfDeg, Mathf.InverseLerp(80f, maxX, x)) * Mathf.Deg2Rad;
 
-        static float Height(float y) => TreeBase + Mathf.InverseLerp(30f, ResearchCatalog.LayoutHeight, y) * TreeHeight;
+        /// <summary>
+        /// Row heights: the layout's rows (its y, rows closer than <see cref="RowMerge"/> merged) spread evenly up the
+        /// wall, ~0.4 m apart — the web's uneven rows (490, 620, 640, 760…) stacked a crystal onto the labels of the
+        /// one under it on the arc.
+        /// </summary>
+        const float RowMerge = 45f;
+
+        static readonly List<float> Rows = new();
+        static IReadOnlyList<TechNode> _rowsFrom;
+
+        static float Height(float y)
+        {
+            var all = ResearchCatalog.All();
+            if (_rowsFrom != all || Rows.Count == 0)
+            {
+                _rowsFrom = all;
+                Rows.Clear();
+                var ys = new List<float>();
+                foreach (var n in all)
+                    ys.Add(n.Y);
+                ys.Sort();
+                foreach (var v in ys)
+                    if (Rows.Count == 0 || v - Rows[Rows.Count - 1] > RowMerge)
+                        Rows.Add(v);
+            }
+
+            var row = 0;
+            for (var i = 0; i < Rows.Count; i++)
+                if (y >= Rows[i] - RowMerge)
+                    row = i;
+            return TreeBase + (Rows.Count > 1 ? row / (float)(Rows.Count - 1) : 0f) * TreeHeight;
+        }
 
         static Vector3 OnArc(float angle, float height) =>
             new(Mathf.Sin(angle) * ArcRadius, height, Mathf.Cos(angle) * ArcRadius);
+
+        Material _tagMat;
+
+        /// <summary>The node tags' one material: an opaque deep-navy plate (the holo shader adds light, it cannot darken).</summary>
+        Material TagMaterial => _tagMat != null ? _tagMat : _tagMat = _art.Lit(Texture2D.whiteTexture, new Color(0.05f, 0.08f, 0.16f, 1f), 1f);
 
         void BuildTree()
         {
@@ -490,6 +526,21 @@ namespace Core.Stations
                 view.Level = UiKit.Label(root, "Level", string.Empty, new Vector3(0f, -0.215f, 0f), 0.6f, 0.032f,
                     UiKit.TextDim);
                 // Labels face local -Z; the root already faces the stand, so turn them back toward it.
+                // A dark holo tag behind name and level: legible on the light walls, the pillars and the band alike.
+                view.Name.ForceMeshUpdate();
+                var width = Mathf.Clamp(view.Name.textBounds.size.x * 0.01f + 0.08f, 0.26f, 0.98f);
+                var tag = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                Object.DestroyImmediate(tag.GetComponent<Collider>());
+                tag.name = "Tag";
+                tag.transform.SetParent(root, false);
+                tag.transform.localPosition = new Vector3(0f, -0.18f, -0.012f);
+                tag.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
+                tag.transform.localScale = new Vector3(width, 0.12f, 1f);
+                var tagRenderer = tag.GetComponent<MeshRenderer>();
+                tagRenderer.sharedMaterial = TagMaterial;
+                tagRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                tagRenderer.receiveShadows = false;
+
                 view.Name.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
                 view.Level.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
 
@@ -607,6 +658,9 @@ namespace Core.Stations
         }
 
         static readonly Color MasteryGold = new(1f, 0.78f, 0.3f);
+        // On the dark tags: a muted slate for what is still locked, a light blue for the level line.
+        static readonly Color LockedText = new(0.62f, 0.7f, 0.84f, 1f);
+        static readonly Color LevelText = new(0.55f, 0.8f, 1f, 1f);
 
         void PaintTree()
         {
@@ -660,12 +714,15 @@ namespace Core.Stations
                 Glow(view.Halo, new Color(halo.r, halo.g, halo.b, haloAlpha));
                 view.Halo.transform.localScale = Vector3.one * (selected ? 0.55f : 0.42f);
 
-                view.Name.color = level > 0 || met ? UiKit.TextBright : new Color(0.55f, 0.62f, 0.72f, 0.75f);
+                // Locked names stay legible on the light lab walls (the outline does the rest).
+                view.Name.color = level > 0 || met ? UiKit.TextBright : LockedText;
+                view.Level.color = LevelText;
                 var line = level > 0 ? Trans.Get("lvl") + " " + level : string.Empty;
                 if (max > 0 && level >= max)
                     line = "MAX";
                 if (stars > 0)
-                    line += "  <color=#e8c040>★" + (stars > 1 ? stars.ToString() : string.Empty) + "</color>";
+                    // ● is in the holo font (★ is not): one gold dot per mastery earned.
+                    line += "  <color=#e8c040>" + new string('●', Mathf.Min(stars, 5)) + "</color>";
                 if (id == running)
                     line = "<color=#e8c040>▲ " + Trans.Get("lvl") + " " + (level + 1) + "</color>";
                 else if (queued)
@@ -1496,7 +1553,7 @@ namespace Core.Stations
                     var at = masteries[i].Level;
                     if (top > 0 && at > top)
                         break;
-                    sb.Append("<size=85%>").Append(Tone((held >= at ? "★ " : "☆ ") + Trans.Get("lvl") + " " + at, held >= at))
+                    sb.Append("<size=85%>").Append(Tone("● " + Trans.Get("lvl") + " " + at, held >= at))
                         .Append("</size><indent=16%>");
                     var first = true;
                     for (; i < masteries.Count && masteries[i].Level == at; i++)

@@ -82,7 +82,7 @@ namespace Core.Stations
             new("gravityTech", 700, 900, 0x9944ff, "physique"),
             new("biotech", 940, 900, 0x44ff88, "biologie"),
             // Fuel synthesis (model/fuel.php): the refinery and the Fuel Tank, late (Biotech 10, fusion 15).
-            new("fuelSynthesis", 1180, 1130, 0x7dffb0, "biologie"),
+            new("fuelSynthesis", 1180, 1130, 0x17c964, "biologie"),
 
             new("psiTech", 820, 1130, 0xcc44ff, "quantique"),
             new("spatialFolding", 760, 1360, 0x20d0e0, "megastructure")
